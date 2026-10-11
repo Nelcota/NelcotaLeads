@@ -114,7 +114,11 @@
   [role="menu"],
   [role="dialog"],
   [role="listbox"],
-  table {
+  table,
+  code,
+  kbd,
+  pre,
+  samp {
     font-family: inherit;
   }
 }
