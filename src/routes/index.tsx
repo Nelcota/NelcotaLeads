@@ -604,7 +604,7 @@ function LeadsTable({
                             : undefined
                       }
                       className={cn(
-                        "h-10 px-4 text-xs font-medium text-muted-foreground",
+                        "h-10 px-4 text-xs font-normal text-muted-foreground",
                         RESPONSIVE[header.column.id],
                       )}
                     >

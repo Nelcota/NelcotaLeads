@@ -171,7 +171,7 @@ export function PageHeader({
           {title}
         </h1>
         {description ? (
-          <p className="mt-2 max-w-2xl text-[16px] leading-relaxed font-light text-muted-foreground">
+          <p className="mt-2 max-w-2xl text-[16px] leading-relaxed text-muted-foreground">
             {description}
           </p>
         ) : null}

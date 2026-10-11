@@ -110,7 +110,7 @@ function SettingsForm({ defaults }: { defaults: SettingsInput }) {
         description="A nota é a soma dos pesos dos critérios que se aplicam a cada empresa, limitada a 100."
         contentClassName="grid gap-2"
       >
-        <div className="grid grid-cols-[1fr_6.5rem_2rem] gap-2 text-xs font-medium text-muted-foreground">
+        <div className="grid grid-cols-[1fr_6.5rem_2rem] gap-2 text-xs text-muted-foreground">
           <span>Sinal</span>
           <span>Peso</span>
         </div>
@@ -262,7 +262,7 @@ function SettingsSection({
   return (
     <section className="grid gap-6 border-t py-10 first:border-t-0 first:pt-2 md:grid-cols-[220px_minmax(0,1fr)] md:gap-10">
       <div>
-        <h2 className="font-medium">{title}</h2>
+        <h2 className="font-semibold">{title}</h2>
         <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{description}</p>
       </div>
       <div className={contentClassName}>{children}</div>

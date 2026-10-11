@@ -109,7 +109,10 @@ function Header({
         {lead.score !== null ? (
           <p className="leading-none">
             <span
-              className={cn("text-2xl font-medium tabular-nums", TIER_TEXT[scoreTier(lead.score)])}
+              className={cn(
+                "text-2xl font-semibold tabular-nums",
+                TIER_TEXT[scoreTier(lead.score)],
+              )}
             >
               {lead.score}
             </span>
@@ -458,7 +461,7 @@ function Section({
   return (
     <section>
       <div className="mb-3 flex min-h-8 items-center justify-between gap-4">
-        <h2 className="text-sm font-medium">{title}</h2>
+        <h2 className="text-sm font-semibold">{title}</h2>
         {action}
       </div>
       {children}

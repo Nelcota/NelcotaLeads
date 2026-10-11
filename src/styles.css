@@ -144,8 +144,7 @@
   h1,
   h2,
   h3,
-  h4,
-  button {
+  h4 {
     font-weight: 500;
   }
   /* Form controls do not inherit fonts by default; make every shadcn primitive use Manrope. */
