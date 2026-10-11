@@ -73,3 +73,38 @@ export const firstMessageSchema = z.object({
     .string()
     .describe("Mensagem curta de primeiro contato em português do Brasil, pronta para WhatsApp."),
 });
+
+export const LEAD_STATUS_VALUES = ["new", "contacted", "replied", "closed", "discarded"] as const;
+export const LEAD_STATUS_LABELS: Record<(typeof LEAD_STATUS_VALUES)[number], string> = {
+  new: "Novo",
+  contacted: "Contatado",
+  replied: "Respondeu",
+  closed: "Fechado",
+  discarded: "Descartado",
+};
+
+export const LEAD_SORT_FIELDS = ["score", "name", "rating", "reviewCount", "createdAt"] as const;
+
+/** Lead list filters; shared by the table, the URL and the CSV export. */
+export const leadFiltersSchema = z.object({
+  q: z.string().trim().max(120).optional(),
+  searchId: z.string().max(64).optional(),
+  status: z.enum(LEAD_STATUS_VALUES).optional(),
+  minScore: z.coerce.number().int().min(0).max(100).optional(),
+  maxScore: z.coerce.number().int().min(0).max(100).optional(),
+  noWebsite: z.preprocess((value) => value === true || value === "true", z.boolean()).optional(),
+  sort: z.enum(LEAD_SORT_FIELDS).optional(),
+  dir: z.enum(["asc", "desc"]).optional(),
+});
+export type LeadFilters = z.infer<typeof leadFiltersSchema>;
+
+export const updateLeadSchema = z.object({
+  id: z.string().min(1),
+  status: z.enum(LEAD_STATUS_VALUES).optional(),
+  notes: z.string().max(5000).optional(),
+});
+
+export const updateMessageSchema = z.object({
+  analysisId: z.string().min(1),
+  firstMessage: z.string().trim().max(2000),
+});

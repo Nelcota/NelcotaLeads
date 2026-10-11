@@ -15,18 +15,21 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-dvh">
       <header className="sticky top-0 z-30 border-b bg-background/80 backdrop-blur">
-        <div className="mx-auto flex h-14 max-w-6xl items-center gap-6 px-4 sm:px-6">
-          <Link to="/" className="flex items-center gap-2 text-[15px] font-medium tracking-tight">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-1 px-4 py-2.5 sm:h-14 sm:flex-nowrap sm:py-0 sm:px-6">
+          <Link
+            to="/"
+            className="flex items-center gap-2 text-[15px] font-medium tracking-tight whitespace-nowrap"
+          >
             <span className="inline-block size-2.5 rounded-full bg-brand" />
             Nelcota Leads
           </Link>
-          <nav className="flex items-center gap-1 text-sm">
+          <nav className="-mx-2.5 order-last flex w-full items-center gap-1 overflow-x-auto text-sm sm:order-none sm:mx-0 sm:w-auto">
             {NAV.map((item) => (
               <Link
                 key={item.to}
                 to={item.to}
                 activeOptions={{ exact: item.to === "/" }}
-                className="rounded-md px-2.5 py-1.5 font-light text-muted-foreground transition-colors hover:text-foreground data-[status=active]:font-medium data-[status=active]:text-foreground"
+                className="rounded-md px-2.5 py-1.5 whitespace-nowrap font-light text-muted-foreground transition-colors hover:text-foreground data-[status=active]:font-medium data-[status=active]:text-foreground"
               >
                 {item.label}
               </Link>

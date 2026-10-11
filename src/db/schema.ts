@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import { index, integer, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
-import type { ScoringCriterion, SiteData } from "@/lib/schemas";
+import { LEAD_STATUS_VALUES, type ScoringCriterion, type SiteData } from "@/lib/schemas";
 
 const timestamps = {
   createdAt: integer("created_at", { mode: "timestamp" })
@@ -43,7 +43,7 @@ export const searches = sqliteTable("searches", {
   ...timestamps,
 });
 
-export const LEAD_STATUSES = ["new", "contacted", "replied", "closed", "discarded"] as const;
+export const LEAD_STATUSES = LEAD_STATUS_VALUES;
 export type LeadStatus = (typeof LEAD_STATUSES)[number];
 
 export const SITE_STATUSES = ["pending", "none", "ok", "unreachable", "blocked"] as const;
