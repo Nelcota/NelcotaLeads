@@ -1,6 +1,7 @@
 /**
- * For more details on how to configure Wrangler, refer to:
- * https://developers.cloudflare.com/workers/wrangler/configuration/
+ * Wrangler configuration: https://developers.cloudflare.com/workers/wrangler/configuration/
+ * Secrets (GOOGLE_PLACES_API_KEY, DEEPSEEK_API_KEY) go in `.dev.vars` locally and
+ * `wrangler secret put` in production, never here.
  */
 {
   "$schema": "node_modules/wrangler/config-schema.json",
@@ -8,36 +9,19 @@
   "compatibility_date": "2026-10-01",
   "compatibility_flags": ["nodejs_compat"],
   "main": "@tanstack/react-start/server-entry",
-  "observability": {
-    "enabled": true,
-  },
+  "observability": { "enabled": true },
   "upload_source_maps": true,
-  /**
-   * Smart Placement
-   * https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
-   */
-  // "placement": {  "mode": "smart" }
-  /**
-   * Bindings
-   * Bindings allow your Worker to interact with resources on the Cloudflare Developer Platform, including
-   * databases, object storage, AI inference, real-time communication and more.
-   * https://developers.cloudflare.com/workers/runtime-apis/bindings/
-   */
-  /**
-   * Environment Variables
-   * https://developers.cloudflare.com/workers/wrangler/configuration/#environment-variables
-   * Note: Use secrets to store sensitive data.
-   * https://developers.cloudflare.com/workers/configuration/secrets/
-   */
-  // "vars": {  "MY_VARIABLE": "production_value" }
-  /**
-   * Static Assets
-   * https://developers.cloudflare.com/workers/static-assets/binding/
-   */
-  // "assets": {  "directory": "./public/",  "binding": "ASSETS" }
-  /**
-   * Service Bindings (communicate between multiple Workers)
-   * https://developers.cloudflare.com/workers/wrangler/configuration/#service-bindings
-   */
-  // "services": [  {   "binding": "MY_SERVICE",   "service": "my-service"  } ]
+  "vars": {
+    "AI_MODEL_ANALYSIS": "deepseek-flash",
+    "AI_MODEL_MESSAGE": "deepseek-v4-pro",
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "nelcota-leads",
+      // Replace with the id printed by `wrangler d1 create nelcota-leads` before deploying.
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "drizzle",
+    },
+  ],
 }
