@@ -3,9 +3,12 @@ import type { LeadFilters } from "@/lib/schemas";
 import { getLead, listLeads } from "@/server/leads";
 import { getProviderStatus, getSearch, listSearches } from "@/server/searches";
 
+const isRunning = (status: string) => status === "collecting" || status === "analyzing";
+
 export const searchesQuery = queryOptions({
   queryKey: ["searches"],
   queryFn: () => listSearches(),
+  refetchInterval: (query) => (query.state.data?.some((s) => isRunning(s.status)) ? 3000 : false),
 });
 
 export const searchQuery = (id: string) =>
@@ -14,9 +17,7 @@ export const searchQuery = (id: string) =>
     queryFn: () => getSearch({ data: { id } }),
     // Poll while the queue is still working on this search.
     refetchInterval: (query) =>
-      query.state.data && ["collecting", "analyzing"].includes(query.state.data.status)
-        ? 2000
-        : false,
+      query.state.data && isRunning(query.state.data.status) ? 2000 : false,
   });
 
 export const providerStatusQuery = queryOptions({

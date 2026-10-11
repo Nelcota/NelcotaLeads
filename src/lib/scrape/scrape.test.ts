@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { extractSite, MAX_TEXT_CHARS } from "./extract";
-import { fetchSite } from "./fetch-site";
+import { fetchSite, USER_AGENT } from "./fetch-site";
 import { isPathAllowed } from "./robots";
 
 const HTML = `<!doctype html><html><head>
@@ -70,6 +70,11 @@ const html = (body: string) =>
   new Response(body, { status: 200, headers: { "content-type": "text/html; charset=utf-8" } });
 
 describe("fetchSite", () => {
+  it("uses an ASCII-only User-Agent (required for HTTP headers)", () => {
+    expect(USER_AGENT).toMatch(/^[\x20-\x7e]+$/);
+    expect(() => new Headers({ "User-Agent": USER_AGENT })).not.toThrow();
+  });
+
   it("reads the page when robots.txt is missing", async () => {
     const fetchFn = vi
       .fn<typeof fetch>()

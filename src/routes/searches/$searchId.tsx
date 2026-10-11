@@ -1,11 +1,12 @@
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { PageHeader } from "@/components/app-shell";
+import { ScoreBadge } from "@/components/lead-badges";
 import { SearchStatusBadge } from "@/components/search-status";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { searchQuery } from "@/lib/queries";
+import { leadsQuery, searchQuery } from "@/lib/queries";
 
 export const Route = createFileRoute("/searches/$searchId")({
   loader: ({ context, params }) =>
@@ -16,6 +17,7 @@ export const Route = createFileRoute("/searches/$searchId")({
 function SearchPage() {
   const { searchId } = Route.useParams();
   const { data: search } = useSuspenseQuery(searchQuery(searchId));
+  const { data: searchLeads } = useQuery(leadsQuery({ searchId }));
   const processed = search.analyzedCount + search.errorCount;
   const percent = search.foundCount > 0 ? Math.round((processed / search.foundCount) * 100) : 100;
 
@@ -52,6 +54,26 @@ function SearchPage() {
           ) : null}
         </CardContent>
       </Card>
+      {searchLeads && searchLeads.length > 0 ? (
+        <ul className="mt-6 divide-y rounded-xl border">
+          {searchLeads.map((lead) => (
+            <li key={lead.id} className="flex items-center justify-between gap-4 px-4 py-3">
+              <Link
+                to="/leads/$leadId"
+                params={{ leadId: lead.id }}
+                className="min-w-0 truncate text-sm hover:underline"
+              >
+                {lead.name}
+              </Link>
+              {lead.analysisStatus === "error" ? (
+                <span className="text-xs text-destructive">erro na análise</span>
+              ) : (
+                <ScoreBadge score={lead.score} pending={lead.analysisStatus === "pending"} />
+              )}
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </>
   );
 }

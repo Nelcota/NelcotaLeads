@@ -1,5 +1,5 @@
 import type { QueryClient } from "@tanstack/react-query";
-import { HeadContent, Scripts, createRootRouteWithContext } from "@tanstack/react-router";
+import { HeadContent, Link, Scripts, createRootRouteWithContext } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { AppShell } from "@/components/app-shell";
 import { Toaster } from "@/components/ui/sonner";
@@ -17,6 +17,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     links: [{ rel: "stylesheet", href: appCss }],
   }),
   shellComponent: RootDocument,
+  notFoundComponent: () => (
+    <div className="py-20 text-center">
+      <h1 className="text-2xl tracking-tight">Página não encontrada</h1>
+      <Link to="/" className="mt-4 inline-block text-sm text-muted-foreground hover:underline">
+        Voltar para os leads
+      </Link>
+    </div>
+  ),
 });
 
 function RootDocument({ children }: { children: ReactNode }) {

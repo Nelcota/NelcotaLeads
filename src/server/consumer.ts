@@ -1,16 +1,18 @@
-import { getDb } from "@/db/client";
-import { getAnalyzer } from "@/lib/ai";
-import { fetchSite } from "@/lib/scrape";
-import { failLead, MAX_ATTEMPTS, processLead } from "./process-lead";
+import { failLead, MAX_ATTEMPTS, processLead, type ProcessDeps } from "./process-lead";
 import type { LeadJob } from "./queue";
 
+export const DEAD_LETTER_QUEUE = "nelcota-leads-analysis-dlq";
+
 /** Queue consumer: one message per lead, processed concurrently within the batch. */
-export async function handleLeadBatch(batch: MessageBatch<LeadJob>, env: Env) {
-  const deps = {
-    db: getDb(env.DB),
-    analyzer: getAnalyzer(env),
-    fetchSite: (url: string) => fetchSite(url),
-  };
+export async function handleLeadBatch(batch: MessageBatch<LeadJob>, deps: ProcessDeps) {
+  // Safety net: messages that exhausted the queue's own retries still get their lead marked.
+  if (batch.queue === DEAD_LETTER_QUEUE) {
+    for (const message of batch.messages) {
+      await failLead(deps.db, message.body, new Error("Falha após todas as tentativas"));
+      message.ack();
+    }
+    return;
+  }
 
   await Promise.all(
     batch.messages.map(async (message) => {
@@ -23,10 +25,14 @@ export async function handleLeadBatch(batch: MessageBatch<LeadJob>, env: Env) {
           await failLead(deps.db, message.body, error);
           message.ack();
         } else {
-          // Exponential backoff: 30s, 60s, ...
-          message.retry({ delaySeconds: 30 * 2 ** (message.attempts - 1) });
+          message.retry({ delaySeconds: retryDelaySeconds(message.attempts) });
         }
       }
     }),
   );
+}
+
+/** Exponential backoff: 30s, 60s, 120s… */
+export function retryDelaySeconds(attempts: number) {
+  return 30 * 2 ** (attempts - 1);
 }

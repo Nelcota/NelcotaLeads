@@ -37,6 +37,8 @@
         "max_retries": 5,
         "dead_letter_queue": "nelcota-leads-analysis-dlq",
       },
+      // Marks leads whose messages exhausted every retry, so searches always finish.
+      { "queue": "nelcota-leads-analysis-dlq", "max_batch_size": 10, "max_retries": 2 },
     ],
   },
 }

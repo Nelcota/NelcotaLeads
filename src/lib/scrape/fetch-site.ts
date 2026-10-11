@@ -2,8 +2,9 @@ import type { SiteData } from "@/lib/schemas";
 import { extractSite } from "./extract";
 import { isPathAllowed } from "./robots";
 
+// Header values must be ASCII.
 export const USER_AGENT =
-  "NelcotaLeadsBot/1.0 (+uso interno; leitura de sites comerciais públicos)";
+  "NelcotaLeadsBot/1.0 (+uso interno; leitura de sites comerciais publicos)";
 const PAGE_TIMEOUT_MS = 10_000;
 const ROBOTS_TIMEOUT_MS = 5_000;
 const MAX_HTML_BYTES = 1_500_000;
