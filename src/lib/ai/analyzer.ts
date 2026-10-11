@@ -53,8 +53,14 @@ export function createDeepSeekAnalyzer(options: {
         temperature: 0.2,
         abortSignal: AbortSignal.timeout(CALL_TIMEOUT_MS),
       });
+      const analysis = leadAnalysisSchema.parse(result.output);
+      // Without an offer nothing counts as an opportunity; enforce it instead of trusting the model.
+      if (!settings.offer.trim()) {
+        analysis.signals = [];
+        analysis.painPoints = [];
+      }
       return {
-        analysis: leadAnalysisSchema.parse(result.output),
+        analysis,
         usage: toUsage(options.analysisModel, result.usage),
       };
     },

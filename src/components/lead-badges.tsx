@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 
 export const TIER_TEXT: Record<ScoreTier, string> = {
   high: "text-tier-high",
-  medium: "text-tier-medium",
+  medium: "text-foreground",
   low: "text-muted-foreground",
 };
 

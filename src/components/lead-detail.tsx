@@ -4,17 +4,22 @@ import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { TIER_TEXT } from "@/components/lead-badges";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import type { Analysis, Lead, LeadStatus, SiteStatus } from "@/db/schema";
 import { formatDate } from "@/lib/format";
 import { whatsappLink } from "@/lib/phone";
-import { leadQuery } from "@/lib/queries";
-import { LEAD_STATUS_LABELS, scoreTier } from "@/lib/schemas";
+import { leadQuery, providerStatusQuery } from "@/lib/queries";
+import { LEAD_STATUS_LABELS, LEAD_STATUS_VALUES, scoreTier } from "@/lib/schemas";
 import { cn } from "@/lib/utils";
 import { generateMessage, reanalyzeLead, updateFirstMessage, updateLead } from "@/server/leads";
-
-const PIPELINE: LeadStatus[] = ["new", "contacted", "replied", "closed"];
 
 const SITE_STATUS_LABELS: Record<SiteStatus, string> = {
   pending: "Ainda não lido",
@@ -32,14 +37,26 @@ export function LeadDetail({ leadId, compact = false }: { leadId: string; compac
   const refreshAll = () =>
     Promise.all([refresh(), queryClient.invalidateQueries({ queryKey: ["leads"] })]);
 
+  // Lives here, not in the composer: saving the message remounts the composer.
+  const [opened, setOpened] = useState(false);
+  const setStatus = useMutation({
+    mutationFn: (status: LeadStatus) => updateLead({ data: { id: leadId, status } }),
+    onSuccess: refreshAll,
+    onError: () => toast.error("Não foi possível atualizar o status"),
+  });
+
   if (!data) return <DetailSkeleton />;
   const { lead, analysis, search } = data;
 
   return (
     <div className="grid gap-10">
-      <div className="grid gap-6">
+      <div className="grid gap-5">
         <Header lead={lead} search={search} onChanged={refreshAll} />
-        <StatusPipeline lead={lead} onChanged={refreshAll} />
+        <StatusSelect
+          value={lead.status}
+          disabled={setStatus.isPending}
+          onChange={(status) => setStatus.mutate(status)}
+        />
       </div>
       <div className={cn("grid gap-10", !compact && "lg:grid-cols-[minmax(0,1fr)_280px]")}>
         <div className="grid min-w-0 content-start gap-10">
@@ -48,6 +65,9 @@ export function LeadDetail({ leadId, compact = false }: { leadId: string; compac
             lead={lead}
             analysis={analysis}
             onChanged={refresh}
+            opened={opened}
+            onOpened={() => setOpened(true)}
+            onMarkContacted={() => setStatus.mutate("contacted")}
           />
           <AnalysisSection lead={lead} analysis={analysis} />
         </div>
@@ -79,7 +99,7 @@ function Header({
   return (
     <div className="flex items-start justify-between gap-6 pr-8">
       <div className="min-w-0">
-        <h1 className="text-xl leading-snug font-medium tracking-tight sm:text-2xl">{lead.name}</h1>
+        <h1 className="text-lg leading-snug font-medium tracking-tight sm:text-xl">{lead.name}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           {search ? `${search.niche}, ${search.city}` : lead.city} · coletado em{" "}
           {formatDate(lead.createdAt)}
@@ -89,7 +109,7 @@ function Header({
         {lead.score !== null ? (
           <p className="leading-none">
             <span
-              className={cn("text-3xl font-medium tabular-nums", TIER_TEXT[scoreTier(lead.score)])}
+              className={cn("text-2xl font-medium tabular-nums", TIER_TEXT[scoreTier(lead.score)])}
             >
               {lead.score}
             </span>
@@ -109,53 +129,37 @@ function Header({
   );
 }
 
-function StatusPipeline({ lead, onChanged }: { lead: Lead; onChanged: () => Promise<unknown> }) {
-  const mutation = useMutation({
-    mutationFn: (status: LeadStatus) => updateLead({ data: { id: lead.id, status } }),
-    onSuccess: onChanged,
-    onError: () => toast.error("Não foi possível atualizar o status"),
-  });
-  const discarded = lead.status === "discarded";
-  const current = PIPELINE.indexOf(lead.status);
-
+function StatusSelect({
+  value,
+  disabled,
+  onChange,
+}: {
+  value: LeadStatus;
+  disabled: boolean;
+  onChange: (status: LeadStatus) => void;
+}) {
   return (
-    <div className="flex flex-wrap items-center gap-3">
-      <ol
-        className={cn(
-          "flex min-w-0 basis-full overflow-hidden rounded-lg border text-[14px] sm:flex-1 sm:basis-auto sm:text-sm",
-          discarded && "opacity-50",
-        )}
-        aria-label="Etapa do contato"
+    <div className="flex items-center gap-3 text-sm">
+      <span className="text-muted-foreground">Status</span>
+      <Select
+        value={value}
+        disabled={disabled}
+        onValueChange={(next) => {
+          const status = LEAD_STATUS_VALUES.find((item) => item === next);
+          if (status) onChange(status);
+        }}
       >
-        {PIPELINE.map((status, index) => (
-          <li key={status} className="min-w-0 flex-1 border-r last:border-r-0">
-            <button
-              type="button"
-              aria-current={lead.status === status ? "step" : undefined}
-              disabled={mutation.isPending || lead.status === status}
-              onClick={() => mutation.mutate(status)}
-              className={cn(
-                "h-9 w-full px-1 whitespace-nowrap transition-colors sm:px-2",
-                !discarded && index <= current
-                  ? "bg-foreground text-background"
-                  : "text-muted-foreground hover:bg-muted",
-                lead.status === status && "cursor-default",
-              )}
-            >
+        <SelectTrigger className="h-9 w-44" aria-label="Status do lead">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {LEAD_STATUS_VALUES.map((status) => (
+            <SelectItem key={status} value={status}>
               {LEAD_STATUS_LABELS[status]}
-            </button>
-          </li>
-        ))}
-      </ol>
-      <Button
-        variant="ghost"
-        size="sm"
-        className="h-9 text-muted-foreground"
-        disabled={mutation.isPending}
-        onClick={() => mutation.mutate(discarded ? "new" : "discarded")}
-      >
-        {discarded ? "Restaurar" : "Descartar"}
-      </Button>
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   );
 }
@@ -164,13 +168,21 @@ function MessageComposer({
   lead,
   analysis,
   onChanged,
+  opened,
+  onOpened,
+  onMarkContacted,
 }: {
   lead: Lead;
   analysis: Analysis | null;
   onChanged: () => Promise<unknown>;
+  opened: boolean;
+  onOpened: () => void;
+  onMarkContacted: () => void;
 }) {
   const [message, setMessage] = useState(analysis?.firstMessage ?? "");
   const saved = analysis?.firstMessage ?? "";
+  const hasMessage = message.trim().length > 0;
+  const dirty = message !== saved && analysis !== null;
 
   const save = useMutation({
     mutationFn: () =>
@@ -193,11 +205,17 @@ function MessageComposer({
     }
   };
 
+  const generateLabel = generate.isPending
+    ? "Escrevendo…"
+    : hasMessage
+      ? "Gerar outra"
+      : "Gerar mensagem";
+
   return (
     <Section
       title="Mensagem"
       action={
-        analysis ? (
+        analysis && hasMessage ? (
           <Button
             variant="ghost"
             size="sm"
@@ -205,7 +223,7 @@ function MessageComposer({
             onClick={() => generate.mutate()}
             disabled={generate.isPending}
           >
-            {generate.isPending ? "Escrevendo…" : saved ? "Gerar outra" : "Gerar mensagem"}
+            {generateLabel}
           </Button>
         ) : null
       }
@@ -215,7 +233,7 @@ function MessageComposer({
         rows={6}
         placeholder={
           analysis
-            ? "Nota abaixo do limite das configurações. Gere uma mensagem ou escreva a sua."
+            ? "A nota ficou abaixo do limite das configurações, então a mensagem não foi escrita. Gere uma ou escreva a sua."
             : "Disponível depois da análise."
         }
         className="min-h-36 resize-y px-3.5 py-3 text-[16px] leading-relaxed"
@@ -224,31 +242,63 @@ function MessageComposer({
         disabled={!analysis || generate.isPending}
       />
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        {lead.phoneE164 ? (
+        {analysis && !hasMessage ? (
+          <Button onClick={() => generate.mutate()} disabled={generate.isPending}>
+            {generateLabel}
+          </Button>
+        ) : null}
+        {!lead.phoneE164 ? (
+          <Button variant="outline" disabled title="O lead não tem um telefone válido">
+            Sem WhatsApp
+          </Button>
+        ) : hasMessage ? (
           <Button asChild>
-            <a href={whatsappLink(lead.phoneE164, message)} target="_blank" rel="noreferrer">
+            <a
+              href={whatsappLink(lead.phoneE164, message)}
+              target="_blank"
+              rel="noreferrer"
+              onClick={() => {
+                if (dirty) save.mutate();
+                onOpened();
+              }}
+            >
               Abrir no WhatsApp
             </a>
           </Button>
         ) : (
-          <Button disabled title="O lead não tem um telefone válido">
-            Sem WhatsApp
+          <Button variant="outline" disabled>
+            Abrir no WhatsApp
           </Button>
         )}
-        <Button variant="outline" onClick={() => void copy()} disabled={!message}>
-          Copiar
-        </Button>
-        {message !== saved && analysis ? (
+        {hasMessage ? (
+          <Button variant="outline" onClick={() => void copy()}>
+            Copiar
+          </Button>
+        ) : null}
+        {dirty ? (
           <Button variant="ghost" onClick={() => save.mutate()} disabled={save.isPending}>
             Salvar edição
           </Button>
         ) : null}
       </div>
+      {opened && lead.status === "new" ? (
+        <p className="mt-4 text-sm text-muted-foreground">
+          Enviou a mensagem?{" "}
+          <button
+            type="button"
+            onClick={onMarkContacted}
+            className="font-medium text-foreground underline underline-offset-4"
+          >
+            Marcar como contatado
+          </button>
+        </p>
+      ) : null}
     </Section>
   );
 }
 
 function AnalysisSection({ lead, analysis }: { lead: Lead; analysis: Analysis | null }) {
+  const { data: status } = useQuery(providerStatusQuery);
   if (!analysis) {
     return (
       <Section title="Análise">
@@ -263,10 +313,24 @@ function AnalysisSection({ lead, analysis }: { lead: Lead; analysis: Analysis | 
   return (
     <Section title="Análise">
       <p className="text-[16px] leading-relaxed">{analysis.summary}</p>
-      <div className="mt-6 grid gap-6 sm:grid-cols-2">
-        <PlainList title="Oportunidades" items={analysis.signals} />
-        <PlainList title="Dores prováveis" items={analysis.painPoints} />
-      </div>
+      {analysis.signals.length > 0 || analysis.painPoints.length > 0 ? (
+        <div className="mt-6 grid gap-6 sm:grid-cols-2">
+          <PlainList title="Oportunidades" items={analysis.signals} />
+          <PlainList title="Dores prováveis" items={analysis.painPoints} />
+        </div>
+      ) : status && !status.offerConfigured ? (
+        <p className="mt-6 text-sm text-muted-foreground">
+          Para ver oportunidades,{" "}
+          <Link to="/settings" className="text-foreground underline underline-offset-4">
+            descreva o que você vende
+          </Link>{" "}
+          e reanalise.
+        </p>
+      ) : (
+        <p className="mt-6 text-sm text-muted-foreground">
+          Nenhuma oportunidade clara para a sua oferta.
+        </p>
+      )}
       <details className="mt-6 text-sm">
         <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
           Como a nota foi calculada

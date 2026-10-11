@@ -64,6 +64,7 @@ export function queryLeads(db: Db, filters: LeadFilters) {
       notes: leads.notes,
       createdAt: leads.createdAt,
       summary: analyses.summary,
+      signals: analyses.signals,
       painPoints: analyses.painPoints,
       firstMessage: analyses.firstMessage,
     })

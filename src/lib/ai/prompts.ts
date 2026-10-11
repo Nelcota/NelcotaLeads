@@ -36,7 +36,9 @@ ${GROUNDING_RULES}
 - Em signals, liste só sinais de oportunidade para a oferta (lacunas, problemas, ausências). Pontos fortes do negócio não são sinais; se não houver nenhum, retorne a lista vazia.
 - No summary, diga em uma ou duas frases o que a empresa faz e para quem, com linguagem simples. Não repita nota, número de avaliações, telefone ou endereço: isso já aparece na tela. Evite fórmulas como "é uma empresa localizada em".
 - Itens de signals e painPoints: frases curtas e concretas, sem adjetivos vagos. Liste só o que se aplica e foi verificado nos dados; não inclua itens descartados, perguntas, dúvidas ou anotações entre parênteses (o que não pôde ser verificado vai só no scoreReasoning).
-- Não aponte erros pequenos (digitação, formatação) como oportunidade.`;
+- Não aponte erros pequenos (digitação, formatação) como oportunidade.
+- Sinais fracos não entram em signals nem em painPoints: ano no rodapé, e-mail Gmail ou Hotmail, falta de uma rede social específica, detalhes de layout, uso de WhatsApp para atendimento. Só entra o que muda a chance de a empresa precisar da oferta.
+- Se a oferta não foi informada, retorne signals e painPoints vazios: sem a oferta não dá para saber o que é oportunidade.`;
 }
 
 export function analysisUserPrompt(settings: SettingsInput, lead: LeadContext) {
@@ -130,7 +132,7 @@ function formatSite({ siteData, siteText }: LeadContext) {
     `Descrição: ${siteData.description ?? "sem meta description"}`,
     `Redes sociais linkadas: ${siteData.socialLinks.join(", ") || "nenhuma"}`,
     `E-mails comerciais no site: ${siteData.emails.join(", ") || "nenhum"}`,
-    `Ano no rodapé (copyright): ${siteData.copyrightYear ?? "não encontrado"}`,
+    ...(siteData.copyrightYear ? [`Ano no rodapé (copyright): ${siteData.copyrightYear}`] : []),
     `Texto do site (truncado):\n<<<\n${siteText ?? ""}\n>>>`,
   ].join("\n");
 }

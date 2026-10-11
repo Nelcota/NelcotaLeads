@@ -25,7 +25,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatDate } from "@/lib/format";
 import { leadCountsQuery, leadsQuery, providerStatusQuery } from "@/lib/queries";
 import {
   LEAD_SORT_FIELDS,
@@ -89,8 +88,13 @@ function LeadsPage() {
 
   const setFilters = (patch: Partial<LeadFilters>) =>
     navigate({ search: (prev) => clean({ ...prev, ...patch }), replace: true });
-  const openLead = (id: string | undefined) =>
-    navigate({ search: (prev) => clean({ ...prev, lead: id }) });
+  const openLead = (id: string | undefined, replace = false) =>
+    navigate({ search: (prev) => clean({ ...prev, lead: id }), replace });
+
+  const ids = data?.map((lead) => lead.id) ?? [];
+  const position = openLeadId ? ids.indexOf(openLeadId) : -1;
+  const prevId = position > 0 ? ids[position - 1] : undefined;
+  const nextId = position >= 0 ? ids[position + 1] : undefined;
 
   const exportHref = `/api/leads.csv?${new URLSearchParams(
     Object.entries(clean(filters)).map(([key, value]) => [key, String(value)]),
@@ -146,7 +150,15 @@ function LeadsPage() {
             Análise, mensagem e dados de contato do lead.
           </SheetDescription>
           {openLeadId ? (
-            <div className="flex-1 overflow-y-auto px-5 pt-6 pb-10 sm:px-8">
+            <div key={openLeadId} className="flex-1 overflow-y-auto px-5 pt-4 pb-10 sm:px-8">
+              {position >= 0 ? (
+                <LeadPager
+                  position={position}
+                  total={ids.length}
+                  onPrev={prevId ? () => void openLead(prevId, true) : undefined}
+                  onNext={nextId ? () => void openLead(nextId, true) : undefined}
+                />
+              ) : null}
               <LeadDetail leadId={openLeadId} compact />
               <div className="mt-10 border-t pt-4">
                 <LeadPageLink leadId={openLeadId} />
@@ -156,6 +168,57 @@ function LeadsPage() {
         </SheetContent>
       </Sheet>
     </>
+  );
+}
+
+/** Previous/next inside the side panel; J and K work as shortcuts. */
+function LeadPager({
+  position,
+  total,
+  onPrev,
+  onNext,
+}: {
+  position: number;
+  total: number;
+  onPrev?: () => void;
+  onNext?: () => void;
+}) {
+  const handlers = useRef({ onPrev, onNext });
+  useEffect(() => {
+    handlers.current = { onPrev, onNext };
+  });
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.metaKey || event.ctrlKey || event.altKey || isTyping(event.target)) return;
+      if (event.key === "j") handlers.current.onNext?.();
+      if (event.key === "k") handlers.current.onPrev?.();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  const link =
+    "underline-offset-4 hover:text-foreground hover:underline disabled:pointer-events-none disabled:opacity-40";
+  return (
+    <div className="mb-6 flex h-8 items-center gap-5 pr-10 text-sm text-muted-foreground">
+      <span className="tabular-nums">
+        {position + 1} de {total}
+      </span>
+      <button type="button" className={link} onClick={onPrev} disabled={!onPrev} title="Atalho: K">
+        Anterior
+      </button>
+      <button type="button" className={link} onClick={onNext} disabled={!onNext} title="Atalho: J">
+        Próximo
+      </button>
+    </div>
+  );
+}
+
+function isTyping(target: EventTarget | null) {
+  return (
+    target instanceof HTMLElement &&
+    (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))
   );
 }
 
@@ -175,7 +238,7 @@ function StatusTabs({
       label: LEAD_STATUS_LABELS[status],
       count: counts?.byStatus[status],
     })),
-  ];
+  ].filter((tab) => tab.value === undefined || tab.value === value || (tab.count ?? 0) > 0);
   return (
     <div className="no-scrollbar -mx-4 mb-5 overflow-x-auto border-b px-4 sm:mx-0 sm:px-0">
       <div role="tablist" aria-label="Status" className="flex gap-6">
@@ -237,10 +300,12 @@ function Toolbar({
 
   const tier = activeTier(filters);
   const customRange = !tier && (filters.minScore !== undefined || filters.maxScore !== undefined);
+  const [showFilters, setShowFilters] = useState(false);
+  const activeFilters = (tier ? 1 : 0) + (filters.noWebsite ? 1 : 0);
 
   return (
     <div className="mb-4 flex flex-wrap items-center gap-2.5">
-      <div className="relative w-full sm:w-72">
+      <div className="relative min-w-0 flex-1 md:w-72 md:flex-none">
         <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           type="search"
@@ -252,33 +317,52 @@ function Toolbar({
         />
       </div>
 
-      <div
-        role="radiogroup"
-        aria-label="Faixa de nota"
-        className="no-scrollbar flex h-9 max-w-full items-center overflow-x-auto rounded-lg border p-0.5 text-sm"
+      <Button
+        variant="outline"
+        className="h-9 md:hidden"
+        aria-expanded={showFilters}
+        onClick={() => setShowFilters((open) => !open)}
       >
-        <Segment
-          checked={!tier && !customRange}
-          onClick={() => onChange({ minScore: undefined, maxScore: undefined })}
-        >
-          Toda nota
-        </Segment>
-        {TIERS.map((key) => (
-          <Segment key={key} checked={tier === key} onClick={() => onChange(TIER_RANGES[key])}>
-            {SCORE_TIERS[key].label}
-            <span className="text-xs text-muted-foreground tabular-nums">
-              {counts?.byTier[key] ?? ""}
-            </span>
-          </Segment>
-        ))}
-      </div>
+        Filtros
+        {activeFilters > 0 ? (
+          <span className="text-muted-foreground tabular-nums">{activeFilters}</span>
+        ) : null}
+      </Button>
 
-      <Chip
-        pressed={filters.noWebsite ?? false}
-        onClick={() => onChange({ noWebsite: filters.noWebsite ? undefined : true })}
+      <div
+        className={cn(
+          "w-full flex-wrap items-center gap-2.5 md:flex md:w-auto",
+          showFilters ? "flex" : "hidden",
+        )}
       >
-        Sem site
-      </Chip>
+        <div
+          role="radiogroup"
+          aria-label="Faixa de nota"
+          className="no-scrollbar flex h-9 max-w-full items-center overflow-x-auto rounded-lg border p-0.5 text-sm"
+        >
+          <Segment
+            checked={!tier && !customRange}
+            onClick={() => onChange({ minScore: undefined, maxScore: undefined })}
+          >
+            Toda nota
+          </Segment>
+          {TIERS.map((key) => (
+            <Segment key={key} checked={tier === key} onClick={() => onChange(TIER_RANGES[key])}>
+              {SCORE_TIERS[key].label}
+              <span className="text-xs text-muted-foreground tabular-nums">
+                {counts?.byTier[key] ?? ""}
+              </span>
+            </Segment>
+          ))}
+        </div>
+
+        <Chip
+          pressed={filters.noWebsite ?? false}
+          onClick={() => onChange({ noWebsite: filters.noWebsite ? undefined : true })}
+        >
+          Sem site
+        </Chip>
+      </div>
 
       {filters.searchId ? (
         <Chip pressed onClick={() => onChange({ searchId: undefined })}>
@@ -347,6 +431,12 @@ function Chip({
   );
 }
 
+const statusColumn = helper.accessor("status", {
+  header: "Status",
+  enableSorting: false,
+  cell: ({ getValue }) => <LeadStatusBadge status={getValue()} />,
+});
+
 const columns = helper.columns([
   helper.accessor("name", {
     header: "Empresa",
@@ -356,10 +446,7 @@ const columns = helper.columns([
         <p className="truncate font-medium" title={row.original.name}>
           {row.original.name}
         </p>
-        <p className="mt-0.5 truncate text-xs text-muted-foreground">
-          {row.original.summary ??
-            (row.original.analysisStatus === "error" ? "Falha na análise" : "Aguardando análise")}
-        </p>
+        <RowHint lead={row.original} />
       </div>
     ),
   }),
@@ -393,23 +480,24 @@ const columns = helper.columns([
         <span className="text-muted-foreground">—</span>
       ),
   }),
-  helper.accessor("status", {
-    header: "Status",
-    enableSorting: false,
-    cell: ({ getValue }) => <LeadStatusBadge status={getValue()} />,
-  }),
-  helper.accessor("createdAt", {
-    header: "Coletado",
-    cell: ({ getValue }) => (
-      <span className="whitespace-nowrap text-muted-foreground">{formatDate(getValue())}</span>
-    ),
-  }),
+  statusColumn,
 ]);
 
 const RESPONSIVE: Record<string, string> = {
-  reviewCount: "hidden xl:table-cell",
-  createdAt: "hidden xl:table-cell",
+  reviewCount: "hidden lg:table-cell",
 };
+const columnsWithoutStatus = columns.filter((column) => column !== statusColumn);
+
+/** Second line under the name: the strongest opportunity, or the analysis state. */
+function RowHint({ lead }: { lead: LeadRow }) {
+  const text =
+    lead.analysisStatus === "pending"
+      ? "Aguardando análise"
+      : lead.analysisStatus === "error"
+        ? "Falha na análise"
+        : lead.signals?.[0];
+  return text ? <p className="mt-0.5 truncate text-xs text-muted-foreground">{text}</p> : null;
+}
 
 function LeadsTable({
   data,
@@ -431,7 +519,7 @@ function LeadsTable({
   ];
   const table = useTable({
     features,
-    columns,
+    columns: filters.status ? columnsWithoutStatus : columns,
     data: data ?? EMPTY,
     manualSorting: true,
     sortDescFirst: true,
@@ -489,10 +577,7 @@ function LeadsTable({
             >
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium">{lead.name}</p>
-                <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-                  <LeadStatusBadge status={lead.status} />
-                  {lead.website ? null : <span>· sem site</span>}
-                </div>
+                <RowHint lead={lead} />
               </div>
               <ScoreBadge score={lead.score} pending={lead.analysisStatus === "pending"} />
             </button>
