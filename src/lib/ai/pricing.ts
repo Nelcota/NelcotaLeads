@@ -10,7 +10,7 @@ const PRICING: Record<string, { input: number; cachedInput: number; output: numb
 
 export type TokenUsage = { inputTokens: number; cachedInputTokens: number; outputTokens: number };
 
-/** Estimated cost in USD; unknown models (e.g. the mock) cost 0. */
+/** Estimated cost in USD; models without a known price are reported as 0. */
 export function estimateCostUsd(model: string, usage: TokenUsage): number {
   const price = PRICING[model];
   if (!price) return 0;

@@ -16,7 +16,7 @@ import {
   StarIcon,
   XIcon,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { PageHeader } from "@/components/app-shell";
 import { LeadStatusBadge, ScoreBadge } from "@/components/lead-badges";
 import { Button } from "@/components/ui/button";
@@ -48,6 +48,7 @@ import {
   leadFiltersSchema,
   type LeadFilters,
 } from "@/lib/schemas";
+import { cn } from "@/lib/utils";
 import type { LeadRow } from "@/server/leads-query";
 
 export const Route = createFileRoute("/")({
@@ -61,31 +62,36 @@ const features = tableFeatures({ rowSortingFeature });
 const helper = createColumnHelper<typeof features, LeadRow>();
 const EMPTY: LeadRow[] = [];
 
+/** Columns that collapse on smaller screens; name, score and status always stay. */
+const RESPONSIVE: Record<string, string> = {
+  city: "hidden lg:table-cell",
+  phone: "hidden md:table-cell",
+  website: "hidden xl:table-cell",
+  reviewCount: "hidden md:table-cell",
+  createdAt: "hidden xl:table-cell",
+};
+
 const columns = helper.columns([
   helper.accessor("name", {
     header: "Empresa",
     sortDescFirst: false,
     cell: ({ row }) => (
-      <div className="max-w-64 min-w-40">
+      <div className="max-w-72 min-w-44">
+        {/* The ::after overlay makes the whole row clickable. */}
         <Link
           to="/leads/$leadId"
           params={{ leadId: row.original.id }}
-          className="font-medium hover:underline"
+          title={row.original.name}
+          className="block truncate font-medium after:absolute after:inset-0 hover:underline"
         >
           {row.original.name}
         </Link>
-        {row.original.summary ? (
-          <p className="mt-0.5 truncate text-xs font-light text-muted-foreground">
-            {row.original.summary}
-          </p>
-        ) : null}
+        <p className="mt-0.5 truncate text-xs text-muted-foreground">
+          {row.original.summary ??
+            (row.original.analysisStatus === "error" ? "Falha na análise" : "Aguardando análise")}
+        </p>
       </div>
     ),
-  }),
-  helper.accessor("city", {
-    header: "Cidade",
-    enableSorting: false,
-    cell: ({ getValue }) => <span className="font-light">{getValue() ?? "—"}</span>,
   }),
   helper.accessor("score", {
     header: "Nota",
@@ -93,11 +99,16 @@ const columns = helper.columns([
       <ScoreBadge score={row.original.score} pending={row.original.analysisStatus === "pending"} />
     ),
   }),
+  helper.accessor("city", {
+    header: "Cidade",
+    enableSorting: false,
+    cell: ({ getValue }) => getValue() ?? "—",
+  }),
   helper.accessor("phone", {
     header: "Telefone",
     enableSorting: false,
     cell: ({ getValue }) => (
-      <span className="whitespace-nowrap font-light tabular-nums">{getValue() ?? "—"}</span>
+      <span className="whitespace-nowrap tabular-nums">{getValue() ?? "—"}</span>
     ),
   }),
   helper.accessor("website", {
@@ -105,33 +116,26 @@ const columns = helper.columns([
     enableSorting: false,
     cell: ({ row }) =>
       row.original.website ? (
-        <a
-          href={row.original.website}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground"
-          title={row.original.website}
-        >
-          <GlobeIcon className="size-3.5" />
-          <span className="max-w-28 truncate font-light">{hostOf(row.original.website)}</span>
-        </a>
+        <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+          <GlobeIcon className="size-3.5 shrink-0" />
+          <span className="max-w-36 truncate">{hostOf(row.original.website)}</span>
+        </span>
       ) : (
-        <span className="text-xs font-light text-muted-foreground">sem site</span>
+        <span className="text-muted-foreground">Sem site</span>
       ),
   }),
   helper.accessor("reviewCount", {
     header: "Avaliações",
-    cell: ({ row }) => (
-      <span className="inline-flex items-center gap-1 whitespace-nowrap font-light tabular-nums">
-        {row.original.rating !== null ? (
-          <>
-            <StarIcon className="size-3.5 fill-warning text-warning" />
-            {row.original.rating.toFixed(1)}
-          </>
-        ) : null}
-        <span className="text-muted-foreground">({row.original.reviewCount ?? 0})</span>
-      </span>
-    ),
+    cell: ({ row }) =>
+      row.original.rating !== null ? (
+        <span className="inline-flex items-center gap-1 whitespace-nowrap tabular-nums">
+          <StarIcon className="size-3.5 fill-warning text-warning" />
+          {row.original.rating.toFixed(1)}
+          <span className="text-muted-foreground">({row.original.reviewCount ?? 0})</span>
+        </span>
+      ) : (
+        <span className="text-muted-foreground">—</span>
+      ),
   }),
   helper.accessor("status", {
     header: "Status",
@@ -139,14 +143,21 @@ const columns = helper.columns([
     cell: ({ getValue }) => <LeadStatusBadge status={getValue()} />,
   }),
   helper.accessor("createdAt", {
-    header: "Data",
+    header: "Coletado",
     cell: ({ getValue }) => (
-      <span className="whitespace-nowrap font-light text-muted-foreground">
-        {formatDate(getValue())}
-      </span>
+      <span className="whitespace-nowrap text-muted-foreground">{formatDate(getValue())}</span>
     ),
   }),
 ]);
+
+const NO_FILTERS: Partial<LeadFilters> = {
+  q: undefined,
+  status: undefined,
+  minScore: undefined,
+  maxScore: undefined,
+  noWebsite: undefined,
+  searchId: undefined,
+};
 
 function LeadsPage() {
   const filters = Route.useSearch();
@@ -154,6 +165,7 @@ function LeadsPage() {
   const { data, isFetching } = useQuery(leadsQuery(filters));
   const setFilters = (patch: Partial<LeadFilters>) =>
     navigate({ search: (prev) => clean({ ...prev, ...patch }), replace: true });
+  const filtered = hasFilters(filters);
 
   const sorting: SortingState = [
     { id: filters.sort ?? "score", desc: (filters.dir ?? "desc") === "desc" },
@@ -177,44 +189,62 @@ function LeadsPage() {
   const exportHref = `/api/leads.csv?${new URLSearchParams(
     Object.entries(clean(filters)).map(([key, value]) => [key, String(value)]),
   ).toString()}`;
+  const count = data?.length ?? 0;
 
   return (
     <>
       <PageHeader
         title="Leads"
-        description="Qualificados por IA e ordenados por nota. O contato é sempre feito por você."
+        description="Empresas qualificadas pela IA, da maior para a menor nota. O contato é sempre feito por você."
         actions={
-          <Button asChild variant="outline">
-            <a href={exportHref} download>
-              <DownloadIcon /> Exportar CSV
-            </a>
-          </Button>
+          count > 0 ? (
+            <Button asChild variant="outline">
+              <a href={exportHref} download>
+                <DownloadIcon /> Exportar CSV
+              </a>
+            </Button>
+          ) : null
         }
       />
 
       <Filters filters={filters} onChange={(patch) => void setFilters(patch)} />
 
-      <div className="mt-4 overflow-x-auto rounded-xl border">
+      <div className="mt-5 overflow-hidden rounded-xl border bg-card">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((group) => (
-              <TableRow key={group.id} className="hover:bg-transparent">
+              <TableRow key={group.id} className="bg-muted/40 hover:bg-muted/40">
                 {group.headers.map((header) => {
                   const sorted = header.column.getIsSorted();
-                  const canSort = header.column.getCanSort();
                   return (
-                    <TableHead key={header.id} className="font-medium">
-                      {canSort ? (
+                    <TableHead
+                      key={header.id}
+                      aria-sort={
+                        sorted === "asc"
+                          ? "ascending"
+                          : sorted === "desc"
+                            ? "descending"
+                            : undefined
+                      }
+                      className={cn(
+                        "h-10 text-xs font-medium text-muted-foreground",
+                        RESPONSIVE[header.column.id],
+                      )}
+                    >
+                      {header.column.getCanSort() ? (
                         <button
                           type="button"
-                          className="inline-flex items-center gap-1 hover:text-foreground"
+                          className={cn(
+                            "inline-flex items-center gap-1 transition-colors hover:text-foreground",
+                            sorted && "text-foreground",
+                          )}
                           onClick={header.column.getToggleSortingHandler()}
                         >
                           <table.FlexRender header={header} />
                           {sorted === "desc" ? (
-                            <ArrowDownIcon className="size-3.5" />
+                            <ArrowDownIcon className="size-3" />
                           ) : sorted === "asc" ? (
-                            <ArrowUpIcon className="size-3.5" />
+                            <ArrowUpIcon className="size-3" />
                           ) : null}
                         </button>
                       ) : (
@@ -229,20 +259,39 @@ function LeadsPage() {
           <TableBody>
             {data === undefined ? (
               <LoadingRows />
-            ) : table.getRowModel().rows.length === 0 ? (
+            ) : count === 0 ? (
               <TableRow className="hover:bg-transparent">
-                <TableCell colSpan={columns.length} className="py-16 text-center">
-                  <p className="font-light text-muted-foreground">Nenhum lead encontrado.</p>
-                  <Button asChild size="sm" className="mt-4">
-                    <Link to="/searches/new">Fazer uma busca</Link>
-                  </Button>
+                <TableCell colSpan={columns.length} className="py-20 text-center whitespace-normal">
+                  {filtered ? (
+                    <>
+                      <p className="font-medium">Nenhum lead com esses filtros</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-4"
+                        onClick={() => void setFilters(NO_FILTERS)}
+                      >
+                        Limpar filtros
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <p className="font-medium">Nenhum lead ainda</p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Faça uma busca por nicho e cidade para começar.
+                      </p>
+                      <Button asChild size="sm" className="mt-5">
+                        <Link to="/searches/new">Nova busca</Link>
+                      </Button>
+                    </>
+                  )}
                 </TableCell>
               </TableRow>
             ) : (
               table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id}>
+                <TableRow key={row.id} className="relative">
                   {row.getAllCells().map((cell) => (
-                    <TableCell key={cell.id}>
+                    <TableCell key={cell.id} className={cn("py-3", RESPONSIVE[cell.column.id])}>
                       <table.FlexRender cell={cell} />
                     </TableCell>
                   ))}
@@ -252,9 +301,9 @@ function LeadsPage() {
           </TableBody>
         </Table>
       </div>
-      <p className="mt-3 text-xs font-light text-muted-foreground">
-        {data ? `${data.length} lead${data.length === 1 ? "" : "s"}` : ""}
-        {isFetching ? " · atualizando…" : ""}
+      <p className="mt-3 text-xs text-muted-foreground" aria-live="polite">
+        {data ? `${count} ${count === 1 ? "lead" : "leads"}` : ""}
+        {isFetching && data ? " · atualizando…" : ""}
       </p>
     </>
   );
@@ -268,21 +317,34 @@ function Filters({
   onChange: (patch: Partial<LeadFilters>) => void;
 }) {
   const [q, setQ] = useState(filters.q ?? "");
+  const onChangeRef = useRef(onChange);
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  });
+
+  // Keep the box in sync when filters are cleared elsewhere (state adjusted during render).
+  const [syncedQ, setSyncedQ] = useState(filters.q);
+  if (filters.q !== syncedQ) {
+    setSyncedQ(filters.q);
+    setQ(filters.q ?? "");
+  }
+
   // Debounce free-text search so each keystroke does not hit the server.
   useEffect(() => {
     const timer = setTimeout(() => {
-      if ((filters.q ?? "") !== q) onChange({ q: q || undefined });
+      if ((filters.q ?? "") !== q) onChangeRef.current({ q: q || undefined });
     }, 300);
     return () => clearTimeout(timer);
-  }, [q, filters.q, onChange]);
+  }, [q, filters.q]);
 
-  const hasFilters = Object.keys(clean({ ...filters, sort: undefined, dir: undefined })).length > 0;
+  const statusLabel = filters.status ? LEAD_STATUS_LABELS[filters.status] : "Todos os status";
 
   return (
-    <div className="flex flex-wrap items-end gap-3">
+    <div className="flex flex-wrap items-center gap-2.5">
       <div className="relative w-full sm:w-64">
         <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
+          type="search"
           aria-label="Buscar por nome"
           placeholder="Buscar por nome"
           className="pl-8"
@@ -293,13 +355,11 @@ function Filters({
       <Select
         value={filters.status ?? "all"}
         onValueChange={(value) =>
-          onChange({
-            status: LEAD_STATUS_VALUES.find((status) => status === value),
-          })
+          onChange({ status: LEAD_STATUS_VALUES.find((status) => status === value) })
         }
       >
         <SelectTrigger className="w-40" aria-label="Status">
-          <SelectValue />
+          <SelectValue>{statusLabel}</SelectValue>
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">Todos os status</SelectItem>
@@ -311,29 +371,21 @@ function Filters({
         </SelectContent>
       </Select>
       <div className="flex items-center gap-1.5">
-        <Input
-          aria-label="Nota mínima"
-          type="number"
-          min={0}
-          max={100}
+        <ScoreInput
+          label="Nota mínima"
           placeholder="Nota mín."
-          className="w-24"
-          defaultValue={filters.minScore}
-          onBlur={(event) => onChange({ minScore: toScore(event.target.value) })}
+          value={filters.minScore}
+          onCommit={(minScore) => onChange({ minScore })}
         />
         <span className="text-muted-foreground">–</span>
-        <Input
-          aria-label="Nota máxima"
-          type="number"
-          min={0}
-          max={100}
+        <ScoreInput
+          label="Nota máxima"
           placeholder="Nota máx."
-          className="w-24"
-          defaultValue={filters.maxScore}
-          onBlur={(event) => onChange({ maxScore: toScore(event.target.value) })}
+          value={filters.maxScore}
+          onCommit={(maxScore) => onChange({ maxScore })}
         />
       </div>
-      <Label className="flex h-9 items-center gap-2 font-light">
+      <Label className="flex h-8 cursor-pointer items-center gap-2 rounded-lg border px-3 font-normal">
         <Checkbox
           checked={filters.noWebsite ?? false}
           onCheckedChange={(checked) => onChange({ noWebsite: checked === true || undefined })}
@@ -342,25 +394,11 @@ function Filters({
       </Label>
       {filters.searchId ? (
         <Button variant="secondary" size="sm" onClick={() => onChange({ searchId: undefined })}>
-          Apenas uma busca <XIcon />
+          Só desta busca <XIcon />
         </Button>
       ) : null}
-      {hasFilters ? (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => {
-            setQ("");
-            onChange({
-              q: undefined,
-              status: undefined,
-              minScore: undefined,
-              maxScore: undefined,
-              noWebsite: undefined,
-              searchId: undefined,
-            });
-          }}
-        >
+      {hasFilters(filters) ? (
+        <Button variant="ghost" size="sm" onClick={() => onChange(NO_FILTERS)}>
           Limpar filtros
         </Button>
       ) : null}
@@ -368,14 +406,52 @@ function Filters({
   );
 }
 
+/** Applies on blur or Enter, so typing "75" does not filter by 7 first. */
+function ScoreInput({
+  label,
+  placeholder,
+  value,
+  onCommit,
+}: {
+  label: string;
+  placeholder: string;
+  value: number | undefined;
+  onCommit: (value: number | undefined) => void;
+}) {
+  return (
+    <Input
+      key={value ?? "empty"}
+      aria-label={label}
+      type="number"
+      inputMode="numeric"
+      min={0}
+      max={100}
+      placeholder={placeholder}
+      className="w-[6.5rem]"
+      defaultValue={value}
+      onBlur={(event) => {
+        const next = toScore(event.target.value);
+        if (next !== value) onCommit(next);
+      }}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") event.currentTarget.blur();
+      }}
+    />
+  );
+}
+
 function LoadingRows() {
-  return Array.from({ length: 5 }, (_, i) => (
-    <TableRow key={i}>
+  return Array.from({ length: 6 }, (_, i) => (
+    <TableRow key={i} className="hover:bg-transparent">
       <TableCell colSpan={columns.length}>
-        <Skeleton className="h-6 w-full" />
+        <Skeleton className="h-8 w-full" />
       </TableCell>
     </TableRow>
   ));
+}
+
+function hasFilters(filters: LeadFilters) {
+  return Object.keys(clean({ ...filters, sort: undefined, dir: undefined })).length > 0;
 }
 
 function clean(filters: LeadFilters): LeadFilters {

@@ -7,11 +7,13 @@ import { searches } from "@/db/schema";
 import { getPlacesProvider } from "@/lib/places";
 import { newSearchSchema } from "@/lib/schemas";
 import { runSearch } from "./collect";
+import { loadSettings } from "./settings-store";
 import { GOOGLE_PLACES, placesDailyLimit, requestsToday, reserveRequest } from "./usage";
 
 export const createSearch = createServerFn({ method: "POST" })
-  .inputValidator(newSearchSchema)
+  .validator(newSearchSchema)
   .handler(({ data }) => {
+    if (!env.DEEPSEEK_API_KEY) throw new Error("Configure a DEEPSEEK_API_KEY antes de buscar.");
     const db = getDb();
     const limit = placesDailyLimit(env.PLACES_DAILY_REQUEST_LIMIT);
     const provider = getPlacesProvider(env.GOOGLE_PLACES_API_KEY, () =>
@@ -25,18 +27,24 @@ export const listSearches = createServerFn({ method: "GET" }).handler(() =>
 );
 
 export const getSearch = createServerFn({ method: "GET" })
-  .inputValidator(z.object({ id: z.string().min(1) }))
+  .validator(z.object({ id: z.string().min(1) }))
   .handler(async ({ data }) => {
     const search = await getDb().query.searches.findFirst({ where: eq(searches.id, data.id) });
     if (!search) throw new Error("Busca não encontrada");
     return search;
   });
 
-export const getProviderStatus = createServerFn({ method: "GET" }).handler(async () => ({
-  places: env.GOOGLE_PLACES_API_KEY ? ("google" as const) : ("mock" as const),
-  ai: env.DEEPSEEK_API_KEY ? ("deepseek" as const) : ("mock" as const),
-  placesUsage: {
-    used: await requestsToday(getDb(), GOOGLE_PLACES),
-    limit: placesDailyLimit(env.PLACES_DAILY_REQUEST_LIMIT),
-  },
-}));
+/** What the search form needs to know before letting a search start. */
+export const getProviderStatus = createServerFn({ method: "GET" }).handler(async () => {
+  const db = getDb();
+  const settings = await loadSettings(db);
+  return {
+    placesConfigured: Boolean(env.GOOGLE_PLACES_API_KEY),
+    aiConfigured: Boolean(env.DEEPSEEK_API_KEY),
+    offerConfigured: settings.offer.length > 0,
+    placesUsage: {
+      used: await requestsToday(db, GOOGLE_PLACES),
+      limit: placesDailyLimit(env.PLACES_DAILY_REQUEST_LIMIT),
+    },
+  };
+});

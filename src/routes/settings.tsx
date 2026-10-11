@@ -2,7 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { queryOptions, useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { PlusIcon, Trash2Icon } from "lucide-react";
-import { Controller, useFieldArray, useForm } from "react-hook-form";
+import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/app-shell";
 import { Field } from "@/components/field";
@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { settingsInputSchema, TONE_LABELS, TONES, type SettingsInput } from "@/lib/schemas";
+import { cn } from "@/lib/utils";
 import { getSettings, saveSettings } from "@/server/settings";
 
 const settingsQuery = queryOptions({ queryKey: ["settings"], queryFn: () => getSettings() });
@@ -27,16 +28,22 @@ export const Route = createFileRoute("/settings")({
   component: SettingsPage,
 });
 
+const TONE_HINTS: Record<SettingsInput["tone"], string> = {
+  formal: "Cordial e respeitoso, sem intimidade.",
+  consultivo: "Mostra que entendeu o negócio e oferece ajuda.",
+  direto: "Curto e objetivo, vai direto ao ponto.",
+};
+
 function SettingsPage() {
   const { data } = useSuspenseQuery(settingsQuery);
   return (
-    <>
+    <div className="mx-auto max-w-3xl">
       <PageHeader
         title="O que eu vendo"
-        description="Essas informações orientam a IA na análise, na nota e na mensagem de abordagem."
+        description="A IA usa estas informações para analisar cada empresa, dar a nota e escrever a mensagem."
       />
       <SettingsForm defaults={data} />
-    </>
+    </div>
   );
 }
 
@@ -47,44 +54,63 @@ function SettingsForm({ defaults }: { defaults: SettingsInput }) {
     defaultValues: defaults,
   });
   const criteria = useFieldArray({ control: form.control, name: "criteria" });
+  const watchedCriteria = useWatch({ control: form.control, name: "criteria" });
+  const tone = useWatch({ control: form.control, name: "tone" });
   const { errors, isDirty } = form.formState;
+  const maxScore = (watchedCriteria ?? []).reduce(
+    (sum, c) => sum + (Number.isFinite(c.weight) && c.weight > 0 ? c.weight : 0),
+    0,
+  );
 
   const mutation = useMutation({
     mutationFn: (data: SettingsInput) => saveSettings({ data }),
     onSuccess: async (_result, data) => {
       form.reset(data);
       await queryClient.invalidateQueries({ queryKey: settingsQuery.queryKey });
+      await queryClient.invalidateQueries({ queryKey: ["provider-status"] });
       toast.success("Configurações salvas");
     },
     onError: () => toast.error("Não foi possível salvar as configurações"),
   });
 
+  // Inputs get explicit defaultValue so the server-rendered HTML is already filled in.
   return (
     <form
-      className="grid gap-6"
+      className="grid gap-6 pb-24"
       onSubmit={(event) => void form.handleSubmit((data) => mutation.mutate(data))(event)}
       noValidate
     >
       <Card>
         <CardHeader>
           <CardTitle>Oferta e cliente ideal</CardTitle>
-          <CardDescription className="font-light">Texto livre, em português.</CardDescription>
+          <CardDescription>Quanto mais específico, melhor a nota e a mensagem.</CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-5">
+        <CardContent className="grid gap-6">
           <Field
-            label="Descrição da oferta"
+            label="O que você oferece"
             htmlFor="offer"
-            hint="Ex.: criação de sites e automação para clínicas"
+            hint="Ex.: criação de sites e automação de agendamento para clínicas odontológicas"
             error={errors.offer?.message}
           >
-            <Textarea id="offer" rows={3} {...form.register("offer")} />
+            <Textarea
+              id="offer"
+              rows={3}
+              defaultValue={defaults.offer}
+              {...form.register("offer")}
+            />
           </Field>
           <Field
-            label="Perfil de cliente ideal"
+            label="Para quem"
             htmlFor="idealCustomer"
+            hint="Ex.: clínicas pequenas, sem site ou com site antigo, que dependem de indicação"
             error={errors.idealCustomer?.message}
           >
-            <Textarea id="idealCustomer" rows={3} {...form.register("idealCustomer")} />
+            <Textarea
+              id="idealCustomer"
+              rows={3}
+              defaultValue={defaults.idealCustomer}
+              {...form.register("idealCustomer")}
+            />
           </Field>
         </CardContent>
       </Card>
@@ -92,42 +118,45 @@ function SettingsForm({ defaults }: { defaults: SettingsInput }) {
       <Card>
         <CardHeader>
           <CardTitle>Critérios de pontuação</CardTitle>
-          <CardDescription className="font-light">
-            Sinais e pesos que a IA usa para compor a nota de 0 a 100.
+          <CardDescription>
+            A nota é a soma dos pesos dos critérios que se aplicam a cada empresa, limitada a 100.
           </CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-3">
+        <CardContent className="grid gap-2">
+          <div className="grid grid-cols-[1fr_6.5rem_2rem] gap-2 text-xs font-medium text-muted-foreground">
+            <span>Sinal</span>
+            <span>Peso</span>
+          </div>
           {criteria.fields.map((field, index) => (
-            <div key={field.id} className="flex items-start gap-2">
-              <div className="flex-1">
-                <Input
-                  aria-label="Sinal"
-                  {...form.register(`criteria.${index}.label`)}
-                  aria-invalid={Boolean(errors.criteria?.[index]?.label)}
-                />
-              </div>
-              <div className="flex w-28 items-center gap-1.5">
-                <span className="text-sm font-light text-muted-foreground">+</span>
-                <Input
-                  aria-label="Peso"
-                  type="number"
-                  className="tabular-nums"
-                  {...form.register(`criteria.${index}.weight`, { valueAsNumber: true })}
-                  aria-invalid={Boolean(errors.criteria?.[index]?.weight)}
-                />
-              </div>
+            <div key={field.id} className="grid grid-cols-[1fr_6.5rem_2rem] items-start gap-2">
+              <Input
+                aria-label={`Sinal ${index + 1}`}
+                defaultValue={field.label}
+                {...form.register(`criteria.${index}.label`)}
+                aria-invalid={Boolean(errors.criteria?.[index]?.label)}
+              />
+              <Input
+                aria-label={`Peso ${index + 1}`}
+                type="number"
+                inputMode="numeric"
+                className="tabular-nums"
+                defaultValue={field.weight}
+                {...form.register(`criteria.${index}.weight`, { valueAsNumber: true })}
+                aria-invalid={Boolean(errors.criteria?.[index]?.weight)}
+              />
               <Button
                 type="button"
                 variant="ghost"
                 size="icon"
-                aria-label="Remover critério"
+                aria-label={`Remover critério ${index + 1}`}
+                className="text-muted-foreground hover:text-destructive"
                 onClick={() => criteria.remove(index)}
               >
                 <Trash2Icon />
               </Button>
             </div>
           ))}
-          <div>
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
             <Button
               type="button"
               variant="outline"
@@ -136,31 +165,40 @@ function SettingsForm({ defaults }: { defaults: SettingsInput }) {
             >
               <PlusIcon /> Adicionar critério
             </Button>
+            <p className="text-xs text-muted-foreground">
+              Soma dos pesos positivos:{" "}
+              <span
+                className={cn("font-medium tabular-nums", maxScore !== 100 && "text-foreground")}
+              >
+                {maxScore}
+              </span>
+              {maxScore < 100 ? " (a nota máxima possível fica abaixo de 100)" : null}
+            </p>
           </div>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Abordagem</CardTitle>
-          <CardDescription className="font-light">
-            Tom e assinatura da mensagem sugerida. O envio é sempre manual.
+          <CardTitle>Mensagem de abordagem</CardTitle>
+          <CardDescription>
+            A IA escreve uma mensagem para os leads com nota alta. O envio é sempre manual.
           </CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-5 sm:grid-cols-2">
-          <Field label="Tom da mensagem">
+        <CardContent className="grid gap-6 sm:grid-cols-2">
+          <Field label="Tom" hint={TONE_HINTS[tone]}>
             <Controller
               control={form.control}
               name="tone"
               render={({ field }) => (
                 <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
+                  <SelectTrigger className="w-full" aria-label="Tom da mensagem">
+                    <SelectValue>{TONE_LABELS[field.value]}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    {TONES.map((tone) => (
-                      <SelectItem key={tone} value={tone}>
-                        {TONE_LABELS[tone]}
+                    {TONES.map((value) => (
+                      <SelectItem key={value} value={value}>
+                        {TONE_LABELS[value]}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -171,30 +209,60 @@ function SettingsForm({ defaults }: { defaults: SettingsInput }) {
           <Field
             label="Gerar mensagem a partir da nota"
             htmlFor="threshold"
-            hint="Leads com nota igual ou acima deste valor recebem mensagem sugerida."
+            hint="Abaixo disso, você ainda pode gerar na página do lead."
             error={errors.messageScoreThreshold?.message}
           >
             <Input
               id="threshold"
               type="number"
+              inputMode="numeric"
               min={0}
               max={100}
+              defaultValue={defaults.messageScoreThreshold}
               {...form.register("messageScoreThreshold", { valueAsNumber: true })}
             />
           </Field>
           <Field label="Seu nome" htmlFor="senderName" error={errors.senderName?.message}>
-            <Input id="senderName" {...form.register("senderName")} />
+            <Input
+              id="senderName"
+              autoComplete="name"
+              defaultValue={defaults.senderName}
+              {...form.register("senderName")}
+            />
           </Field>
           <Field label="Sua empresa" htmlFor="senderCompany" error={errors.senderCompany?.message}>
-            <Input id="senderCompany" {...form.register("senderCompany")} />
+            <Input
+              id="senderCompany"
+              autoComplete="organization"
+              defaultValue={defaults.senderCompany}
+              {...form.register("senderCompany")}
+            />
           </Field>
         </CardContent>
       </Card>
 
-      <div className="flex justify-end">
-        <Button type="submit" disabled={!isDirty || mutation.isPending}>
-          {mutation.isPending ? "Salvando…" : "Salvar configurações"}
-        </Button>
+      <div
+        className={cn(
+          "fixed inset-x-0 bottom-0 z-20 border-t bg-background/90 backdrop-blur transition-transform duration-200",
+          isDirty || mutation.isPending ? "translate-y-0" : "translate-y-full",
+        )}
+      >
+        <div className="mx-auto flex max-w-3xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
+          <p className="text-sm text-muted-foreground">Alterações não salvas</p>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => form.reset(defaults)}
+              disabled={mutation.isPending}
+            >
+              Descartar
+            </Button>
+            <Button type="submit" disabled={mutation.isPending}>
+              {mutation.isPending ? "Salvando…" : "Salvar"}
+            </Button>
+          </div>
+        </div>
       </div>
     </form>
   );

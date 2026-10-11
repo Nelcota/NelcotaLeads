@@ -37,8 +37,9 @@ export function extractSite(html: string, finalUrl: string): ExtractedSite {
   for (const anchor of document.querySelectorAll("a[href]")) {
     const href = anchor.getAttribute("href")?.trim() ?? "";
     if (href.toLowerCase().startsWith("mailto:")) {
-      const email = decodeURIComponent(href.slice(7).split("?")[0] ?? "").toLowerCase();
-      if (email) emails.add(email);
+      // Re-match so stray spaces or text around the address (e.g. "mailto:%20a@b.com") are dropped.
+      const email = safeDecode(href.slice(7).split("?")[0] ?? "").match(EMAIL_PATTERN)?.[0];
+      if (email) emails.add(email.toLowerCase());
     } else if (href.toLowerCase().startsWith("tel:")) {
       phones.add(href.slice(4).trim());
     } else if (/^https?:\/\//i.test(href)) {
@@ -74,6 +75,14 @@ export function extractSite(html: string, finalUrl: string): ExtractedSite {
     },
     text: truncate(text, MAX_TEXT_CHARS),
   };
+}
+
+function safeDecode(value: string) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
 }
 
 function clean(value: string | null | undefined): string | null {

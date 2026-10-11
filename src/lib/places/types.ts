@@ -24,6 +24,6 @@ export type PlacesSearchResult = {
 export type ReserveRequest = () => Promise<boolean>;
 
 export interface PlacesProvider {
-  readonly name: "google" | "mock";
+  readonly name: string;
   search(params: PlacesSearchParams): Promise<PlacesSearchResult>;
 }

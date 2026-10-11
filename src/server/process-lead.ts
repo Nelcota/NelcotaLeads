@@ -1,6 +1,6 @@
-import { and, eq, gte, ne, sql } from "drizzle-orm";
+import { and, desc, eq, gte, ne, sql } from "drizzle-orm";
 import type { Db } from "@/db/client";
-import { analyses, leads, searches, type Lead } from "@/db/schema";
+import { analyses, leads, searches, type Lead, type Search } from "@/db/schema";
 import type { CallUsage, LeadAnalyzer, LeadContext } from "@/lib/ai";
 import type { SiteResult } from "@/lib/scrape";
 import { loadSettings } from "./settings-store";
@@ -30,19 +30,7 @@ export async function processLead(deps: ProcessDeps, job: LeadJob): Promise<"don
   const settings = await loadSettings(db);
   const site = await readSite(deps, lead, job.force ?? false);
 
-  const context: LeadContext = {
-    niche: search?.niche ?? "",
-    name: lead.name,
-    address: lead.address,
-    city: lead.city,
-    hasPhone: Boolean(lead.phone),
-    website: lead.website,
-    rating: lead.rating,
-    reviewCount: lead.reviewCount,
-    siteStatus: site.siteStatus,
-    siteData: site.siteData,
-    siteText: site.siteTextExcerpt,
-  };
+  const context = buildContext({ ...lead, ...site }, search);
 
   const { analysis, usage } = await analyzer.analyze(settings, context);
   const usages: CallUsage[] = [usage];
@@ -83,6 +71,57 @@ export async function processLead(deps: ProcessDeps, job: LeadJob): Promise<"don
 
   if (updated.length > 0 && !job.force) await bumpSearch(db, lead.searchId, "analyzedCount");
   return "done";
+}
+
+/** Writes (or rewrites) the first message for an analyzed lead, regardless of its score. */
+export async function writeMessageForLead(
+  deps: Pick<ProcessDeps, "db" | "analyzer">,
+  leadId: string,
+): Promise<string> {
+  const { db, analyzer } = deps;
+  const lead = await db.query.leads.findFirst({ where: eq(leads.id, leadId) });
+  if (!lead) throw new Error("Lead não encontrado");
+  const analysis = await db.query.analyses.findFirst({
+    where: eq(analyses.leadId, leadId),
+    orderBy: [desc(analyses.createdAt), desc(analyses.id)],
+  });
+  if (!analysis) throw new Error("O lead ainda não foi analisado");
+  const search = await db.query.searches.findFirst({ where: eq(searches.id, lead.searchId) });
+  const settings = await loadSettings(db);
+
+  const { message, usage } = await analyzer.writeMessage(
+    settings,
+    buildContext(lead, search),
+    analysis,
+  );
+  const models = new Set([...analysis.model.split(" + "), usage.model]);
+  await db
+    .update(analyses)
+    .set({
+      firstMessage: message,
+      model: [...models].join(" + "),
+      tokensIn: analysis.tokensIn + usage.tokensIn,
+      tokensOut: analysis.tokensOut + usage.tokensOut,
+      costEstimate: analysis.costEstimate + usage.cost,
+    })
+    .where(eq(analyses.id, analysis.id));
+  return message;
+}
+
+function buildContext(lead: Lead, search: Search | undefined): LeadContext {
+  return {
+    niche: search?.niche ?? "",
+    name: lead.name,
+    address: lead.address,
+    city: lead.city,
+    hasPhone: Boolean(lead.phone),
+    website: lead.website,
+    rating: lead.rating,
+    reviewCount: lead.reviewCount,
+    siteStatus: lead.siteStatus,
+    siteData: lead.siteData,
+    siteText: lead.siteTextExcerpt,
+  };
 }
 
 /** Records a permanent failure for the lead; called once retries are exhausted. */

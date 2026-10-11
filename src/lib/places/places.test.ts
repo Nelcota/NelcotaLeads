@@ -1,7 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
 import { createGooglePlacesProvider, FIELD_MASK } from "./google";
-import { createMockPlacesProvider } from "./mock";
-import { toE164 } from "../phone";
 
 function page(places: object[], nextPageToken?: string) {
   return new Response(JSON.stringify({ places, nextPageToken }), { status: 200 });
@@ -62,17 +60,5 @@ describe("google places provider", () => {
         maxResults: 5,
       }),
     ).rejects.toThrow(/403/);
-  });
-});
-
-describe("mock places provider", () => {
-  it("is deterministic and produces valid phones", async () => {
-    const provider = createMockPlacesProvider();
-    const a = await provider.search({ niche: "Dentistas", city: "Belo Horizonte", maxResults: 12 });
-    const b = await provider.search({ niche: "Dentistas", city: "Belo Horizonte", maxResults: 12 });
-    expect(a.places.map((p) => p.placeId)).toEqual(b.places.map((p) => p.placeId));
-    const phones = a.places.flatMap((p) => (p.phone ? [p.phone] : []));
-    expect(phones.length).toBeGreaterThan(0);
-    expect(phones.map(toE164)).not.toContain(null);
   });
 });

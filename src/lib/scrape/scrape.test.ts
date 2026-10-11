@@ -34,6 +34,14 @@ describe("extractSite", () => {
     expect(text).not.toContain("color:red");
   });
 
+  it("normalizes mailto addresses so duplicates collapse", () => {
+    const { data } = extractSite(
+      `<body><a href="mailto:%20Contato@Site.com.br">a</a><a href="mailto:contato@site.com.br">b</a></body>`,
+      "https://site.com.br",
+    );
+    expect(data.emails).toEqual(["contato@site.com.br"]);
+  });
+
   it("truncates long pages", () => {
     const { text } = extractSite(`<body><p>${"a".repeat(20_000)}</p></body>`, "https://x.com");
     expect(text).toHaveLength(MAX_TEXT_CHARS);

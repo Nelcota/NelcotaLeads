@@ -18,7 +18,7 @@ import {
 export type CallUsage = { model: string; tokensIn: number; tokensOut: number; cost: number };
 
 export interface LeadAnalyzer {
-  readonly name: "deepseek" | "mock";
+  readonly name: string;
   analyze(
     settings: SettingsInput,
     lead: LeadContext,

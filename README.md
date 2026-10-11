@@ -18,9 +18,9 @@ src/
   routes/            páginas (leads, detalhe, buscas, configurações) e /api/leads.csv
   server/            server functions, coleta, fila (consumer) e processamento por lead
   db/                schema Drizzle e cliente D1
-  lib/places/        Google Places (real + mock)
+  lib/places/        Google Places (Text Search, limite diário)
   lib/scrape/        leitura de site (robots.txt, linkedom)
-  lib/ai/            prompts, analisador DeepSeek (real + mock), custo
+  lib/ai/            prompts, analisador DeepSeek, custo
   server.ts          entry do Worker: fetch (app) + queue (consumer)
 drizzle/             migrations SQL (aplicadas pelo wrangler)
 ```
@@ -31,19 +31,12 @@ Requisitos: Node 22+ e pnpm.
 
 ```bash
 pnpm install
-cp .dev.vars.example .dev.vars     # preencha as chaves (opcional, veja abaixo)
+cp .dev.vars.example .dev.vars     # preencha as duas chaves
 pnpm db:migrate:local              # cria o banco D1 local
 pnpm dev                           # http://localhost:3000
 ```
 
-**Sem chaves, o app funciona com dados simulados:**
-
-| Variável                | Sem a chave                                                     | Onde fica o código         |
-| ----------------------- | --------------------------------------------------------------- | -------------------------- |
-| `GOOGLE_PLACES_API_KEY` | empresas fictícias e determinísticas (`src/lib/places/mock.ts`) | `src/lib/places/google.ts` |
-| `DEEPSEEK_API_KEY`      | nota por regras fixas e mensagem modelo (`src/lib/ai/mock.ts`)  | `src/lib/ai/analyzer.ts`   |
-
-A escolha entre real e mock acontece em `getPlacesProvider()` e `getAnalyzer()`. Basta preencher a chave para usar o serviço real. A tela de nova busca avisa quando o Google está simulado.
+As duas chaves (`GOOGLE_PLACES_API_KEY` e `DEEPSEEK_API_KEY`) são obrigatórias: o app não usa dados simulados. Enquanto alguma faltar, a tela de nova busca mostra qual é e bloqueia a busca.
 
 Fluxo de uso: **Configurações** (descreva sua oferta e os critérios) → **Nova busca** → acompanhe o progresso → **Leads** → detalhe → copiar mensagem / abrir WhatsApp → **Exportar CSV**.
 

@@ -32,7 +32,8 @@ export function analysisSystemPrompt() {
   return `Você é um analista de prospecção B2B que qualifica negócios locais brasileiros para uma oferta de serviços.
 ${GROUNDING_RULES}
 - A nota (0 a 100) é a soma dos pesos dos critérios que se aplicam ao lead, limitada entre 0 e 100. Critérios que não podem ser verificados com os dados não somam pontos.
-- No scoreReasoning, liste quais critérios foram aplicados (com o peso) e quais informações faltaram.`;
+- No scoreReasoning, liste quais critérios foram aplicados (com o peso) e quais informações faltaram.
+- Em signals, liste só sinais de oportunidade para a oferta (lacunas, problemas, ausências). Pontos fortes do negócio não são sinais; se não houver nenhum, retorne a lista vazia.`;
 }
 
 export function analysisUserPrompt(settings: SettingsInput, lead: LeadContext) {

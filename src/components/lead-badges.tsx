@@ -14,7 +14,7 @@ export function ScoreBadge({
 }) {
   if (score === null) {
     return (
-      <span className={cn("text-xs font-light text-muted-foreground", className)}>
+      <span className={cn("text-xs text-muted-foreground", className)}>
         {pending ? "analisando…" : "—"}
       </span>
     );

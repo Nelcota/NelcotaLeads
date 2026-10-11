@@ -23,13 +23,13 @@ export function AppShell({ children }: { children: ReactNode }) {
             <span className="inline-block size-2.5 rounded-full bg-brand" />
             Nelcota Leads
           </Link>
-          <nav className="-mx-2.5 order-last flex w-full items-center gap-1 overflow-x-auto text-sm sm:order-none sm:mx-0 sm:w-auto">
+          <nav className="-mx-2.5 order-last flex w-full items-center gap-1 overflow-x-auto text-sm sm:order-none sm:mx-0 sm:w-auto sm:overflow-visible">
             {NAV.map((item) => (
               <Link
                 key={item.to}
                 to={item.to}
                 activeOptions={{ exact: item.to === "/" }}
-                className="rounded-md px-2.5 py-1.5 whitespace-nowrap font-light text-muted-foreground transition-colors hover:text-foreground data-[status=active]:font-medium data-[status=active]:text-foreground"
+                className="relative rounded-md px-2.5 py-1.5 whitespace-nowrap text-muted-foreground transition-colors hover:text-foreground data-[status=active]:text-foreground data-[status=active]:after:absolute data-[status=active]:after:inset-x-2.5 data-[status=active]:after:-bottom-[11px] data-[status=active]:after:h-px data-[status=active]:after:bg-foreground max-sm:data-[status=active]:after:hidden"
               >
                 {item.label}
               </Link>
@@ -65,14 +65,16 @@ export function PageHeader({
   actions?: ReactNode;
 }) {
   return (
-    <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
-      <div>
-        <h1 className="text-2xl tracking-tight">{title}</h1>
+    <div className="mb-8 flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
+      <div className="min-w-0">
+        <h1 className="text-2xl font-medium tracking-tight sm:text-[28px]">{title}</h1>
         {description ? (
-          <p className="mt-1 text-sm font-light text-muted-foreground">{description}</p>
+          <p className="mt-2 max-w-2xl text-[15px] leading-relaxed font-light text-muted-foreground">
+            {description}
+          </p>
         ) : null}
       </div>
-      {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
+      {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
     </div>
   );
 }

@@ -59,7 +59,11 @@ export type SiteData = z.infer<typeof siteDataSchema>;
 /** Structured output requested from the model for each lead. */
 export const leadAnalysisSchema = z.object({
   summary: z.string().describe("Resumo do negócio em 1 a 3 frases, só com dados fornecidos."),
-  signals: z.array(z.string()).describe("Sinais de oportunidade observados nos dados."),
+  signals: z
+    .array(z.string())
+    .describe(
+      "Sinais de oportunidade para a oferta (lacunas, problemas, ausências). Não liste pontos fortes do negócio.",
+    ),
   painPoints: z.array(z.string()).describe("Dores prováveis do negócio relacionadas à oferta."),
   score: z.number().int().min(0).max(100).describe("Nota de 0 a 100 segundo os critérios."),
   scoreReasoning: z

@@ -4,9 +4,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { resetDb } from "../../test/reset-db";
 import { getDb } from "@/db/client";
 import { analyses, leads, searches } from "@/db/schema";
-import { createMockAnalyzer } from "@/lib/ai/mock";
+import { createFakeAnalyzer } from "../../test/fake-analyzer";
 import type { SiteResult } from "@/lib/scrape";
-import { failLead, processLead, type ProcessDeps } from "./process-lead";
+import { failLead, processLead, writeMessageForLead, type ProcessDeps } from "./process-lead";
 
 const db = getDb(env.DB);
 const SEARCH = "search-1";
@@ -39,7 +39,7 @@ function deps(overrides: Partial<ProcessDeps> = {}): ProcessDeps {
     status: "unreachable",
     reason: "timeout",
   });
-  return { db, analyzer: createMockAnalyzer(), fetchSite, ...overrides };
+  return { db, analyzer: createFakeAnalyzer(), fetchSite, ...overrides };
 }
 
 const getSearch = () => db.query.searches.findFirst({ where: eq(searches.id, SEARCH) });
@@ -62,7 +62,7 @@ describe("processLead", () => {
     expect(leadA).toMatchObject({ analysisStatus: "done", siteStatus: "unreachable" });
     expect(leadA?.score).toBeTypeOf("number");
     const analysis = await db.query.analyses.findFirst({ where: eq(analyses.leadId, "a") });
-    expect(analysis).toMatchObject({ model: "mock", tokensIn: 0, costEstimate: 0 });
+    expect(analysis).toMatchObject({ model: "test-model", tokensIn: 100, costEstimate: 0.0001 });
     expect(d.fetchSite).toHaveBeenCalledTimes(1); // lead "b" has no site
   });
 
@@ -77,7 +77,7 @@ describe("processLead", () => {
   });
 
   it("propagates analyzer errors so the queue can retry, then records the failure", async () => {
-    const analyzer = createMockAnalyzer();
+    const analyzer = createFakeAnalyzer();
     analyzer.analyze = () => Promise.reject(new Error("rate limited"));
     await expect(processLead(deps({ analyzer }), { leadId: "a" })).rejects.toThrow("rate limited");
 
@@ -94,9 +94,20 @@ describe("processLead", () => {
   });
 
   it("only writes a first message above the configured threshold", async () => {
-    await processLead(deps(), { leadId: "b" }); // no site + phone missing → mock score ≥ 25
+    await processLead(deps(), { leadId: "b" }); // fake score 40 < default threshold 60
+    const low = await db.query.analyses.findFirst({ where: eq(analyses.leadId, "b") });
+    expect(low?.firstMessage).toBeNull();
+
+    await processLead(deps({ analyzer: createFakeAnalyzer(80) }), { leadId: "a" });
+    const high = await db.query.analyses.findFirst({ where: eq(analyses.leadId, "a") });
+    expect(high).toMatchObject({ firstMessage: "Olá, A", tokensIn: 200, costEstimate: 0.0002 });
+  });
+
+  it("writes a message on demand and adds its usage to the analysis", async () => {
+    await expect(writeMessageForLead(deps(), "b")).rejects.toThrow("ainda não foi analisado");
+    await processLead(deps(), { leadId: "b" }); // below threshold → no message
+    expect(await writeMessageForLead(deps(), "b")).toBe("Olá, B");
     const analysis = await db.query.analyses.findFirst({ where: eq(analyses.leadId, "b") });
-    expect(analysis?.score).toBeLessThan(60);
-    expect(analysis?.firstMessage).toBeNull();
+    expect(analysis).toMatchObject({ firstMessage: "Olá, B", tokensIn: 200, model: "test-model" });
   });
 });

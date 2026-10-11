@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getDb } from "@/db/client";
 import { leads, searches } from "@/db/schema";
-import { createMockAnalyzer } from "@/lib/ai/mock";
+import { createFakeAnalyzer } from "../../test/fake-analyzer";
 import { resetDb } from "../../test/reset-db";
 import { DEAD_LETTER_QUEUE, handleLeadBatch, retryDelaySeconds } from "./consumer";
 import type { ProcessDeps } from "./process-lead";
@@ -34,7 +34,7 @@ function batch(queue: string, messages: ReturnType<typeof message>[]) {
 }
 
 function failingDeps(): ProcessDeps {
-  const analyzer = createMockAnalyzer();
+  const analyzer = createFakeAnalyzer();
   analyzer.analyze = () => Promise.reject(new Error("upstream 503"));
   return { db, analyzer, fetchSite: async () => ({ status: "unreachable", reason: "x" }) };
 }
@@ -60,7 +60,7 @@ describe("handleLeadBatch", () => {
     const ok = message("a", 1);
     await handleLeadBatch(batch("main", [ok]), {
       ...failingDeps(),
-      analyzer: createMockAnalyzer(),
+      analyzer: createFakeAnalyzer(),
     });
     expect(ok.ack).toHaveBeenCalled();
 
@@ -73,7 +73,7 @@ describe("handleLeadBatch", () => {
   it("records the error and finishes the search on the last attempt", async () => {
     await handleLeadBatch(batch("main", [message("a", 1)]), {
       ...failingDeps(),
-      analyzer: createMockAnalyzer(),
+      analyzer: createFakeAnalyzer(),
     });
     const last = message("b", 3);
     await handleLeadBatch(batch("main", [last]), failingDeps());

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { resetDb } from "../../test/reset-db";
 import { getDb } from "@/db/client";
 import { leads } from "@/db/schema";
-import { createMockPlacesProvider } from "@/lib/places/mock";
+import { createFakePlaces } from "../../test/fake-places";
 import type { PlacesProvider } from "@/lib/places";
 import { runSearch } from "./collect";
 import type { LeadJob } from "./queue";
@@ -29,7 +29,7 @@ describe("runSearch", () => {
   it("stores unique leads and enqueues one job per new lead", async () => {
     const db = getDb(env.DB);
     const { sent, queue } = fakeQueue();
-    const provider = createMockPlacesProvider();
+    const provider = createFakePlaces();
 
     const first = await runSearch(db, queue, provider, input);
     const search = await db.query.searches.findFirst({
