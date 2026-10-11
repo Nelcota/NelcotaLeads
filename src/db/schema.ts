@@ -36,6 +36,9 @@ export const searches = sqliteTable("searches", {
   foundCount: integer("found_count").notNull().default(0),
   analyzedCount: integer("analyzed_count").notNull().default(0),
   errorCount: integer("error_count").notNull().default(0),
+  // Places already stored by a previous search (unique place_id), so not re-collected.
+  duplicateCount: integer("duplicate_count").notNull().default(0),
+  placesRequests: integer("places_requests").notNull().default(0),
   errorMessage: text("error_message"),
   ...timestamps,
 });

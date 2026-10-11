@@ -24,4 +24,7 @@
       "migrations_dir": "drizzle",
     },
   ],
+  "queues": {
+    "producers": [{ "binding": "LEAD_QUEUE", "queue": "nelcota-leads-analysis" }],
+  },
 }

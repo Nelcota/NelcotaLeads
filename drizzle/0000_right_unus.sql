@@ -54,6 +54,8 @@ CREATE TABLE `searches` (
 	`found_count` integer DEFAULT 0 NOT NULL,
 	`analyzed_count` integer DEFAULT 0 NOT NULL,
 	`error_count` integer DEFAULT 0 NOT NULL,
+	`duplicate_count` integer DEFAULT 0 NOT NULL,
+	`places_requests` integer DEFAULT 0 NOT NULL,
 	`error_message` text,
 	`created_at` integer DEFAULT (unixepoch()) NOT NULL
 );

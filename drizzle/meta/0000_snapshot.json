@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "3080a082-fd76-49e3-961b-10efccf53129",
+  "id": "f3548028-dedf-497a-b5bf-fff8245f0ce7",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "analyses": {
@@ -393,6 +393,22 @@
         },
         "error_count": {
           "name": "error_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "duplicate_count": {
+          "name": "duplicate_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "places_requests": {
+          "name": "places_requests",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,

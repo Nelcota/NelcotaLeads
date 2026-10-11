@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SearchesIndexRouteImport } from './routes/searches/index'
+import { Route as SearchesSearchIdRouteImport } from './routes/searches/$searchId'
 import { Route as SearchesNewRouteImport } from './routes/searches/new'
 
 const IndexRoute = IndexRouteImport.update({
@@ -29,6 +30,11 @@ const SearchesIndexRoute = SearchesIndexRouteImport.update({
   path: '/searches/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SearchesSearchIdRoute = SearchesSearchIdRouteImport.update({
+  id: '/searches/$searchId',
+  path: '/searches/$searchId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SearchesNewRoute = SearchesNewRouteImport.update({
   id: '/searches/new',
   path: '/searches/new',
@@ -38,12 +44,14 @@ const SearchesNewRoute = SearchesNewRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/settings': typeof SettingsRoute
+  '/searches/$searchId': typeof SearchesSearchIdRoute
   '/searches/new': typeof SearchesNewRoute
   '/searches/': typeof SearchesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/settings': typeof SettingsRoute
+  '/searches/$searchId': typeof SearchesSearchIdRoute
   '/searches/new': typeof SearchesNewRoute
   '/searches': typeof SearchesIndexRoute
 }
@@ -51,20 +59,29 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/settings': typeof SettingsRoute
+  '/searches/$searchId': typeof SearchesSearchIdRoute
   '/searches/new': typeof SearchesNewRoute
   '/searches/': typeof SearchesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/settings' | '/searches/new' | '/searches/'
+  fullPaths:
+    '/' | '/settings' | '/searches/$searchId' | '/searches/new' | '/searches/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/settings' | '/searches/new' | '/searches'
-  id: '__root__' | '/' | '/settings' | '/searches/new' | '/searches/'
+  to: '/' | '/settings' | '/searches/$searchId' | '/searches/new' | '/searches'
+  id:
+    | '__root__'
+    | '/'
+    | '/settings'
+    | '/searches/$searchId'
+    | '/searches/new'
+    | '/searches/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   SettingsRoute: typeof SettingsRoute
+  SearchesSearchIdRoute: typeof SearchesSearchIdRoute
   SearchesNewRoute: typeof SearchesNewRoute
   SearchesIndexRoute: typeof SearchesIndexRoute
 }
@@ -92,6 +109,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SearchesIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/searches/$searchId': {
+      id: '/searches/$searchId'
+      path: '/searches/$searchId'
+      fullPath: '/searches/$searchId'
+      preLoaderRoute: typeof SearchesSearchIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/searches/new': {
       id: '/searches/new'
       path: '/searches/new'
@@ -105,6 +129,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   SettingsRoute: SettingsRoute,
+  SearchesSearchIdRoute: SearchesSearchIdRoute,
   SearchesNewRoute: SearchesNewRoute,
   SearchesIndexRoute: SearchesIndexRoute,
 }
