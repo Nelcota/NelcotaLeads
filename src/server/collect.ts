@@ -20,7 +20,12 @@ export async function runSearch(
   await db.insert(searches).values({ id: searchId, ...input, status: "collecting" });
 
   try {
-    const { places, requests } = await provider.search(input);
+    const { places, requests, limitReached } = await provider.search(input);
+    if (limitReached && places.length === 0) {
+      throw new Error(
+        "Limite diário de requisições ao Google atingido. A busca não foi feita; tente amanhã.",
+      );
+    }
 
     const inserts = places.map((place) =>
       db
@@ -55,6 +60,9 @@ export async function runSearch(
         foundCount: newLeadIds.length,
         duplicateCount: places.length - newLeadIds.length,
         placesRequests: requests,
+        errorMessage: limitReached
+          ? `Limite diário de requisições ao Google atingido: coletadas ${places.length} de até ${input.maxResults} empresas.`
+          : null,
       })
       .where(eq(searches.id, searchId));
 

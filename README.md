@@ -49,12 +49,13 @@ Fluxo de uso: **Configurações** (descreva sua oferta e os critérios) → **No
 
 ### Variáveis
 
-| Nome                    | Tipo                   | Descrição                                             |
-| ----------------------- | ---------------------- | ----------------------------------------------------- |
-| `GOOGLE_PLACES_API_KEY` | secret                 | Chave com a "Places API (New)" habilitada             |
-| `DEEPSEEK_API_KEY`      | secret                 | Chave de platform.deepseek.com                        |
-| `AI_MODEL_ANALYSIS`     | var (`wrangler.jsonc`) | Modelo da análise e da nota. Padrão: `deepseek-flash` |
-| `AI_MODEL_MESSAGE`      | var (`wrangler.jsonc`) | Modelo da mensagem. Padrão: `deepseek-v4-pro`         |
+| Nome                         | Tipo                   | Descrição                                                                                                  |
+| ---------------------------- | ---------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `GOOGLE_PLACES_API_KEY`      | secret                 | Chave com a "Places API (New)" habilitada                                                                  |
+| `DEEPSEEK_API_KEY`           | secret                 | Chave de platform.deepseek.com                                                                             |
+| `AI_MODEL_ANALYSIS`          | var (`wrangler.jsonc`) | Modelo da análise e da nota. Padrão: `deepseek-flash`                                                      |
+| `AI_MODEL_MESSAGE`           | var (`wrangler.jsonc`) | Modelo da mensagem. Padrão: `deepseek-v4-pro`                                                              |
+| `PLACES_DAILY_REQUEST_LIMIT` | var (`wrangler.jsonc`) | Máximo de requisições pagas ao Google por dia (horário de Brasília). Padrão: `50`, até ~1.000 empresas/dia |
 
 Os nomes `deepseek-chat` e `deepseek-reasoner` foram aposentados pela DeepSeek. `deepseek-v4-flash` ainda é aceito, mas a DeepSeek o considera um nome legado de `deepseek-flash`.
 

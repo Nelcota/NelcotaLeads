@@ -19,7 +19,7 @@ describe("google places provider", () => {
       .fn<typeof fetch>()
       .mockResolvedValueOnce(page([place("a"), place("b", "CLOSED_PERMANENTLY")], "t1"))
       .mockResolvedValueOnce(page([place("c")]));
-    const provider = createGooglePlacesProvider("key", fetchFn);
+    const provider = createGooglePlacesProvider("key", { fetchFn });
 
     const result = await provider.search({ niche: "dentistas", city: "BH", maxResults: 10 });
 
@@ -32,8 +32,21 @@ describe("google places provider", () => {
 
   it("stops once maxResults is reached", async () => {
     const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(page([place("a"), place("b")], "t"));
-    const provider = createGooglePlacesProvider("key", fetchFn);
+    const provider = createGooglePlacesProvider("key", { fetchFn });
     const result = await provider.search({ niche: "x", city: "y", maxResults: 1 });
+    expect(result.places).toHaveLength(1);
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+  });
+
+  it("stops paginating when the daily limit denies a request", async () => {
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(page([place("a")], "t"));
+    const reserveRequest = vi
+      .fn<() => Promise<boolean>>()
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(false);
+    const provider = createGooglePlacesProvider("key", { fetchFn, reserveRequest });
+    const result = await provider.search({ niche: "x", city: "y", maxResults: 60 });
+    expect(result).toMatchObject({ requests: 1, limitReached: true });
     expect(result.places).toHaveLength(1);
     expect(fetchFn).toHaveBeenCalledTimes(1);
   });
@@ -43,7 +56,11 @@ describe("google places provider", () => {
       .fn<typeof fetch>()
       .mockResolvedValue(new Response("denied", { status: 403 }));
     await expect(
-      createGooglePlacesProvider("key", fetchFn).search({ niche: "x", city: "y", maxResults: 5 }),
+      createGooglePlacesProvider("key", { fetchFn }).search({
+        niche: "x",
+        city: "y",
+        maxResults: 5,
+      }),
     ).rejects.toThrow(/403/);
   });
 });

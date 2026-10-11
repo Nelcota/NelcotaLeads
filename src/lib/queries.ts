@@ -23,7 +23,6 @@ export const searchQuery = (id: string) =>
 export const providerStatusQuery = queryOptions({
   queryKey: ["provider-status"],
   queryFn: () => getProviderStatus(),
-  staleTime: Infinity,
 });
 
 export const leadsQuery = (filters: LeadFilters) =>

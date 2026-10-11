@@ -29,3 +29,8 @@ export function formatIsoLocal(date: Date): string {
   );
   return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}`;
 }
+
+/** `yyyy-MM-dd` of the given instant in Brazil time. */
+export function localDay(date: Date): string {
+  return formatIsoLocal(date).slice(0, 10);
+}

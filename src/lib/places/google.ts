@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { Place, PlacesProvider, PlacesSearchParams } from "./types";
+import type { Place, PlacesProvider, PlacesSearchParams, ReserveRequest } from "./types";
 
 const ENDPOINT = "https://places.googleapis.com/v1/places:searchText";
 const PAGE_SIZE = 20;
@@ -44,16 +44,22 @@ export function buildTextQuery({ niche, city }: Pick<PlacesSearchParams, "niche"
 
 export function createGooglePlacesProvider(
   apiKey: string,
-  fetchFn: typeof fetch = fetch,
+  options: { fetchFn?: typeof fetch; reserveRequest?: ReserveRequest } = {},
 ): PlacesProvider {
+  const { fetchFn = fetch, reserveRequest = async () => true } = options;
   return {
     name: "google",
     async search(params) {
       const places: Place[] = [];
       let pageToken: string | undefined;
       let requests = 0;
+      let limitReached = false;
 
       while (requests < MAX_PAGES && places.length < params.maxResults) {
+        if (!(await reserveRequest())) {
+          limitReached = true;
+          break;
+        }
         const response = await fetchFn(ENDPOINT, {
           method: "POST",
           headers: {
@@ -94,7 +100,7 @@ export function createGooglePlacesProvider(
         if (!pageToken) break;
       }
 
-      return { places: places.slice(0, params.maxResults), requests };
+      return { places: places.slice(0, params.maxResults), requests, limitReached };
     },
   };
 }

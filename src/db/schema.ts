@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { index, integer, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { index, integer, primaryKey, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { LEAD_STATUS_VALUES, type ScoringCriterion, type SiteData } from "@/lib/schemas";
 
 const timestamps = {
@@ -106,6 +106,17 @@ export const analyses = sqliteTable(
     ...timestamps,
   },
   (t) => [index("analyses_lead_idx").on(t.leadId)],
+);
+
+/** Paid API calls per day (Brazil time), used to enforce daily limits. */
+export const apiUsage = sqliteTable(
+  "api_usage",
+  {
+    day: text("day").notNull(),
+    provider: text("provider").notNull(),
+    requests: integer("requests").notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.day, t.provider] })],
 );
 
 export type Settings = typeof settings.$inferSelect;

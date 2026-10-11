@@ -48,6 +48,19 @@ describe("runSearch", () => {
     expect(sent).toHaveLength(12);
   });
 
+  it("fails with a clear message when the daily limit blocks the whole search", async () => {
+    const limited: PlacesProvider = {
+      name: "google",
+      search: async () => ({ places: [], requests: 0, limitReached: true }),
+    };
+    const { searchId } = await runSearch(getDb(env.DB), fakeQueue().queue, limited, input);
+    const search = await getDb(env.DB).query.searches.findFirst({
+      where: (s, { eq }) => eq(s.id, searchId),
+    });
+    expect(search?.status).toBe("error");
+    expect(search?.errorMessage).toMatch(/Limite diário/);
+  });
+
   it("marks the search as failed when the provider throws", async () => {
     const db = getDb(env.DB);
     const failing: PlacesProvider = {

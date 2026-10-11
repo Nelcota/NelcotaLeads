@@ -23,11 +23,14 @@ function NewSearchPage() {
     defaultValues: { niche: "", city: "", maxResults: 20 },
   });
   const { errors } = form.formState;
+  const limitReached =
+    providers?.places === "google" && providers.placesUsage.used >= providers.placesUsage.limit;
 
   const mutation = useMutation({
     mutationFn: (data: NewSearchInput) => createSearch({ data }),
     onSuccess: async ({ searchId }) => {
       await queryClient.invalidateQueries({ queryKey: ["searches"] });
+      await queryClient.invalidateQueries({ queryKey: providerStatusQuery.queryKey });
       await navigate({ to: "/searches/$searchId", params: { searchId } });
     },
     onError: () => toast.error("Não foi possível iniciar a busca"),
@@ -42,6 +45,15 @@ function NewSearchPage() {
       {providers?.places === "mock" ? (
         <p className="mb-4 rounded-lg border border-dashed px-4 py-3 text-sm font-light text-muted-foreground">
           Sem <code>GOOGLE_PLACES_API_KEY</code>: usando dados simulados.
+        </p>
+      ) : providers ? (
+        <p
+          className={`mb-4 rounded-lg border px-4 py-3 text-sm font-light ${limitReached ? "border-destructive/40 text-destructive" : "text-muted-foreground"}`}
+        >
+          Google hoje: {providers.placesUsage.used} de {providers.placesUsage.limit} requisições
+          {limitReached
+            ? ". Limite diário atingido; novas buscas voltam amanhã."
+            : " (cada 20 resultados = 1 requisição)."}
         </p>
       ) : null}
       <Card>
@@ -81,7 +93,7 @@ function NewSearchPage() {
                 {...form.register("maxResults", { valueAsNumber: true })}
               />
             </Field>
-            <Button type="submit" disabled={mutation.isPending}>
+            <Button type="submit" disabled={mutation.isPending || limitReached}>
               {mutation.isPending ? "Coletando empresas…" : "Buscar leads"}
             </Button>
           </form>
