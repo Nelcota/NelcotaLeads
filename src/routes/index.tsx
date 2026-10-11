@@ -1,432 +1,250 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
 import { toast } from "sonner";
 import { Page, useOpenNewSearch } from "@/components/app-shell";
-import { ScoreBadge } from "@/components/lead-badges";
-import { LeadSheet } from "@/components/lead-sheet";
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
-  CardAction,
   CardContent,
   CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { formatIsoLocal, relativeDay } from "@/lib/format";
+import { shortTime } from "@/lib/format";
 import { dashboardQuery } from "@/lib/queries";
-import type { LeadView } from "@/lib/schemas";
-import {
-  runAutopilotNow,
-  setAutopilotEnabled,
-  writeMissingMessages,
-  type Dashboard,
-} from "@/server/dashboard";
+import { runAutopilotNow, setAutomation, type Dashboard } from "@/server/dashboard";
 
 export const Route = createFileRoute("/")({
   loader: ({ context }) => context.queryClient.ensureQueryData(dashboardQuery),
-  component: DashboardPage,
+  component: OverviewPage,
 });
 
-function useRefresh() {
-  const queryClient = useQueryClient();
-  return () =>
-    Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
-      queryClient.invalidateQueries({ queryKey: ["leads"] }),
-    ]);
-}
-
-function DashboardPage() {
+function OverviewPage() {
   const { data } = useQuery(dashboardQuery);
   const openNewSearch = useOpenNewSearch();
-  const [openId, setOpenId] = useState<string>();
-
   const actions = (
-    <Button variant="outline" size="sm" onClick={openNewSearch}>
-      Busca manual
-    </Button>
+    <>
+      <Button variant="outline" size="sm" onClick={openNewSearch}>
+        Buscar empresas
+      </Button>
+      <Button asChild size="sm">
+        <Link to="/leads" search={{ view: "todo" }}>
+          Selecionar e disparar
+        </Link>
+      </Button>
+    </>
   );
+
   if (!data) {
     return (
-      <Page title="Painel" actions={actions}>
-        <DashboardSkeleton />
+      <Page title="Visão geral" actions={actions}>
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+          {Array.from({ length: 5 }, (_, i) => (
+            <Skeleton key={i} className="h-32 rounded-xl" />
+          ))}
+        </div>
+        <Skeleton className="h-64 rounded-xl" />
       </Page>
     );
   }
 
-  const readyIds = data.ready.map((lead) => lead.id);
-  const followUpIds = data.followUps.map((lead) => lead.id);
-  const inReady = openId !== undefined && readyIds.includes(openId);
-
   return (
-    <Page title="Painel" actions={actions}>
+    <Page title="Visão geral" actions={actions}>
+      <SetupAlerts data={data} />
+      <Attention data={data} />
+      <Stats data={data} />
+      <Funnel data={data} />
+      <div className="grid gap-4 lg:grid-cols-3 lg:gap-6">
+        <Activity data={data} />
+        <Automation data={data} />
+      </div>
+    </Page>
+  );
+}
+
+function SetupAlerts({ data }: { data: Dashboard }) {
+  return (
+    <>
+      {!data.mail.configured ? (
+        <Alert>
+          <AlertTitle>Conecte a sua caixa de e-mail</AlertTitle>
+          <AlertDescription>
+            O disparo e as respostas da IA saem dela. Coloque MAIL_ADDRESS e MAIL_PASSWORD no
+            .dev.vars e teste a conexão nas Configurações.
+          </AlertDescription>
+          <AlertAction>
+            <Button asChild size="sm" variant="outline">
+              <Link to="/settings" hash="email">
+                Configurar
+              </Link>
+            </Button>
+          </AlertAction>
+        </Alert>
+      ) : null}
       {!data.setup.offer ? (
         <Alert>
           <AlertTitle>Falta dizer o que você vende</AlertTitle>
           <AlertDescription>
-            Sem isso a IA não escreve mensagens, porque não teria o que oferecer, e a nota fica
-            genérica.
+            Sem isso a IA não escreve e-mails, porque não teria o que oferecer.
           </AlertDescription>
           <AlertAction>
-            <Button asChild size="sm">
+            <Button asChild size="sm" variant="outline">
               <Link to="/settings">Descrever</Link>
             </Button>
           </AlertAction>
         </Alert>
       ) : null}
-
-      <AutopilotCard data={data} />
-      <Stats data={data} />
-
-      <div className="grid gap-4 lg:grid-cols-3 lg:gap-6">
-        <div className="grid min-w-0 content-start gap-4 lg:col-span-2 lg:gap-6">
-          <ReadyCard data={data} onOpen={setOpenId} />
-          <FollowUpsCard data={data} onOpen={setOpenId} />
-        </div>
-        <div className="grid min-w-0 content-start gap-4 lg:gap-6">
-          <ActivityCard data={data} />
-          <FunnelCard data={data} />
-        </div>
-      </div>
-
-      <LeadSheet
-        leadId={openId}
-        ids={inReady ? readyIds : followUpIds}
-        onSelect={setOpenId}
-        keepsLead={(status) =>
-          inReady ? status === "new" : status === "contacted" || status === "replied"
-        }
-      />
-    </Page>
+    </>
   );
 }
 
-function AutopilotCard({ data }: { data: Dashboard }) {
-  const refresh = useRefresh();
-  const { autopilot } = data;
-  const toggle = useMutation({
-    mutationFn: (enabled: boolean) => setAutopilotEnabled({ data: { enabled } }),
-    onSuccess: refresh,
-    onError: () => toast.error("Não foi possível mudar o piloto automático"),
-  });
-  const runNow = useMutation({
-    mutationFn: () => runAutopilotNow(),
-    onSuccess: async (result) => {
-      await refresh();
-      toast.success(
-        result.searches > 0
-          ? `${result.searches} ${result.searches === 1 ? "busca feita" : "buscas feitas"}. A IA está analisando.`
-          : "Nada para buscar agora.",
-      );
-    },
-    onError: (error) => toast.error(error.message || "Não foi possível buscar agora"),
-  });
-
-  const enabled = toggle.isPending ? toggle.variables : autopilot.enabled;
-  const ranToday = autopilot.lastRunOn === data.today;
-  const hasTargets = autopilot.targets.length > 0;
-
+function Attention({ data }: { data: Dashboard }) {
+  if (data.attention.length === 0) return null;
   return (
-    <Card>
+    <Card className="border-primary/30 bg-primary/[0.03]">
       <CardHeader>
-        <CardTitle>Piloto automático</CardTitle>
-        <CardDescription>
-          {!hasTargets
-            ? "Diga o que buscar e a IA traz leads novos todo dia, já com nota e mensagem."
-            : !enabled
-              ? "Desligado. Ligue para buscar todo dia automaticamente."
-              : ranToday
-                ? `Buscou hoje. Próxima busca amanhã às ${autopilot.hour}h.`
-                : `Próxima busca hoje às ${autopilot.hour}h.`}
-        </CardDescription>
-        <CardAction>
-          <Switch
-            checked={enabled}
-            disabled={toggle.isPending || !hasTargets}
-            onCheckedChange={(value) => toggle.mutate(value)}
-            aria-label="Piloto automático"
-          />
-        </CardAction>
+        <CardTitle>Precisa de você</CardTitle>
+        <CardDescription>A IA parou nestas conversas e passou para você responder.</CardDescription>
       </CardHeader>
-      {hasTargets ? (
-        <CardContent className="flex flex-wrap gap-2">
-          {autopilot.targets.map((target) => (
-            <Badge key={`${target.niche}-${target.city}`} variant="secondary">
-              {target.niche} em {target.city}
-            </Badge>
-          ))}
-        </CardContent>
-      ) : null}
-      <CardFooter className="gap-2">
-        {hasTargets ? (
-          <Button
-            size="sm"
-            onClick={() => runNow.mutate()}
-            disabled={runNow.isPending || !data.setup.keys}
+      <CardContent className="grid gap-2">
+        {data.attention.map((lead) => (
+          <div
+            key={lead.id}
+            className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-background px-4 py-3"
           >
-            {runNow.isPending ? "Buscando…" : "Buscar agora"}
-          </Button>
-        ) : null}
-        <Button asChild size="sm" variant={hasTargets ? "outline" : "default"}>
-          <Link to="/settings" hash="piloto">
-            {hasTargets ? "Ajustar" : "Configurar"}
-          </Link>
-        </Button>
-      </CardFooter>
+            <div className="min-w-0">
+              <p className="truncate font-medium">{lead.name}</p>
+              <p className="text-sm text-muted-foreground">
+                {lead.handoffReason ?? "Respondeu"}
+                {lead.lastEmailAt ? ` · ${shortTime(lead.lastEmailAt)}` : ""}
+              </p>
+            </div>
+            <Button asChild size="sm">
+              <Link to="/conversas" search={{ lead: lead.id }}>
+                Abrir conversa
+              </Link>
+            </Button>
+          </div>
+        ))}
+      </CardContent>
     </Card>
   );
 }
 
 function Stats({ data }: { data: Dashboard }) {
-  const reminders = data.activity.reminders;
+  const { stats, mail } = data;
+  const rate = stats.contacted > 0 ? Math.round((stats.replied / stats.contacted) * 100) : null;
   const items = [
+    { label: "E-mails hoje", value: `${mail.sentToday}`, hint: `de ${mail.limit} por dia` },
     {
-      label: "Prontos para enviar",
-      value: String(data.ready.length),
-      footer:
-        data.analyzing > 0
-          ? `Analisando ${data.analyzing} ${data.analyzing === 1 ? "empresa" : "empresas"}`
-          : "Mensagens escritas pela IA",
+      label: "Responderam",
+      value: `${stats.replied}`,
+      hint: rate === null ? "nenhum envio ainda" : `${rate}% dos contatados`,
     },
-    {
-      label: "Retornos de hoje",
-      value: String(data.followUps.length),
-      footer: `${reminders} ${reminders === 1 ? "lembrete pronto" : "lembretes prontos"}`,
-    },
-    {
-      label: "Aguardando resposta",
-      value: String(data.funnel.waiting),
-      footer: `${data.funnel.talking} em conversa`,
-    },
-    {
-      label: "Custo do mês",
-      value: `US$ ${data.costs.month.aiCostUsd.toFixed(2).replace(".", ",")}`,
-      footer: `Google: ${data.costs.month.placesRequests} de 1.000 requisições grátis`,
-    },
+    { label: "IA conversando", value: `${stats.aiTalking}`, hint: "responde em minutos" },
+    { label: "Interessados", value: `${stats.interested}`, hint: "esperando você" },
+    { label: "Descadastros", value: `${stats.unsubscribed}`, hint: "nunca recebem de novo" },
   ];
   return (
-    <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+    <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
       {items.map((item) => (
-        <Card key={item.label}>
+        <Card key={item.label} className="gap-2">
           <CardHeader>
             <CardDescription>{item.label}</CardDescription>
             <CardTitle className="text-2xl font-semibold tabular-nums">{item.value}</CardTitle>
           </CardHeader>
-          <CardFooter className="text-sm text-muted-foreground">{item.footer}</CardFooter>
+          <CardContent className="text-xs text-muted-foreground">{item.hint}</CardContent>
         </Card>
       ))}
     </div>
   );
 }
 
-function ReadyCard({ data, onOpen }: { data: Dashboard; onOpen: (id: string) => void }) {
-  const refresh = useRefresh();
-  const writeMissing = useMutation({
-    mutationFn: () => writeMissingMessages(),
-    onSuccess: async (result) => {
-      await refresh();
-      if (result.failed > 0) toast.error(`${result.failed} não puderam ser escritas agora.`);
-    },
-    onError: (error) => toast.error(error.message || "Não foi possível escrever as mensagens"),
-  });
-
+function Funnel({ data }: { data: Dashboard }) {
+  const { stats } = data;
+  const steps = [
+    { label: "Na base", value: stats.leads },
+    { label: "Com e-mail", value: stats.withEmail },
+    { label: "Contatados", value: stats.contacted },
+    { label: "Responderam", value: stats.replied },
+    { label: "Interessados", value: stats.interested },
+    { label: "Fechados", value: stats.closed },
+  ];
+  const max = Math.max(1, stats.leads);
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Pronto para enviar</CardTitle>
+        <CardTitle>Funil</CardTitle>
         <CardDescription>
-          Revise e envie pelo WhatsApp. Ao enviar, o lead passa para Aguardando resposta.
+          {stats.readyToSend > 0
+            ? `${stats.readyToSend} ${stats.readyToSend === 1 ? "lead pronto" : "leads prontos"} para disparo.`
+            : "Nenhum lead novo com e-mail esperando disparo."}
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        {data.ready.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            {!data.setup.offer
-              ? "As mensagens aparecem aqui depois que você descrever o que vende."
-              : data.analyzing > 0
-                ? "A IA está lendo os sites e escrevendo as mensagens."
-                : "Nada pendente. Novos leads chegam com o piloto automático ou com uma busca manual."}
-          </p>
-        ) : (
-          <div className="overflow-hidden rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Empresa</TableHead>
-                  <TableHead className="hidden md:table-cell">Mensagem</TableHead>
-                  <TableHead className="w-16">Nota</TableHead>
-                  <TableHead className="w-24" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data.ready.map((lead) => (
-                  <TableRow
-                    key={lead.id}
-                    className="cursor-pointer"
-                    onClick={() => onOpen(lead.id)}
-                  >
-                    <TableCell className="max-w-56">
-                      <p className="truncate font-medium">{lead.name}</p>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {lead.signals?.[0] ?? lead.phone ?? "Sem telefone"}
-                      </p>
-                    </TableCell>
-                    <TableCell className="hidden max-w-80 md:table-cell">
-                      <p className="truncate text-muted-foreground">{lead.firstMessage}</p>
-                    </TableCell>
-                    <TableCell>
-                      <ScoreBadge score={lead.score} />
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button size="sm" variant="outline">
-                        Revisar
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+      <CardContent className="grid grid-cols-3 gap-4 sm:grid-cols-6">
+        {steps.map((step) => (
+          <div key={step.label} className="grid content-end gap-2">
+            <div className="flex h-20 items-end rounded-md bg-muted">
+              <div
+                className="w-full rounded-md bg-primary/80"
+                style={{ height: `${Math.max(3, (step.value / max) * 100)}%` }}
+              />
+            </div>
+            <div>
+              <p className="text-lg font-semibold tabular-nums">{step.value}</p>
+              <p className="text-xs text-muted-foreground">{step.label}</p>
+            </div>
           </div>
-        )}
-      </CardContent>
-      {data.withoutMessage > 0 && data.setup.offer ? (
-        <CardFooter className="flex-wrap gap-3 text-sm text-muted-foreground">
-          {data.withoutMessage} {data.withoutMessage === 1 ? "lead novo está" : "leads novos estão"}{" "}
-          sem mensagem.
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => writeMissing.mutate()}
-            disabled={writeMissing.isPending}
-          >
-            {writeMissing.isPending ? "Escrevendo…" : "Escrever agora"}
-          </Button>
-        </CardFooter>
-      ) : null}
-    </Card>
-  );
-}
-
-function FollowUpsCard({ data, onOpen }: { data: Dashboard; onOpen: (id: string) => void }) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Retornos de hoje</CardTitle>
-        <CardDescription>Quem não respondeu ou tem conversa marcada para hoje.</CardDescription>
-      </CardHeader>
-      <CardContent>
-        {data.followUps.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Nenhum retorno para hoje.</p>
-        ) : (
-          <div className="overflow-hidden rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Empresa</TableHead>
-                  <TableHead>Situação</TableHead>
-                  <TableHead className="w-24" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data.followUps.map((lead) => {
-                  const ready = lead.followUpMessage && lead.followUpMessageFor === lead.followUpOn;
-                  return (
-                    <TableRow
-                      key={lead.id}
-                      className="cursor-pointer"
-                      onClick={() => onOpen(lead.id)}
-                    >
-                      <TableCell className="max-w-56">
-                        <p className="truncate font-medium">{lead.name}</p>
-                        {lead.followUpOn && lead.followUpOn < data.today ? (
-                          <p className="text-xs text-muted-foreground">
-                            Era {relativeDay(lead.followUpOn, data.today)}
-                          </p>
-                        ) : null}
-                      </TableCell>
-                      <TableCell>
-                        {lead.status === "replied" ? (
-                          <Badge variant="outline">Em conversa</Badge>
-                        ) : ready ? (
-                          <Badge variant="secondary">Lembrete pronto</Badge>
-                        ) : (
-                          <Badge variant="outline">Sem resposta</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button size="sm" variant="outline">
-                          Abrir
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
-        )}
+        ))}
       </CardContent>
     </Card>
   );
 }
 
-function ActivityCard({ data }: { data: Dashboard }) {
-  const { activity, setup } = data;
-  const items: { time?: string; text: string }[] = [
-    ...activity.searches.map((search) => ({
-      time: formatIsoLocal(search.createdAt).slice(11, 16),
-      text: `${search.origin === "autopilot" ? "Buscou" : "Você buscou"} ${search.niche} em ${search.city}: ${
-        search.status === "error"
-          ? "falhou"
-          : `${search.foundCount} ${search.foundCount === 1 ? "empresa nova" : "empresas novas"}`
-      }`,
+function Activity({ data }: { data: Dashboard }) {
+  const events = [
+    ...data.activity.searches.map((search) => ({
+      at: search.createdAt,
+      text: `${search.origin === "autopilot" ? "Busca automática" : "Busca"}: ${search.niche} em ${search.city}, ${search.foundCount} ${search.foundCount === 1 ? "empresa nova" : "empresas novas"}`,
     })),
-    ...[
-      activity.analyzed > 0 &&
-        `Deu nota para ${activity.analyzed} ${activity.analyzed === 1 ? "empresa" : "empresas"}`,
-      activity.messages > 0 &&
-        `Escreveu ${activity.messages} ${activity.messages === 1 ? "mensagem" : "mensagens"}`,
-      activity.discarded > 0 &&
-        `Descartou ${activity.discarded} com nota abaixo de ${setup.minScore}`,
-      activity.reminders > 0 &&
-        `Preparou ${activity.reminders} ${activity.reminders === 1 ? "lembrete" : "lembretes"}`,
-    ]
-      .filter((text): text is string => Boolean(text))
-      .map((text) => ({ text })),
-  ];
+    ...data.activity.emails.map((email) => ({
+      at: email.at ?? new Date(0),
+      text:
+        email.direction === "in"
+          ? `${email.name} respondeu`
+          : email.author === "ai"
+            ? email.inReplyTo
+              ? `A IA respondeu ${email.name}`
+              : `E-mail enviado para ${email.name}`
+            : `Você respondeu ${email.name}`,
+    })),
+  ]
+    // oxlint-disable-next-line unicorn/no-array-sort -- sorts the fresh array built above
+    .sort((a, b) => b.at.getTime() - a.at.getTime())
+    .slice(0, 12);
 
   return (
-    <Card>
+    <Card className="lg:col-span-2">
       <CardHeader>
-        <CardTitle>Hoje</CardTitle>
-        <CardDescription>O que a IA fez</CardDescription>
+        <CardTitle>Atividade de hoje</CardTitle>
       </CardHeader>
       <CardContent>
-        {items.length === 0 ? (
+        {events.length === 0 ? (
           <p className="text-sm text-muted-foreground">Nada ainda hoje.</p>
         ) : (
           <ol className="grid gap-3 text-sm">
-            {items.map((item) => (
-              <li key={`${item.time ?? ""}${item.text}`} className="flex gap-3">
-                <span className="w-10 shrink-0 text-muted-foreground tabular-nums">
-                  {item.time ?? ""}
+            {events.map((event) => (
+              <li key={`${event.at.getTime()}${event.text}`} className="flex gap-4">
+                <span className="w-12 shrink-0 text-muted-foreground tabular-nums">
+                  {shortTime(event.at, data.today)}
                 </span>
-                <span>{item.text}</span>
+                <span>{event.text}</span>
               </li>
             ))}
           </ol>
@@ -436,49 +254,112 @@ function ActivityCard({ data }: { data: Dashboard }) {
   );
 }
 
-function FunnelCard({ data }: { data: Dashboard }) {
-  const rows: { label: string; value: number; view: LeadView }[] = [
-    { label: "Prontos para enviar", value: data.funnel.ready, view: "todo" },
-    { label: "Aguardando resposta", value: data.funnel.waiting, view: "waiting" },
-    { label: "Em conversa", value: data.funnel.talking, view: "talking" },
-    { label: "Fechados", value: data.funnel.closed, view: "closed" },
-    { label: "Descartados pela IA", value: data.funnel.aiDiscarded, view: "discarded" },
+function Automation({ data }: { data: Dashboard }) {
+  const queryClient = useQueryClient();
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+  const toggle = useMutation({
+    mutationFn: (changes: { autopilot?: boolean; aiAutoReply?: boolean; autoDispatch?: boolean }) =>
+      setAutomation({ data: changes }),
+    onSuccess: refresh,
+    onError: () => toast.error("Não foi possível mudar a automação"),
+  });
+  const runNow = useMutation({
+    mutationFn: () => runAutopilotNow(),
+    onSuccess: async (result) => {
+      await refresh();
+      toast.success(
+        result.searches > 0
+          ? `${result.searches} ${result.searches === 1 ? "busca feita" : "buscas feitas"}`
+          : "Nada para buscar agora",
+      );
+    },
+    onError: (error) => toast.error(error.message || "Não foi possível buscar agora"),
+  });
+
+  const { mail, autopilot } = data;
+  const rows = [
+    {
+      key: "aiAutoReply" as const,
+      label: "IA responde sozinha",
+      hint: "Conversa até a pessoa demonstrar interesse, pedir preço ou reunião.",
+      checked: mail.aiAutoReply,
+    },
+    {
+      key: "autoDispatch" as const,
+      label: "Disparo automático",
+      hint: "Leads novos com e-mail entram na fila sem você selecionar.",
+      checked: mail.autoDispatch,
+    },
+    {
+      key: "autopilot" as const,
+      label: "Busca diária",
+      hint:
+        autopilot.targets.length > 0
+          ? `Às ${autopilot.hour}h: ${autopilot.targets.map((t) => `${t.niche} em ${t.city}`).join(", ")}`
+          : "Nenhum nicho cadastrado.",
+      checked: autopilot.enabled,
+    },
   ];
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Funil</CardTitle>
+        <CardTitle>Modo automático</CardTitle>
       </CardHeader>
-      <CardContent>
-        <ul className="grid">
-          {rows.map((row) => (
-            <li key={row.label}>
-              <Link
-                to="/leads"
-                search={{ view: row.view }}
-                className="-mx-2 flex justify-between rounded-md px-2 py-1.5 text-sm hover:bg-muted"
-              >
-                <span>{row.label}</span>
-                <span className="font-medium tabular-nums">{row.value}</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </CardContent>
-    </Card>
-  );
-}
-
-function DashboardSkeleton() {
-  return (
-    <>
-      <Skeleton className="h-36 w-full rounded-xl" />
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {Array.from({ length: 4 }, (_, i) => (
-          <Skeleton key={i} className="h-32 rounded-xl" />
+      <CardContent className="grid gap-4">
+        {rows.map((row) => (
+          <div key={row.key} className="flex items-start justify-between gap-4">
+            <div className="grid gap-0.5">
+              <Label htmlFor={row.key}>{row.label}</Label>
+              <p className="text-xs text-muted-foreground">{row.hint}</p>
+            </div>
+            <Switch
+              id={row.key}
+              checked={row.checked}
+              disabled={
+                toggle.isPending || (row.key === "autopilot" && autopilot.targets.length === 0)
+              }
+              onCheckedChange={(value) => toggle.mutate({ [row.key]: value })}
+            />
+          </div>
         ))}
-      </div>
-      <Skeleton className="h-72 w-full rounded-xl" />
-    </>
+        <Separator />
+        <dl className="grid gap-1.5 text-sm">
+          <div className="flex justify-between gap-4">
+            <dt className="text-muted-foreground">Fila de envio</dt>
+            <dd>
+              {mail.queued > 0
+                ? `${mail.queued} · próximo ${mail.nextSendAt ? shortTime(mail.nextSendAt, data.today) : "agora"}`
+                : "vazia"}
+            </dd>
+          </div>
+          <div className="flex justify-between gap-4">
+            <dt className="text-muted-foreground">IA no mês</dt>
+            <dd>US$ {data.costs.month.aiCostUsd.toFixed(2).replace(".", ",")}</dd>
+          </div>
+          <div className="flex justify-between gap-4">
+            <dt className="text-muted-foreground">Google no mês</dt>
+            <dd>{data.costs.month.placesRequests} de 1.000 grátis</dd>
+          </div>
+        </dl>
+      </CardContent>
+      <CardFooter className="gap-2">
+        {autopilot.targets.length > 0 ? (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => runNow.mutate()}
+            disabled={runNow.isPending || !data.setup.keys}
+          >
+            {runNow.isPending ? "Buscando…" : "Buscar agora"}
+          </Button>
+        ) : null}
+        <Button asChild size="sm" variant="ghost">
+          <Link to="/settings" hash="piloto">
+            Ajustar
+          </Link>
+        </Button>
+      </CardFooter>
+    </Card>
   );
 }

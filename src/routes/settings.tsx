@@ -1,5 +1,11 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { queryOptions, useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import {
+  queryOptions,
+  useMutation,
+  useQuery,
+  useQueryClient,
+  useSuspenseQuery,
+} from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { PlusIcon, Trash2Icon } from "lucide-react";
 import type { ReactNode } from "react";
@@ -37,7 +43,9 @@ import {
   type SettingsInput,
 } from "@/lib/schemas";
 import { cn } from "@/lib/utils";
+import { providerStatusQuery } from "@/lib/queries";
 import { getAutopilot, saveAutopilot } from "@/server/dashboard";
+import { testMailConnection } from "@/server/mail";
 import { getSettings, saveSettings } from "@/server/settings";
 
 const settingsQuery = queryOptions({ queryKey: ["settings"], queryFn: () => getSettings() });
@@ -65,10 +73,55 @@ function SettingsPage() {
   return (
     <Page title="Configurações">
       <div className="mx-auto grid w-full max-w-3xl gap-4 lg:gap-6">
+        <MailCard />
         <AutopilotForm />
         <SettingsForm defaults={data} />
       </div>
     </Page>
+  );
+}
+
+function MailCard() {
+  const { data: status } = useQuery(providerStatusQuery);
+  const test = useMutation({
+    mutationFn: () => testMailConnection(),
+    onSuccess: (result) =>
+      result.ok ? toast.success(result.message) : toast.error(result.message),
+  });
+  const mail = status?.mail;
+  return (
+    <Card id="email" className="scroll-mt-20">
+      <CardHeader>
+        <CardTitle>E-mail</CardTitle>
+        <CardDescription>
+          A caixa de onde os e-mails saem e onde as respostas chegam. Até {mail?.limit ?? 30} envios
+          por dia, um a cada 8 minutos.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-2 text-sm">
+        {mail?.configured ? (
+          <p>
+            Conectado como <span className="font-medium">{mail.address}</span>. Hoje:{" "}
+            {mail.sentToday} de {mail.limit} enviados.
+          </p>
+        ) : (
+          <p className="text-muted-foreground">
+            Coloque <code>MAIL_ADDRESS</code> e <code>MAIL_PASSWORD</code> da sua caixa da Hostinger
+            no arquivo <code>.dev.vars</code> e reinicie o app. Em produção, use{" "}
+            <code>wrangler secret put</code>.
+          </p>
+        )}
+      </CardContent>
+      <CardFooter className="justify-end border-t">
+        <Button
+          variant="outline"
+          disabled={!mail?.configured || test.isPending}
+          onClick={() => test.mutate()}
+        >
+          {test.isPending ? "Testando…" : "Testar conexão"}
+        </Button>
+      </CardFooter>
+    </Card>
   );
 }
 
@@ -103,26 +156,51 @@ function AutopilotForm() {
       <SettingsSection
         footer={
           <Button type="submit" disabled={!isDirty || mutation.isPending}>
-            {mutation.isPending ? "Salvando…" : "Salvar piloto automático"}
+            {mutation.isPending ? "Salvando…" : "Salvar modo automático"}
           </Button>
         }
-        title="Piloto automático"
-        description="Todo dia, no horário escolhido, a IA busca empresas novas, dá nota, descarta as fracas e escreve as mensagens. A cada dia ela usa um bairro diferente da cidade para não repetir resultados."
+        title="Modo automático"
+        description="O que a IA faz sozinha: responder e-mails, disparar para leads novos e buscar empresas todo dia, cada dia num bairro diferente da cidade."
         contentClassName="grid gap-6"
       >
-        <div className="flex items-center gap-3">
-          <Controller
-            control={form.control}
-            name="enabled"
-            render={({ field }) => (
-              <Switch
-                id="autopilot-enabled"
-                checked={field.value}
-                onCheckedChange={field.onChange}
+        <div className="grid gap-4">
+          {(
+            [
+              {
+                name: "aiAutoReply",
+                label: "IA responde sozinha",
+                hint: "Responde os e-mails até a pessoa demonstrar interesse, pedir preço ou reunião. Aí para e te avisa.",
+              },
+              {
+                name: "autoDispatch",
+                label: "Disparo automático",
+                hint: "Leads novos com e-mail entram na fila de envio sem você selecionar, dentro do limite diário.",
+              },
+              {
+                name: "enabled",
+                label: "Busca diária",
+                hint: "Busca os nichos e cidades abaixo todo dia, no horário escolhido.",
+              },
+            ] as const
+          ).map((item) => (
+            <div key={item.name} className="flex items-start justify-between gap-4">
+              <div className="grid gap-0.5">
+                <Label htmlFor={`auto-${item.name}`}>{item.label}</Label>
+                <p className="text-sm text-muted-foreground">{item.hint}</p>
+              </div>
+              <Controller
+                control={form.control}
+                name={item.name}
+                render={({ field }) => (
+                  <Switch
+                    id={`auto-${item.name}`}
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                )}
               />
-            )}
-          />
-          <Label htmlFor="autopilot-enabled">Ligado</Label>
+            </div>
+          ))}
         </div>
 
         <div className="grid gap-2">

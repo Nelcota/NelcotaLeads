@@ -1,29 +1,31 @@
 import { createServerFn } from "@tanstack/react-start";
 import { env } from "cloudflare:workers";
-import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lte, sql } from "drizzle-orm";
+import { and, countDistinct, desc, eq, gte, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import { getDb } from "@/db/client";
-import { analyses, leads, searches } from "@/db/schema";
-import { getAnalyzer } from "@/lib/ai";
+import { emails, leads, searches } from "@/db/schema";
 import { localDay } from "@/lib/format";
+import { mailConfigured } from "@/lib/mail";
 import { autopilotInputSchema } from "@/lib/schemas";
 import { autopilotDeps, runAutopilot } from "./autopilot";
-import { draftFollowUps } from "./follow-ups";
-import { latestAnalysis } from "./leads-query";
-import { hasOffer, NO_OFFER_MESSAGE, writeMessageForLead } from "./process-lead";
+import { EMAIL_PROVIDER, mailDailyLimit } from "./mail-flow";
 import { loadAutopilot, loadSettings, storeAutopilot, writeAutopilot } from "./settings-store";
 import { GOOGLE_PLACES, placesDailyLimit, requestsToday, usageThisMonth } from "./usage";
 
 const count = sql<number>`count(*)`.mapWith(Number);
-// Re-analyses add rows to `analyses`; the dashboard counts companies, not calls.
-const leadCount = sql<number>`count(distinct ${analyses.leadId})`.mapWith(Number);
 
 /** Start of the given Brazil day as an instant (Brazil has no daylight saving time). */
 function dayStart(day: string) {
   return new Date(`${day}T00:00:00-03:00`);
 }
 
-/** Everything the dashboard shows, in one round trip. */
+const needsYou = and(
+  eq(leads.status, "replied"),
+  eq(leads.aiMode, false),
+  isNull(leads.unsubscribedAt),
+);
+
+/** Everything the overview shows, in one round trip. */
 export const getDashboard = createServerFn({ method: "GET" }).handler(async () => {
   const db = getDb();
   const now = new Date();
@@ -31,74 +33,77 @@ export const getDashboard = createServerFn({ method: "GET" }).handler(async () =
   const since = dayStart(today);
 
   const [
-    ready,
-    followUps,
-    statusCounts,
-    pending,
-    withoutMessage,
-    aiDiscarded,
+    attention,
+    totals,
+    contacted,
+    replied,
+    readyToSend,
+    queue,
     todaySearches,
-    analyzedToday,
-    messagesToday,
-    discardedToday,
+    todayEmails,
     autopilot,
+    settingsRow,
     settings,
     month,
+    sentToday,
     googleToday,
   ] = await Promise.all([
     db
       .select({
         id: leads.id,
         name: leads.name,
-        phone: leads.phone,
-        phoneE164: leads.phoneE164,
-        website: leads.website,
-        rating: leads.rating,
-        reviewCount: leads.reviewCount,
-        score: leads.score,
-        summary: analyses.summary,
-        signals: analyses.signals,
-        analysisId: analyses.id,
-        firstMessage: analyses.firstMessage,
+        handoffReason: leads.handoffReason,
+        lastEmailAt: leads.lastEmailAt,
       })
       .from(leads)
-      .innerJoin(analyses, and(eq(analyses.leadId, leads.id), latestAnalysis))
+      .where(needsYou)
+      .orderBy(desc(leads.lastEmailAt))
+      .limit(20),
+    db
+      .select({
+        all: count,
+        aiTalking:
+          sql<number>`coalesce(sum(case when ${leads.status} = 'replied' and ${leads.aiMode} = 1 then 1 else 0 end), 0)`.mapWith(
+            Number,
+          ),
+        closed:
+          sql<number>`coalesce(sum(case when ${leads.status} = 'closed' then 1 else 0 end), 0)`.mapWith(
+            Number,
+          ),
+        unsubscribed:
+          sql<number>`coalesce(sum(case when ${leads.unsubscribedAt} is not null then 1 else 0 end), 0)`.mapWith(
+            Number,
+          ),
+        withEmail:
+          sql<number>`coalesce(sum(case when ${leads.email} is not null then 1 else 0 end), 0)`.mapWith(
+            Number,
+          ),
+      })
+      .from(leads),
+    db
+      .select({ value: countDistinct(emails.leadId) })
+      .from(emails)
+      .where(and(eq(emails.direction, "out"), eq(emails.status, "sent"))),
+    db
+      .select({ value: countDistinct(emails.leadId) })
+      .from(emails)
+      .where(eq(emails.direction, "in")),
+    db
+      .select({ value: count })
+      .from(leads)
       .where(
         and(
           eq(leads.status, "new"),
           eq(leads.analysisStatus, "done"),
-          isNotNull(analyses.firstMessage),
+          isNotNull(leads.email),
+          isNull(leads.unsubscribedAt),
+          sql`not exists (select 1 from emails e where e.lead_id = ${leads.id} and e.direction = 'out' and e.status <> 'draft')`,
         ),
-      )
-      .orderBy(desc(leads.score), asc(leads.name))
-      .limit(100),
+      ),
     db
-      .select({
-        id: leads.id,
-        name: leads.name,
-        phone: leads.phone,
-        phoneE164: leads.phoneE164,
-        status: leads.status,
-        contactedAt: leads.contactedAt,
-        followUpOn: leads.followUpOn,
-        followUpMessage: leads.followUpMessage,
-        followUpMessageFor: leads.followUpMessageFor,
-      })
-      .from(leads)
-      .where(and(inArray(leads.status, ["contacted", "replied"]), lte(leads.followUpOn, today)))
-      .orderBy(asc(leads.followUpOn), desc(leads.score))
-      .limit(100),
-    db.select({ status: leads.status, count }).from(leads).groupBy(leads.status),
-    db.select({ count }).from(leads).where(eq(leads.analysisStatus, "pending")),
-    db
-      .select({ count })
-      .from(leads)
-      .innerJoin(analyses, and(eq(analyses.leadId, leads.id), latestAnalysis))
-      .where(and(eq(leads.status, "new"), isNull(analyses.firstMessage))),
-    db
-      .select({ count })
-      .from(leads)
-      .where(and(eq(leads.status, "discarded"), isNotNull(leads.discardReason))),
+      .select({ value: count, next: sql<number | null>`min(${emails.sendAfter})` })
+      .from(emails)
+      .where(eq(emails.status, "queued")),
     db
       .select({
         id: searches.id,
@@ -111,56 +116,67 @@ export const getDashboard = createServerFn({ method: "GET" }).handler(async () =
       })
       .from(searches)
       .where(gte(searches.createdAt, since))
-      .orderBy(asc(searches.createdAt)),
-    db.select({ count: leadCount }).from(analyses).where(gte(analyses.createdAt, since)),
+      .orderBy(desc(searches.createdAt)),
     db
-      .select({ count: leadCount })
-      .from(analyses)
-      .where(and(gte(analyses.createdAt, since), isNotNull(analyses.firstMessage))),
-    db.select({ count }).from(leads).where(gte(leads.discardedAt, since)),
+      .select({
+        leadId: emails.leadId,
+        name: leads.name,
+        direction: emails.direction,
+        author: emails.author,
+        inReplyTo: emails.inReplyTo,
+        at: emails.sentAt,
+      })
+      .from(emails)
+      .innerJoin(leads, eq(leads.id, emails.leadId))
+      .where(and(inArray(emails.status, ["sent", "received"]), gte(emails.sentAt, since)))
+      .orderBy(desc(emails.sentAt))
+      .limit(30),
     loadAutopilot(db),
+    db.query.settings.findFirst(),
     loadSettings(db),
     usageThisMonth(db, now),
+    requestsToday(db, EMAIL_PROVIDER, now),
     requestsToday(db, GOOGLE_PLACES, now),
   ]);
 
-  const byStatus = Object.fromEntries(statusCounts.map((row) => [row.status, row.count]));
+  const total = totals[0];
   return {
     today,
-    ready,
-    followUps,
-    analyzing: pending[0]?.count ?? 0,
-    withoutMessage: withoutMessage[0]?.count ?? 0,
-    funnel: {
-      ready: ready.length,
-      waiting: byStatus.contacted ?? 0,
-      talking: byStatus.replied ?? 0,
-      closed: byStatus.closed ?? 0,
-      aiDiscarded: aiDiscarded[0]?.count ?? 0,
+    attention,
+    stats: {
+      leads: total?.all ?? 0,
+      withEmail: total?.withEmail ?? 0,
+      contacted: contacted[0]?.value ?? 0,
+      replied: replied[0]?.value ?? 0,
+      aiTalking: total?.aiTalking ?? 0,
+      interested: attention.length,
+      closed: total?.closed ?? 0,
+      unsubscribed: total?.unsubscribed ?? 0,
+      readyToSend: readyToSend[0]?.value ?? 0,
     },
-    activity: {
-      searches: todaySearches,
-      analyzed: analyzedToday[0]?.count ?? 0,
-      messages: messagesToday[0]?.count ?? 0,
-      discarded: discardedToday[0]?.count ?? 0,
-      reminders: followUps.filter(
-        (lead) => lead.followUpMessage && lead.followUpMessageFor === lead.followUpOn,
-      ).length,
+    mail: {
+      configured: mailConfigured(env),
+      address: (env.MAIL_ADDRESS ?? "").toLowerCase(),
+      sentToday,
+      limit: mailDailyLimit(env.MAIL_DAILY_LIMIT),
+      queued: queue[0]?.value ?? 0,
+      nextSendAt: queue[0]?.next ? new Date(queue[0].next * 1000) : null,
+      aiAutoReply: settingsRow?.aiAutoReply ?? true,
+      autoDispatch: settingsRow?.autoDispatch ?? false,
     },
+    activity: { searches: todaySearches, emails: todayEmails },
     autopilot: {
       enabled: autopilot.enabled,
       hour: autopilot.hour,
-      results: autopilot.results,
       targets: autopilot.targets.map(({ niche, city }) => ({ niche, city })),
       lastRunOn: autopilot.lastRunOn,
     },
     setup: {
       keys: Boolean(env.GOOGLE_PLACES_API_KEY && env.DEEPSEEK_API_KEY),
       offer: settings.offer.length > 0,
-      minScore: settings.minScore,
     },
     costs: {
-      month: month,
+      month,
       googleToday,
       googleLimit: placesDailyLimit(env.PLACES_DAILY_REQUEST_LIMIT),
     },
@@ -169,13 +185,22 @@ export const getDashboard = createServerFn({ method: "GET" }).handler(async () =
 
 export type Dashboard = Awaited<ReturnType<typeof getDashboard>>;
 
+/** How many conversations wait for the user, for the sidebar badge. */
+export const getAttentionCount = createServerFn({ method: "GET" }).handler(async () => {
+  const rows = await getDb().select({ value: count }).from(leads).where(needsYou);
+  return rows[0]?.value ?? 0;
+});
+
 export const getAutopilot = createServerFn({ method: "GET" }).handler(async () => {
-  const autopilot = await loadAutopilot(getDb());
+  const db = getDb();
+  const [autopilot, row] = await Promise.all([loadAutopilot(db), db.query.settings.findFirst()]);
   return {
     enabled: autopilot.enabled,
     hour: autopilot.hour,
     results: autopilot.results,
     targets: autopilot.targets.map(({ niche, city }) => ({ niche, city })),
+    aiAutoReply: row?.aiAutoReply ?? true,
+    autoDispatch: row?.autoDispatch ?? false,
   };
 });
 
@@ -186,10 +211,20 @@ export const saveAutopilot = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
-export const setAutopilotEnabled = createServerFn({ method: "POST" })
-  .validator(z.object({ enabled: z.boolean() }))
+export const setAutomation = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      autopilot: z.boolean().optional(),
+      aiAutoReply: z.boolean().optional(),
+      autoDispatch: z.boolean().optional(),
+    }),
+  )
   .handler(async ({ data }) => {
-    await writeAutopilot(getDb(), { autopilotEnabled: data.enabled });
+    await writeAutopilot(getDb(), {
+      ...(data.autopilot !== undefined ? { autopilotEnabled: data.autopilot } : {}),
+      ...(data.aiAutoReply !== undefined ? { aiAutoReply: data.aiAutoReply } : {}),
+      ...(data.autoDispatch !== undefined ? { autoDispatch: data.autoDispatch } : {}),
+    });
     return { ok: true as const };
   });
 
@@ -200,33 +235,4 @@ export const runAutopilotNow = createServerFn({ method: "POST" }).handler(async 
     throw new Error("Cadastre ao menos um nicho e cidade no piloto automático.");
   }
   return runAutopilot(autopilotDeps(env), new Date(), { force: true });
-});
-
-/** Writes the reminders that are due now instead of waiting for the next hourly tick. */
-export const draftFollowUpsNow = createServerFn({ method: "POST" }).handler(async () => ({
-  drafted: await draftFollowUps({ db: getDb(), analyzer: getAnalyzer(env) }, localDay(new Date())),
-}));
-
-/** Writes the first message for new leads that have none (old analyses or a failed call). */
-export const writeMissingMessages = createServerFn({ method: "POST" }).handler(async () => {
-  const db = getDb();
-  if (!hasOffer(await loadSettings(db))) throw new Error(NO_OFFER_MESSAGE);
-  const analyzer = getAnalyzer(env);
-  const missing = await db
-    .select({ id: leads.id })
-    .from(leads)
-    .innerJoin(analyses, and(eq(analyses.leadId, leads.id), latestAnalysis))
-    .where(and(eq(leads.status, "new"), isNull(analyses.firstMessage)))
-    .orderBy(desc(leads.score))
-    .limit(10);
-  let written = 0;
-  for (const lead of missing) {
-    try {
-      await writeMessageForLead({ db, analyzer }, lead.id);
-      written += 1;
-    } catch (error) {
-      console.error("message generation failed", lead.id, error);
-    }
-  }
-  return { written, failed: missing.length - written };
 });

@@ -6,7 +6,9 @@ import { getDb } from "@/db/client";
 import { searches } from "@/db/schema";
 import { getPlacesProvider } from "@/lib/places";
 import { newSearchSchema } from "@/lib/schemas";
+import { mailConfigured } from "@/lib/mail";
 import { runSearch } from "./collect";
+import { EMAIL_PROVIDER, mailDailyLimit } from "./mail-flow";
 import { loadSettings } from "./settings-store";
 import { GOOGLE_PLACES, placesDailyLimit, requestsToday, reserveRequest } from "./usage";
 
@@ -44,6 +46,12 @@ export const getProviderStatus = createServerFn({ method: "GET" }).handler(async
     placesUsage: {
       used: await requestsToday(db, GOOGLE_PLACES),
       limit: placesDailyLimit(env.PLACES_DAILY_REQUEST_LIMIT),
+    },
+    mail: {
+      configured: mailConfigured(env),
+      address: (env.MAIL_ADDRESS ?? "").toLowerCase(),
+      sentToday: await requestsToday(db, EMAIL_PROVIDER),
+      limit: mailDailyLimit(env.MAIL_DAILY_LIMIT),
     },
   };
 });

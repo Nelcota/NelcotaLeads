@@ -4,6 +4,7 @@ import {
   HistoryIcon,
   InboxIcon,
   LayoutDashboardIcon,
+  MessagesSquareIcon,
   MoonIcon,
   SettingsIcon,
   SunIcon,
@@ -29,16 +30,17 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { leadCountsQuery, providerStatusQuery } from "@/lib/queries";
+import { attentionQuery, providerStatusQuery } from "@/lib/queries";
 import { useTheme } from "@/lib/theme";
 
 const NAV: {
-  to: "/" | "/leads" | "/searches" | "/settings";
+  to: "/" | "/leads" | "/conversas" | "/searches" | "/settings";
   label: string;
   icon: LucideIcon;
 }[] = [
-  { to: "/", label: "Painel", icon: LayoutDashboardIcon },
+  { to: "/", label: "Visão geral", icon: LayoutDashboardIcon },
   { to: "/leads", label: "Leads", icon: InboxIcon },
+  { to: "/conversas", label: "Conversas", icon: MessagesSquareIcon },
   { to: "/searches", label: "Buscas", icon: HistoryIcon },
   { to: "/settings", label: "Configurações", icon: SettingsIcon },
 ];
@@ -67,8 +69,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
 function AppSidebar() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
-  const { data: counts } = useQuery(leadCountsQuery({}));
-  const due = counts?.byView.followup ?? 0;
+  const { data: attention = 0 } = useQuery(attentionQuery);
 
   return (
     <Sidebar collapsible="icon">
@@ -103,8 +104,10 @@ function AppSidebar() {
                         <span>{item.label}</span>
                       </Link>
                     </SidebarMenuButton>
-                    {item.to === "/" && due > 0 ? (
-                      <SidebarMenuBadge title={`${due} retornos para hoje`}>{due}</SidebarMenuBadge>
+                    {item.to === "/conversas" && attention > 0 ? (
+                      <SidebarMenuBadge title={`${attention} precisam de você`}>
+                        {attention}
+                      </SidebarMenuBadge>
                     ) : null}
                   </SidebarMenuItem>
                 );
@@ -129,11 +132,25 @@ function AppSidebar() {
 function UsageMeter() {
   const { data } = useQuery(providerStatusQuery);
   if (!data) return null;
-  const { used, limit } = data.placesUsage;
+  const { mail, placesUsage } = data;
   return (
-    <p className="px-2 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
-      Google hoje: {used} de {limit} requisições
-    </p>
+    <div className="grid gap-1 px-2 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
+      {mail.configured ? (
+        <>
+          <span className="truncate text-foreground">{mail.address}</span>
+          <span>
+            E-mails hoje: {mail.sentToday} de {mail.limit}
+          </span>
+        </>
+      ) : (
+        <Link to="/settings" hash="email" className="text-foreground underline underline-offset-4">
+          Conectar e-mail
+        </Link>
+      )}
+      <span>
+        Google hoje: {placesUsage.used} de {placesUsage.limit}
+      </span>
+    </div>
   );
 }
 

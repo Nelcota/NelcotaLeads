@@ -21,5 +21,29 @@ export function createFakeAnalyzer(score = 40): LeadAnalyzer {
       usage,
     }),
     listAreas: async () => ({ areas: ["Centro", "Savassi"], usage }),
+    writeEmail: async (_settings, lead) => ({
+      email: {
+        subject: `Assunto para ${lead.name}`,
+        body: `Olá, tudo bem? Texto para ${lead.name}.`,
+      },
+      usage,
+    }),
+    replyEmail: async (_settings, _lead, thread) => {
+      const last = thread.at(-1)?.text.toLowerCase() ?? "";
+      const action = /preço|valor|quanto/.test(last)
+        ? "handoff"
+        : /não tenho interesse|sair/.test(last)
+          ? "close"
+          : "reply";
+      return {
+        decision: {
+          action,
+          reason: `Teste: ${action}`,
+          reply: action === "reply" ? "Resposta da IA" : "",
+          draft: action === "handoff" ? "Rascunho para você" : "",
+        },
+        usage,
+      };
+    },
   };
 }

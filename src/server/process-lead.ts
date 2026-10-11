@@ -36,27 +36,15 @@ export async function processLead(deps: ProcessDeps, job: LeadJob): Promise<"don
   const { analysis, usage } = await analyzer.analyze(settings, context);
   const usages: CallUsage[] = [usage];
 
-  // Triage: below the minimum score the AI discards the lead and writes nothing for it.
+  // Triage: below the minimum score the AI discards the lead. Outreach e-mails are
+  // written when the lead is selected for a send, not here.
   const keep = settings.minScore <= 0 || analysis.score >= settings.minScore;
-  let firstMessage: string | null = null;
-  // Without an offer there is nothing honest to say, so no message is written.
-  if (keep && hasOffer(settings)) {
-    try {
-      const result = await analyzer.writeMessage(settings, context, analysis);
-      firstMessage = result.message;
-      usages.push(result.usage);
-    } catch (error) {
-      // A failed message should not throw away a paid analysis; it can be regenerated later.
-      console.error("first message generation failed", lead.id, error);
-    }
-  }
 
   const [, updated] = await db.batch([
     db.insert(analyses).values({
       id: crypto.randomUUID(),
       leadId: lead.id,
       ...analysis,
-      firstMessage,
       model: [...new Set(usages.map((u) => u.model))].join(" + "),
       tokensIn: sum(usages, "tokensIn"),
       tokensOut: sum(usages, "tokensOut"),
@@ -68,6 +56,7 @@ export async function processLead(deps: ProcessDeps, job: LeadJob): Promise<"don
         analysisStatus: "done",
         analysisError: null,
         score: analysis.score,
+        email: lead.email ?? site.siteData?.emails[0]?.toLowerCase() ?? null,
         ...triagePatch(lead, keep, analysis.score, settings.minScore),
       })
       .where(

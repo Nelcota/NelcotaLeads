@@ -73,6 +73,15 @@ describe("prompts", () => {
   });
 });
 
+describe("findTells", () => {
+  it("flags the phrases the e-mail prompt forbids", async () => {
+    const { findTells } = await import("./analyzer");
+    expect(findTells("Sou consultor e crio sites. Se fizer sentido, conversamos.")).toHaveLength(2);
+    expect(findTells("Vi que vocês têm nota 4.8 no Google.")).toHaveLength(1);
+    expect(findTells("Crio sites para clínicas. Podemos conversar 15 minutos?")).toEqual([]);
+  });
+});
+
 describe("tidyMessage", () => {
   it("replaces dashes, collapses blank lines and moves the opt-out to its own last line", async () => {
     const { tidyMessage, OPT_OUT_LINE } = await import("./analyzer");

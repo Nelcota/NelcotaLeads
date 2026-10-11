@@ -64,12 +64,11 @@ describe("processLead", () => {
     expect(leadA).toMatchObject({ analysisStatus: "done", siteStatus: "unreachable" });
     expect(leadA?.score).toBeTypeOf("number");
     const analysis = await db.query.analyses.findFirst({ where: eq(analyses.leadId, "a") });
-    // Analysis plus the first message, both counted.
-    expect(analysis).toMatchObject({ model: "test-model", tokensIn: 200, costEstimate: 0.0002 });
+    expect(analysis).toMatchObject({ model: "test-model", tokensIn: 100, costEstimate: 0.0001 });
     expect(d.fetchSite).toHaveBeenCalledTimes(1); // lead "b" has no site
     const usage = await db.query.apiUsage.findFirst({ where: eq(apiUsage.provider, "deepseek") });
-    expect(usage).toMatchObject({ requests: 4 });
-    expect(usage?.costUsd).toBeCloseTo(0.0004);
+    expect(usage).toMatchObject({ requests: 2 });
+    expect(usage?.costUsd).toBeCloseTo(0.0002);
   });
 
   it("is idempotent unless forced", async () => {
@@ -99,10 +98,10 @@ describe("processLead", () => {
     expect(await getSearch()).toMatchObject({ analyzedCount: 1, errorCount: 1, status: "done" });
   });
 
-  it("writes a message for every lead that passes triage", async () => {
+  it("keeps leads that pass triage without writing anything yet", async () => {
     await processLead(deps(), { leadId: "a" }); // fake score 40 >= default minimum 30
     const kept = await db.query.analyses.findFirst({ where: eq(analyses.leadId, "a") });
-    expect(kept).toMatchObject({ firstMessage: "Olá, A", tokensIn: 200, costEstimate: 0.0002 });
+    expect(kept?.firstMessage).toBeNull();
     expect(await db.query.leads.findFirst({ where: eq(leads.id, "a") })).toMatchObject({
       status: "new",
       discardReason: null,

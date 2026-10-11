@@ -1,21 +1,13 @@
 import { env } from "cloudflare:test";
-import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import { getDb } from "@/db/client";
-import { analyses, leads, searches } from "@/db/schema";
+import { searches } from "@/db/schema";
 import { createFakeAnalyzer } from "../../test/fake-analyzer";
 import { createFakePlaces } from "../../test/fake-places";
 import { createFakeQueue } from "../../test/fake-queue";
 import { resetDb } from "../../test/reset-db";
 import { nextQuery, runAutopilot, type AutopilotDeps } from "./autopilot";
-import { draftFollowUps } from "./follow-ups";
-import {
-  DEFAULT_SETTINGS,
-  loadAutopilot,
-  storeAutopilot,
-  storeSettings,
-  writeAutopilot,
-} from "./settings-store";
+import { loadAutopilot, storeAutopilot, writeAutopilot } from "./settings-store";
 
 const db = getDb(env.DB);
 const target = { niche: "Dentistas", city: "Belo Horizonte", areas: [], cursor: 0 };
@@ -52,6 +44,8 @@ describe("runAutopilot", () => {
     await resetDb();
     await storeAutopilot(db, {
       enabled: true,
+      aiAutoReply: true,
+      autoDispatch: false,
       hour: 8,
       results: 20,
       targets: [{ niche: "Dentistas", city: "Belo Horizonte" }],
@@ -75,45 +69,5 @@ describe("runAutopilot", () => {
     await writeAutopilot(db, { autopilotEnabled: false });
     expect((await runAutopilot(deps(), nineThirty)).searches).toBe(0);
     expect((await runAutopilot(deps(), nineThirty, { force: true })).searches).toBe(1);
-  });
-});
-
-describe("draftFollowUps", () => {
-  beforeEach(async () => {
-    await resetDb();
-    await storeSettings(db, { ...DEFAULT_SETTINGS, offer: "Sites para clínicas" });
-    await db.insert(searches).values({ id: "s", niche: "Dentistas", city: "BH", maxResults: 1 });
-    await db.insert(leads).values({
-      id: "l",
-      searchId: "s",
-      placeId: "p",
-      name: "Clínica",
-      status: "contacted",
-      contactedAt: new Date("2026-10-08T15:00:00Z"),
-      followUpOn: "2026-10-11",
-      analysisStatus: "done",
-    });
-    await db.insert(analyses).values({
-      id: "a",
-      leadId: "l",
-      summary: "x",
-      signals: [],
-      painPoints: [],
-      score: 50,
-      scoreReasoning: "x",
-      firstMessage: "Oi",
-      model: "test-model",
-    });
-  });
-
-  it("writes one reminder per follow-up day", async () => {
-    const d = { db, analyzer: createFakeAnalyzer() };
-    expect(await draftFollowUps(d, "2026-10-10")).toBe(0);
-    expect(await draftFollowUps(d, "2026-10-11")).toBe(1);
-    expect(await draftFollowUps(d, "2026-10-11")).toBe(0);
-    expect(await db.query.leads.findFirst({ where: eq(leads.id, "l") })).toMatchObject({
-      followUpMessage: "Lembrete para Clínica após 3 dias",
-      followUpMessageFor: "2026-10-11",
-    });
   });
 });
