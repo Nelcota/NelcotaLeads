@@ -6,7 +6,6 @@ import { formatIsoLocal, localDay } from "@/lib/format";
 import { getPlacesProvider, type PlacesProvider } from "@/lib/places";
 import type { AutopilotTarget } from "@/lib/schemas";
 import { runSearch } from "./collect";
-import { draftFollowUps } from "./follow-ups";
 import type { LeadJob } from "./queue";
 import { loadAutopilot, writeAutopilot } from "./settings-store";
 import { GOOGLE_PLACES, placesDailyLimit, recordAiCost, reserveRequest } from "./usage";
@@ -56,14 +55,14 @@ export async function nextQuery(
 }
 
 /**
- * One autopilot tick. Searches every target once a day, from the configured hour on,
- * stopping when the Google daily limit runs out; then writes the reminders that are due.
+ * Searches every target once a day, from the configured hour on, stopping when the
+ * Google daily limit runs out.
  */
 export async function runAutopilot(
   deps: AutopilotDeps,
   now = new Date(),
   { force = false } = {},
-): Promise<{ searches: number; drafted: number }> {
+): Promise<{ searches: number }> {
   const { db } = deps;
   const config = await loadAutopilot(db);
   const today = localDay(now);
@@ -92,6 +91,5 @@ export async function runAutopilot(
     await writeAutopilot(db, { autopilotTargets: targets });
   }
 
-  const drafted = await draftFollowUps(deps, today);
-  return { searches: searched, drafted };
+  return { searches: searched };
 }

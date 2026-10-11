@@ -5,7 +5,9 @@ import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { Page, useOpenNewSearch } from "@/components/app-shell";
 import { ScoreBadge, StatusBadge } from "@/components/lead-badges";
+import { DispatchSheet } from "@/components/dispatch-sheet";
 import { LeadSheet } from "@/components/lead-sheet";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -72,6 +74,7 @@ const TIER_RANGES: Record<ScoreTier, Pick<LeadFilters, "minScore" | "maxScore">>
 };
 const NO_FILTERS: Partial<LeadFilters> = {
   q: undefined,
+  hasEmail: undefined,
   minScore: undefined,
   maxScore: undefined,
   noWebsite: undefined,
@@ -123,6 +126,13 @@ function LeadsPage() {
   const { data } = useQuery(leadsQuery(filters));
   const { data: counts } = useQuery(leadCountsQuery(filters));
   const openNewSearch = useOpenNewSearch();
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [dispatching, setDispatching] = useState(false);
+  const selectedRows = (data ?? []).filter((lead) => selected.has(lead.id));
+  const sendable = selectedRows
+    .filter((lead) => lead.email && !lead.unsubscribedAt)
+    .map((lead) => lead.id);
+  const withoutEmail = selectedRows.length - sendable.length;
 
   const setFilters = (patch: Partial<LeadFilters>) =>
     void navigate({ search: (prev) => clean({ ...prev, ...patch }), replace: true });
@@ -198,15 +208,62 @@ function LeadsPage() {
 
       <Toolbar filters={filters} view={view} onChange={setFilters} />
 
+      {selected.size > 0 ? (
+        <div className="flex flex-wrap items-center gap-3 rounded-lg bg-primary px-4 py-2.5 text-sm text-primary-foreground">
+          <span className="font-medium">
+            {selected.size} {selected.size === 1 ? "selecionado" : "selecionados"}
+          </span>
+          {withoutEmail > 0 ? (
+            <span className="opacity-70">
+              {withoutEmail} sem e-mail {withoutEmail === 1 ? "fica" : "ficam"} de fora
+            </span>
+          ) : null}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="ml-auto hover:bg-primary-foreground/10 hover:text-primary-foreground"
+            onClick={() => setSelected(new Set())}
+          >
+            Limpar
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={sendable.length === 0}
+            onClick={() => setDispatching(true)}
+          >
+            Disparar e-mail
+          </Button>
+        </div>
+      ) : null}
+
       <div className="overflow-x-auto rounded-md border">
         <LeadsTable
           data={data}
           view={view}
           filtered={hasFilters(filters)}
+          selected={selected}
+          onToggle={(ids, on) =>
+            setSelected((current) => {
+              const next = new Set(current);
+              for (const id of ids) {
+                if (on) next.add(id);
+                else next.delete(id);
+              }
+              return next;
+            })
+          }
           onOpen={selectLead}
           onReset={() => setFilters(NO_FILTERS)}
         />
       </div>
+
+      <DispatchSheet
+        leadIds={sendable}
+        open={dispatching}
+        onOpenChange={setDispatching}
+        onDispatched={() => setSelected(new Set())}
+      />
       <p className="text-sm text-muted-foreground" aria-live="polite">
         {data ? `${data.length} ${data.length === 1 ? "lead" : "leads"}` : ""}
         {counts?.pending ? ` · ${counts.pending} em análise` : ""}
@@ -334,6 +391,15 @@ function Toolbar({
         Sem site
       </Button>
 
+      <Button
+        variant={filters.hasEmail ? "secondary" : "outline"}
+        size="sm"
+        aria-pressed={filters.hasEmail ?? false}
+        onClick={() => onChange({ hasEmail: filters.hasEmail ? undefined : true })}
+      >
+        Com e-mail
+      </Button>
+
       <Select
         value={sortValue}
         onValueChange={(next) => {
@@ -370,28 +436,43 @@ function LeadsTable({
   data,
   view,
   filtered,
+  selected,
+  onToggle,
   onOpen,
   onReset,
 }: {
   data: LeadRow[] | undefined;
   view: LeadView;
   filtered: boolean;
+  selected: Set<string>;
+  onToggle: (ids: string[], on: boolean) => void;
   onOpen: (id: string) => void;
   onReset: () => void;
 }) {
   const today = useToday();
   const showStatus = view === "all";
   const showFollowUp = view === "followup" || view === "waiting" || view === "talking";
-  const columns = 4 + (showStatus ? 1 : 0) + (showFollowUp ? 1 : 0);
+  const columns = 6 + (showStatus ? 1 : 0) + (showFollowUp ? 1 : 0);
+  const ids = data?.map((lead) => lead.id) ?? [];
+  const allSelected = ids.length > 0 && ids.every((id) => selected.has(id));
+  const someSelected = !allSelected && ids.some((id) => selected.has(id));
 
   return (
     <Table>
       <TableHeader>
         <TableRow>
+          <TableHead className="w-10">
+            <Checkbox
+              aria-label="Selecionar todos"
+              checked={allSelected ? true : someSelected ? "indeterminate" : false}
+              onCheckedChange={(checked) => onToggle(ids, checked === true)}
+            />
+          </TableHead>
           <TableHead>Empresa</TableHead>
           <TableHead className="w-20">Nota</TableHead>
           {showStatus ? <TableHead className="hidden sm:table-cell">Status</TableHead> : null}
           {showFollowUp ? <TableHead>Retorno</TableHead> : null}
+          <TableHead className="hidden md:table-cell">E-mail</TableHead>
           <TableHead className="hidden sm:table-cell">Telefone</TableHead>
           <TableHead className="hidden lg:table-cell">Google</TableHead>
         </TableRow>
@@ -421,12 +502,20 @@ function LeadsTable({
             <TableRow
               key={lead.id}
               tabIndex={0}
+              data-state={selected.has(lead.id) ? "selected" : undefined}
               className="cursor-pointer"
               onClick={() => onOpen(lead.id)}
               onKeyDown={(event) => {
                 if (event.key === "Enter") onOpen(lead.id);
               }}
             >
+              <TableCell onClick={(event) => event.stopPropagation()}>
+                <Checkbox
+                  aria-label={`Selecionar ${lead.name}`}
+                  checked={selected.has(lead.id)}
+                  onCheckedChange={(checked) => onToggle([lead.id], checked === true)}
+                />
+              </TableCell>
               <TableCell className="max-w-72">
                 <p className="truncate font-medium">{lead.name}</p>
                 <p className="truncate text-xs text-muted-foreground">{hint(lead)}</p>
@@ -444,6 +533,13 @@ function LeadsTable({
                   {lead.followUpOn ? relativeDay(lead.followUpOn, today) : "sem data"}
                 </TableCell>
               ) : null}
+              <TableCell className="hidden max-w-56 truncate md:table-cell">
+                {lead.unsubscribedAt ? (
+                  <span className="text-muted-foreground">descadastrado</span>
+                ) : (
+                  (lead.email ?? <span className="text-muted-foreground">sem e-mail</span>)
+                )}
+              </TableCell>
               <TableCell className="hidden whitespace-nowrap tabular-nums sm:table-cell">
                 {lead.phone ?? "sem telefone"}
               </TableCell>

@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -26,16 +27,11 @@ import { Textarea } from "@/components/ui/textarea";
 import type { Analysis, Lead, LeadStatus, SiteStatus } from "@/db/schema";
 import { addDays, formatDate, localDay, relativeDay } from "@/lib/format";
 import { whatsappLink } from "@/lib/phone";
-import { leadQuery, providerStatusQuery } from "@/lib/queries";
+import { conversationQuery, leadQuery, providerStatusQuery } from "@/lib/queries";
 import { LEAD_STATUS_LABELS, LEAD_STATUS_VALUES, type UpdateLeadInput } from "@/lib/schemas";
 import { useToday } from "@/lib/today";
-import {
-  generateMessage,
-  reanalyzeLead,
-  updateFirstMessage,
-  updateFollowUpMessage,
-  updateLead,
-} from "@/server/leads";
+import { generateMessage, reanalyzeLead, updateFirstMessage, updateLead } from "@/server/leads";
+import { dispatchEmails, prepareEmails, rewriteDraft, updateDraft } from "@/server/mail";
 
 const SITE_STATUS_LABELS: Record<SiteStatus, string> = {
   pending: "ainda não lido",
@@ -51,8 +47,6 @@ const FOLLOW_UP_OPTIONS = [
   { days: 7, label: "Em 1 semana" },
   { days: 14, label: "Em 2 semanas" },
 ] as const;
-
-const REMINDER_GAP_DAYS = 4;
 
 type LeadUpdate = Omit<UpdateLeadInput, "id">;
 
@@ -212,18 +206,19 @@ type StepProps = {
 
 function NextStep(props: StepProps) {
   const { lead, analysis, busy, onUpdate } = props;
+  if (lead.lastEmailAt) return <ConversationStep {...props} />;
   switch (lead.status) {
     case "new":
-      return (
+      return lead.email && !lead.unsubscribedAt ? (
+        <EmailStep key={lead.id} {...props} />
+      ) : (
         <FirstContactStep
           key={`${analysis?.id ?? "none"}:${analysis?.firstMessage ?? ""}`}
           {...props}
         />
       );
     case "contacted":
-      return (
-        <ReminderStep key={`${lead.followUpMessage ?? ""}:${lead.followUpOn ?? ""}`} {...props} />
-      );
+      return <WaitingStep {...props} />;
     case "replied":
       return (
         <Card>
@@ -411,80 +406,28 @@ function FirstContactStep({ lead, analysis, today, busy, onUpdate, onChanged }: 
   );
 }
 
-function ReminderStep(props: StepProps) {
-  const { lead, analysis, today, busy, onUpdate, onChanged } = props;
-  const draft =
-    lead.followUpMessage && lead.followUpMessageFor === lead.followUpOn ? lead.followUpMessage : "";
-  const [message, setMessage] = useState(draft);
-  const due = lead.followUpOn !== null && lead.followUpOn <= today;
+/** WhatsApp contacts: waiting for an answer, with the follow-up day. */
+function WaitingStep(props: StepProps) {
+  const { lead, today, busy, onUpdate } = props;
   const contacted = lead.contactedAt ? relativeDay(localDay(lead.contactedAt), today) : null;
-
-  const saveMessage = useMutation({
-    mutationFn: () => updateFollowUpMessage({ data: { id: lead.id, message } }),
-    onSuccess: onChanged,
-  });
-
-  const sent = () => {
-    if (message !== draft) saveMessage.mutate();
-    onUpdate({ followUpOn: addDays(today, REMINDER_GAP_DAYS) });
-    toast(`${lead.name}: lembrete enviado`, {
-      description: `Próximo retorno em ${REMINDER_GAP_DAYS} dias.`,
-    });
-  };
-
   return (
     <Card>
       <CardHeader>
         <CardTitle>Aguardando resposta</CardTitle>
-        <CardDescription>
-          {contacted ? `Primeira mensagem ${contacted}. ` : ""}
-          {due
-            ? draft
-              ? "O lembrete está pronto."
-              : "A IA escreve o lembrete na próxima hora."
-            : "No dia do retorno a IA escreve um lembrete."}
-        </CardDescription>
+        <CardDescription>{contacted ? `Contatado ${contacted}.` : "Contatado."}</CardDescription>
       </CardHeader>
-      <CardContent className="grid gap-4">
-        {due ? (
-          <Textarea
-            aria-label="Lembrete"
-            rows={4}
-            placeholder="Escreva o lembrete ou aguarde a IA."
-            value={message}
-            onChange={(event) => setMessage(event.target.value)}
-          />
-        ) : null}
+      <CardContent>
         <FollowUpPicker {...props} label="Retorno" />
-        {analysis?.firstMessage ? (
-          <details className="text-sm">
-            <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
-              Mensagem enviada
-            </summary>
-            <p className="mt-2 whitespace-pre-line text-muted-foreground">
-              {analysis.firstMessage}
-            </p>
-          </details>
-        ) : null}
       </CardContent>
       <CardFooter className="flex-wrap gap-2">
-        {due && message.trim() && lead.phoneE164 ? (
-          <Button asChild disabled={busy}>
-            <a
-              href={whatsappLink(lead.phoneE164, message)}
-              target="_blank"
-              rel="noreferrer"
-              onClick={sent}
-            >
-              Enviar lembrete
+        {lead.phoneE164 ? (
+          <Button asChild variant="outline">
+            <a href={whatsappLink(lead.phoneE164)} target="_blank" rel="noreferrer">
+              Abrir WhatsApp
             </a>
           </Button>
         ) : null}
-        <Button
-          variant={due ? "outline" : "default"}
-          disabled={busy}
-          onClick={() => onUpdate({ status: "replied" })}
-        >
+        <Button disabled={busy} onClick={() => onUpdate({ status: "replied" })}>
           Respondeu
         </Button>
         <Button
@@ -494,6 +437,150 @@ function ReminderStep(props: StepProps) {
           onClick={() => onUpdate({ status: "discarded" })}
         >
           Sem interesse
+        </Button>
+      </CardFooter>
+    </Card>
+  );
+}
+
+/** First e-mail for a new lead: the AI writes it, the user reviews and sends. */
+function EmailStep({ lead, busy, onUpdate, onChanged }: StepProps) {
+  const { data } = useQuery(conversationQuery(lead.id));
+  const queryClient = useQueryClient();
+  const draft = data?.draft ?? null;
+  const [edit, setEdit] = useState<{ subject: string; body: string } | null>(null);
+  const value = edit ?? (draft ? { subject: draft.subject, body: draft.body } : null);
+  const refresh = () =>
+    Promise.all([
+      onChanged(),
+      queryClient.invalidateQueries({ queryKey: ["conversations", lead.id] }),
+    ]);
+
+  const write = useMutation({
+    mutationFn: () => prepareEmails({ data: { leadIds: [lead.id] } }),
+    onSuccess: async (result) => {
+      if (result.skipped[0]) toast.error(`Não deu para escrever: ${result.skipped[0].reason}`);
+      await refresh();
+    },
+    onError: (error) => toast.error(error.message || "A IA não conseguiu escrever"),
+  });
+  const rewrite = useMutation({
+    mutationFn: () => rewriteDraft({ data: { id: draft?.id ?? "" } }),
+    onSuccess: async () => {
+      setEdit(null);
+      await refresh();
+    },
+  });
+  const send = useMutation({
+    mutationFn: async () => {
+      if (!draft || !value) return;
+      if (edit) await updateDraft({ data: { id: draft.id, ...edit } });
+      await dispatchEmails({ data: { ids: [draft.id] } });
+    },
+    onSuccess: async () => {
+      setEdit(null);
+      await refresh();
+      toast.success("E-mail enviado", { description: "A resposta aparece em Conversas." });
+    },
+    onError: (error) => toast.error(error.message || "Não foi possível enviar"),
+  });
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Primeiro e-mail</CardTitle>
+        <CardDescription>Para {lead.email}. A IA escreve, você revisa e envia.</CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-3">
+        {value && draft ? (
+          <>
+            <Input
+              aria-label="Assunto"
+              value={value.subject}
+              onChange={(event) => setEdit({ ...value, subject: event.target.value })}
+            />
+            <Textarea
+              aria-label="Mensagem"
+              rows={10}
+              value={value.body}
+              onChange={(event) => setEdit({ ...value, body: event.target.value })}
+            />
+          </>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            Nenhum e-mail escrito ainda. Você também pode selecionar vários leads na lista e
+            disparar de uma vez.
+          </p>
+        )}
+      </CardContent>
+      <CardFooter className="flex-wrap gap-2">
+        {draft ? (
+          <>
+            <Button disabled={send.isPending} onClick={() => send.mutate()}>
+              {send.isPending ? "Enviando…" : "Enviar e-mail"}
+            </Button>
+            <Button variant="outline" disabled={rewrite.isPending} onClick={() => rewrite.mutate()}>
+              {rewrite.isPending ? "Reescrevendo…" : "Gerar outro"}
+            </Button>
+          </>
+        ) : (
+          <Button disabled={write.isPending} onClick={() => write.mutate()}>
+            {write.isPending ? "Escrevendo…" : "Escrever e-mail"}
+          </Button>
+        )}
+        <Button
+          variant="ghost"
+          className="ml-auto"
+          disabled={busy}
+          onClick={() => onUpdate({ status: "discarded" })}
+        >
+          Descartar
+        </Button>
+      </CardFooter>
+    </Card>
+  );
+}
+
+/** Leads with an e-mail thread: the latest messages and a way into Conversas. */
+function ConversationStep({ lead }: StepProps) {
+  const { data } = useQuery(conversationQuery(lead.id));
+  const last = data?.messages.slice(-2) ?? [];
+  const label =
+    data?.state === "needsYou"
+      ? `A IA parou: ${lead.handoffReason ?? "respondeu"}. A conversa é sua.`
+      : data?.state === "aiTalking"
+        ? "A IA está conversando."
+        : data?.state === "closed"
+          ? "Conversa encerrada."
+          : "Aguardando resposta.";
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Conversa por e-mail</CardTitle>
+        <CardDescription>{label}</CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-3">
+        {last.map((message) => (
+          <div
+            key={message.id}
+            className={
+              message.direction === "out"
+                ? "rounded-lg border px-3 py-2 text-sm"
+                : "rounded-lg bg-muted px-3 py-2 text-sm"
+            }
+          >
+            <p className="mb-1 text-xs text-muted-foreground">
+              {message.direction === "in" ? "Empresa" : message.author === "ai" ? "IA" : "Você"}
+            </p>
+            <p className="line-clamp-4 whitespace-pre-line">{message.body}</p>
+          </div>
+        ))}
+      </CardContent>
+      <CardFooter>
+        <Button asChild>
+          <Link to="/conversas" search={{ lead: lead.id }}>
+            Abrir conversa
+          </Link>
         </Button>
       </CardFooter>
     </Card>

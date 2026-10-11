@@ -1,3 +1,7 @@
-# Copy to .dev.vars (git-ignored). Both keys are required.
+# Copy to .dev.vars (git-ignored).
+# Google and DeepSeek keys are required.
 GOOGLE_PLACES_API_KEY=
 DEEPSEEK_API_KEY=
+# Mailbox the AI sends from and reads replies from (Hostinger Email by default).
+MAIL_ADDRESS=
+MAIL_PASSWORD=

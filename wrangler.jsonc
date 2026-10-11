@@ -1,6 +1,6 @@
 /**
  * Wrangler configuration: https://developers.cloudflare.com/workers/wrangler/configuration/
- * Secrets (GOOGLE_PLACES_API_KEY, DEEPSEEK_API_KEY) go in `.dev.vars` locally and
+ * Secrets (GOOGLE_PLACES_API_KEY, DEEPSEEK_API_KEY, MAIL_ADDRESS, MAIL_PASSWORD) go in `.dev.vars` locally and
  * `wrangler secret put` in production, never here.
  */
 {
@@ -16,10 +16,17 @@
     "AI_MODEL_MESSAGE": "deepseek-v4-pro",
     // Max billable Google Places requests per day (Brazil time); each returns up to 20 places.
     "PLACES_DAILY_REQUEST_LIMIT": "50",
+    // Mail server of the mailbox in MAIL_ADDRESS (secret). Implicit TLS on both.
+    "SMTP_HOST": "smtp.hostinger.com",
+    "SMTP_PORT": "465",
+    "IMAP_HOST": "imap.hostinger.com",
+    "IMAP_PORT": "993",
+    // Cold e-mail volume that keeps a single mailbox out of spam folders.
+    "MAIL_DAILY_LIMIT": "30",
   },
-  // Hourly tick for the autopilot: it searches once a day at the configured hour and
-  // writes follow-up reminders as they come due.
-  "triggers": { "crons": ["0 * * * *"] },
+  // One tick per minute: sends due e-mails, reads replies every 5 minutes and runs the
+  // daily searches on the hour.
+  "triggers": { "crons": ["* * * * *"] },
   "d1_databases": [
     {
       "binding": "DB",

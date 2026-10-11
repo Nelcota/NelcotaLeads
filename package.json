@@ -37,6 +37,7 @@
     "linkedom": "^0.18.13",
     "lucide-react": "^1.55.0",
     "papaparse": "^5.7.0",
+    "postal-mime": "^4.0.5",
     "radix-ui": "^1.7.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",

@@ -58,3 +58,13 @@ export function relativeDay(day: string, today: string): string {
   const [, month, date] = day.split("-");
   return `${date}/${month}`;
 }
+
+/** "14:05" for today, "ontem 14:05", or "09/10 14:05" (Brazil time). */
+export function shortTime(date: Date, today = localDay(new Date())): string {
+  const iso = formatIsoLocal(date);
+  const day = iso.slice(0, 10);
+  const time = iso.slice(11, 16);
+  if (day === today) return time;
+  if (dayDiff(day, today) === 1) return `ontem ${time}`;
+  return `${day.slice(8, 10)}/${day.slice(5, 7)} ${time}`;
+}

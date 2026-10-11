@@ -1,6 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 import type { LeadFilters } from "@/lib/schemas";
-import { getDashboard } from "@/server/dashboard";
+import { getAttentionCount, getDashboard } from "@/server/dashboard";
+import { getConversation, listConversations } from "@/server/mail";
 import { getLead, getLeadCounts, listLeads } from "@/server/leads";
 import { getProviderStatus, getSearch, listSearches } from "@/server/searches";
 
@@ -53,12 +54,31 @@ export const leadCountsQuery = (filters: LeadFilters) =>
 export const dashboardQuery = queryOptions({
   queryKey: ["dashboard"],
   queryFn: () => getDashboard(),
-  // Fast while the AI is working, otherwise once a minute (the autopilot runs on its own).
+  // Fast while something is moving (a search running or e-mails queued), else every minute.
   refetchInterval: (query) => {
     const data = query.state.data;
     const busy =
-      (data?.analyzing ?? 0) > 0 ||
+      (data?.mail.queued ?? 0) > 0 ||
       data?.activity.searches.some((search) => isRunning(search.status));
-    return busy ? 3000 : 60_000;
+    return busy ? 5000 : 60_000;
   },
 });
+
+export const attentionQuery = queryOptions({
+  queryKey: ["conversations", "attention"],
+  queryFn: () => getAttentionCount(),
+  refetchInterval: 60_000,
+});
+
+export const conversationsQuery = queryOptions({
+  queryKey: ["conversations"],
+  queryFn: () => listConversations(),
+  refetchInterval: 30_000,
+});
+
+export const conversationQuery = (leadId: string) =>
+  queryOptions({
+    queryKey: ["conversations", leadId],
+    queryFn: () => getConversation({ data: { leadId } }),
+    refetchInterval: 15_000,
+  });

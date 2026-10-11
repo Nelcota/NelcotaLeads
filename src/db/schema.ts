@@ -34,6 +34,13 @@ export const settings = sqliteTable("settings", {
     .notNull()
     .default(sql`'[]'`),
   autopilotLastRunOn: text("autopilot_last_run_on"),
+  // The AI answers replies on its own until someone shows interest.
+  aiAutoReply: integer("ai_auto_reply", { mode: "boolean" }).notNull().default(true),
+  // New leads with an e-mail go into the send queue without a manual selection.
+  autoDispatch: integer("auto_dispatch", { mode: "boolean" }).notNull().default(false),
+  // IMAP position: messages above this UID in this mailbox were not read yet.
+  mailUidValidity: integer("mail_uid_validity").notNull().default(0),
+  mailLastUid: integer("mail_last_uid").notNull().default(0),
   updatedAt: integer("updated_at", { mode: "timestamp" })
     .notNull()
     .default(sql`(unixepoch())`),
@@ -102,9 +109,15 @@ export const leads = sqliteTable(
     contactedAt: integer("contacted_at", { mode: "timestamp" }),
     // Day to follow up (YYYY-MM-DD, Brazil time); compared as text against today.
     followUpOn: text("follow_up_on"),
-    // Reminder written by the AI for the follow-up day it names.
-    followUpMessage: text("follow_up_message"),
-    followUpMessageFor: text("follow_up_message_for"),
+    // First business e-mail found on the site; the address the outreach goes to.
+    email: text("email"),
+    // False once a person takes over the conversation (or the AI hands it over).
+    aiMode: integer("ai_mode", { mode: "boolean" }).notNull().default(true),
+    // Why the AI stopped and asked for a person, e.g. the lead asked for a price.
+    handoffReason: text("handoff_reason"),
+    unsubscribedAt: integer("unsubscribed_at", { mode: "timestamp" }),
+    emailFollowUps: integer("email_follow_ups").notNull().default(0),
+    lastEmailAt: integer("last_email_at", { mode: "timestamp" }),
     // Set when the AI discarded the lead during triage.
     discardReason: text("discard_reason"),
     discardedAt: integer("discarded_at", { mode: "timestamp" }),
@@ -139,6 +152,40 @@ export const analyses = sqliteTable(
   (t) => [index("analyses_lead_idx").on(t.leadId)],
 );
 
+export const EMAIL_STATUSES = ["draft", "queued", "sent", "failed", "received"] as const;
+export type EmailStatus = (typeof EMAIL_STATUSES)[number];
+export type EmailAuthor = "ai" | "user" | "lead";
+
+/** Every e-mail of a lead's conversation: drafts, the send queue, sent and received. */
+export const emails = sqliteTable(
+  "emails",
+  {
+    id: text("id").primaryKey(),
+    leadId: text("lead_id")
+      .notNull()
+      .references(() => leads.id, { onDelete: "cascade" }),
+    direction: text("direction", { enum: ["out", "in"] }).notNull(),
+    status: text("status", { enum: EMAIL_STATUSES }).notNull(),
+    author: text("author", { enum: ["ai", "user", "lead"] }).notNull(),
+    fromAddress: text("from_address").notNull(),
+    toAddress: text("to_address").notNull(),
+    subject: text("subject").notNull(),
+    body: text("body").notNull(),
+    // RFC 5322 Message-ID; replies are matched through In-Reply-To / References.
+    messageId: text("message_id"),
+    inReplyTo: text("in_reply_to"),
+    sendAfter: integer("send_after", { mode: "timestamp" }),
+    sentAt: integer("sent_at", { mode: "timestamp" }),
+    error: text("error"),
+    ...timestamps,
+  },
+  (t) => [
+    index("emails_lead_idx").on(t.leadId),
+    index("emails_status_idx").on(t.status, t.sendAfter),
+    index("emails_message_idx").on(t.messageId),
+  ],
+);
+
 /** Paid API calls per day (Brazil time), used to enforce daily limits. */
 export const apiUsage = sqliteTable(
   "api_usage",
@@ -155,3 +202,4 @@ export type Settings = typeof settings.$inferSelect;
 export type Search = typeof searches.$inferSelect;
 export type Lead = typeof leads.$inferSelect;
 export type Analysis = typeof analyses.$inferSelect;
+export type Email = typeof emails.$inferSelect;

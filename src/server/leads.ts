@@ -81,13 +81,3 @@ export const generateMessage = createServerFn({ method: "POST" })
   .handler(async ({ data }) => ({
     firstMessage: await writeMessageForLead({ db: getDb(), analyzer: getAnalyzer(env) }, data.id),
   }));
-
-export const updateFollowUpMessage = createServerFn({ method: "POST" })
-  .validator(z.object({ id: z.string().min(1), message: z.string().trim().max(2000) }))
-  .handler(async ({ data }) => {
-    await getDb()
-      .update(leads)
-      .set({ followUpMessage: data.message || null })
-      .where(eq(leads.id, data.id));
-    return { ok: true as const };
-  });

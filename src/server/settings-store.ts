@@ -20,7 +20,7 @@ export const DEFAULT_SETTINGS: SettingsInput = {
   minScore: 30,
 };
 
-export type AutopilotSettings = Omit<AutopilotInput, "targets"> & {
+export type AutopilotSettings = Omit<AutopilotInput, "targets" | "aiAutoReply" | "autoDispatch"> & {
   targets: AutopilotTarget[];
   lastRunOn: string | null;
 };
@@ -83,6 +83,8 @@ export async function storeAutopilot(db: Db, input: AutopilotInput) {
       ) ?? { ...target, areas: [], cursor: 0 },
   );
   await writeAutopilot(db, {
+    aiAutoReply: input.aiAutoReply,
+    autoDispatch: input.autoDispatch,
     autopilotEnabled: input.enabled,
     autopilotHour: input.hour,
     autopilotResults: input.results,
@@ -100,6 +102,8 @@ export async function writeAutopilot(
       | "autopilotResults"
       | "autopilotTargets"
       | "autopilotLastRunOn"
+      | "aiAutoReply"
+      | "autoDispatch"
     >
   >,
 ) {

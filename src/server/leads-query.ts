@@ -1,4 +1,17 @@
-import { and, asc, desc, eq, gte, inArray, isNull, like, lte, sql, type SQL } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  gte,
+  inArray,
+  isNotNull,
+  isNull,
+  like,
+  lte,
+  sql,
+  type SQL,
+} from "drizzle-orm";
 import type { Db } from "@/db/client";
 import { analyses, leads } from "@/db/schema";
 import { localDay } from "@/lib/format";
@@ -47,6 +60,7 @@ function whereClause(filters: LeadFilters, today: string): SQL | undefined {
     filters.minScore !== undefined ? gte(leads.score, filters.minScore) : undefined,
     filters.maxScore !== undefined ? lte(leads.score, filters.maxScore) : undefined,
     filters.noWebsite ? isNull(leads.website) : undefined,
+    filters.hasEmail ? isNotNull(leads.email) : undefined,
   ];
   return and(...conditions);
 }
@@ -73,6 +87,8 @@ export function queryLeads(db: Db, filters: LeadFilters, today = localDay(new Da
       phone: leads.phone,
       phoneE164: leads.phoneE164,
       website: leads.website,
+      email: leads.email,
+      unsubscribedAt: leads.unsubscribedAt,
       siteStatus: leads.siteStatus,
       rating: leads.rating,
       reviewCount: leads.reviewCount,

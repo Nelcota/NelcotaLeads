@@ -47,6 +47,8 @@ export type AutopilotTarget = {
 
 export const autopilotInputSchema = z.object({
   enabled: z.boolean(),
+  aiAutoReply: z.boolean(),
+  autoDispatch: z.boolean(),
   hour: z.number().int().min(0).max(23),
   results: z.union(AUTOPILOT_RESULTS.map((n) => z.literal(n))),
   targets: z
@@ -108,6 +110,31 @@ export const followUpSchema = z.object({
     .describe("Lembrete curto de WhatsApp, em português do Brasil, seguindo as regras."),
 });
 
+export const outreachEmailSchema = z.object({
+  subject: z
+    .string()
+    .describe("Assunto curto e específico, sem caixa alta nem ponto de exclamação."),
+  body: z.string().describe("Corpo do e-mail em texto simples, sem saudação final nem assinatura."),
+});
+export type OutreachEmail = z.infer<typeof outreachEmailSchema>;
+
+export const EMAIL_ACTIONS = ["reply", "handoff", "close"] as const;
+export const emailReplySchema = z.object({
+  action: z
+    .enum(EMAIL_ACTIONS)
+    .describe(
+      "reply: a IA responde. handoff: passar para a pessoa. close: a empresa não tem interesse ou pediu para não receber.",
+    ),
+  reason: z.string().describe("Motivo da decisão em uma frase curta, para o painel."),
+  reply: z.string().describe("Texto da resposta quando action = reply; vazio nos outros casos."),
+  draft: z
+    .string()
+    .describe(
+      "Quando action = handoff: sugestão de resposta para a pessoa revisar; vazio nos outros casos.",
+    ),
+});
+export type EmailReplyDecision = z.infer<typeof emailReplySchema>;
+
 export const areasSchema = z.object({
   areas: z.array(z.string()).max(40).describe("Bairros ou regiões comerciais da cidade."),
 });
@@ -152,6 +179,7 @@ export const leadFiltersSchema = z.object({
   minScore: z.coerce.number().int().min(0).max(100).optional(),
   maxScore: z.coerce.number().int().min(0).max(100).optional(),
   noWebsite: z.preprocess((value) => value === true || value === "true", z.boolean()).optional(),
+  hasEmail: z.preprocess((value) => value === true || value === "true", z.boolean()).optional(),
   sort: z.enum(LEAD_SORT_FIELDS).optional(),
   dir: z.enum(["asc", "desc"]).optional(),
 });
