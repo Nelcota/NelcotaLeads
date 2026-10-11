@@ -15,9 +15,10 @@ export async function runSearch(
   queue: Queue<LeadJob>,
   provider: PlacesProvider,
   input: NewSearchInput,
+  origin: "manual" | "autopilot" = "manual",
 ): Promise<{ searchId: string }> {
   const searchId = crypto.randomUUID();
-  await db.insert(searches).values({ id: searchId, ...input, status: "collecting" });
+  await db.insert(searches).values({ id: searchId, ...input, origin, status: "collecting" });
 
   try {
     const { places, requests, limitReached } = await provider.search(input);

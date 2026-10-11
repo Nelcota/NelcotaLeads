@@ -1,7 +1,9 @@
 import { createDeepSeek } from "@ai-sdk/deepseek";
 import { generateText, Output, type LanguageModelUsage } from "ai";
 import {
+  areasSchema,
   firstMessageSchema,
+  followUpSchema,
   leadAnalysisSchema,
   type LeadAnalysis,
   type SettingsInput,
@@ -10,6 +12,9 @@ import { estimateCostUsd } from "./pricing";
 import {
   analysisSystemPrompt,
   analysisUserPrompt,
+  areasPrompt,
+  followUpSystemPrompt,
+  followUpUserPrompt,
   messageSystemPrompt,
   messageUserPrompt,
   type LeadContext,
@@ -28,6 +33,13 @@ export interface LeadAnalyzer {
     lead: LeadContext,
     analysis: LeadAnalysis,
   ): Promise<{ message: string; usage: CallUsage }>;
+  writeFollowUp(
+    settings: SettingsInput,
+    lead: LeadContext,
+    sent: { firstMessage: string; daysSince: number },
+  ): Promise<{ message: string; usage: CallUsage }>;
+  /** Neighborhoods of a city, used to vary the daily searches. */
+  listAreas(city: string): Promise<{ areas: string[]; usage: CallUsage }>;
 }
 
 const CALL_TIMEOUT_MS = 90_000;
@@ -78,6 +90,35 @@ export function createDeepSeekAnalyzer(options: {
         message: tidyMessage(firstMessageSchema.parse(result.output).firstMessage),
         usage: toUsage(options.messageModel, result.usage),
       };
+    },
+    async writeFollowUp(settings, lead, sent) {
+      const result = await generateText({
+        model: deepseek(options.messageModel),
+        system: followUpSystemPrompt(),
+        prompt: followUpUserPrompt(settings, lead, sent),
+        output: Output.object({ schema: followUpSchema, name: "follow_up" }),
+        providerOptions,
+        temperature: 0.6,
+        abortSignal: AbortSignal.timeout(CALL_TIMEOUT_MS),
+      });
+      return {
+        message: tidyMessage(followUpSchema.parse(result.output).message),
+        usage: toUsage(options.messageModel, result.usage),
+      };
+    },
+    async listAreas(city) {
+      const result = await generateText({
+        model: deepseek(options.analysisModel),
+        prompt: areasPrompt(city),
+        output: Output.object({ schema: areasSchema, name: "areas" }),
+        providerOptions,
+        temperature: 0,
+        abortSignal: AbortSignal.timeout(CALL_TIMEOUT_MS),
+      });
+      const areas = [
+        ...new Set(areasSchema.parse(result.output).areas.map((area) => area.trim())),
+      ].filter((area) => area.length > 1 && area.length <= 60);
+      return { areas, usage: toUsage(options.analysisModel, result.usage) };
     },
   };
 }

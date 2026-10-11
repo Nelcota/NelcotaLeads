@@ -74,7 +74,7 @@ function NewSearchForm({ onDone }: { onDone: () => void }) {
       ]);
       onDone();
       // Straight to the new leads; they show up as the analysis finishes.
-      await navigate({ to: "/", search: { searchId, view: "all" } });
+      await navigate({ to: "/leads", search: { searchId, view: "all" } });
     },
     onError: (error) => toast.error(error.message || "Não foi possível iniciar a busca"),
   });

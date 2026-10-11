@@ -17,14 +17,30 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { settingsInputSchema, TONE_LABELS, TONES, type SettingsInput } from "@/lib/schemas";
+import {
+  AUTOPILOT_RESULTS,
+  autopilotInputSchema,
+  settingsInputSchema,
+  TONE_LABELS,
+  TONES,
+  type AutopilotInput,
+  type SettingsInput,
+} from "@/lib/schemas";
 import { cn } from "@/lib/utils";
+import { getAutopilot, saveAutopilot } from "@/server/dashboard";
 import { getSettings, saveSettings } from "@/server/settings";
 
 const settingsQuery = queryOptions({ queryKey: ["settings"], queryFn: () => getSettings() });
+const autopilotQuery = queryOptions({ queryKey: ["autopilot"], queryFn: () => getAutopilot() });
+
+const HOURS = Array.from({ length: 24 }, (_, hour) => hour);
 
 export const Route = createFileRoute("/settings")({
-  loader: ({ context }) => context.queryClient.ensureQueryData(settingsQuery),
+  loader: ({ context }) =>
+    Promise.all([
+      context.queryClient.ensureQueryData(settingsQuery),
+      context.queryClient.ensureQueryData(autopilotQuery),
+    ]),
   component: SettingsPage,
 });
 
@@ -39,8 +55,160 @@ function SettingsPage() {
   return (
     <Page>
       <PageHeader title="Configurações" />
+      <AutopilotForm />
       <SettingsForm defaults={data} />
     </Page>
+  );
+}
+
+function AutopilotForm() {
+  const { data: defaults } = useSuspenseQuery(autopilotQuery);
+  const queryClient = useQueryClient();
+  const form = useForm<AutopilotInput>({
+    resolver: zodResolver(autopilotInputSchema),
+    defaultValues: defaults,
+  });
+  const targets = useFieldArray({ control: form.control, name: "targets" });
+  const { errors, isDirty } = form.formState;
+
+  const mutation = useMutation({
+    mutationFn: (data: AutopilotInput) => saveAutopilot({ data }),
+    onSuccess: async (_result, data) => {
+      form.reset(data);
+      await queryClient.invalidateQueries({ queryKey: ["autopilot"] });
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      toast.success("Piloto automático salvo");
+    },
+    onError: () => toast.error("Não foi possível salvar o piloto automático"),
+  });
+
+  return (
+    <form
+      id="piloto"
+      className="border-b pb-10"
+      noValidate
+      onSubmit={(event) => void form.handleSubmit((data) => mutation.mutate(data))(event)}
+    >
+      <SettingsSection
+        title="Piloto automático"
+        description="Todo dia, no horário escolhido, a IA busca empresas novas, dá nota, descarta as fracas e escreve as mensagens. A cada dia ela usa um bairro diferente da cidade para não repetir resultados."
+        contentClassName="grid gap-6"
+      >
+        <label className="flex items-center gap-3 text-sm font-medium">
+          <input
+            type="checkbox"
+            className="size-5 accent-foreground"
+            defaultChecked={defaults.enabled}
+            {...form.register("enabled")}
+          />
+          Ligado
+        </label>
+
+        <div className="grid gap-2">
+          <p className="text-sm font-medium">O que buscar</p>
+          {targets.fields.map((field, index) => (
+            <div key={field.id} className="grid grid-cols-[1fr_1fr_2rem] items-start gap-2">
+              <Input
+                aria-label={`Nicho ${index + 1}`}
+                placeholder="Nicho, ex.: dentistas"
+                defaultValue={field.niche}
+                {...form.register(`targets.${index}.niche`)}
+                aria-invalid={Boolean(errors.targets?.[index]?.niche)}
+              />
+              <Input
+                aria-label={`Cidade ${index + 1}`}
+                placeholder="Cidade, ex.: Belo Horizonte"
+                defaultValue={field.city}
+                {...form.register(`targets.${index}.city`)}
+                aria-invalid={Boolean(errors.targets?.[index]?.city)}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label={`Remover busca ${index + 1}`}
+                className="text-muted-foreground hover:text-destructive"
+                onClick={() => targets.remove(index)}
+              >
+                <Trash2Icon />
+              </Button>
+            </div>
+          ))}
+          <div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={targets.fields.length >= 10}
+              onClick={() => targets.append({ niche: "", city: "" })}
+            >
+              <PlusIcon /> Adicionar nicho e cidade
+            </Button>
+          </div>
+        </div>
+
+        <div className="grid gap-6 sm:grid-cols-2">
+          <Field label="Horário" hint="Horário de Brasília.">
+            <Controller
+              control={form.control}
+              name="hour"
+              render={({ field }) => (
+                <Select
+                  value={String(field.value)}
+                  onValueChange={(value) => field.onChange(Number(value))}
+                >
+                  <SelectTrigger className="w-full" aria-label="Horário da busca">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {HOURS.map((hour) => (
+                      <SelectItem key={hour} value={String(hour)}>
+                        {hour}h
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+          </Field>
+          <Field
+            label="Empresas por nicho, por dia"
+            hint="Cada 20 empresas usam 1 requisição do limite diário do Google."
+          >
+            <Controller
+              control={form.control}
+              name="results"
+              render={({ field }) => (
+                <Select
+                  value={String(field.value)}
+                  onValueChange={(value) => {
+                    const results = AUTOPILOT_RESULTS.find((n) => String(n) === value);
+                    if (results) field.onChange(results);
+                  }}
+                >
+                  <SelectTrigger className="w-full" aria-label="Empresas por nicho">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {AUTOPILOT_RESULTS.map((n) => (
+                      <SelectItem key={n} value={String(n)}>
+                        até {n}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+          </Field>
+        </div>
+
+        <div className="flex justify-end">
+          <Button type="submit" disabled={!isDirty || mutation.isPending}>
+            {mutation.isPending ? "Salvando…" : "Salvar piloto automático"}
+          </Button>
+        </div>
+      </SettingsSection>
+    </form>
   );
 }
 
@@ -164,7 +332,7 @@ function SettingsForm({ defaults }: { defaults: SettingsInput }) {
 
       <SettingsSection
         title="Mensagem de abordagem"
-        description="Gerada automaticamente para leads com nota alta. Você revisa e envia."
+        description="A IA escreve para todo lead que passar da nota mínima. Você revisa e envia."
         contentClassName="grid gap-6 sm:grid-cols-2"
       >
         <Field label="Tom" hint={TONE_HINTS[tone]}>
@@ -188,19 +356,19 @@ function SettingsForm({ defaults }: { defaults: SettingsInput }) {
           />
         </Field>
         <Field
-          label="Gerar mensagem a partir da nota"
-          htmlFor="threshold"
-          hint="Abaixo disso, você ainda pode gerar na página do lead."
-          error={errors.messageScoreThreshold?.message}
+          label="Descartar leads com nota abaixo de"
+          htmlFor="minScore"
+          hint="A IA descarta sozinha e não escreve para eles. Use 0 para manter todos."
+          error={errors.minScore?.message}
         >
           <Input
-            id="threshold"
+            id="minScore"
             type="number"
             inputMode="numeric"
             min={0}
             max={100}
-            defaultValue={defaults.messageScoreThreshold}
-            {...form.register("messageScoreThreshold", { valueAsNumber: true })}
+            defaultValue={defaults.minScore}
+            {...form.register("minScore", { valueAsNumber: true })}
           />
         </Field>
         <Field label="Seu nome" htmlFor="senderName" error={errors.senderName?.message}>

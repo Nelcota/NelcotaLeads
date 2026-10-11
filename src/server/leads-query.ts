@@ -15,7 +15,7 @@ const SORT_COLUMNS = {
 } as const;
 
 // Latest analysis per lead (re-analysis keeps history).
-const latestAnalysis = sql`${analyses.id} = (
+export const latestAnalysis = sql`${analyses.id} = (
   select a2.id from analyses a2 where a2.lead_id = ${leads.id}
   order by a2.created_at desc, a2.rowid desc limit 1
 )`;

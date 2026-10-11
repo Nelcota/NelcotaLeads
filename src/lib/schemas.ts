@@ -30,9 +30,35 @@ export const settingsInputSchema = z.object({
   tone: z.enum(TONES),
   senderName: z.string().trim().max(120),
   senderCompany: z.string().trim().max(120),
-  messageScoreThreshold: z.number().int().min(0).max(100),
+  minScore: z.number().int().min(0).max(100),
 });
 export type SettingsInput = z.infer<typeof settingsInputSchema>;
+
+export const AUTOPILOT_RESULTS = [20, 40, 60] as const;
+
+/** A niche + city the autopilot searches every day, rotating through the city's areas. */
+export type AutopilotTarget = {
+  niche: string;
+  city: string;
+  // Neighborhoods suggested by the AI; each run searches the next one for new places.
+  areas: string[];
+  cursor: number;
+};
+
+export const autopilotInputSchema = z.object({
+  enabled: z.boolean(),
+  hour: z.number().int().min(0).max(23),
+  results: z.union(AUTOPILOT_RESULTS.map((n) => z.literal(n))),
+  targets: z
+    .array(
+      z.object({
+        niche: z.string().trim().min(2, "Informe o nicho").max(120),
+        city: z.string().trim().min(2, "Informe a cidade").max(120),
+      }),
+    )
+    .max(10),
+});
+export type AutopilotInput = z.infer<typeof autopilotInputSchema>;
 
 export const MAX_RESULTS_LIMIT = 60;
 
@@ -74,6 +100,16 @@ export const firstMessageSchema = z.object({
   firstMessage: z
     .string()
     .describe("Mensagem de WhatsApp curta e natural, em português do Brasil, seguindo as regras."),
+});
+
+export const followUpSchema = z.object({
+  message: z
+    .string()
+    .describe("Lembrete curto de WhatsApp, em português do Brasil, seguindo as regras."),
+});
+
+export const areasSchema = z.object({
+  areas: z.array(z.string()).max(40).describe("Bairros ou regiões comerciais da cidade."),
 });
 
 export const LEAD_STATUS_VALUES = ["new", "contacted", "replied", "closed", "discarded"] as const;

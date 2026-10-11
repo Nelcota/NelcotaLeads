@@ -1,5 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
 import type { LeadFilters } from "@/lib/schemas";
+import { getDashboard } from "@/server/dashboard";
 import { getLead, getLeadCounts, listLeads } from "@/server/leads";
 import { getProviderStatus, getSearch, listSearches } from "@/server/searches";
 
@@ -48,3 +49,16 @@ export const leadCountsQuery = (filters: LeadFilters) =>
     queryFn: () => getLeadCounts({ data: filters }),
     refetchInterval: (query) => ((query.state.data?.pending ?? 0) > 0 ? 3000 : false),
   });
+
+export const dashboardQuery = queryOptions({
+  queryKey: ["dashboard"],
+  queryFn: () => getDashboard(),
+  // Fast while the AI is working, otherwise once a minute (the autopilot runs on its own).
+  refetchInterval: (query) => {
+    const data = query.state.data;
+    const busy =
+      (data?.analyzing ?? 0) > 0 ||
+      data?.activity.searches.some((search) => isRunning(search.status));
+    return busy ? 3000 : 60_000;
+  },
+});

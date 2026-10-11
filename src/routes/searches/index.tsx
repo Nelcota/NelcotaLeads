@@ -77,7 +77,7 @@ function SearchRow({ search }: { search: Search }) {
       </div>
       {search.foundCount > 0 ? (
         <Button asChild variant="outline" size="sm" className="justify-self-start">
-          <Link to="/" search={{ view: "all", searchId: search.id }}>
+          <Link to="/leads" search={{ view: "all", searchId: search.id }}>
             Ver leads
           </Link>
         </Button>

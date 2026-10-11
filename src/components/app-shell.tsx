@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import {
   HistoryIcon,
   InboxIcon,
+  LayoutDashboardIcon,
   MoonIcon,
   PlusIcon,
   SlidersHorizontalIcon,
@@ -16,8 +17,13 @@ import { leadCountsQuery, providerStatusQuery } from "@/lib/queries";
 import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
-const NAV: { to: "/" | "/searches" | "/settings"; label: string; icon: LucideIcon }[] = [
-  { to: "/", label: "Leads", icon: InboxIcon },
+const NAV: {
+  to: "/" | "/leads" | "/searches" | "/settings";
+  label: string;
+  icon: LucideIcon;
+}[] = [
+  { to: "/", label: "Painel", icon: LayoutDashboardIcon },
+  { to: "/leads", label: "Leads", icon: InboxIcon },
   { to: "/searches", label: "Buscas", icon: HistoryIcon },
   { to: "/settings", label: "Configurações", icon: SlidersHorizontalIcon },
 ];
@@ -65,8 +71,8 @@ function TopBar({ onNewSearch }: { onNewSearch: () => void }) {
       <div className="ml-auto flex items-center gap-2 sm:gap-4">
         <UsageMeter />
         <ThemeToggle />
-        <Button size="sm" onClick={onNewSearch}>
-          <PlusIcon /> Nova busca
+        <Button size="sm" variant="outline" onClick={onNewSearch}>
+          <PlusIcon /> Busca manual
         </Button>
       </div>
     </header>
@@ -92,7 +98,7 @@ function MobileTabBar() {
   return (
     <nav
       aria-label="Principal"
-      className="grid shrink-0 grid-cols-3 border-t bg-background pb-[env(safe-area-inset-bottom)] md:hidden"
+      className="grid shrink-0 grid-cols-4 border-t bg-background pb-[env(safe-area-inset-bottom)] md:hidden"
     >
       {NAV.map((item) => (
         <Link

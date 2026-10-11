@@ -70,7 +70,8 @@ Forma:
 - De 2 a 4 frases curtas, no máximo 350 caracteres antes da assinatura. Sem links, sem emojis, sem travessão (—), no máximo um ponto de exclamação.
 - Chame a empresa pelo nome que as pessoas usam no dia a dia, não pelo nome do Google com palavras-chave. Ex.: "ODONTO ART BH DENTISTA 24 HORAS BELO HORIZONTE" vira "Odonto Art".
 - Comece com um cumprimento simples ("Oi, tudo bem?" ou "Bom dia") e diga em uma frase o que você faz, usando só a oferta informada.
-- Nunca invente nada sobre o remetente: cargo, especialidade, clientes, cidade ou experiência. Se a oferta não foi informada, não se apresente; vá direto ao motivo do contato.
+- Nunca invente nada sobre o remetente: cargo, especialidade, clientes, cidade ou experiência.
+- Quem escreve é o profissional que vende o que está em "Minha oferta". Nunca se passe por cliente, paciente ou comprador, nem pergunte sobre horários, preços ou disponibilidade como se fosse usar o serviço da empresa.
 - Cite no máximo um fato concreto dos dados que tenha relação com a oferta. Não explique para o dono o que esse fato causa no negócio dele (ele sabe melhor do que você).
 - Não use detalhes pequenos como motivo do contato (erro de digitação, formatação de e-mail, ano no rodapé). Se nenhum fato tiver relação com a oferta, não cite fato nenhum.
 - Termine com uma pergunta direta e fácil de responder (sim/não ou um horário), não com oferta de "proposta".
@@ -109,6 +110,53 @@ ${formatLead(lead)}
 Resumo: ${analysis.summary}
 Sinais: ${analysis.signals.join("; ") || "nenhum"}
 Dores prováveis: ${analysis.painPoints.join("; ") || "nenhuma"}`;
+}
+
+export function followUpSystemPrompt() {
+  return `Você escreve um lembrete curto de WhatsApp para uma empresa que não respondeu a primeira mensagem, como uma pessoa real escreveria do próprio celular.
+${GROUNDING_RULES}
+
+Forma:
+- 1 ou 2 frases curtas, no máximo 200 caracteres antes da assinatura. Sem links, sem emojis, sem travessão (—).
+- Retome em poucas palavras o assunto da primeira mensagem, sem repeti-la e sem acrescentar fatos novos.
+- Sem cobrança, culpa ou pressa. Termine com uma pergunta simples, fácil de responder.
+- Chame a empresa pelo nome do dia a dia, se citar o nome.
+
+Proibido (soa automático):
+- "só passando", "passando para lembrar", "conseguiu ver", "ficou alguma dúvida", "retomando", "gentilmente", "espero que esteja bem", "notei que", "se fizer sentido".
+- Elogios, jargão, promessas. Não mencione nota nem análise automatizada.
+
+Final:
+- A assinatura (se houver) em linha própria. Não escreva frase de descadastro: o sistema adiciona automaticamente.`;
+}
+
+export function followUpUserPrompt(
+  settings: SettingsInput,
+  lead: LeadContext,
+  sent: { firstMessage: string; daysSince: number },
+) {
+  const signature = [settings.senderName, settings.senderCompany].filter(Boolean).join(" | ");
+  return `## Tom
+${settings.tone}
+
+## Minha oferta
+${settings.offer || "(não informada: não se apresente nem descreva o que faz)"}
+
+## Assinatura
+${signature || "(sem assinatura: não assine com nome)"}
+
+## Empresa
+${formatLead(lead)}
+
+## Primeira mensagem enviada há ${sent.daysSince} ${sent.daysSince === 1 ? "dia" : "dias"}
+<<<
+${sent.firstMessage}
+>>>`;
+}
+
+export function areasPrompt(city: string) {
+  return `Liste até 25 bairros ou regiões comerciais de ${city}, Brasil, do mais movimentado para o menos.
+Use só nomes reais que você conhece com segurança, escritos como os moradores escrevem. Se não conhecer a cidade, retorne a lista vazia.`;
 }
 
 function formatLead(lead: LeadContext) {

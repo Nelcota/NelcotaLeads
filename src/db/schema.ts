@@ -1,6 +1,11 @@
 import { sql } from "drizzle-orm";
 import { index, integer, primaryKey, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
-import { LEAD_STATUS_VALUES, type ScoringCriterion, type SiteData } from "@/lib/schemas";
+import {
+  LEAD_STATUS_VALUES,
+  type AutopilotTarget,
+  type ScoringCriterion,
+  type SiteData,
+} from "@/lib/schemas";
 
 const timestamps = {
   createdAt: integer("created_at", { mode: "timestamp" })
@@ -18,7 +23,17 @@ export const settings = sqliteTable("settings", {
     .default("consultivo"),
   senderName: text("sender_name").notNull().default(""),
   senderCompany: text("sender_company").notNull().default(""),
-  messageScoreThreshold: integer("message_score_threshold").notNull().default(60),
+  // Leads scoring below this are discarded by the AI (0 keeps everything).
+  minScore: integer("min_score").notNull().default(30),
+  autopilotEnabled: integer("autopilot_enabled", { mode: "boolean" }).notNull().default(false),
+  // Hour of the day (Brazil time) when the daily searches run.
+  autopilotHour: integer("autopilot_hour").notNull().default(8),
+  autopilotResults: integer("autopilot_results").notNull().default(20),
+  autopilotTargets: text("autopilot_targets", { mode: "json" })
+    .$type<AutopilotTarget[]>()
+    .notNull()
+    .default(sql`'[]'`),
+  autopilotLastRunOn: text("autopilot_last_run_on"),
   updatedAt: integer("updated_at", { mode: "timestamp" })
     .notNull()
     .default(sql`(unixepoch())`),
@@ -40,6 +55,9 @@ export const searches = sqliteTable("searches", {
   duplicateCount: integer("duplicate_count").notNull().default(0),
   placesRequests: integer("places_requests").notNull().default(0),
   errorMessage: text("error_message"),
+  origin: text("origin", { enum: ["manual", "autopilot"] })
+    .notNull()
+    .default("manual"),
   ...timestamps,
 });
 
@@ -84,6 +102,12 @@ export const leads = sqliteTable(
     contactedAt: integer("contacted_at", { mode: "timestamp" }),
     // Day to follow up (YYYY-MM-DD, Brazil time); compared as text against today.
     followUpOn: text("follow_up_on"),
+    // Reminder written by the AI for the follow-up day it names.
+    followUpMessage: text("follow_up_message"),
+    followUpMessageFor: text("follow_up_message_for"),
+    // Set when the AI discarded the lead during triage.
+    discardReason: text("discard_reason"),
+    discardedAt: integer("discarded_at", { mode: "timestamp" }),
     ...timestamps,
   },
   (t) => [
@@ -122,6 +146,7 @@ export const apiUsage = sqliteTable(
     day: text("day").notNull(),
     provider: text("provider").notNull(),
     requests: integer("requests").notNull().default(0),
+    costUsd: real("cost_usd").notNull().default(0),
   },
   (t) => [primaryKey({ columns: [t.day, t.provider] })],
 );

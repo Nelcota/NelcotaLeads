@@ -42,7 +42,8 @@ export function addDays(day: string, days: number): string {
   return date.toISOString().slice(0, 10);
 }
 
-function dayDiff(from: string, to: string): number {
+/** Whole days from one YYYY-MM-DD day to another. */
+export function dayDiff(from: string, to: string): number {
   return Math.round((Date.parse(`${to}T12:00:00Z`) - Date.parse(`${from}T12:00:00Z`)) / 86_400_000);
 }
 

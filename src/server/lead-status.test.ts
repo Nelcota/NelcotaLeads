@@ -10,6 +10,8 @@ describe("leadPatch", () => {
       status: "contacted",
       contactedAt: now,
       followUpOn: "2026-10-14",
+      discardReason: null,
+      discardedAt: null,
     });
   });
 
@@ -29,7 +31,12 @@ describe("leadPatch", () => {
       now,
       "2026-10-11",
     );
-    expect(patch).toEqual({ status: "contacted", contactedAt: earlier });
+    expect(patch).toEqual({
+      status: "contacted",
+      contactedAt: earlier,
+      discardReason: null,
+      discardedAt: null,
+    });
   });
 
   it("clears the follow-up when the lead leaves the pipeline", () => {
@@ -40,7 +47,7 @@ describe("leadPatch", () => {
         now,
         "2026-10-11",
       ),
-    ).toEqual({ status: "closed", followUpOn: null });
+    ).toEqual({ status: "closed", followUpOn: null, discardReason: null, discardedAt: null });
   });
 
   it("leaves other updates untouched", () => {

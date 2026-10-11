@@ -366,7 +366,7 @@ function FirstContactStep({
         rows={5}
         placeholder={
           analysis
-            ? "A nota ficou abaixo do limite das configurações, então a mensagem não foi escrita. Gere uma ou escreva a sua."
+            ? "A IA ainda não escreveu para este lead. Gere uma mensagem ou escreva a sua."
             : "Disponível depois da análise."
         }
         className="min-h-32 resize-y bg-background px-3.5 py-3 text-[16px] leading-relaxed"

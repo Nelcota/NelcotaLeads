@@ -17,6 +17,9 @@
     // Max billable Google Places requests per day (Brazil time); each returns up to 20 places.
     "PLACES_DAILY_REQUEST_LIMIT": "50",
   },
+  // Hourly tick for the autopilot: it searches once a day at the configured hour and
+  // writes follow-up reminders as they come due.
+  "triggers": { "crons": ["0 * * * *"] },
   "d1_databases": [
     {
       "binding": "DB",

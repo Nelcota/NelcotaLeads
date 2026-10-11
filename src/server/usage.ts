@@ -1,9 +1,10 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, like, sql } from "drizzle-orm";
 import type { Db } from "@/db/client";
 import { apiUsage } from "@/db/schema";
 import { localDay } from "@/lib/format";
 
 export const GOOGLE_PLACES = "google_places";
+export const DEEPSEEK = "deepseek";
 export const DEFAULT_PLACES_DAILY_LIMIT = 50;
 
 export function placesDailyLimit(value: string | undefined): number {
@@ -41,4 +42,35 @@ export async function requestsToday(db: Db, provider: string, now = new Date()) 
     where: and(eq(apiUsage.day, localDay(now)), eq(apiUsage.provider, provider)),
   });
   return row?.requests ?? 0;
+}
+
+/** Adds AI spend to today's row, so the dashboard can show the month's cost. */
+export async function recordAiCost(db: Db, calls: number, costUsd: number, now = new Date()) {
+  if (calls <= 0) return;
+  await db
+    .insert(apiUsage)
+    .values({ day: localDay(now), provider: DEEPSEEK, requests: calls, costUsd })
+    .onConflictDoUpdate({
+      target: [apiUsage.day, apiUsage.provider],
+      set: {
+        requests: sql`${apiUsage.requests} + ${calls}`,
+        costUsd: sql`${apiUsage.costUsd} + ${costUsd}`,
+      },
+    });
+}
+
+/** Google requests and AI cost in the current month (Brazil time). */
+export async function usageThisMonth(db: Db, now = new Date()) {
+  const rows = await db
+    .select({
+      provider: apiUsage.provider,
+      requests: sql<number>`sum(${apiUsage.requests})`.mapWith(Number),
+      costUsd: sql<number>`sum(${apiUsage.costUsd})`.mapWith(Number),
+    })
+    .from(apiUsage)
+    .where(like(apiUsage.day, `${localDay(now).slice(0, 7)}-%`))
+    .groupBy(apiUsage.provider);
+  const google = rows.find((row) => row.provider === GOOGLE_PLACES);
+  const ai = rows.find((row) => row.provider === DEEPSEEK);
+  return { placesRequests: google?.requests ?? 0, aiCostUsd: ai?.costUsd ?? 0 };
 }

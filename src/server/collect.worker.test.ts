@@ -4,22 +4,11 @@ import { resetDb } from "../../test/reset-db";
 import { getDb } from "@/db/client";
 import { leads } from "@/db/schema";
 import { createFakePlaces } from "../../test/fake-places";
+import { createFakeQueue } from "../../test/fake-queue";
 import type { PlacesProvider } from "@/lib/places";
 import { runSearch } from "./collect";
-import type { LeadJob } from "./queue";
 
-function fakeQueue() {
-  const sent: LeadJob[] = [];
-  const queue = {
-    sendBatch: async (messages: Iterable<MessageSendRequest<LeadJob>>) => {
-      for (const message of messages) sent.push(message.body);
-      return { metadata: { metrics: { backlogCount: 0, backlogBytes: 0 } } };
-    },
-  };
-  // Only sendBatch is used by the code under test.
-  // oxlint-disable-next-line typescript/no-unsafe-type-assertion
-  return { sent, queue: queue as Partial<Queue<LeadJob>> as Queue<LeadJob> };
-}
+const fakeQueue = createFakeQueue;
 
 const input = { niche: "Dentistas", city: "Belo Horizonte", maxResults: 9 };
 

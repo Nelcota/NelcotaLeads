@@ -4,7 +4,9 @@ import type { UpdateLeadInput } from "@/lib/schemas";
 
 export const DEFAULT_FOLLOW_UP_DAYS = 3;
 
-type Patch = Partial<Pick<Lead, "status" | "notes" | "contactedAt" | "followUpOn">>;
+type Patch = Partial<
+  Pick<Lead, "status" | "notes" | "contactedAt" | "followUpOn" | "discardReason" | "discardedAt">
+>;
 
 /**
  * Turns a lead update into the columns to write. Marking a lead as contacted records
@@ -22,6 +24,11 @@ export function leadPatch(
     if (changes.followUpOn === undefined && !current.followUpOn) {
       patch.followUpOn = addDays(today, DEFAULT_FOLLOW_UP_DAYS);
     }
+  }
+  // A person moving the lead overrides the AI's triage.
+  if (changes.status && changes.status !== "discarded") {
+    patch.discardReason = null;
+    patch.discardedAt = null;
   }
   if (
     (changes.status === "new" || changes.status === "closed" || changes.status === "discarded") &&

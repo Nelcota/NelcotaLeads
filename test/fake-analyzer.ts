@@ -16,5 +16,10 @@ export function createFakeAnalyzer(score = 40): LeadAnalyzer {
       usage,
     }),
     writeMessage: async (_settings, lead) => ({ message: `Olá, ${lead.name}`, usage }),
+    writeFollowUp: async (_settings, lead, sent) => ({
+      message: `Lembrete para ${lead.name} após ${sent.daysSince} dias`,
+      usage,
+    }),
+    listAreas: async () => ({ areas: ["Centro", "Savassi"], usage }),
   };
 }

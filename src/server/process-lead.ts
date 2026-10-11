@@ -5,6 +5,7 @@ import type { CallUsage, LeadAnalyzer, LeadContext } from "@/lib/ai";
 import type { SiteResult } from "@/lib/scrape";
 import { loadSettings } from "./settings-store";
 import type { LeadJob } from "./queue";
+import { recordAiCost } from "./usage";
 
 export type ProcessDeps = {
   db: Db;
@@ -35,8 +36,11 @@ export async function processLead(deps: ProcessDeps, job: LeadJob): Promise<"don
   const { analysis, usage } = await analyzer.analyze(settings, context);
   const usages: CallUsage[] = [usage];
 
+  // Triage: below the minimum score the AI discards the lead and writes nothing for it.
+  const keep = settings.minScore <= 0 || analysis.score >= settings.minScore;
   let firstMessage: string | null = null;
-  if (analysis.score >= settings.messageScoreThreshold) {
+  // Without an offer there is nothing honest to say, so no message is written.
+  if (keep && hasOffer(settings)) {
     try {
       const result = await analyzer.writeMessage(settings, context, analysis);
       firstMessage = result.message;
@@ -60,7 +64,12 @@ export async function processLead(deps: ProcessDeps, job: LeadJob): Promise<"don
     }),
     db
       .update(leads)
-      .set({ analysisStatus: "done", analysisError: null, score: analysis.score })
+      .set({
+        analysisStatus: "done",
+        analysisError: null,
+        score: analysis.score,
+        ...triagePatch(lead, keep, analysis.score, settings.minScore),
+      })
       .where(
         job.force
           ? eq(leads.id, lead.id)
@@ -69,8 +78,32 @@ export async function processLead(deps: ProcessDeps, job: LeadJob): Promise<"don
       .returning({ id: leads.id }),
   ]);
 
+  await recordAiCost(db, usages.length, sum(usages, "cost"));
   if (updated.length > 0 && !job.force) await bumpSearch(db, lead.searchId, "analyzedCount");
   return "done";
+}
+
+/**
+ * Only untouched leads are triaged: the AI never discards a lead you already contacted,
+ * and a lead it discarded comes back if a new analysis scores it high enough.
+ */
+function triagePatch(
+  lead: Pick<Lead, "status" | "discardReason">,
+  keep: boolean,
+  score: number,
+  minScore: number,
+): Partial<Lead> {
+  if (!keep && lead.status === "new") {
+    return {
+      status: "discarded",
+      discardReason: `Nota ${score}, abaixo do mínimo de ${minScore}`,
+      discardedAt: new Date(),
+    };
+  }
+  if (keep && lead.status === "discarded" && lead.discardReason) {
+    return { status: "new", discardReason: null, discardedAt: null };
+  }
+  return {};
 }
 
 /** Writes (or rewrites) the first message for an analyzed lead, regardless of its score. */
@@ -88,6 +121,7 @@ export async function writeMessageForLead(
   if (!analysis) throw new Error("O lead ainda não foi analisado");
   const search = await db.query.searches.findFirst({ where: eq(searches.id, lead.searchId) });
   const settings = await loadSettings(db);
+  if (!hasOffer(settings)) throw new Error(NO_OFFER_MESSAGE);
 
   const { message, usage } = await analyzer.writeMessage(
     settings,
@@ -105,10 +139,18 @@ export async function writeMessageForLead(
       costEstimate: analysis.costEstimate + usage.cost,
     })
     .where(eq(analyses.id, analysis.id));
+  await recordAiCost(db, 1, usage.cost);
   return message;
 }
 
-function buildContext(lead: Lead, search: Search | undefined): LeadContext {
+export const NO_OFFER_MESSAGE =
+  "Descreva o que você vende nas Configurações para a IA escrever as mensagens.";
+
+export function hasOffer(settings: { offer: string }) {
+  return settings.offer.trim().length > 0;
+}
+
+export function buildContext(lead: Lead, search: Search | undefined): LeadContext {
   return {
     niche: search?.niche ?? "",
     name: lead.name,

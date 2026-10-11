@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ApiLeadsDotcsvRouteImport } from './routes/api/leads[.]csv'
+import { Route as LeadsIndexRouteImport } from './routes/leads/index'
 import { Route as LeadsLeadIdRouteImport } from './routes/leads/$leadId'
 import { Route as SearchesIndexRouteImport } from './routes/searches/index'
 import { Route as SearchesSearchIdRouteImport } from './routes/searches/$searchId'
@@ -29,6 +30,11 @@ const SettingsRoute = SettingsRouteImport.update({
 const ApiLeadsDotcsvRoute = ApiLeadsDotcsvRouteImport.update({
   id: '/api/leads.csv',
   path: '/api/leads.csv',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LeadsIndexRoute = LeadsIndexRouteImport.update({
+  id: '/leads/',
+  path: '/leads/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LeadsLeadIdRoute = LeadsLeadIdRouteImport.update({
@@ -53,6 +59,7 @@ export interface FileRoutesByFullPath {
   '/api/leads.csv': typeof ApiLeadsDotcsvRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
   '/searches/$searchId': typeof SearchesSearchIdRoute
+  '/leads/': typeof LeadsIndexRoute
   '/searches/': typeof SearchesIndexRoute
 }
 export interface FileRoutesByTo {
@@ -61,6 +68,7 @@ export interface FileRoutesByTo {
   '/api/leads.csv': typeof ApiLeadsDotcsvRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
   '/searches/$searchId': typeof SearchesSearchIdRoute
+  '/leads': typeof LeadsIndexRoute
   '/searches': typeof SearchesIndexRoute
 }
 export interface FileRoutesById {
@@ -70,6 +78,7 @@ export interface FileRoutesById {
   '/api/leads.csv': typeof ApiLeadsDotcsvRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
   '/searches/$searchId': typeof SearchesSearchIdRoute
+  '/leads/': typeof LeadsIndexRoute
   '/searches/': typeof SearchesIndexRoute
 }
 export interface FileRouteTypes {
@@ -80,6 +89,7 @@ export interface FileRouteTypes {
     | '/api/leads.csv'
     | '/leads/$leadId'
     | '/searches/$searchId'
+    | '/leads/'
     | '/searches/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -88,6 +98,7 @@ export interface FileRouteTypes {
     | '/api/leads.csv'
     | '/leads/$leadId'
     | '/searches/$searchId'
+    | '/leads'
     | '/searches'
   id:
     | '__root__'
@@ -96,6 +107,7 @@ export interface FileRouteTypes {
     | '/api/leads.csv'
     | '/leads/$leadId'
     | '/searches/$searchId'
+    | '/leads/'
     | '/searches/'
   fileRoutesById: FileRoutesById
 }
@@ -105,6 +117,7 @@ export interface RootRouteChildren {
   ApiLeadsDotcsvRoute: typeof ApiLeadsDotcsvRoute
   LeadsLeadIdRoute: typeof LeadsLeadIdRoute
   SearchesSearchIdRoute: typeof SearchesSearchIdRoute
+  LeadsIndexRoute: typeof LeadsIndexRoute
   SearchesIndexRoute: typeof SearchesIndexRoute
 }
 
@@ -129,6 +142,13 @@ declare module '@tanstack/react-router' {
       path: '/api/leads.csv'
       fullPath: '/api/leads.csv'
       preLoaderRoute: typeof ApiLeadsDotcsvRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/leads/': {
+      id: '/leads/'
+      path: '/leads'
+      fullPath: '/leads/'
+      preLoaderRoute: typeof LeadsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/leads/$leadId': {
@@ -161,6 +181,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiLeadsDotcsvRoute: ApiLeadsDotcsvRoute,
   LeadsLeadIdRoute: LeadsLeadIdRoute,
   SearchesSearchIdRoute: SearchesSearchIdRoute,
+  LeadsIndexRoute: LeadsIndexRoute,
   SearchesIndexRoute: SearchesIndexRoute,
 }
 export const routeTree = rootRouteImport

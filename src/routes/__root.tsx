@@ -26,7 +26,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       <h1 className="text-2xl font-medium tracking-tight">Página não encontrada</h1>
       <p className="mt-2 text-sm text-muted-foreground">O endereço não existe ou foi removido.</p>
       <Link to="/" className="mt-6 inline-block text-sm underline underline-offset-4">
-        Ir para os leads
+        Ir para o painel
       </Link>
     </div>
   ),

@@ -19,7 +19,7 @@ export function RouteError({ error, reset }: ErrorComponentProps) {
           Tentar de novo
         </Button>
         <Button asChild variant="outline">
-          <Link to="/">Ir para os leads</Link>
+          <Link to="/">Ir para o painel</Link>
         </Button>
       </div>
     </div>
