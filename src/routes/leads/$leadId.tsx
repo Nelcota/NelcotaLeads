@@ -1,23 +1,8 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { LeadDetail } from "@/components/lead-detail";
-import { leadQuery } from "@/lib/queries";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
+// Old full-page lead URLs open the lead inside the inbox.
 export const Route = createFileRoute("/leads/$leadId")({
-  loader: ({ context, params }) => context.queryClient.ensureQueryData(leadQuery(params.leadId)),
-  component: LeadPage,
+  beforeLoad: ({ params }) => {
+    throw redirect({ to: "/", search: { view: "all", lead: params.leadId } });
+  },
 });
-
-function LeadPage() {
-  const { leadId } = Route.useParams();
-  return (
-    <>
-      <Link
-        to="/"
-        className="mb-6 inline-block text-sm text-muted-foreground hover:text-foreground"
-      >
-        Leads
-      </Link>
-      <LeadDetail leadId={leadId} />
-    </>
-  );
-}

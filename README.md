@@ -111,7 +111,8 @@ Tudo fica atrás do Access: páginas, server functions e `/api/leads.csv`. O con
 - Idempotência (`src/server/process-lead.ts`): um lead já analisado é ignorado. Só o botão Reanalisar força uma nova análise, que fica no histórico (`analyses`) sem inflar os contadores da busca.
 - Leitura do site (`src/lib/scrape`): `fetch` com `AbortSignal.timeout`, User-Agent identificável (`NelcotaLeadsBot/1.0`), respeito ao `robots.txt` (RFC 9309) e limite de 1,5 MB. Extrai título, meta description, texto (truncado em 8.000 caracteres), links de redes sociais, e-mails e telefones comerciais do próprio site. Se o site falhar, o lead fica `unreachable` e segue só com os dados do Google.
 - IA (`src/lib/ai`): `generateText` + `Output.object` com schemas `zod`. O modo _thinking_ da V4 fica desligado porque encarece sem ganho para esta tarefa. O prompt manda usar somente os dados fornecidos, proíbe inventar contatos, pessoas ou fatos e trata o texto do site como não confiável (defesa contra _prompt injection_). A mensagem só é gerada quando a nota atinge o limite configurado. Cada análise grava modelo, tokens e custo estimado.
-- Progresso: as telas de busca, de lista e de detalhe fazem polling (2–3 s) enquanto há trabalho pendente.
+- Caixa de entrada (`src/routes/index.tsx`): os leads ficam em filas (A contatar, Retornar hoje, Aguardando resposta, Em conversa, Fechados, Descartados). Ao marcar um lead como contatado, o app grava a data e agenda o retorno (3 dias por padrão, ajustável). No dia do retorno ele aparece em "Retornar hoje" e o menu mostra quantos são. J e K navegam entre os leads e / vai para a busca.
+- Progresso: a lista e o lead aberto fazem polling (3 s) enquanto há análise pendente.
 - CSV: `/api/leads.csv` aplica os mesmos filtros da tela. Usa `;` e BOM UTF-8 para abrir direto no Excel em português, e neutraliza fórmulas (proteção contra _CSV injection_).
 
 ## Custos estimados (outubro de 2026)

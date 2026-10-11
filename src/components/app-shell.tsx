@@ -2,91 +2,89 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import {
   HistoryIcon,
+  InboxIcon,
   MoonIcon,
   PlusIcon,
   SlidersHorizontalIcon,
   SunIcon,
-  UsersIcon,
   type LucideIcon,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import { createContext, useContext, useState, type ReactNode } from "react";
+import { NewSearchDialog } from "@/components/new-search-dialog";
 import { Button } from "@/components/ui/button";
-import { providerStatusQuery } from "@/lib/queries";
+import { leadCountsQuery, providerStatusQuery } from "@/lib/queries";
 import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
 const NAV: { to: "/" | "/searches" | "/settings"; label: string; icon: LucideIcon }[] = [
-  { to: "/", label: "Leads", icon: UsersIcon },
+  { to: "/", label: "Leads", icon: InboxIcon },
   { to: "/searches", label: "Buscas", icon: HistoryIcon },
   { to: "/settings", label: "Configurações", icon: SlidersHorizontalIcon },
 ];
 
+const NewSearchContext = createContext<() => void>(() => {});
+
+/** Opens the "Nova busca" dialog from anywhere in the app. */
+export function useOpenNewSearch() {
+  return useContext(NewSearchContext);
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
+  const [newSearchOpen, setNewSearchOpen] = useState(false);
   return (
-    <div className="min-h-dvh lg:grid lg:grid-cols-[248px_minmax(0,1fr)]">
-      <Sidebar />
-      <MobileTopBar />
-      <main className="min-w-0 px-4 pt-6 pb-28 sm:px-8 lg:px-12 lg:pt-12 lg:pb-16">
-        <div className="mx-auto max-w-6xl">{children}</div>
-      </main>
-      <MobileTabBar />
-    </div>
-  );
-}
-
-function Brand() {
-  return (
-    <Link to="/" className="text-[16px] font-medium tracking-tight">
-      Nelcota <span className="text-muted-foreground">Leads</span>
-    </Link>
-  );
-}
-
-function Sidebar() {
-  return (
-    <aside className="sticky top-0 hidden h-dvh flex-col border-r bg-sidebar px-4 py-6 lg:flex">
-      <div className="px-2">
-        <Brand />
+    <NewSearchContext value={() => setNewSearchOpen(true)}>
+      <div className="flex h-dvh flex-col">
+        <TopBar onNewSearch={() => setNewSearchOpen(true)} />
+        <main className="min-h-0 flex-1 overflow-y-auto">{children}</main>
+        <MobileTabBar />
       </div>
-      <Button asChild className="mt-8 h-9 w-full justify-start gap-2 px-3">
-        <Link to="/searches/new">
-          <PlusIcon /> Nova busca
-        </Link>
-      </Button>
-      <nav className="mt-6 grid gap-0.5" aria-label="Principal">
+      <NewSearchDialog open={newSearchOpen} onOpenChange={setNewSearchOpen} />
+    </NewSearchContext>
+  );
+}
+
+function TopBar({ onNewSearch }: { onNewSearch: () => void }) {
+  return (
+    <header className="flex h-14 shrink-0 items-center gap-8 border-b px-4 sm:px-6">
+      <Link to="/" className="text-[16px] font-medium tracking-tight">
+        Nelcota <span className="text-muted-foreground">Leads</span>
+      </Link>
+      <nav className="hidden h-full items-stretch gap-6 md:flex" aria-label="Principal">
         {NAV.map((item) => (
           <Link
             key={item.to}
             to={item.to}
-            activeOptions={{ exact: item.to === "/" }}
-            className="group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground data-[status=active]:bg-muted data-[status=active]:text-foreground"
+            activeOptions={{ exact: item.to === "/", includeSearch: false }}
+            className="relative flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground data-[status=active]:text-foreground data-[status=active]:after:absolute data-[status=active]:after:inset-x-0 data-[status=active]:after:-bottom-px data-[status=active]:after:h-0.5 data-[status=active]:after:bg-foreground"
           >
-            <item.icon className="size-4 opacity-70 group-data-[status=active]:opacity-100" />
             {item.label}
+            {item.to === "/" ? <FollowUpCount /> : null}
           </Link>
         ))}
       </nav>
-      <div className="mt-auto grid gap-4">
+      <div className="ml-auto flex items-center gap-2 sm:gap-4">
         <UsageMeter />
-        <ThemeToggle className="justify-start" />
-      </div>
-    </aside>
-  );
-}
-
-function MobileTopBar() {
-  return (
-    <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b bg-background/85 px-4 backdrop-blur lg:hidden">
-      <Brand />
-      <div className="flex items-center gap-1">
-        <ThemeToggle iconOnly />
-        <Button asChild size="sm">
-          <Link to="/searches/new">
-            <PlusIcon /> Nova busca
-          </Link>
+        <ThemeToggle />
+        <Button size="sm" onClick={onNewSearch}>
+          <PlusIcon /> Nova busca
         </Button>
       </div>
     </header>
+  );
+}
+
+/** Follow-ups due today, so the nav says when there is something to come back to. */
+function FollowUpCount() {
+  const { data } = useQuery(leadCountsQuery({}));
+  const due = data?.byView.followup ?? 0;
+  if (due === 0) return null;
+  return (
+    <span
+      className="rounded-full bg-brand px-1.5 text-xs leading-5 font-medium text-white tabular-nums"
+      title={`${due} para retornar hoje`}
+    >
+      {due}
+    </span>
   );
 }
 
@@ -94,14 +92,14 @@ function MobileTabBar() {
   return (
     <nav
       aria-label="Principal"
-      className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-3 border-t bg-background/90 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden"
+      className="grid shrink-0 grid-cols-3 border-t bg-background pb-[env(safe-area-inset-bottom)] md:hidden"
     >
       {NAV.map((item) => (
         <Link
           key={item.to}
           to={item.to}
-          activeOptions={{ exact: item.to === "/" }}
-          className="flex flex-col items-center gap-1 py-2.5 text-[12px] font-medium text-muted-foreground data-[status=active]:text-foreground"
+          activeOptions={{ exact: item.to === "/", includeSearch: false }}
+          className="flex flex-col items-center gap-1 py-2 text-[12px] font-medium text-muted-foreground data-[status=active]:text-foreground"
         >
           <item.icon className="size-5" />
           {item.label}
@@ -115,67 +113,52 @@ function UsageMeter() {
   const { data } = useQuery(providerStatusQuery);
   if (!data) return null;
   const { used, limit } = data.placesUsage;
-  const ratio = limit > 0 ? Math.min(1, used / limit) : 1;
   return (
-    <div className="px-3 text-xs text-muted-foreground">
-      <p className="flex justify-between">
-        <span>Google hoje</span>
-        <span className="tabular-nums">
-          {used} de {limit}
-        </span>
-      </p>
-      <div className="mt-2 h-px bg-border">
-        <div
-          className={cn("h-px", ratio >= 1 ? "bg-destructive" : "bg-foreground/60")}
-          style={{ width: `${ratio * 100}%` }}
-        />
-      </div>
-    </div>
+    <span
+      className={cn(
+        "hidden text-xs tabular-nums sm:inline",
+        used >= limit ? "text-destructive" : "text-muted-foreground",
+      )}
+      title="Requisições ao Google Places hoje"
+    >
+      Google {used}/{limit}
+    </span>
   );
 }
 
-function ThemeToggle({ iconOnly, className }: { iconOnly?: boolean; className?: string }) {
+function ThemeToggle() {
   const { theme, setTheme } = useTheme();
   const Icon = theme === "dark" ? SunIcon : MoonIcon;
   const label = theme === "dark" ? "Tema claro" : "Tema escuro";
   return (
     <Button
       variant="ghost"
-      size={iconOnly ? "icon-sm" : "sm"}
+      size="icon-sm"
       aria-label={label}
-      className={cn("font-normal text-muted-foreground", className)}
+      title={label}
+      className="text-muted-foreground"
       onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
     >
       <Icon />
-      {iconOnly ? null : label}
     </Button>
   );
 }
 
-export function PageHeader({
-  title,
-  description,
-  actions,
-  eyebrow,
-}: {
-  title: string;
-  description?: string;
-  actions?: ReactNode;
-  eyebrow?: ReactNode;
-}) {
+/** Padded, centered column for the simple pages (Buscas, Configurações). */
+export function Page({ children, className }: { children: ReactNode; className?: string }) {
+  return (
+    <div className={cn("mx-auto max-w-4xl px-4 pt-8 pb-16 sm:px-8 lg:pt-12", className)}>
+      {children}
+    </div>
+  );
+}
+
+export function PageHeader({ title, actions }: { title: string; actions?: ReactNode }) {
   return (
     <div className="mb-8 flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
-      <div className="min-w-0">
-        {eyebrow ? <div className="mb-3">{eyebrow}</div> : null}
-        <h1 className="text-[28px] leading-tight font-medium tracking-tight sm:text-[32px]">
-          {title}
-        </h1>
-        {description ? (
-          <p className="mt-2 max-w-2xl text-[16px] leading-relaxed text-muted-foreground">
-            {description}
-          </p>
-        ) : null}
-      </div>
+      <h1 className="text-[28px] leading-tight font-medium tracking-tight sm:text-[32px]">
+        {title}
+      </h1>
       {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
     </div>
   );

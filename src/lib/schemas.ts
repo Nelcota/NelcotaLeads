@@ -85,13 +85,34 @@ export const LEAD_STATUS_LABELS: Record<(typeof LEAD_STATUS_VALUES)[number], str
   discarded: "Descartado",
 };
 
+/** Work queues shown in the leads inbox; each maps to a status (plus the follow-up day). */
+export const LEAD_VIEWS = [
+  "todo",
+  "followup",
+  "waiting",
+  "talking",
+  "closed",
+  "discarded",
+  "all",
+] as const;
+export type LeadView = (typeof LEAD_VIEWS)[number];
+export const LEAD_VIEW_LABELS: Record<LeadView, string> = {
+  todo: "A contatar",
+  followup: "Retornar hoje",
+  waiting: "Aguardando resposta",
+  talking: "Em conversa",
+  closed: "Fechados",
+  discarded: "Descartados",
+  all: "Todos",
+};
+
 export const LEAD_SORT_FIELDS = ["score", "name", "rating", "reviewCount", "createdAt"] as const;
 
 /** Lead list filters; shared by the table, the URL and the CSV export. */
 export const leadFiltersSchema = z.object({
   q: z.string().trim().max(120).optional(),
   searchId: z.string().max(64).optional(),
-  status: z.enum(LEAD_STATUS_VALUES).optional(),
+  view: z.enum(LEAD_VIEWS).optional(),
   minScore: z.coerce.number().int().min(0).max(100).optional(),
   maxScore: z.coerce.number().int().min(0).max(100).optional(),
   noWebsite: z.preprocess((value) => value === true || value === "true", z.boolean()).optional(),
@@ -104,7 +125,13 @@ export const updateLeadSchema = z.object({
   id: z.string().min(1),
   status: z.enum(LEAD_STATUS_VALUES).optional(),
   notes: z.string().max(5000).optional(),
+  followUpOn: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Data inválida")
+    .nullable()
+    .optional(),
 });
+export type UpdateLeadInput = z.infer<typeof updateLeadSchema>;
 
 export const updateMessageSchema = z.object({
   analysisId: z.string().min(1),

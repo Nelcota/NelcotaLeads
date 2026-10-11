@@ -81,9 +81,16 @@ export const leads = sqliteTable(
     score: integer("score"),
     status: text("status", { enum: LEAD_STATUSES }).notNull().default("new"),
     notes: text("notes").notNull().default(""),
+    contactedAt: integer("contacted_at", { mode: "timestamp" }),
+    // Day to follow up (YYYY-MM-DD, Brazil time); compared as text against today.
+    followUpOn: text("follow_up_on"),
     ...timestamps,
   },
-  (t) => [index("leads_search_idx").on(t.searchId), index("leads_score_idx").on(t.score)],
+  (t) => [
+    index("leads_search_idx").on(t.searchId),
+    index("leads_score_idx").on(t.score),
+    index("leads_status_idx").on(t.status),
+  ],
 );
 
 export const analyses = sqliteTable(

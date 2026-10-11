@@ -1,49 +1,46 @@
 import { useQuery } from "@tanstack/react-query";
-import {
-  createColumnHelper,
-  rowSortingFeature,
-  tableFeatures,
-  useTable,
-  type SortingState,
-} from "@tanstack/react-table";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { ArrowDownIcon, ArrowUpIcon, SearchIcon, XIcon } from "lucide-react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { SearchIcon, XIcon } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { z } from "zod";
-import { PageHeader } from "@/components/app-shell";
-import { LeadDetail, LeadPageLink } from "@/components/lead-detail";
-import { LeadStatusBadge, ScoreBadge } from "@/components/lead-badges";
+import { useOpenNewSearch } from "@/components/app-shell";
+import { LeadDetail } from "@/components/lead-detail";
+import { ScoreBadge } from "@/components/lead-badges";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { LeadStatus, Search } from "@/db/schema";
+import { relativeDay } from "@/lib/format";
+import { leadCountsQuery, leadsQuery, providerStatusQuery, searchesQuery } from "@/lib/queries";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { leadCountsQuery, leadsQuery, providerStatusQuery } from "@/lib/queries";
-import {
-  LEAD_SORT_FIELDS,
   LEAD_STATUS_LABELS,
-  LEAD_STATUS_VALUES,
+  LEAD_VIEW_LABELS,
+  LEAD_VIEWS,
   leadFiltersSchema,
   SCORE_TIERS,
   type LeadFilters,
+  type LeadView,
   type ScoreTier,
 } from "@/lib/schemas";
+import { useToday } from "@/lib/today";
 import { cn } from "@/lib/utils";
 import type { LeadCounts, LeadRow } from "@/server/leads-query";
 
-// `lead` is UI state (the open side panel), kept out of the data filters.
+// `lead` is UI state (the open lead), kept out of the data filters.
 const searchSchema = leadFiltersSchema.extend({ lead: z.string().max(64).optional() });
+
+const DEFAULT_VIEW: LeadView = "todo";
 
 export const Route = createFileRoute("/")({
   validateSearch: searchSchema,
-  loaderDeps: ({ search: { lead: _lead, ...filters } }) => filters,
+  loaderDeps: ({ search: { lead: _lead, ...filters } }) => withView(filters),
   loader: ({ context, deps }) =>
     Promise.all([
       context.queryClient.ensureQueryData(leadsQuery(deps)),
@@ -52,25 +49,49 @@ export const Route = createFileRoute("/")({
   component: LeadsPage,
 });
 
-const features = tableFeatures({ rowSortingFeature });
-const helper = createColumnHelper<typeof features, LeadRow>();
-const EMPTY: LeadRow[] = [];
 const TIERS = ["high", "medium", "low"] as const satisfies readonly ScoreTier[];
-
 const TIER_RANGES: Record<ScoreTier, Pick<LeadFilters, "minScore" | "maxScore">> = {
   high: { minScore: SCORE_TIERS.high.min, maxScore: undefined },
   medium: { minScore: SCORE_TIERS.medium.min, maxScore: SCORE_TIERS.medium.max },
   low: { minScore: undefined, maxScore: SCORE_TIERS.low.max },
 };
-
-const RESET: Partial<LeadFilters> = {
+const NO_FILTERS: Partial<LeadFilters> = {
   q: undefined,
-  status: undefined,
   minScore: undefined,
   maxScore: undefined,
   noWebsite: undefined,
   searchId: undefined,
 };
+
+// Which queues a lead still belongs to after its status changes.
+const VIEW_STATUSES: Record<LeadView, LeadStatus[] | null> = {
+  todo: ["new"],
+  followup: ["contacted", "replied"],
+  waiting: ["contacted"],
+  talking: ["replied"],
+  closed: ["closed"],
+  discarded: ["discarded"],
+  all: null,
+};
+
+const SORTS = [
+  { value: "auto", label: "Maior nota" },
+  { value: "reviewCount", label: "Mais avaliações" },
+  { value: "name", label: "Nome" },
+  { value: "createdAt", label: "Mais recentes" },
+] as const;
+type SortValue = (typeof SORTS)[number]["value"];
+
+const SORT_PATCH: Record<SortValue, Pick<LeadFilters, "sort" | "dir">> = {
+  auto: { sort: undefined, dir: undefined },
+  reviewCount: { sort: "reviewCount", dir: "desc" },
+  name: { sort: "name", dir: "asc" },
+  createdAt: { sort: "createdAt", dir: "desc" },
+};
+
+function withView(filters: LeadFilters): LeadFilters {
+  return { ...filters, view: filters.view ?? DEFAULT_VIEW };
+}
 
 function activeTier(filters: LeadFilters): ScoreTier | undefined {
   return TIERS.find(
@@ -80,206 +101,319 @@ function activeTier(filters: LeadFilters): ScoreTier | undefined {
   );
 }
 
+const isWide = () => window.matchMedia("(min-width: 768px)").matches;
+
 function LeadsPage() {
-  const { lead: openLeadId, ...filters } = Route.useSearch();
+  const { lead: openLeadId, ...search } = Route.useSearch();
+  const filters = withView(search);
+  const view = filters.view ?? DEFAULT_VIEW;
   const navigate = useNavigate({ from: "/" });
   const { data } = useQuery(leadsQuery(filters));
   const { data: counts } = useQuery(leadCountsQuery(filters));
+  const searchInput = useRef<HTMLInputElement>(null);
+  const openNewSearch = useOpenNewSearch();
 
   const setFilters = (patch: Partial<LeadFilters>) =>
-    navigate({ search: (prev) => clean({ ...prev, ...patch }), replace: true });
-  const openLead = (id: string | undefined, replace = false) =>
-    navigate({ search: (prev) => clean({ ...prev, lead: id }), replace });
+    void navigate({
+      search: (prev) => clean({ ...prev, ...patch, lead: undefined }),
+      replace: true,
+    });
+  const selectLead = (id: string | undefined, replace = isWide()) =>
+    void navigate({ search: (prev) => clean({ ...prev, lead: id }), replace });
 
   const ids = data?.map((lead) => lead.id) ?? [];
   const position = openLeadId ? ids.indexOf(openLeadId) : -1;
   const prevId = position > 0 ? ids[position - 1] : undefined;
   const nextId = position >= 0 ? ids[position + 1] : undefined;
 
+  // Neighbors of the open lead, kept from the last render where it was still listed,
+  // so the inbox can move on after the lead leaves the queue.
+  const neighbors = useRef({ prevId, nextId });
+  useEffect(() => {
+    if (position >= 0) neighbors.current = { prevId, nextId };
+  }, [position, prevId, nextId]);
+
+  const onStatusChanged = (status: LeadStatus) => {
+    const keeps = VIEW_STATUSES[view];
+    if (keeps && !keeps.includes(status)) {
+      selectLead(neighbors.current.nextId ?? neighbors.current.prevId, true);
+    }
+  };
+
+  // On wide screens the first lead opens by itself, like an inbox.
+  const firstId = data?.[0]?.id;
+  useEffect(() => {
+    if (!openLeadId && firstId && isWide()) {
+      void navigate({ search: (prev) => clean({ ...prev, lead: firstId }), replace: true });
+    }
+  }, [openLeadId, firstId, navigate]);
+
+  useShortcuts({
+    onNext: nextId ? () => selectLead(nextId, true) : undefined,
+    onPrev: prevId ? () => selectLead(prevId, true) : undefined,
+    onSearch: () => searchInput.current?.focus(),
+  });
+
+  const noLeadsYet = counts?.byView.all === 0 && !hasFilters(filters);
+  if (noLeadsYet) return <Onboarding onNewSearch={openNewSearch} />;
+
   const exportHref = `/api/leads.csv?${new URLSearchParams(
     Object.entries(clean(filters)).map(([key, value]) => [key, String(value)]),
   ).toString()}`;
-  const count = data?.length ?? 0;
-  const filtered = hasFilters(filters);
-  const firstRun = counts?.total === 0 && !filtered && !filters.status;
 
   return (
-    <>
-      <PageHeader
-        title="Leads"
-        actions={
-          count > 0 ? (
-            <Button asChild variant="outline">
-              <a href={exportHref} download>
-                Exportar CSV
-              </a>
-            </Button>
-          ) : null
-        }
-      />
+    <div className="flex h-full md:grid md:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[232px_360px_minmax(0,1fr)]">
+      <Rail filters={filters} view={view} counts={counts} onChange={setFilters} />
 
-      {firstRun ? (
-        <Onboarding />
-      ) : (
-        <>
-          <StatusTabs
-            counts={counts}
-            value={filters.status}
-            onChange={(status) => void setFilters({ status })}
-          />
-          <Toolbar filters={filters} counts={counts} onChange={(patch) => void setFilters(patch)} />
-          <LeadsTable
-            data={data}
-            filters={filters}
-            filtered={filtered || Boolean(filters.status)}
-            onSort={(sort, dir) => void setFilters({ sort, dir })}
-            onOpen={(id) => void openLead(id)}
-            onReset={() => void setFilters(RESET)}
-          />
-          <p className="mt-3 text-xs text-muted-foreground" aria-live="polite">
-            {data ? `${count} ${count === 1 ? "lead" : "leads"}` : ""}
+      <section
+        className={cn(
+          "flex min-h-0 min-w-0 flex-1 flex-col md:border-r",
+          openLeadId && "max-md:hidden",
+        )}
+        aria-label="Lista de leads"
+      >
+        <ListHeader
+          filters={filters}
+          view={view}
+          counts={counts}
+          searchInput={searchInput}
+          onChange={setFilters}
+        />
+        <OfferNotice />
+        <LeadList
+          data={data}
+          view={view}
+          selectedId={openLeadId}
+          filtered={hasFilters(filters)}
+          onSelect={(id) => selectLead(id)}
+          onReset={() => setFilters(NO_FILTERS)}
+        />
+        <div className="flex items-center justify-between gap-4 border-t px-4 py-2 text-xs text-muted-foreground">
+          <span aria-live="polite">
+            {data ? `${data.length} ${data.length === 1 ? "lead" : "leads"}` : ""}
             {counts?.pending ? ` · ${counts.pending} em análise` : ""}
-          </p>
-        </>
-      )}
-
-      <Sheet open={Boolean(openLeadId)} onOpenChange={(open) => !open && void openLead(undefined)}>
-        <SheetContent className="gap-0 data-[side=right]:w-full data-[side=right]:sm:max-w-2xl">
-          <SheetTitle className="sr-only">Detalhes do lead</SheetTitle>
-          <SheetDescription className="sr-only">
-            Análise, mensagem e dados de contato do lead.
-          </SheetDescription>
-          {openLeadId ? (
-            <div key={openLeadId} className="flex-1 overflow-y-auto px-5 pt-4 pb-10 sm:px-8">
-              {position >= 0 ? (
-                <LeadPager
-                  position={position}
-                  total={ids.length}
-                  onPrev={prevId ? () => void openLead(prevId, true) : undefined}
-                  onNext={nextId ? () => void openLead(nextId, true) : undefined}
-                />
-              ) : null}
-              <LeadDetail leadId={openLeadId} compact />
-              <div className="mt-10 border-t pt-4">
-                <LeadPageLink leadId={openLeadId} />
-              </div>
-            </div>
+          </span>
+          {data && data.length > 0 ? (
+            <a href={exportHref} download className="hover:text-foreground hover:underline">
+              Exportar CSV
+            </a>
           ) : null}
-        </SheetContent>
-      </Sheet>
-    </>
+        </div>
+      </section>
+
+      <section
+        className={cn("min-h-0 min-w-0 flex-1 overflow-y-auto", !openLeadId && "max-md:hidden")}
+        aria-label="Lead"
+      >
+        {openLeadId ? (
+          <LeadDetail
+            key={openLeadId}
+            leadId={openLeadId}
+            onStatusChanged={onStatusChanged}
+            toolbar={
+              <Pager
+                position={position}
+                total={ids.length}
+                onBack={() => selectLead(undefined, false)}
+                onPrev={prevId ? () => selectLead(prevId, true) : undefined}
+                onNext={nextId ? () => selectLead(nextId, true) : undefined}
+              />
+            }
+          />
+        ) : (
+          <div className="grid h-full place-items-center p-8 text-center text-sm text-muted-foreground">
+            {data && data.length > 0 ? "Escolha um lead na lista." : null}
+          </div>
+        )}
+      </section>
+    </div>
   );
 }
 
-/** Previous/next inside the side panel; J and K work as shortcuts. */
-function LeadPager({
-  position,
-  total,
-  onPrev,
-  onNext,
-}: {
-  position: number;
-  total: number;
-  onPrev?: () => void;
+function useShortcuts(handlers: {
   onNext?: () => void;
+  onPrev?: () => void;
+  onSearch: () => void;
 }) {
-  const handlers = useRef({ onPrev, onNext });
+  const ref = useRef(handlers);
   useEffect(() => {
-    handlers.current = { onPrev, onNext };
+    ref.current = handlers;
   });
-
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.metaKey || event.ctrlKey || event.altKey || isTyping(event.target)) return;
-      if (event.key === "j") handlers.current.onNext?.();
-      if (event.key === "k") handlers.current.onPrev?.();
+      if (event.key === "j") ref.current.onNext?.();
+      else if (event.key === "k") ref.current.onPrev?.();
+      else if (event.key === "/") {
+        event.preventDefault();
+        ref.current.onSearch();
+      } else return;
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
   }, []);
-
-  const link =
-    "underline-offset-4 hover:text-foreground hover:underline disabled:pointer-events-none disabled:opacity-40";
-  return (
-    <div className="mb-6 flex h-8 items-center gap-5 pr-10 text-sm text-muted-foreground">
-      <span className="tabular-nums">
-        {position + 1} de {total}
-      </span>
-      <button type="button" className={link} onClick={onPrev} disabled={!onPrev} title="Atalho: K">
-        Anterior
-      </button>
-      <button type="button" className={link} onClick={onNext} disabled={!onNext} title="Atalho: J">
-        Próximo
-      </button>
-    </div>
-  );
 }
 
 function isTyping(target: EventTarget | null) {
   return (
     target instanceof HTMLElement &&
-    (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))
+    (target.isContentEditable ||
+      ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName) ||
+      target.closest("[role=listbox],[role=dialog]") !== null)
   );
 }
 
-function StatusTabs({
-  counts,
-  value,
-  onChange,
-}: {
-  counts: LeadCounts | undefined;
-  value: LeadFilters["status"];
-  onChange: (status: LeadFilters["status"]) => void;
-}) {
-  const tabs: { value: LeadFilters["status"]; label: string; count?: number }[] = [
-    { value: undefined, label: "Todos", count: counts?.total },
-    ...LEAD_STATUS_VALUES.map((status) => ({
-      value: status,
-      label: LEAD_STATUS_LABELS[status],
-      count: counts?.byStatus[status],
-    })),
-  ].filter((tab) => tab.value === undefined || tab.value === value || (tab.count ?? 0) > 0);
-  return (
-    <div className="no-scrollbar -mx-4 mb-5 overflow-x-auto border-b px-4 sm:mx-0 sm:px-0">
-      <div role="tablist" aria-label="Status" className="flex gap-6">
-        {tabs.map((tab) => {
-          const selected = tab.value === value;
-          return (
-            <button
-              key={tab.label}
-              type="button"
-              role="tab"
-              aria-selected={selected}
-              onClick={() => onChange(tab.value)}
-              className={cn(
-                "relative flex items-center gap-2 pb-3 text-sm font-medium whitespace-nowrap transition-colors",
-                selected
-                  ? "text-foreground after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:rounded-full after:bg-foreground"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {tab.label}
-              <span className="text-xs font-normal text-muted-foreground tabular-nums">
-                {tab.count ?? ""}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function Toolbar({
+function Rail({
   filters,
+  view,
   counts,
   onChange,
 }: {
   filters: LeadFilters;
+  view: LeadView;
   counts: LeadCounts | undefined;
   onChange: (patch: Partial<LeadFilters>) => void;
 }) {
+  const { data: searches } = useQuery(searchesQuery);
+  const tier = activeTier(filters);
+  return (
+    <aside className="hidden min-h-0 flex-col gap-6 overflow-x-hidden overflow-y-auto border-r bg-sidebar px-3 py-4 xl:flex">
+      <RailGroup>
+        {LEAD_VIEWS.map((item) => (
+          <RailItem
+            key={item}
+            active={view === item}
+            count={counts?.byView[item]}
+            highlight={item === "followup"}
+            onClick={() => onChange({ view: item, sort: undefined, dir: undefined })}
+            className={item === "closed" ? "mt-3" : undefined}
+          >
+            {LEAD_VIEW_LABELS[item]}
+          </RailItem>
+        ))}
+      </RailGroup>
+
+      <RailGroup title="Nota">
+        {TIERS.map((key) => (
+          <RailItem
+            key={key}
+            active={tier === key}
+            count={counts?.byTier[key]}
+            onClick={() =>
+              onChange(
+                tier === key ? { minScore: undefined, maxScore: undefined } : TIER_RANGES[key],
+              )
+            }
+          >
+            {SCORE_TIERS[key].label}{" "}
+            <span className="text-muted-foreground">
+              {key === "high"
+                ? `${SCORE_TIERS.high.min}+`
+                : `${SCORE_TIERS[key].min}–${SCORE_TIERS[key].max}`}
+            </span>
+          </RailItem>
+        ))}
+        <RailItem
+          active={filters.noWebsite ?? false}
+          onClick={() => onChange({ noWebsite: filters.noWebsite ? undefined : true })}
+        >
+          Sem site
+        </RailItem>
+      </RailGroup>
+
+      {searches && searches.length > 0 ? (
+        <RailGroup title="Buscas">
+          {searches.slice(0, 8).map((search) => (
+            <RailItem
+              key={search.id}
+              active={filters.searchId === search.id}
+              count={search.foundCount}
+              onClick={() =>
+                onChange({ searchId: filters.searchId === search.id ? undefined : search.id })
+              }
+            >
+              {searchLabel(search)}
+            </RailItem>
+          ))}
+          <Link
+            to="/searches"
+            className="px-3 pt-1 text-xs text-muted-foreground hover:text-foreground hover:underline"
+          >
+            Ver todas
+          </Link>
+        </RailGroup>
+      ) : null}
+    </aside>
+  );
+}
+
+function RailGroup({ title, children }: { title?: string; children: ReactNode }) {
+  return (
+    <div className="grid gap-0.5">
+      {title ? <h2 className="mb-1 px-3 text-xs text-muted-foreground">{title}</h2> : null}
+      {children}
+    </div>
+  );
+}
+
+function RailItem({
+  active,
+  count,
+  highlight,
+  onClick,
+  className,
+  children,
+}: {
+  active: boolean;
+  count?: number;
+  highlight?: boolean;
+  onClick: () => void;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onClick}
+      className={cn(
+        "flex h-8 items-center justify-between gap-3 rounded-md px-3 text-left text-sm transition-colors",
+        active
+          ? "bg-background font-medium text-foreground shadow-xs ring-1 ring-border"
+          : "text-muted-foreground hover:bg-muted hover:text-foreground",
+        className,
+      )}
+    >
+      <span className="min-w-0 truncate">{children}</span>
+      {count !== undefined && count > 0 ? (
+        <span
+          className={cn(
+            "shrink-0 text-xs tabular-nums",
+            highlight ? "font-medium text-brand" : "text-muted-foreground",
+          )}
+        >
+          {count}
+        </span>
+      ) : null}
+    </button>
+  );
+}
+
+function ListHeader({
+  filters,
+  view,
+  counts,
+  searchInput,
+  onChange,
+}: {
+  filters: LeadFilters;
+  view: LeadView;
+  counts: LeadCounts | undefined;
+  searchInput: RefObject<HTMLInputElement | null>;
+  onChange: (patch: Partial<LeadFilters>) => void;
+}) {
   const [q, setQ] = useState(filters.q ?? "");
+  const [showFilters, setShowFilters] = useState(false);
   const onChangeRef = useRef(onChange);
   useEffect(() => {
     onChangeRef.current = onChange;
@@ -300,108 +434,119 @@ function Toolbar({
     return () => clearTimeout(timer);
   }, [q, filters.q]);
 
+  const { data: searches } = useQuery(searchesQuery);
   const tier = activeTier(filters);
-  const customRange = !tier && (filters.minScore !== undefined || filters.maxScore !== undefined);
-  const [showFilters, setShowFilters] = useState(false);
-  const activeFilters = (tier ? 1 : 0) + (filters.noWebsite ? 1 : 0);
+  const activeSearch = searches?.find((search) => search.id === filters.searchId);
+  const sortValue: SortValue =
+    filters.sort === "reviewCount" || filters.sort === "name" || filters.sort === "createdAt"
+      ? filters.sort
+      : "auto";
+  const datedQueue = view === "followup" || view === "waiting";
+  const extraFilters = (tier ? 1 : 0) + (filters.noWebsite ? 1 : 0);
 
   return (
-    <div className="mb-4 flex flex-wrap items-center gap-2.5">
-      <div className="relative min-w-0 flex-1 md:w-72 md:flex-none">
-        <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          type="search"
-          aria-label="Buscar empresa"
-          placeholder="Buscar empresa"
-          className="h-9 pl-9"
-          value={q}
-          onChange={(event) => setQ(event.target.value)}
-        />
+    <div className="grid gap-2 border-b p-3">
+      <div className="flex gap-2 xl:hidden">
+        <Select
+          value={view}
+          onValueChange={(next) => {
+            const item = LEAD_VIEWS.find((value) => value === next);
+            if (item) onChange({ view: item, sort: undefined, dir: undefined });
+          }}
+        >
+          <SelectTrigger className="h-9 min-w-0 flex-1" aria-label="Fila">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {LEAD_VIEWS.map((item) => (
+              <SelectItem key={item} value={item}>
+                {LEAD_VIEW_LABELS[item]}
+                <span className="text-muted-foreground tabular-nums">
+                  {counts?.byView[item] ?? ""}
+                </span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button
+          variant="outline"
+          className="h-9"
+          aria-expanded={showFilters}
+          onClick={() => setShowFilters((open) => !open)}
+        >
+          Filtros
+          {extraFilters > 0 ? (
+            <span className="text-muted-foreground tabular-nums">{extraFilters}</span>
+          ) : null}
+        </Button>
       </div>
 
-      <Button
-        variant="outline"
-        className="h-9 md:hidden"
-        aria-expanded={showFilters}
-        onClick={() => setShowFilters((open) => !open)}
-      >
-        Filtros
-        {activeFilters > 0 ? (
-          <span className="text-muted-foreground tabular-nums">{activeFilters}</span>
-        ) : null}
-      </Button>
-
-      <div
-        className={cn(
-          "w-full flex-wrap items-center gap-2.5 md:flex md:w-auto",
-          showFilters ? "flex" : "hidden",
-        )}
-      >
-        <div
-          role="radiogroup"
-          aria-label="Faixa de nota"
-          className="no-scrollbar flex h-9 max-w-full items-center overflow-x-auto rounded-lg border p-0.5 text-sm"
-        >
-          <Segment
-            checked={!tier && !customRange}
-            onClick={() => onChange({ minScore: undefined, maxScore: undefined })}
-          >
-            Toda nota
-          </Segment>
-          {TIERS.map((key) => (
-            <Segment key={key} checked={tier === key} onClick={() => onChange(TIER_RANGES[key])}>
-              {SCORE_TIERS[key].label}
-              <span className="text-xs text-muted-foreground tabular-nums">
-                {counts?.byTier[key] ?? ""}
-              </span>
-            </Segment>
-          ))}
+      <div className="flex gap-2">
+        <div className="relative min-w-0 flex-1">
+          <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            ref={searchInput}
+            type="search"
+            aria-label="Buscar empresa"
+            placeholder="Buscar empresa"
+            className="h-9 pl-9"
+            value={q}
+            onChange={(event) => setQ(event.target.value)}
+          />
         </div>
-
-        <Chip
-          pressed={filters.noWebsite ?? false}
-          onClick={() => onChange({ noWebsite: filters.noWebsite ? undefined : true })}
+        <Select
+          value={sortValue}
+          onValueChange={(next) => {
+            const item = SORTS.find((sort) => sort.value === next);
+            if (item) onChange(SORT_PATCH[item.value]);
+          }}
         >
-          Sem site
-        </Chip>
+          <SelectTrigger className="h-9 w-auto" aria-label="Ordenar">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent align="end">
+            {SORTS.map((sort) => (
+              <SelectItem key={sort.value} value={sort.value}>
+                {sort.value === "auto" && datedQueue ? "Data de retorno" : sort.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
-      {filters.searchId ? (
-        <Chip pressed onClick={() => onChange({ searchId: undefined })}>
-          Só desta busca <XIcon className="size-3.5" />
-        </Chip>
+      {showFilters ? (
+        <div className="flex flex-wrap gap-2 xl:hidden">
+          {TIERS.map((key) => (
+            <Chip
+              key={key}
+              pressed={tier === key}
+              onClick={() =>
+                onChange(
+                  tier === key ? { minScore: undefined, maxScore: undefined } : TIER_RANGES[key],
+                )
+              }
+            >
+              Nota {SCORE_TIERS[key].label.toLowerCase()}
+              <span className="opacity-60 tabular-nums">{counts?.byTier[key] ?? ""}</span>
+            </Chip>
+          ))}
+          <Chip
+            pressed={filters.noWebsite ?? false}
+            onClick={() => onChange({ noWebsite: filters.noWebsite ? undefined : true })}
+          >
+            Sem site
+          </Chip>
+        </div>
       ) : null}
-      {customRange ? (
-        <Chip pressed onClick={() => onChange({ minScore: undefined, maxScore: undefined })}>
-          Nota {filters.minScore ?? 0}–{filters.maxScore ?? 100} <XIcon className="size-3.5" />
-        </Chip>
+
+      {activeSearch ? (
+        <div className="flex">
+          <Chip pressed onClick={() => onChange({ searchId: undefined })}>
+            {searchLabel(activeSearch)} <XIcon className="size-3.5" />
+          </Chip>
+        </div>
       ) : null}
     </div>
-  );
-}
-
-function Segment({
-  checked,
-  onClick,
-  children,
-}: {
-  checked: boolean;
-  onClick: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      role="radio"
-      aria-checked={checked}
-      onClick={onClick}
-      className={cn(
-        "flex h-full items-center gap-1.5 rounded-md px-3 whitespace-nowrap transition-colors",
-        checked ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground",
-      )}
-    >
-      {children}
-    </button>
   );
 }
 
@@ -420,7 +565,7 @@ function Chip({
       aria-pressed={pressed}
       onClick={onClick}
       className={cn(
-        "inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-sm whitespace-nowrap transition-colors",
+        "inline-flex h-8 max-w-full items-center gap-1.5 truncate rounded-md border px-2.5 text-sm whitespace-nowrap transition-colors",
         pressed
           ? "border-foreground bg-foreground text-background"
           : "text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -431,131 +576,67 @@ function Chip({
   );
 }
 
-const statusColumn = helper.accessor("status", {
-  header: "Status",
-  enableSorting: false,
-  cell: ({ getValue }) => <LeadStatusBadge status={getValue()} />,
-});
-
-const columns = helper.columns([
-  helper.accessor("name", {
-    header: "Empresa",
-    sortDescFirst: false,
-    cell: ({ row }) => (
-      <div className="max-w-80 min-w-48">
-        <p className="truncate font-medium" title={row.original.name}>
-          {row.original.name}
-        </p>
-        <RowHint lead={row.original} />
-      </div>
-    ),
-  }),
-  helper.accessor("score", {
-    header: "Nota",
-    cell: ({ row }) => (
-      <ScoreBadge score={row.original.score} pending={row.original.analysisStatus === "pending"} />
-    ),
-  }),
-  helper.accessor("phone", {
-    header: "Contato",
-    enableSorting: false,
-    cell: ({ row }) => (
-      <div className="grid gap-0.5">
-        <span className="whitespace-nowrap tabular-nums">{row.original.phone ?? "—"}</span>
-        <span className="max-w-44 truncate text-xs text-muted-foreground">
-          {row.original.website ? hostOf(row.original.website) : "sem site"}
-        </span>
-      </div>
-    ),
-  }),
-  helper.accessor("reviewCount", {
-    header: "Google",
-    cell: ({ row }) =>
-      row.original.rating !== null ? (
-        <span className="whitespace-nowrap tabular-nums">
-          {row.original.rating.toFixed(1).replace(".", ",")}
-          <span className="text-muted-foreground"> ({row.original.reviewCount ?? 0})</span>
-        </span>
-      ) : (
-        <span className="text-muted-foreground">—</span>
-      ),
-  }),
-  statusColumn,
-]);
-
-const RESPONSIVE: Record<string, string> = {
-  reviewCount: "hidden lg:table-cell",
-};
-const columnsWithoutStatus = columns.filter((column) => column !== statusColumn);
-
-/** Second line under the name: the strongest opportunity, or the analysis state. */
-function RowHint({ lead }: { lead: LeadRow }) {
-  const text =
-    lead.analysisStatus === "pending"
-      ? "Aguardando análise"
-      : lead.analysisStatus === "error"
-        ? "Falha na análise"
-        : lead.signals?.[0];
-  return text ? <p className="mt-0.5 truncate text-xs text-muted-foreground">{text}</p> : null;
+function OfferNotice() {
+  const { data: status } = useQuery(providerStatusQuery);
+  if (!status || status.offerConfigured) return null;
+  return (
+    <p className="border-b bg-muted/40 px-4 py-2.5 text-xs leading-relaxed text-muted-foreground">
+      Sem a sua oferta, a nota e a mensagem saem genéricas.{" "}
+      <Link to="/settings" className="text-foreground underline underline-offset-4">
+        Descrever o que eu vendo
+      </Link>
+    </p>
+  );
 }
 
-function LeadsTable({
+const EMPTY_VIEW_TEXT: Record<LeadView, string> = {
+  todo: "Nenhum lead novo para contatar.",
+  followup: "Nada para retornar hoje.",
+  waiting: "Ninguém aguardando resposta.",
+  talking: "Nenhuma conversa em andamento.",
+  closed: "Nenhum negócio fechado ainda.",
+  discarded: "Nenhum lead descartado.",
+  all: "Nenhum lead.",
+};
+
+function LeadList({
   data,
-  filters,
+  view,
+  selectedId,
   filtered,
-  onSort,
-  onOpen,
+  onSelect,
   onReset,
 }: {
   data: LeadRow[] | undefined;
-  filters: LeadFilters;
+  view: LeadView;
+  selectedId: string | undefined;
   filtered: boolean;
-  onSort: (sort: LeadFilters["sort"], dir: LeadFilters["dir"]) => void;
-  onOpen: (id: string) => void;
+  onSelect: (id: string) => void;
   onReset: () => void;
 }) {
-  const sorting: SortingState = [
-    { id: filters.sort ?? "score", desc: (filters.dir ?? "desc") === "desc" },
-  ];
-  const table = useTable({
-    features,
-    columns: filters.status ? columnsWithoutStatus : columns,
-    data: data ?? EMPTY,
-    manualSorting: true,
-    sortDescFirst: true,
-    enableSortingRemoval: false,
-    state: { sorting },
-    onSortingChange: (updater) => {
-      const next = typeof updater === "function" ? updater(sorting) : updater;
-      const first = next[0];
-      const sort = LEAD_SORT_FIELDS.find((field) => field === first?.id);
-      if (sort) onSort(sort, first?.desc ? "desc" : "asc");
-    },
-  });
+  const selectedRef = useRef<HTMLButtonElement>(null);
+  const today = useToday();
+  useEffect(() => {
+    if (selectedId) selectedRef.current?.scrollIntoView({ block: "nearest" });
+  }, [selectedId]);
 
   if (data === undefined) {
     return (
-      <div className="grid gap-2">
+      <div className="grid gap-px p-3">
         {Array.from({ length: 6 }, (_, i) => (
           <Skeleton key={i} className="h-14 w-full" />
         ))}
       </div>
     );
   }
-
   if (data.length === 0) {
-    const onlyStatus = Boolean(filters.status) && !hasFilters(filters);
     return (
-      <div className="py-16 text-center">
-        <p className="font-medium">
-          {onlyStatus && filters.status
-            ? `Nenhum lead em “${LEAD_STATUS_LABELS[filters.status]}”`
-            : filtered
-              ? "Nenhum lead com esses filtros"
-              : "Nenhum lead"}
+      <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8 text-center">
+        <p className="text-sm text-muted-foreground">
+          {filtered ? "Nenhum lead com esses filtros." : EMPTY_VIEW_TEXT[view]}
         </p>
-        {filtered && !onlyStatus ? (
-          <Button variant="outline" size="sm" className="mt-4" onClick={onReset}>
+        {filtered ? (
+          <Button variant="outline" size="sm" onClick={onReset}>
             Limpar filtros
           </Button>
         ) : null}
@@ -563,132 +644,134 @@ function LeadsTable({
     );
   }
 
-  const rows = table.getRowModel().rows;
   return (
-    <>
-      {/* Phones: card list */}
-      <ul className="grid grid-cols-[minmax(0,1fr)] gap-2 md:hidden">
-        {rows.map(({ original: lead }) => (
+    <ul className="min-h-0 flex-1 overflow-y-auto">
+      {data.map((lead) => {
+        const selected = lead.id === selectedId;
+        const hint = leadHint(lead, view, today);
+        return (
           <li key={lead.id}>
             <button
+              ref={selected ? selectedRef : undefined}
               type="button"
-              onClick={() => onOpen(lead.id)}
-              className="flex w-full items-center gap-3 rounded-xl border bg-card px-4 py-3 text-left transition-colors active:bg-muted"
+              aria-current={selected || undefined}
+              onClick={() => onSelect(lead.id)}
+              className={cn(
+                "block w-full border-b px-4 py-3 text-left transition-colors",
+                selected
+                  ? "bg-muted shadow-[inset_2px_0_0_var(--foreground)]"
+                  : "hover:bg-muted/50",
+              )}
             >
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-medium">{lead.name}</p>
-                <RowHint lead={lead} />
-              </div>
-              <ScoreBadge score={lead.score} pending={lead.analysisStatus === "pending"} />
+              <span className="flex items-baseline justify-between gap-3">
+                <span className="truncate font-medium">{lead.name}</span>
+                <ScoreBadge
+                  score={lead.score}
+                  pending={lead.analysisStatus === "pending"}
+                  className="shrink-0"
+                />
+              </span>
+              <span className="mt-0.5 flex items-baseline justify-between gap-3 text-xs text-muted-foreground">
+                <span className={cn("truncate", hint.due && "font-medium text-brand")}>
+                  {hint.text}
+                </span>
+                {lead.rating !== null ? (
+                  <span className="shrink-0 tabular-nums">
+                    {lead.rating.toFixed(1).replace(".", ",")} ({lead.reviewCount ?? 0})
+                  </span>
+                ) : null}
+              </span>
             </button>
           </li>
-        ))}
-      </ul>
-
-      {/* Tablets and up: sortable table */}
-      <div className="hidden overflow-hidden rounded-xl border bg-card md:block">
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((group) => (
-              <TableRow key={group.id} className="hover:bg-transparent">
-                {group.headers.map((header) => {
-                  const sorted = header.column.getIsSorted();
-                  return (
-                    <TableHead
-                      key={header.id}
-                      aria-sort={
-                        sorted === "asc"
-                          ? "ascending"
-                          : sorted === "desc"
-                            ? "descending"
-                            : undefined
-                      }
-                      className={cn(
-                        "h-10 px-4 text-xs font-normal text-muted-foreground",
-                        RESPONSIVE[header.column.id],
-                      )}
-                    >
-                      {header.column.getCanSort() ? (
-                        <button
-                          type="button"
-                          className={cn(
-                            "inline-flex items-center gap-1 transition-colors hover:text-foreground",
-                            sorted && "text-foreground",
-                          )}
-                          onClick={header.column.getToggleSortingHandler()}
-                        >
-                          <table.FlexRender header={header} />
-                          {sorted === "desc" ? (
-                            <ArrowDownIcon className="size-3" />
-                          ) : sorted === "asc" ? (
-                            <ArrowUpIcon className="size-3" />
-                          ) : null}
-                        </button>
-                      ) : (
-                        <table.FlexRender header={header} />
-                      )}
-                    </TableHead>
-                  );
-                })}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {rows.map((row) => (
-              <TableRow
-                key={row.id}
-                tabIndex={0}
-                aria-label={`Abrir ${row.original.name}`}
-                onClick={() => onOpen(row.original.id)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    onOpen(row.original.id);
-                  }
-                }}
-                className="cursor-pointer focus-visible:bg-muted/60 focus-visible:outline-none"
-              >
-                {row.getAllCells().map((cell) => (
-                  <TableCell key={cell.id} className={cn("px-4 py-3", RESPONSIVE[cell.column.id])}>
-                    <table.FlexRender cell={cell} />
-                  </TableCell>
-                ))}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-    </>
+        );
+      })}
+    </ul>
   );
 }
 
-function Onboarding() {
+/** Second line of a list item: whatever helps decide what to do with the lead. */
+function leadHint(lead: LeadRow, view: LeadView, today: string): { text: string; due?: boolean } {
+  if (lead.analysisStatus === "pending") return { text: "Analisando…" };
+  if (lead.analysisStatus === "error") return { text: "Falha na análise" };
+  const prefix =
+    view === "all" && lead.status !== "new" ? `${LEAD_STATUS_LABELS[lead.status]} · ` : "";
+  if ((lead.status === "contacted" || lead.status === "replied") && lead.followUpOn) {
+    return {
+      text: `${prefix}Retornar ${relativeDay(lead.followUpOn, today)}`,
+      due: lead.followUpOn <= today,
+    };
+  }
+  const detail = lead.signals?.[0] ?? (lead.website ? hostOf(lead.website) : "Sem site");
+  return { text: `${prefix}${detail}` };
+}
+
+function Pager({
+  position,
+  total,
+  onBack,
+  onPrev,
+  onNext,
+}: {
+  position: number;
+  total: number;
+  onBack: () => void;
+  onPrev?: () => void;
+  onNext?: () => void;
+}) {
+  const link =
+    "underline-offset-4 hover:text-foreground hover:underline disabled:pointer-events-none disabled:opacity-40";
+  return (
+    <div className="flex h-8 items-center gap-5 text-sm text-muted-foreground">
+      <button type="button" className={cn(link, "md:hidden")} onClick={onBack}>
+        Voltar
+      </button>
+      {position >= 0 ? (
+        <>
+          <span className="ml-auto tabular-nums md:ml-0">
+            {position + 1} de {total}
+          </span>
+          <button type="button" className={link} onClick={onPrev} disabled={!onPrev}>
+            Anterior
+          </button>
+          <button type="button" className={link} onClick={onNext} disabled={!onNext}>
+            Próximo
+          </button>
+          <span className="ml-auto hidden text-xs lg:inline">J e K para navegar</span>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+function Onboarding({ onNewSearch }: { onNewSearch: () => void }) {
   const { data: status } = useQuery(providerStatusQuery);
   const missingKeys = status && !(status.placesConfigured && status.aiConfigured);
   return (
-    <div className="py-20 text-center">
-      <p className="font-medium">Nenhum lead ainda</p>
-      <p className="mt-1 text-sm text-muted-foreground">
+    <div className="mx-auto grid max-w-md gap-3 px-6 py-24 text-center">
+      <h1 className="text-xl font-medium">Nenhum lead ainda</h1>
+      <p className="text-sm text-muted-foreground">
         {missingKeys
           ? "Configure as chaves do Google e da DeepSeek no .dev.vars para começar."
-          : "Escolha um nicho e uma cidade para a primeira busca."}
+          : "Busque um nicho numa cidade. As empresas aparecem aqui já avaliadas, da maior nota para a menor."}
       </p>
-      <div className="mt-6 flex justify-center gap-2">
+      <div className="mt-3 flex justify-center gap-2">
         {status && !status.offerConfigured ? (
           <Button asChild variant="outline">
-            <Link to="/settings">Descrever o que você vende</Link>
+            <Link to="/settings">Descrever o que eu vendo</Link>
           </Button>
         ) : null}
-        <Button asChild>
-          <Link to="/searches/new">Nova busca</Link>
-        </Button>
+        <Button onClick={onNewSearch}>Nova busca</Button>
       </div>
     </div>
   );
 }
 
+function searchLabel(search: Pick<Search, "niche" | "city">) {
+  return `${search.niche} · ${search.city}`;
+}
+
 function hasFilters(filters: LeadFilters) {
-  const { sort: _sort, dir: _dir, status: _status, ...rest } = clean(filters);
+  const { sort: _sort, dir: _dir, view: _view, ...rest } = clean(filters);
   return Object.keys(rest).length > 0;
 }
 

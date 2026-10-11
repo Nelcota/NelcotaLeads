@@ -5,7 +5,7 @@ import { PlusIcon, Trash2Icon } from "lucide-react";
 import type { ReactNode } from "react";
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
-import { PageHeader } from "@/components/app-shell";
+import { Page, PageHeader } from "@/components/app-shell";
 import { Field } from "@/components/field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,10 +37,10 @@ const TONE_HINTS: Record<SettingsInput["tone"], string> = {
 function SettingsPage() {
   const { data } = useSuspenseQuery(settingsQuery);
   return (
-    <div className="mx-auto max-w-4xl">
-      <PageHeader title="O que eu vendo" />
+    <Page>
+      <PageHeader title="Configurações" />
       <SettingsForm defaults={data} />
-    </div>
+    </Page>
   );
 }
 
@@ -221,29 +221,26 @@ function SettingsForm({ defaults }: { defaults: SettingsInput }) {
         </Field>
       </SettingsSection>
 
-      <div
-        className={cn(
-          "fixed inset-x-0 bottom-0 z-20 border-t bg-background/90 backdrop-blur transition-transform duration-200",
-          isDirty || mutation.isPending ? "translate-y-0" : "translate-y-full",
-        )}
-      >
-        <div className="mx-auto flex max-w-4xl items-center justify-between gap-4 px-4 py-3 sm:px-8 lg:pl-[calc(248px+3rem)]">
-          <p className="text-sm text-muted-foreground">Alterações não salvas</p>
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => form.reset(defaults)}
-              disabled={mutation.isPending}
-            >
-              Descartar
-            </Button>
-            <Button type="submit" disabled={mutation.isPending}>
-              {mutation.isPending ? "Salvando…" : "Salvar"}
-            </Button>
+      {isDirty || mutation.isPending ? (
+        <div className="sticky bottom-0 z-20 -mx-4 border-t bg-background/95 backdrop-blur sm:-mx-8">
+          <div className="flex items-center justify-between gap-4 px-4 py-3 sm:px-8">
+            <p className="text-sm text-muted-foreground">Alterações não salvas</p>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => form.reset(defaults)}
+                disabled={mutation.isPending}
+              >
+                Descartar
+              </Button>
+              <Button type="submit" disabled={mutation.isPending}>
+                {mutation.isPending ? "Salvando…" : "Salvar"}
+              </Button>
+            </div>
           </div>
         </div>
-      </div>
+      ) : null}
     </form>
   );
 }

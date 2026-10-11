@@ -15,6 +15,13 @@
       "when": 1791741034634,
       "tag": "0001_sad_ken_ellis",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1791749575469,
+      "tag": "0002_sharp_thing",
+      "breakpoints": true
     }
   ]
 }

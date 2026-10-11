@@ -16,6 +16,7 @@ export type CsvLead = {
   score: number | null;
   status: keyof typeof LEAD_STATUS_LABELS;
   notes: string;
+  followUpOn?: string | null;
   createdAt: Date;
   summary: string | null;
   painPoints: string[] | null;
@@ -36,6 +37,7 @@ export function leadsToCsv(rows: CsvLead[]): string {
     avaliacoes: lead.reviewCount ?? "",
     nota_ia: lead.score ?? "",
     status: LEAD_STATUS_LABELS[lead.status],
+    retornar_em: lead.followUpOn ?? "",
     resumo: lead.summary ?? "",
     dores: (lead.painPoints ?? []).join(" | "),
     mensagem: lead.firstMessage ?? "",

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { getDb } from "@/db/client";
 import { leads, searches } from "@/db/schema";
 import { resetDb } from "../../test/reset-db";
-import { countLeads } from "./leads-query";
+import { countLeads, queryLeads } from "./leads-query";
 
 const db = getDb(env.DB);
 
@@ -29,6 +29,7 @@ describe("countLeads", () => {
         name: "B",
         score: 45,
         status: "contacted",
+        followUpOn: "2026-10-10",
         analysisStatus: "done",
       },
       {
@@ -44,18 +45,31 @@ describe("countLeads", () => {
     ]);
   });
 
-  it("counts by status and score band", async () => {
-    expect(await countLeads(db, {})).toEqual({
-      total: 4,
-      byStatus: { new: 3, contacted: 1, replied: 0, closed: 0, discarded: 0 },
+  it("counts each queue and score band", async () => {
+    expect(await countLeads(db, {}, "2026-10-11")).toEqual({
+      byView: {
+        todo: 3,
+        followup: 1,
+        waiting: 1,
+        talking: 0,
+        closed: 0,
+        discarded: 0,
+        all: 4,
+      },
       byTier: { high: 1, medium: 1, low: 1 },
       pending: 1,
     });
   });
 
-  it("status counts ignore the status filter; band counts ignore the score range", async () => {
-    const counts = await countLeads(db, { status: "new", minScore: 60 });
-    expect(counts.byStatus).toMatchObject({ new: 1, contacted: 0 });
+  it("follow-up queue only includes leads due today or earlier", async () => {
+    expect((await countLeads(db, {}, "2026-10-09")).byView.followup).toBe(0);
+    const due = await queryLeads(db, { view: "followup" }, "2026-10-10");
+    expect(due.map((lead) => lead.id)).toEqual(["2"]);
+  });
+
+  it("queue counts ignore the view filter; band counts ignore the score range", async () => {
+    const counts = await countLeads(db, { view: "todo", minScore: 60 }, "2026-10-11");
+    expect(counts.byView).toMatchObject({ todo: 1, waiting: 0 });
     expect(counts.byTier).toEqual({ high: 1, medium: 0, low: 1 });
   });
 });

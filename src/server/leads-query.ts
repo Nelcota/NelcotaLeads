@@ -1,12 +1,8 @@
-import { and, asc, desc, eq, gte, isNull, like, lte, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNull, like, lte, sql, type SQL } from "drizzle-orm";
 import type { Db } from "@/db/client";
 import { analyses, leads } from "@/db/schema";
-import {
-  SCORE_TIERS,
-  type LEAD_STATUS_VALUES,
-  type LeadFilters,
-  type ScoreTier,
-} from "@/lib/schemas";
+import { localDay } from "@/lib/format";
+import { SCORE_TIERS, type LeadFilters, type LeadView, type ScoreTier } from "@/lib/schemas";
 
 export const LIST_LIMIT = 1000;
 
@@ -24,11 +20,30 @@ const latestAnalysis = sql`${analyses.id} = (
   order by a2.created_at desc, a2.rowid desc limit 1
 )`;
 
-function whereClause(filters: LeadFilters): SQL | undefined {
+function viewCondition(view: LeadView | undefined, today: string): SQL | undefined {
+  switch (view) {
+    case "todo":
+      return eq(leads.status, "new");
+    case "followup":
+      return and(inArray(leads.status, ["contacted", "replied"]), lte(leads.followUpOn, today));
+    case "waiting":
+      return eq(leads.status, "contacted");
+    case "talking":
+      return eq(leads.status, "replied");
+    case "closed":
+      return eq(leads.status, "closed");
+    case "discarded":
+      return eq(leads.status, "discarded");
+    default:
+      return undefined;
+  }
+}
+
+function whereClause(filters: LeadFilters, today: string): SQL | undefined {
   const conditions: (SQL | undefined)[] = [
     filters.q ? like(leads.name, `%${filters.q}%`) : undefined,
     filters.searchId ? eq(leads.searchId, filters.searchId) : undefined,
-    filters.status ? eq(leads.status, filters.status) : undefined,
+    viewCondition(filters.view, today),
     filters.minScore !== undefined ? gte(leads.score, filters.minScore) : undefined,
     filters.maxScore !== undefined ? lte(leads.score, filters.maxScore) : undefined,
     filters.noWebsite ? isNull(leads.website) : undefined,
@@ -37,6 +52,10 @@ function whereClause(filters: LeadFilters): SQL | undefined {
 }
 
 function orderBy(filters: LeadFilters) {
+  // Follow-up queues default to the oldest due day first.
+  if (!filters.sort && (filters.view === "followup" || filters.view === "waiting")) {
+    return [sql`${leads.followUpOn} is null`, asc(leads.followUpOn), desc(leads.score)];
+  }
   const column = SORT_COLUMNS[filters.sort ?? "score"];
   const direction = (filters.dir ?? "desc") === "desc" ? desc : asc;
   // Unanalyzed leads (null score) go last regardless of direction.
@@ -44,7 +63,7 @@ function orderBy(filters: LeadFilters) {
 }
 
 /** Lead rows for the table and the CSV export, with the latest analysis joined in. */
-export function queryLeads(db: Db, filters: LeadFilters) {
+export function queryLeads(db: Db, filters: LeadFilters, today = localDay(new Date())) {
   return db
     .select({
       id: leads.id,
@@ -62,6 +81,8 @@ export function queryLeads(db: Db, filters: LeadFilters) {
       status: leads.status,
       analysisStatus: leads.analysisStatus,
       notes: leads.notes,
+      contactedAt: leads.contactedAt,
+      followUpOn: leads.followUpOn,
       createdAt: leads.createdAt,
       summary: analyses.summary,
       signals: analyses.signals,
@@ -70,7 +91,7 @@ export function queryLeads(db: Db, filters: LeadFilters) {
     })
     .from(leads)
     .leftJoin(analyses, and(eq(analyses.leadId, leads.id), latestAnalysis))
-    .where(whereClause(filters))
+    .where(whereClause(filters, today))
     .orderBy(...orderBy(filters))
     .limit(LIST_LIMIT);
 }
@@ -78,68 +99,66 @@ export function queryLeads(db: Db, filters: LeadFilters) {
 export type LeadRow = Awaited<ReturnType<typeof queryLeads>>[number];
 
 export type LeadCounts = {
-  total: number;
-  byStatus: Record<(typeof LEAD_STATUS_VALUES)[number], number>;
+  byView: Record<LeadView, number>;
   byTier: Record<ScoreTier, number>;
   pending: number;
 };
 
+const countIf = (condition: SQL) =>
+  sql<number>`coalesce(sum(case when ${condition} then 1 else 0 end), 0)`.mapWith(Number);
+
 /**
- * Counts for the status tabs and score bands. Each dimension ignores its own filter
- * (status counts ignore the status filter, band counts ignore the score range).
+ * Counts for the queues and score bands. Queue counts ignore the view filter;
+ * band counts ignore the score range.
  */
-export async function countLeads(db: Db, filters: LeadFilters): Promise<LeadCounts> {
-  const [statusRows, tierRows] = await Promise.all([
+export async function countLeads(
+  db: Db,
+  filters: LeadFilters,
+  today = localDay(new Date()),
+): Promise<LeadCounts> {
+  const viewCount = (view: LeadView) => {
+    const condition = viewCondition(view, today);
+    return condition ? countIf(condition) : sql<number>`count(*)`.mapWith(Number);
+  };
+  const [viewRows, tierRows] = await Promise.all([
     db
       .select({
-        status: leads.status,
-        count: sql<number>`count(*)`.mapWith(Number),
-        pending:
-          sql<number>`coalesce(sum(case when ${leads.analysisStatus} = 'pending' then 1 else 0 end), 0)`.mapWith(
-            Number,
-          ),
+        todo: viewCount("todo"),
+        followup: viewCount("followup"),
+        waiting: viewCount("waiting"),
+        talking: viewCount("talking"),
+        closed: viewCount("closed"),
+        discarded: viewCount("discarded"),
+        all: viewCount("all"),
+        pending: countIf(eq(leads.analysisStatus, "pending")),
       })
       .from(leads)
-      .where(whereClause({ ...filters, status: undefined }))
-      .groupBy(leads.status),
+      .where(whereClause({ ...filters, view: undefined }, today)),
     db
       .select({
-        high: sql<number>`coalesce(sum(case when ${leads.score} >= ${SCORE_TIERS.high.min} then 1 else 0 end), 0)`.mapWith(
-          Number,
+        high: countIf(gte(leads.score, SCORE_TIERS.high.min)),
+        medium: countIf(
+          sql`${leads.score} between ${SCORE_TIERS.medium.min} and ${SCORE_TIERS.medium.max}`,
         ),
-        medium:
-          sql<number>`coalesce(sum(case when ${leads.score} between ${SCORE_TIERS.medium.min} and ${SCORE_TIERS.medium.max} then 1 else 0 end), 0)`.mapWith(
-            Number,
-          ),
-        low: sql<number>`coalesce(sum(case when ${leads.score} <= ${SCORE_TIERS.low.max} then 1 else 0 end), 0)`.mapWith(
-          Number,
-        ),
+        low: countIf(lte(leads.score, SCORE_TIERS.low.max)),
       })
       .from(leads)
-      .where(whereClause({ ...filters, minScore: undefined, maxScore: undefined })),
+      .where(whereClause({ ...filters, minScore: undefined, maxScore: undefined }, today)),
   ]);
 
-  const byStatus: LeadCounts["byStatus"] = {
-    new: 0,
-    contacted: 0,
-    replied: 0,
-    closed: 0,
-    discarded: 0,
-  };
-  let pending = 0;
-  for (const row of statusRows) {
-    byStatus[row.status] = row.count;
-    pending += row.pending;
-  }
+  const row = viewRows[0];
   const tiers = tierRows[0];
   return {
-    total: Object.values(byStatus).reduce((a, b) => a + b, 0),
-    byStatus,
-    byTier: {
-      high: tiers?.high ?? 0,
-      medium: tiers?.medium ?? 0,
-      low: tiers?.low ?? 0,
+    byView: {
+      todo: row?.todo ?? 0,
+      followup: row?.followup ?? 0,
+      waiting: row?.waiting ?? 0,
+      talking: row?.talking ?? 0,
+      closed: row?.closed ?? 0,
+      discarded: row?.discarded ?? 0,
+      all: row?.all ?? 0,
     },
-    pending,
+    byTier: { high: tiers?.high ?? 0, medium: tiers?.medium ?? 0, low: tiers?.low ?? 0 },
+    pending: row?.pending ?? 0,
   };
 }
