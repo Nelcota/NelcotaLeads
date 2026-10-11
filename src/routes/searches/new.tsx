@@ -151,7 +151,7 @@ function Notice({ tone, children }: { tone: "error" | "info"; children: ReactNod
     <div
       role={tone === "error" ? "alert" : "status"}
       className={cn(
-        "text-sm [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-[13px]",
+        "text-sm [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-[14px]",
         tone === "error" ? "text-destructive" : "text-muted-foreground",
       )}
     >

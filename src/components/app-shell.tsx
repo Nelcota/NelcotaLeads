@@ -36,7 +36,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
 function Brand() {
   return (
-    <Link to="/" className="text-[15px] font-medium tracking-tight">
+    <Link to="/" className="text-[16px] font-medium tracking-tight">
       Nelcota <span className="text-muted-foreground">Leads</span>
     </Link>
   );
@@ -101,7 +101,7 @@ function MobileTabBar() {
           key={item.to}
           to={item.to}
           activeOptions={{ exact: item.to === "/" }}
-          className="flex flex-col items-center gap-1 py-2.5 text-[11px] text-muted-foreground data-[status=active]:font-medium data-[status=active]:text-foreground"
+          className="flex flex-col items-center gap-1 py-2.5 text-[12px] text-muted-foreground data-[status=active]:font-medium data-[status=active]:text-foreground"
         >
           <item.icon className="size-5" />
           {item.label}
@@ -167,11 +167,11 @@ export function PageHeader({
     <div className="mb-8 flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
       <div className="min-w-0">
         {eyebrow ? <div className="mb-3">{eyebrow}</div> : null}
-        <h1 className="text-[26px] leading-tight font-medium tracking-tight sm:text-[30px]">
+        <h1 className="text-[28px] leading-tight font-medium tracking-tight sm:text-[32px]">
           {title}
         </h1>
         {description ? (
-          <p className="mt-2 max-w-2xl text-[15px] leading-relaxed font-light text-muted-foreground">
+          <p className="mt-2 max-w-2xl text-[16px] leading-relaxed font-light text-muted-foreground">
             {description}
           </p>
         ) : null}

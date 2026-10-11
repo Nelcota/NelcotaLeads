@@ -122,7 +122,7 @@ function StatusPipeline({ lead, onChanged }: { lead: Lead; onChanged: () => Prom
     <div className="flex flex-wrap items-center gap-3">
       <ol
         className={cn(
-          "flex min-w-0 basis-full overflow-hidden rounded-lg border text-[13px] sm:flex-1 sm:basis-auto sm:text-sm",
+          "flex min-w-0 basis-full overflow-hidden rounded-lg border text-[14px] sm:flex-1 sm:basis-auto sm:text-sm",
           discarded && "opacity-50",
         )}
         aria-label="Etapa do contato"
@@ -218,7 +218,7 @@ function MessageComposer({
             ? "Nota abaixo do limite das configurações. Gere uma mensagem ou escreva a sua."
             : "Disponível depois da análise."
         }
-        className="min-h-36 resize-y px-3.5 py-3 text-[15px] leading-relaxed"
+        className="min-h-36 resize-y px-3.5 py-3 text-[16px] leading-relaxed"
         value={message}
         onChange={(event) => setMessage(event.target.value)}
         disabled={!analysis || generate.isPending}
@@ -262,7 +262,7 @@ function AnalysisSection({ lead, analysis }: { lead: Lead; analysis: Analysis | 
   }
   return (
     <Section title="Análise">
-      <p className="text-[15px] leading-relaxed">{analysis.summary}</p>
+      <p className="text-[16px] leading-relaxed">{analysis.summary}</p>
       <div className="mt-6 grid gap-6 sm:grid-cols-2">
         <PlainList title="Oportunidades" items={analysis.signals} />
         <PlainList title="Dores prováveis" items={analysis.painPoints} />
