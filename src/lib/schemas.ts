@@ -43,7 +43,6 @@ export const newSearchSchema = z.object({
 });
 export type NewSearchInput = z.infer<typeof newSearchSchema>;
 
-/** Business-contact data extracted from a lead's public website. */
 export const siteDataSchema = z.object({
   finalUrl: z.string(),
   https: z.boolean(),
@@ -56,9 +55,8 @@ export const siteDataSchema = z.object({
 });
 export type SiteData = z.infer<typeof siteDataSchema>;
 
-/** Structured output requested from the model for each lead. */
 export const leadAnalysisSchema = z.object({
-  summary: z.string().describe("Resumo do negócio em 1 a 3 frases, só com dados fornecidos."),
+  summary: z.string().describe("O que a empresa faz e para quem, em 1 ou 2 frases simples."),
   signals: z
     .array(z.string())
     .describe(
@@ -75,7 +73,7 @@ export type LeadAnalysis = z.infer<typeof leadAnalysisSchema>;
 export const firstMessageSchema = z.object({
   firstMessage: z
     .string()
-    .describe("Mensagem curta de primeiro contato em português do Brasil, pronta para WhatsApp."),
+    .describe("Mensagem de WhatsApp curta e natural, em português do Brasil, seguindo as regras."),
 });
 
 export const LEAD_STATUS_VALUES = ["new", "contacted", "replied", "closed", "discarded"] as const;

@@ -18,7 +18,6 @@ const COPYRIGHT_PATTERN = /(?:©|&copy;|copyright)\s*(?:\d{4}\s*[-–]\s*)?(\d{4
 
 export type ExtractedSite = { data: SiteData; text: string };
 
-/** Extracts the useful, public business information from a page's HTML. */
 export function extractSite(html: string, finalUrl: string): ExtractedSite {
   // linkedom only builds a body for full documents, so wrap bare fragments.
   const { document } = parseHTML(

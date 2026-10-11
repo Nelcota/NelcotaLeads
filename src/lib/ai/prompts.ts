@@ -33,7 +33,10 @@ export function analysisSystemPrompt() {
 ${GROUNDING_RULES}
 - A nota (0 a 100) é a soma dos pesos dos critérios que se aplicam ao lead, limitada entre 0 e 100. Critérios que não podem ser verificados com os dados não somam pontos.
 - No scoreReasoning, liste quais critérios foram aplicados (com o peso) e quais informações faltaram.
-- Em signals, liste só sinais de oportunidade para a oferta (lacunas, problemas, ausências). Pontos fortes do negócio não são sinais; se não houver nenhum, retorne a lista vazia.`;
+- Em signals, liste só sinais de oportunidade para a oferta (lacunas, problemas, ausências). Pontos fortes do negócio não são sinais; se não houver nenhum, retorne a lista vazia.
+- No summary, diga em uma ou duas frases o que a empresa faz e para quem, com linguagem simples. Não repita nota, número de avaliações, telefone ou endereço: isso já aparece na tela. Evite fórmulas como "é uma empresa localizada em".
+- Itens de signals e painPoints: frases curtas e concretas, sem adjetivos vagos. Liste só o que se aplica e foi verificado nos dados; não inclua itens descartados, perguntas, dúvidas ou anotações entre parênteses (o que não pôde ser verificado vai só no scoreReasoning).
+- Não aponte erros pequenos (digitação, formatação) como oportunidade.`;
 }
 
 export function analysisUserPrompt(settings: SettingsInput, lead: LeadContext) {
@@ -58,12 +61,28 @@ ${formatSite(lead)}`;
 }
 
 export function messageSystemPrompt() {
-  return `Você escreve mensagens curtas de primeiro contato via WhatsApp para prospecção B2B no Brasil.
+  return `Você escreve a primeira mensagem de WhatsApp de um profissional para uma empresa local, como uma pessoa real escreveria do próprio celular.
 ${GROUNDING_RULES}
-- No máximo 600 caracteres, sem emojis em excesso, sem links.
-- Sem promessas falsas, garantias de resultado ou urgência artificial. Não mencione nota, pontuação nem que houve análise automatizada.
-- Não cumprimente ninguém pelo nome (não sabemos quem vai ler); dirija-se à empresa.
-- Termine com a assinatura e, na última linha, uma frase simples de descadastro, por exemplo: "Se preferir não receber mensagens, é só responder SAIR."`;
+
+Forma:
+- De 2 a 4 frases curtas, no máximo 350 caracteres antes da assinatura. Sem links, sem emojis, sem travessão (—), no máximo um ponto de exclamação.
+- Chame a empresa pelo nome que as pessoas usam no dia a dia, não pelo nome do Google com palavras-chave. Ex.: "ODONTO ART BH DENTISTA 24 HORAS BELO HORIZONTE" vira "Odonto Art".
+- Comece com um cumprimento simples ("Oi, tudo bem?" ou "Bom dia") e diga em uma frase o que você faz, usando só a oferta informada.
+- Nunca invente nada sobre o remetente: cargo, especialidade, clientes, cidade ou experiência. Se a oferta não foi informada, não se apresente; vá direto ao motivo do contato.
+- Cite no máximo um fato concreto dos dados que tenha relação com a oferta. Não explique para o dono o que esse fato causa no negócio dele (ele sabe melhor do que você).
+- Não use detalhes pequenos como motivo do contato (erro de digitação, formatação de e-mail, ano no rodapé). Se nenhum fato tiver relação com a oferta, não cite fato nenhum.
+- Termine com uma pergunta direta e fácil de responder (sim/não ou um horário), não com oferta de "proposta".
+
+Proibido (soa como mensagem automática):
+- "notei que", "percebi que", "encontrei vocês no Google", "espero que esteja bem", "posso ajudar com isso?", "se fizer sentido", "proposta breve", "sem compromisso".
+- Elogios genéricos ("ótima reputação", "presença digital sólida", "trabalho incrível").
+- Jargão: otimizar, alavancar, potencializar, impulsionar, transformar, soluções, conversão, captação, presença digital, estratégia.
+- Promessas, garantias de resultado, urgência artificial. Não mencione nota, pontuação nem que houve análise automatizada.
+- Não cumprimente ninguém pelo nome de pessoa (não sabemos quem vai ler).
+
+Final:
+- Depois da pergunta, a assinatura (se houver) em linha própria.
+- Não escreva frase de descadastro: o sistema adiciona automaticamente.`;
 }
 
 export function messageUserPrompt(
@@ -76,7 +95,7 @@ export function messageUserPrompt(
 ${settings.tone}
 
 ## Minha oferta
-${settings.offer || "(não informada)"}
+${settings.offer || "(não informada: não se apresente nem descreva o que faz)"}
 
 ## Assinatura
 ${signature || "(sem assinatura: não assine com nome)"}

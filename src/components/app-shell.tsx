@@ -36,11 +36,8 @@ export function AppShell({ children }: { children: ReactNode }) {
 
 function Brand() {
   return (
-    <Link to="/" className="flex items-center gap-2.5 text-[15px] font-medium tracking-tight">
-      <span className="grid size-7 place-items-center rounded-lg bg-foreground">
-        <span className="size-2.5 rounded-full bg-brand" />
-      </span>
-      Nelcota Leads
+    <Link to="/" className="text-[15px] font-medium tracking-tight">
+      Nelcota <span className="text-muted-foreground">Leads</span>
     </Link>
   );
 }
@@ -114,33 +111,25 @@ function MobileTabBar() {
   );
 }
 
-/** Today's Google Places usage against the daily limit. */
 function UsageMeter() {
   const { data } = useQuery(providerStatusQuery);
   if (!data) return null;
   const { used, limit } = data.placesUsage;
   const ratio = limit > 0 ? Math.min(1, used / limit) : 1;
   return (
-    <div className="rounded-lg border bg-background px-3 py-3">
-      <div className="flex items-baseline justify-between text-xs">
-        <span className="text-muted-foreground">Google hoje</span>
+    <div className="px-3 text-xs text-muted-foreground">
+      <p className="flex justify-between">
+        <span>Google hoje</span>
         <span className="tabular-nums">
-          {used}
-          <span className="text-muted-foreground">/{limit}</span>
+          {used} de {limit}
         </span>
-      </div>
-      <div className="mt-2 h-1 overflow-hidden rounded-full bg-muted">
+      </p>
+      <div className="mt-2 h-px bg-border">
         <div
-          className={cn(
-            "h-full rounded-full transition-[width]",
-            ratio >= 1 ? "bg-destructive" : ratio >= 0.8 ? "bg-warning" : "bg-foreground/70",
-          )}
+          className={cn("h-px", ratio >= 1 ? "bg-destructive" : "bg-foreground/60")}
           style={{ width: `${ratio * 100}%` }}
         />
       </div>
-      <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
-        requisições pagas · renova à 0h
-      </p>
     </div>
   );
 }

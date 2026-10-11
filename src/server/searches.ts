@@ -34,7 +34,6 @@ export const getSearch = createServerFn({ method: "GET" })
     return search;
   });
 
-/** What the search form needs to know before letting a search start. */
 export const getProviderStatus = createServerFn({ method: "GET" }).handler(async () => {
   const db = getDb();
   const settings = await loadSettings(db);

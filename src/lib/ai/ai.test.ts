@@ -72,3 +72,30 @@ describe("prompts", () => {
     expect(prompt).toContain("não tem site");
   });
 });
+
+describe("tidyMessage", () => {
+  it("replaces dashes, collapses blank lines and moves the opt-out to its own last line", async () => {
+    const { tidyMessage, OPT_OUT_LINE } = await import("./analyzer");
+    expect(tidyMessage(`Oi — tudo bem?\n\n\n\nHaniel   ${OPT_OUT_LINE}`)).toBe(
+      `Oi, tudo bem?\n\nHaniel\n\n${OPT_OUT_LINE}`,
+    );
+    expect(tidyMessage("Oi, tudo bem?")).toBe(`Oi, tudo bem?\n\n${OPT_OUT_LINE}`);
+  });
+});
+
+describe("message prompt", () => {
+  it("bans common automated-outreach phrases and asks for a natural business name", async () => {
+    const { messageSystemPrompt } = await import("./prompts");
+    const prompt = messageSystemPrompt();
+    for (const phrase of [
+      "notei que",
+      "posso ajudar com isso?",
+      "se fizer sentido",
+      "presença digital",
+    ]) {
+      expect(prompt).toContain(phrase);
+    }
+    expect(prompt).toContain("nome que as pessoas usam");
+    expect(prompt).toContain("Nunca invente nada sobre o remetente");
+  });
+});

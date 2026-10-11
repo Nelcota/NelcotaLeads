@@ -38,10 +38,7 @@ function SettingsPage() {
   const { data } = useSuspenseQuery(settingsQuery);
   return (
     <div className="mx-auto max-w-4xl">
-      <PageHeader
-        title="O que eu vendo"
-        description="A IA usa estas informações para analisar cada empresa, dar a nota e escrever a mensagem."
-      />
+      <PageHeader title="O que eu vendo" />
       <SettingsForm defaults={data} />
     </div>
   );
@@ -167,7 +164,7 @@ function SettingsForm({ defaults }: { defaults: SettingsInput }) {
 
       <SettingsSection
         title="Mensagem de abordagem"
-        description="A IA escreve uma mensagem para os leads com nota alta. O envio é sempre manual."
+        description="Gerada automaticamente para leads com nota alta. Você revisa e envia."
         contentClassName="grid gap-6 sm:grid-cols-2"
       >
         <Field label="Tom" hint={TONE_HINTS[tone]}>

@@ -7,22 +7,12 @@ import {
   type SortingState,
 } from "@tanstack/react-table";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import {
-  ArrowDownIcon,
-  ArrowUpIcon,
-  CheckCircle2Icon,
-  CircleIcon,
-  DownloadIcon,
-  GlobeIcon,
-  SearchIcon,
-  StarIcon,
-  XIcon,
-} from "lucide-react";
+import { ArrowDownIcon, ArrowUpIcon, SearchIcon, XIcon } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { z } from "zod";
 import { PageHeader } from "@/components/app-shell";
 import { LeadDetail, LeadPageLink } from "@/components/lead-detail";
-import { LeadStatusBadge, ScoreBadge, STATUS_DOT } from "@/components/lead-badges";
+import { LeadStatusBadge, ScoreBadge } from "@/components/lead-badges";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
@@ -94,7 +84,7 @@ function activeTier(filters: LeadFilters): ScoreTier | undefined {
 function LeadsPage() {
   const { lead: openLeadId, ...filters } = Route.useSearch();
   const navigate = useNavigate({ from: "/" });
-  const { data, isFetching } = useQuery(leadsQuery(filters));
+  const { data } = useQuery(leadsQuery(filters));
   const { data: counts } = useQuery(leadCountsQuery(filters));
 
   const setFilters = (patch: Partial<LeadFilters>) =>
@@ -113,12 +103,11 @@ function LeadsPage() {
     <>
       <PageHeader
         title="Leads"
-        description="Empresas qualificadas pela IA. Abra um lead para revisar a mensagem e falar com ele no WhatsApp."
         actions={
           count > 0 ? (
             <Button asChild variant="outline">
               <a href={exportHref} download>
-                <DownloadIcon /> Exportar CSV
+                Exportar CSV
               </a>
             </Button>
           ) : null
@@ -146,7 +135,6 @@ function LeadsPage() {
           <p className="mt-3 text-xs text-muted-foreground" aria-live="polite">
             {data ? `${count} ${count === 1 ? "lead" : "leads"}` : ""}
             {counts?.pending ? ` · ${counts.pending} em análise` : ""}
-            {isFetching && data ? " · atualizando…" : ""}
           </p>
         </>
       )}
@@ -180,13 +168,12 @@ function StatusTabs({
   value: LeadFilters["status"];
   onChange: (status: LeadFilters["status"]) => void;
 }) {
-  const tabs: { value: LeadFilters["status"]; label: string; count?: number; dot?: string }[] = [
+  const tabs: { value: LeadFilters["status"]; label: string; count?: number }[] = [
     { value: undefined, label: "Todos", count: counts?.total },
     ...LEAD_STATUS_VALUES.map((status) => ({
       value: status,
       label: LEAD_STATUS_LABELS[status],
       count: counts?.byStatus[status],
-      dot: STATUS_DOT[status],
     })),
   ];
   return (
@@ -208,7 +195,6 @@ function StatusTabs({
                   : "text-muted-foreground hover:text-foreground",
               )}
             >
-              {tab.dot ? <span className={cn("size-1.5 rounded-full", tab.dot)} /> : null}
               {tab.label}
               <span className="text-xs text-muted-foreground tabular-nums">{tab.count ?? ""}</span>
             </button>
@@ -291,7 +277,7 @@ function Toolbar({
         pressed={filters.noWebsite ?? false}
         onClick={() => onChange({ noWebsite: filters.noWebsite ? undefined : true })}
       >
-        <GlobeIcon className="size-3.5" /> Sem site
+        Sem site
       </Chip>
 
       {filters.searchId ? (
@@ -389,11 +375,8 @@ const columns = helper.columns([
     cell: ({ row }) => (
       <div className="grid gap-0.5">
         <span className="whitespace-nowrap tabular-nums">{row.original.phone ?? "—"}</span>
-        <span className="flex items-center gap-1 text-xs text-muted-foreground">
-          <GlobeIcon className="size-3" />
-          <span className="max-w-40 truncate">
-            {row.original.website ? hostOf(row.original.website) : "sem site"}
-          </span>
+        <span className="max-w-44 truncate text-xs text-muted-foreground">
+          {row.original.website ? hostOf(row.original.website) : "sem site"}
         </span>
       </div>
     ),
@@ -402,10 +385,9 @@ const columns = helper.columns([
     header: "Google",
     cell: ({ row }) =>
       row.original.rating !== null ? (
-        <span className="inline-flex items-center gap-1 whitespace-nowrap tabular-nums">
-          <StarIcon className="size-3.5 fill-warning text-warning" />
-          {row.original.rating.toFixed(1)}
-          <span className="text-muted-foreground">({row.original.reviewCount ?? 0})</span>
+        <span className="whitespace-nowrap tabular-nums">
+          {row.original.rating.toFixed(1).replace(".", ",")}
+          <span className="text-muted-foreground"> ({row.original.reviewCount ?? 0})</span>
         </span>
       ) : (
         <span className="text-muted-foreground">—</span>
@@ -424,7 +406,6 @@ const columns = helper.columns([
   }),
 ]);
 
-/** Columns hidden on medium screens to keep the table readable. */
 const RESPONSIVE: Record<string, string> = {
   reviewCount: "hidden xl:table-cell",
   createdAt: "hidden xl:table-cell",
@@ -477,7 +458,7 @@ function LeadsTable({
   if (data.length === 0) {
     const onlyStatus = Boolean(filters.status) && !hasFilters(filters);
     return (
-      <div className="rounded-xl border border-dashed px-6 py-16 text-center">
+      <div className="py-16 text-center">
         <p className="font-medium">
           {onlyStatus && filters.status
             ? `Nenhum lead em “${LEAD_STATUS_LABELS[filters.status]}”`
@@ -596,65 +577,27 @@ function LeadsTable({
   );
 }
 
-/** First-run guide shown when there are no leads at all. */
 function Onboarding() {
   const { data: status } = useQuery(providerStatusQuery);
-  const steps: {
-    done: boolean;
-    title: string;
-    text: string;
-    to?: "/settings" | "/searches/new";
-    cta?: string;
-  }[] = [
-    {
-      done: Boolean(status?.placesConfigured && status.aiConfigured),
-      title: "Conectar Google e DeepSeek",
-      text: "As chaves ficam no .dev.vars (local) ou nos secrets do Worker.",
-    },
-    {
-      done: Boolean(status?.offerConfigured),
-      title: "Descrever o que você vende",
-      text: "A IA usa sua oferta e seus critérios para dar a nota.",
-      to: "/settings",
-      cta: "Abrir configurações",
-    },
-    {
-      done: false,
-      title: "Fazer a primeira busca",
-      text: "Escolha um nicho e uma cidade. Os leads aparecem aqui conforme são analisados.",
-      to: "/searches/new",
-      cta: "Nova busca",
-    },
-  ];
+  const missingKeys = status && !(status.placesConfigured && status.aiConfigured);
   return (
-    <div className="rounded-2xl border bg-card p-6 sm:p-8">
-      <h2 className="text-lg font-medium">Comece em três passos</h2>
-      <ol className="mt-6 grid gap-5">
-        {steps.map((step) => (
-          <li key={step.title} className="flex flex-wrap items-start gap-4">
-            {step.done ? (
-              <CheckCircle2Icon className="mt-0.5 size-5 shrink-0 text-tier-high" />
-            ) : (
-              <CircleIcon className="mt-0.5 size-5 shrink-0 text-muted-foreground/50" />
-            )}
-            <div className="min-w-0 flex-1">
-              <p className={cn("font-medium", step.done && "text-muted-foreground line-through")}>
-                {step.title}
-              </p>
-              <p className="mt-0.5 text-sm text-muted-foreground">{step.text}</p>
-            </div>
-            {step.to && !step.done ? (
-              <Button
-                asChild
-                size="sm"
-                variant={step.to === "/searches/new" ? "default" : "outline"}
-              >
-                <Link to={step.to}>{step.cta}</Link>
-              </Button>
-            ) : null}
-          </li>
-        ))}
-      </ol>
+    <div className="py-20 text-center">
+      <p className="font-medium">Nenhum lead ainda</p>
+      <p className="mt-1 text-sm text-muted-foreground">
+        {missingKeys
+          ? "Configure as chaves do Google e da DeepSeek no .dev.vars para começar."
+          : "Escolha um nicho e uma cidade para a primeira busca."}
+      </p>
+      <div className="mt-6 flex justify-center gap-2">
+        {status && !status.offerConfigured ? (
+          <Button asChild variant="outline">
+            <Link to="/settings">Descrever o que você vende</Link>
+          </Button>
+        ) : null}
+        <Button asChild>
+          <Link to="/searches/new">Nova busca</Link>
+        </Button>
+      </div>
     </div>
   );
 }

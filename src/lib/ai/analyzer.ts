@@ -69,7 +69,7 @@ export function createDeepSeekAnalyzer(options: {
         abortSignal: AbortSignal.timeout(CALL_TIMEOUT_MS),
       });
       return {
-        message: firstMessageSchema.parse(result.output).firstMessage.trim(),
+        message: tidyMessage(firstMessageSchema.parse(result.output).firstMessage),
         usage: toUsage(options.messageModel, result.usage),
       };
     },
@@ -88,4 +88,20 @@ function toUsage(model: string, usage: LanguageModelUsage): CallUsage {
     tokensOut: tokens.outputTokens,
     cost: estimateCostUsd(model, tokens),
   };
+}
+
+export const OPT_OUT_LINE = "Se não quiser receber mensagens, é só me avisar.";
+
+/**
+ * Removes typographic tells the prompt asks the model to avoid but it sometimes still uses,
+ * and guarantees the opt-out sentence sits alone on the last line.
+ */
+export function tidyMessage(text: string): string {
+  const body = text
+    .replace(OPT_OUT_LINE, "")
+    .replace(/\s*[—–]\s*/g, ", ")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  return `${body}\n\n${OPT_OUT_LINE}`;
 }

@@ -4,7 +4,6 @@ import type { ReactNode } from "react";
 import { AppShell } from "@/components/app-shell";
 import { RouteError } from "@/components/route-error";
 import { Toaster } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import { THEME_INIT_SCRIPT } from "@/lib/theme";
 import appCss from "../styles.css?url";
 
@@ -42,9 +41,7 @@ function RootDocument({ children }: { children: ReactNode }) {
         <HeadContent />
       </head>
       <body>
-        <TooltipProvider>
-          <AppShell>{children}</AppShell>
-        </TooltipProvider>
+        <AppShell>{children}</AppShell>
         <Toaster position="bottom-right" />
         <Scripts />
       </body>

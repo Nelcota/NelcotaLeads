@@ -1,5 +1,4 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeftIcon } from "lucide-react";
 import { LeadDetail } from "@/components/lead-detail";
 import { leadQuery } from "@/lib/queries";
 
@@ -14,9 +13,9 @@ function LeadPage() {
     <>
       <Link
         to="/"
-        className="mb-8 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+        className="mb-6 inline-block text-sm text-muted-foreground hover:text-foreground"
       >
-        <ArrowLeftIcon className="size-4" /> Leads
+        Leads
       </Link>
       <LeadDetail leadId={leadId} />
     </>
