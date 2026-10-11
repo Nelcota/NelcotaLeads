@@ -9,10 +9,13 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { providerStatusQuery } from "@/lib/queries";
 import { newSearchSchema, type NewSearchInput } from "@/lib/schemas";
 import { createSearch } from "@/server/searches";
@@ -31,9 +34,10 @@ export function NewSearchDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle className="text-lg font-semibold">Nova busca</DialogTitle>
+          <DialogTitle>Busca manual</DialogTitle>
           <DialogDescription>
-            Empresas do Google Maps. Cada uma é lida e avaliada em seguida.
+            Uma busca avulsa no Google Maps. As empresas são avaliadas e recebem mensagem como as do
+            piloto automático.
           </DialogDescription>
         </DialogHeader>
         {open ? <NewSearchForm onDone={() => onOpenChange(false)} /> : null}
@@ -108,27 +112,29 @@ function NewSearchForm({ onDone }: { onDone: () => void }) {
         </Field>
       </div>
 
-      <fieldset className="grid gap-2">
-        <legend className="mb-2 text-sm font-medium">Quantas empresas</legend>
-        <div className="grid grid-cols-3 gap-2" role="radiogroup">
+      <div className="grid gap-2">
+        <Label>Quantas empresas</Label>
+        <ToggleGroup
+          type="single"
+          variant="outline"
+          className="w-full"
+          value={String(maxResults)}
+          onValueChange={(value) => {
+            const size = SIZES.find((n) => String(n) === value);
+            if (size) form.setValue("maxResults", size);
+          }}
+        >
           {SIZES.map((size) => (
-            <button
-              key={size}
-              type="button"
-              role="radio"
-              aria-checked={maxResults === size}
-              onClick={() => form.setValue("maxResults", size)}
-              className="h-10 rounded-lg border text-sm transition-colors hover:bg-muted aria-checked:border-foreground aria-checked:bg-foreground aria-checked:text-background"
-            >
+            <ToggleGroupItem key={size} value={String(size)} className="flex-1">
               até {size}
-            </button>
+            </ToggleGroupItem>
           ))}
-        </div>
+        </ToggleGroup>
         <p className="text-xs text-muted-foreground">
           {requests} {requests === 1 ? "requisição" : "requisições"} ao Google · restam {remaining}{" "}
           de {limit} hoje
         </p>
-      </fieldset>
+      </div>
 
       {status && !status.offerConfigured ? (
         <p className="text-sm text-muted-foreground">
@@ -148,14 +154,14 @@ function NewSearchForm({ onDone }: { onDone: () => void }) {
         </p>
       ) : null}
 
-      <div className="flex justify-end gap-2 pt-1">
-        <Button type="button" variant="ghost" onClick={onDone}>
+      <DialogFooter>
+        <Button type="button" variant="outline" onClick={onDone}>
           Cancelar
         </Button>
         <Button type="submit" disabled={mutation.isPending || Boolean(blocker)}>
           {mutation.isPending ? "Buscando…" : "Buscar empresas"}
         </Button>
-      </div>
+      </DialogFooter>
     </form>
   );
 }

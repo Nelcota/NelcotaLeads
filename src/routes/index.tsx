@@ -1,35 +1,46 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
-import { useOpenNewSearch } from "@/components/app-shell";
+import { Page, useOpenNewSearch } from "@/components/app-shell";
+import { ScoreBadge } from "@/components/lead-badges";
+import { LeadSheet } from "@/components/lead-sheet";
+import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Textarea } from "@/components/ui/textarea";
-import { addDays, formatIsoLocal, localDay, relativeDay } from "@/lib/format";
-import { whatsappLink } from "@/lib/phone";
+import { Switch } from "@/components/ui/switch";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { formatIsoLocal, relativeDay } from "@/lib/format";
 import { dashboardQuery } from "@/lib/queries";
 import type { LeadView } from "@/lib/schemas";
-import { cn } from "@/lib/utils";
 import {
-  draftFollowUpsNow,
   runAutopilotNow,
   setAutopilotEnabled,
   writeMissingMessages,
   type Dashboard,
 } from "@/server/dashboard";
-import { updateFirstMessage, updateFollowUpMessage, updateLead } from "@/server/leads";
 
 export const Route = createFileRoute("/")({
   loader: ({ context }) => context.queryClient.ensureQueryData(dashboardQuery),
   component: DashboardPage,
 });
-
-type ReadyLead = Dashboard["ready"][number];
-type FollowUpLead = Dashboard["followUps"][number];
-
-const FOLLOW_UP_DAYS = 3;
-const REMINDER_GAP_DAYS = 4;
 
 function useRefresh() {
   const queryClient = useQueryClient();
@@ -42,39 +53,70 @@ function useRefresh() {
 
 function DashboardPage() {
   const { data } = useQuery(dashboardQuery);
-  if (!data) return <DashboardSkeleton />;
+  const openNewSearch = useOpenNewSearch();
+  const [openId, setOpenId] = useState<string>();
+
+  const actions = (
+    <Button variant="outline" size="sm" onClick={openNewSearch}>
+      Busca manual
+    </Button>
+  );
+  if (!data) {
+    return (
+      <Page title="Painel" actions={actions}>
+        <DashboardSkeleton />
+      </Page>
+    );
+  }
+
+  const readyIds = data.ready.map((lead) => lead.id);
+  const followUpIds = data.followUps.map((lead) => lead.id);
+  const inReady = openId !== undefined && readyIds.includes(openId);
 
   return (
-    <div className="mx-auto grid max-w-[1280px] grid-cols-[minmax(0,1fr)] gap-6 px-4 pt-6 pb-16 sm:px-8 sm:pt-8">
-      <AutopilotStrip data={data} />
+    <Page title="Painel" actions={actions}>
       {!data.setup.offer ? (
-        <Card className="flex flex-wrap items-center justify-between gap-4 border-foreground/20 px-5 py-4">
-          <p className="max-w-2xl text-[15px]">
-            Falta dizer o que você vende. Sem isso a IA não escreve mensagens, porque não teria o
-            que oferecer, e a nota fica genérica.
-          </p>
-          <Button asChild>
-            <Link to="/settings">Descrever o que eu vendo</Link>
-          </Button>
-        </Card>
+        <Alert>
+          <AlertTitle>Falta dizer o que você vende</AlertTitle>
+          <AlertDescription>
+            Sem isso a IA não escreve mensagens, porque não teria o que oferecer, e a nota fica
+            genérica.
+          </AlertDescription>
+          <AlertAction>
+            <Button asChild size="sm">
+              <Link to="/settings">Descrever</Link>
+            </Button>
+          </AlertAction>
+        </Alert>
       ) : null}
 
-      <div className="flex flex-wrap items-start gap-6">
-        <div className="grid min-w-0 flex-[999_1_600px] grid-cols-[minmax(0,1fr)] gap-4">
-          <ReadySection data={data} />
-          {data.followUps.length > 0 ? <FollowUpSection data={data} /> : null}
+      <AutopilotCard data={data} />
+      <Stats data={data} />
+
+      <div className="grid gap-4 lg:grid-cols-3 lg:gap-6">
+        <div className="grid min-w-0 content-start gap-4 lg:col-span-2 lg:gap-6">
+          <ReadyCard data={data} onOpen={setOpenId} />
+          <FollowUpsCard data={data} onOpen={setOpenId} />
         </div>
-        <aside className="grid min-w-0 flex-[1_1_320px] grid-cols-[minmax(0,1fr)] gap-4">
+        <div className="grid min-w-0 content-start gap-4 lg:gap-6">
           <ActivityCard data={data} />
           <FunnelCard data={data} />
-          <CostCard data={data} />
-        </aside>
+        </div>
       </div>
-    </div>
+
+      <LeadSheet
+        leadId={openId}
+        ids={inReady ? readyIds : followUpIds}
+        onSelect={setOpenId}
+        keepsLead={(status) =>
+          inReady ? status === "new" : status === "contacted" || status === "replied"
+        }
+      />
+    </Page>
   );
 }
 
-function AutopilotStrip({ data }: { data: Dashboard }) {
+function AutopilotCard({ data }: { data: Dashboard }) {
   const refresh = useRefresh();
   const { autopilot } = data;
   const toggle = useMutation({
@@ -96,140 +138,105 @@ function AutopilotStrip({ data }: { data: Dashboard }) {
   });
 
   const enabled = toggle.isPending ? toggle.variables : autopilot.enabled;
-  const targets = autopilot.targets.map((target) => `${target.niche} em ${target.city}`);
   const ranToday = autopilot.lastRunOn === data.today;
+  const hasTargets = autopilot.targets.length > 0;
 
   return (
-    <section className="flex flex-wrap items-center gap-x-7 gap-y-3 rounded-2xl bg-[#14161B] px-5 py-4 text-white dark:bg-[#1F2228]">
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          role="switch"
-          aria-checked={enabled}
-          aria-label="Piloto automático"
-          disabled={toggle.isPending}
-          onClick={() => toggle.mutate(!autopilot.enabled)}
-          className={cn(
-            "relative h-[26px] w-11 shrink-0 rounded-full transition-colors",
-            enabled ? "bg-[#4ADE80]" : "bg-white/25",
-          )}
-        >
-          <span
-            className={cn(
-              "absolute top-[3px] size-5 rounded-full bg-white transition-all",
-              enabled ? "right-[3px]" : "left-[3px]",
-            )}
+    <Card>
+      <CardHeader>
+        <CardTitle>Piloto automático</CardTitle>
+        <CardDescription>
+          {!hasTargets
+            ? "Diga o que buscar e a IA traz leads novos todo dia, já com nota e mensagem."
+            : !enabled
+              ? "Desligado. Ligue para buscar todo dia automaticamente."
+              : ranToday
+                ? `Buscou hoje. Próxima busca amanhã às ${autopilot.hour}h.`
+                : `Próxima busca hoje às ${autopilot.hour}h.`}
+        </CardDescription>
+        <CardAction>
+          <Switch
+            checked={enabled}
+            disabled={toggle.isPending || !hasTargets}
+            onCheckedChange={(value) => toggle.mutate(value)}
+            aria-label="Piloto automático"
           />
-        </button>
-        <span className="text-[17px] font-semibold">
-          Piloto automático {enabled ? "ligado" : "desligado"}
-        </span>
-      </div>
-      <span className="min-w-0 basis-full text-[15px] text-white/70 md:flex-1 md:basis-0">
-        {targets.length === 0
-          ? "Diga o que buscar e a IA traz leads novos todo dia."
-          : `${ranToday ? "Buscou hoje" : `Busca todo dia às ${autopilot.hour}h`}: ${targets.join(", ")}`}
-      </span>
-      <div className="flex items-center gap-4">
-        {targets.length > 0 ? (
-          <button
-            type="button"
+        </CardAction>
+      </CardHeader>
+      {hasTargets ? (
+        <CardContent className="flex flex-wrap gap-2">
+          {autopilot.targets.map((target) => (
+            <Badge key={`${target.niche}-${target.city}`} variant="secondary">
+              {target.niche} em {target.city}
+            </Badge>
+          ))}
+        </CardContent>
+      ) : null}
+      <CardFooter className="gap-2">
+        {hasTargets ? (
+          <Button
+            size="sm"
             onClick={() => runNow.mutate()}
             disabled={runNow.isPending || !data.setup.keys}
-            className="text-sm font-medium text-white/90 underline-offset-4 hover:underline disabled:opacity-50"
           >
             {runNow.isPending ? "Buscando…" : "Buscar agora"}
-          </button>
+          </Button>
         ) : null}
-        <Link
-          to="/settings"
-          hash="piloto"
-          className="text-sm font-medium text-white underline-offset-4 hover:underline"
-        >
-          {targets.length === 0 ? "Configurar" : "Ajustar"}
-        </Link>
-      </div>
-    </section>
+        <Button asChild size="sm" variant={hasTargets ? "outline" : "default"}>
+          <Link to="/settings" hash="piloto">
+            {hasTargets ? "Ajustar" : "Configurar"}
+          </Link>
+        </Button>
+      </CardFooter>
+    </Card>
   );
 }
 
-function ReadySection({ data }: { data: Dashboard }) {
-  const [openId, setOpenId] = useState<string | null>(null);
-  const openNewSearch = useOpenNewSearch();
-  const ready = data.ready;
-  const expandedId = ready.some((lead) => lead.id === openId) ? openId : ready[0]?.id;
-
+function Stats({ data }: { data: Dashboard }) {
+  const reminders = data.activity.reminders;
+  const items = [
+    {
+      label: "Prontos para enviar",
+      value: String(data.ready.length),
+      footer:
+        data.analyzing > 0
+          ? `Analisando ${data.analyzing} ${data.analyzing === 1 ? "empresa" : "empresas"}`
+          : "Mensagens escritas pela IA",
+    },
+    {
+      label: "Retornos de hoje",
+      value: String(data.followUps.length),
+      footer: `${reminders} ${reminders === 1 ? "lembrete pronto" : "lembretes prontos"}`,
+    },
+    {
+      label: "Aguardando resposta",
+      value: String(data.funnel.waiting),
+      footer: `${data.funnel.talking} em conversa`,
+    },
+    {
+      label: "Custo do mês",
+      value: `US$ ${data.costs.month.aiCostUsd.toFixed(2).replace(".", ",")}`,
+      footer: `Google: ${data.costs.month.placesRequests} de 1.000 requisições grátis`,
+    },
+  ];
   return (
-    <>
-      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <h1 className="text-[26px] font-medium tracking-tight">
-          Pronto para enviar <span className="text-muted-foreground">{ready.length}</span>
-        </h1>
-        {data.analyzing > 0 ? (
-          <span className="text-sm text-muted-foreground" aria-live="polite">
-            Analisando {data.analyzing} {data.analyzing === 1 ? "empresa" : "empresas"}…
-          </span>
-        ) : null}
-      </div>
-
-      {ready.length === 0 ? (
-        <Card className="grid justify-items-start gap-3 p-6">
-          <p className="text-[15px]">
-            {!data.setup.offer
-              ? "As mensagens aparecem aqui depois que você descrever o que vende."
-              : data.analyzing > 0
-                ? "A IA está lendo os sites e escrevendo as mensagens. Elas aparecem aqui em instantes."
-                : data.autopilot.enabled && data.autopilot.targets.length > 0
-                  ? `Nada pendente. A próxima busca é ${data.autopilot.lastRunOn === data.today ? "amanhã" : "hoje"} às ${data.autopilot.hour}h.`
-                  : "Nada pendente. Ligue o piloto automático para receber leads todo dia, ou faça uma busca manual."}
-          </p>
-          {data.analyzing === 0 && data.setup.offer ? (
-            <div className="flex flex-wrap gap-2">
-              <Button asChild variant="outline">
-                <Link to="/settings" hash="piloto">
-                  Configurar piloto automático
-                </Link>
-              </Button>
-              <Button variant="ghost" onClick={openNewSearch}>
-                Busca manual
-              </Button>
-            </div>
-          ) : null}
+    <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+      {items.map((item) => (
+        <Card key={item.label}>
+          <CardHeader>
+            <CardDescription>{item.label}</CardDescription>
+            <CardTitle className="text-2xl font-semibold tabular-nums">{item.value}</CardTitle>
+          </CardHeader>
+          <CardFooter className="text-sm text-muted-foreground">{item.footer}</CardFooter>
         </Card>
-      ) : (
-        ready.map((lead) =>
-          lead.id === expandedId ? (
-            <ReadyCard key={`${lead.id}:${lead.firstMessage ?? ""}`} lead={lead} />
-          ) : (
-            <Card
-              key={lead.id}
-              className="flex flex-wrap items-center justify-between gap-3 px-5 py-4"
-            >
-              <div className="min-w-0">
-                <h2 className="truncate text-[17px] font-semibold">{lead.name}</h2>
-                <p className="mt-0.5 text-sm text-muted-foreground">
-                  {[`Nota ${lead.score ?? "–"}`, lead.website ? null : "sem site", rating(lead)]
-                    .filter(Boolean)
-                    .join(" · ")}
-                </p>
-              </div>
-              <Button variant="outline" size="sm" onClick={() => setOpenId(lead.id)}>
-                Ver e enviar
-              </Button>
-            </Card>
-          ),
-        )
-      )}
-      {data.withoutMessage > 0 && data.setup.offer ? (
-        <MissingMessages count={data.withoutMessage} />
-      ) : null}
-    </>
+      ))}
+    </div>
   );
 }
 
-function MissingMessages({ count }: { count: number }) {
+function ReadyCard({ data, onOpen }: { data: Dashboard; onOpen: (id: string) => void }) {
   const refresh = useRefresh();
-  const write = useMutation({
+  const writeMissing = useMutation({
     mutationFn: () => writeMissingMessages(),
     onSuccess: async (result) => {
       await refresh();
@@ -237,291 +244,143 @@ function MissingMessages({ count }: { count: number }) {
     },
     onError: (error) => toast.error(error.message || "Não foi possível escrever as mensagens"),
   });
-  return (
-    <p className="text-sm text-muted-foreground">
-      {count} {count === 1 ? "lead novo está" : "leads novos estão"} sem mensagem.{" "}
-      <button
-        type="button"
-        onClick={() => write.mutate()}
-        disabled={write.isPending}
-        className="font-medium text-foreground underline-offset-4 hover:underline"
-      >
-        {write.isPending ? "Escrevendo…" : "Escrever agora"}
-      </button>
-    </p>
-  );
-}
-
-function ReadyCard({ lead }: { lead: ReadyLead }) {
-  const refresh = useRefresh();
-  const [message, setMessage] = useState(lead.firstMessage ?? "");
-  const [editing, setEditing] = useState(false);
-  const dirty = message !== (lead.firstMessage ?? "");
-
-  const saveMessage = useMutation({
-    mutationFn: () =>
-      updateFirstMessage({ data: { analysisId: lead.analysisId, firstMessage: message } }),
-    onError: () => toast.error("Não foi possível salvar a mensagem"),
-  });
-  const update = useMutation({
-    mutationFn: (status: "new" | "contacted" | "discarded") =>
-      updateLead({ data: { id: lead.id, status } }),
-    onSuccess: refresh,
-    onError: () => toast.error("Não foi possível atualizar o lead"),
-  });
-
-  const markSent = () => {
-    if (dirty) saveMessage.mutate();
-    update.mutate("contacted", {
-      onSuccess: () =>
-        toast(`${lead.name}: contatado`, {
-          description: `Retorno em ${FOLLOW_UP_DAYS} dias. A IA prepara o lembrete.`,
-          action: { label: "Desfazer", onClick: () => update.mutate("new") },
-        }),
-    });
-  };
 
   return (
-    <Card className="grid gap-4 p-5 sm:p-6">
-      <div className="flex justify-between gap-4">
-        <div className="min-w-0">
-          <h2 className="text-[19px] leading-snug font-semibold">{lead.name}</h2>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            {[lead.signals?.[0], rating(lead), lead.phone].filter(Boolean).join(" · ")}
+    <Card>
+      <CardHeader>
+        <CardTitle>Pronto para enviar</CardTitle>
+        <CardDescription>
+          Revise e envie pelo WhatsApp. Ao enviar, o lead passa para Aguardando resposta.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {data.ready.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            {!data.setup.offer
+              ? "As mensagens aparecem aqui depois que você descrever o que vende."
+              : data.analyzing > 0
+                ? "A IA está lendo os sites e escrevendo as mensagens."
+                : "Nada pendente. Novos leads chegam com o piloto automático ou com uma busca manual."}
           </p>
-        </div>
-        <span className="text-[22px] font-semibold tabular-nums">{lead.score}</span>
-      </div>
-
-      {lead.summary ? (
-        <p className="text-sm leading-relaxed text-muted-foreground">{lead.summary}</p>
-      ) : null}
-
-      {editing ? (
-        <Textarea
-          aria-label={`Mensagem para ${lead.name}`}
-          rows={5}
-          autoFocus
-          value={message}
-          onChange={(event) => setMessage(event.target.value)}
-          className="bg-background px-4 py-3 text-[16px] leading-relaxed"
-        />
-      ) : (
-        <p className="rounded-xl bg-muted px-4 py-3.5 text-[16px] leading-relaxed whitespace-pre-line">
-          {message}
-        </p>
-      )}
-
-      <div className="flex flex-wrap items-center gap-2">
-        {lead.phoneE164 ? (
-          <Button asChild disabled={update.isPending}>
-            <a
-              href={whatsappLink(lead.phoneE164, message)}
-              target="_blank"
-              rel="noreferrer"
-              onClick={markSent}
-            >
-              Enviar no WhatsApp
-            </a>
-          </Button>
         ) : (
-          <Button onClick={markSent} disabled={update.isPending}>
-            Sem WhatsApp: marquei como contatado
-          </Button>
+          <div className="overflow-hidden rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Empresa</TableHead>
+                  <TableHead className="hidden md:table-cell">Mensagem</TableHead>
+                  <TableHead className="w-16">Nota</TableHead>
+                  <TableHead className="w-24" />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.ready.map((lead) => (
+                  <TableRow
+                    key={lead.id}
+                    className="cursor-pointer"
+                    onClick={() => onOpen(lead.id)}
+                  >
+                    <TableCell className="max-w-56">
+                      <p className="truncate font-medium">{lead.name}</p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {lead.signals?.[0] ?? lead.phone ?? "Sem telefone"}
+                      </p>
+                    </TableCell>
+                    <TableCell className="hidden max-w-80 md:table-cell">
+                      <p className="truncate text-muted-foreground">{lead.firstMessage}</p>
+                    </TableCell>
+                    <TableCell>
+                      <ScoreBadge score={lead.score} />
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button size="sm" variant="outline">
+                        Revisar
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         )}
-        {editing ? (
+      </CardContent>
+      {data.withoutMessage > 0 && data.setup.offer ? (
+        <CardFooter className="flex-wrap gap-3 text-sm text-muted-foreground">
+          {data.withoutMessage} {data.withoutMessage === 1 ? "lead novo está" : "leads novos estão"}{" "}
+          sem mensagem.
           <Button
+            size="sm"
             variant="outline"
-            onClick={() => {
-              if (dirty) saveMessage.mutate();
-              setEditing(false);
-            }}
+            onClick={() => writeMissing.mutate()}
+            disabled={writeMissing.isPending}
           >
-            Pronto
+            {writeMissing.isPending ? "Escrevendo…" : "Escrever agora"}
           </Button>
-        ) : (
-          <Button variant="outline" onClick={() => setEditing(true)}>
-            Editar
-          </Button>
-        )}
-        <Button
-          variant="ghost"
-          className="ml-auto text-muted-foreground"
-          disabled={update.isPending}
-          onClick={() => update.mutate("discarded")}
-        >
-          Não enviar
-        </Button>
-      </div>
+        </CardFooter>
+      ) : null}
     </Card>
   );
 }
 
-function FollowUpSection({ data }: { data: Dashboard }) {
+function FollowUpsCard({ data, onOpen }: { data: Dashboard; onOpen: (id: string) => void }) {
   return (
-    <>
-      <h2 className="mt-4 text-xl font-medium tracking-tight">
-        Retornos de hoje <span className="text-muted-foreground">{data.followUps.length}</span>
-      </h2>
-      {data.followUps.map((lead) => (
-        <FollowUpCard
-          key={`${lead.id}:${lead.followUpMessage ?? ""}`}
-          lead={lead}
-          today={data.today}
-        />
-      ))}
-    </>
-  );
-}
-
-function FollowUpCard({ lead, today }: { lead: FollowUpLead; today: string }) {
-  const refresh = useRefresh();
-  const draft =
-    lead.followUpMessage && lead.followUpMessageFor === lead.followUpOn
-      ? lead.followUpMessage
-      : null;
-  const [message, setMessage] = useState(draft ?? "");
-  const [editing, setEditing] = useState(false);
-  const waiting = lead.status === "contacted";
-
-  const update = useMutation({
-    mutationFn: (changes: { status?: "replied" | "closed" | "discarded"; followUpOn?: string }) =>
-      updateLead({ data: { id: lead.id, ...changes } }),
-    onSuccess: refresh,
-    onError: () => toast.error("Não foi possível atualizar o lead"),
-  });
-  const saveMessage = useMutation({
-    mutationFn: () => updateFollowUpMessage({ data: { id: lead.id, message } }),
-  });
-  const writeNow = useMutation({
-    mutationFn: () => draftFollowUpsNow(),
-    onSuccess: refresh,
-    onError: (error) => toast.error(error.message || "Não foi possível escrever o lembrete"),
-  });
-
-  const sentReminder = () => {
-    if (message !== (draft ?? "")) saveMessage.mutate();
-    update.mutate(
-      { followUpOn: addDays(today, REMINDER_GAP_DAYS) },
-      {
-        onSuccess: () =>
-          toast(`${lead.name}: lembrete enviado`, {
-            description: `Próximo retorno em ${REMINDER_GAP_DAYS} dias.`,
-          }),
-      },
-    );
-  };
-
-  const contacted = lead.contactedAt ? localDay(lead.contactedAt) : null;
-  const overdue = lead.followUpOn !== null && lead.followUpOn < today;
-
-  return (
-    <Card className="grid gap-4 p-5 sm:p-6">
-      <div>
-        <h3 className="text-[17px] font-semibold">{lead.name}</h3>
-        <p className="mt-0.5 text-sm text-muted-foreground">
-          {waiting
-            ? `Primeira mensagem ${contacted ? relativeDay(contacted, today) : ""}, sem resposta`
-            : "Em conversa"}
-          {overdue && lead.followUpOn
-            ? ` · retorno era ${relativeDay(lead.followUpOn, today)}`
-            : ""}
-        </p>
-      </div>
-
-      {waiting ? (
-        draft || editing ? (
-          editing ? (
-            <Textarea
-              aria-label={`Lembrete para ${lead.name}`}
-              rows={4}
-              autoFocus
-              value={message}
-              onChange={(event) => setMessage(event.target.value)}
-              className="bg-background px-4 py-3 text-[16px] leading-relaxed"
-            />
-          ) : (
-            <p className="rounded-xl bg-muted px-4 py-3.5 text-[16px] leading-relaxed whitespace-pre-line">
-              {message}
-            </p>
-          )
+    <Card>
+      <CardHeader>
+        <CardTitle>Retornos de hoje</CardTitle>
+        <CardDescription>Quem não respondeu ou tem conversa marcada para hoje.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {data.followUps.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Nenhum retorno para hoje.</p>
         ) : (
-          <div className="flex flex-wrap items-center gap-3 rounded-xl bg-muted px-4 py-3.5 text-sm text-muted-foreground">
-            A IA escreve o lembrete na próxima hora.
-            <button
-              type="button"
-              onClick={() => writeNow.mutate()}
-              disabled={writeNow.isPending}
-              className="font-medium text-foreground underline-offset-4 hover:underline"
-            >
-              {writeNow.isPending ? "Escrevendo…" : "Escrever agora"}
-            </button>
+          <div className="overflow-hidden rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Empresa</TableHead>
+                  <TableHead>Situação</TableHead>
+                  <TableHead className="w-24" />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.followUps.map((lead) => {
+                  const ready = lead.followUpMessage && lead.followUpMessageFor === lead.followUpOn;
+                  return (
+                    <TableRow
+                      key={lead.id}
+                      className="cursor-pointer"
+                      onClick={() => onOpen(lead.id)}
+                    >
+                      <TableCell className="max-w-56">
+                        <p className="truncate font-medium">{lead.name}</p>
+                        {lead.followUpOn && lead.followUpOn < data.today ? (
+                          <p className="text-xs text-muted-foreground">
+                            Era {relativeDay(lead.followUpOn, data.today)}
+                          </p>
+                        ) : null}
+                      </TableCell>
+                      <TableCell>
+                        {lead.status === "replied" ? (
+                          <Badge variant="outline">Em conversa</Badge>
+                        ) : ready ? (
+                          <Badge variant="secondary">Lembrete pronto</Badge>
+                        ) : (
+                          <Badge variant="outline">Sem resposta</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button size="sm" variant="outline">
+                          Abrir
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
           </div>
-        )
-      ) : null}
-
-      <div className="flex flex-wrap items-center gap-2">
-        {waiting ? (
-          <>
-            {lead.phoneE164 && message ? (
-              <Button asChild disabled={update.isPending}>
-                <a
-                  href={whatsappLink(lead.phoneE164, message)}
-                  target="_blank"
-                  rel="noreferrer"
-                  onClick={sentReminder}
-                >
-                  Enviar lembrete
-                </a>
-              </Button>
-            ) : null}
-            {message && !editing ? (
-              <Button variant="outline" onClick={() => setEditing(true)}>
-                Editar
-              </Button>
-            ) : null}
-            <Button
-              variant="outline"
-              disabled={update.isPending}
-              onClick={() => update.mutate({ status: "replied" })}
-            >
-              Respondeu
-            </Button>
-          </>
-        ) : (
-          <>
-            {lead.phoneE164 ? (
-              <Button asChild>
-                <a href={whatsappLink(lead.phoneE164)} target="_blank" rel="noreferrer">
-                  Abrir conversa
-                </a>
-              </Button>
-            ) : null}
-            <Button
-              variant="outline"
-              disabled={update.isPending}
-              onClick={() => update.mutate({ status: "closed" })}
-            >
-              Fechou negócio
-            </Button>
-            <Button
-              variant="outline"
-              disabled={update.isPending}
-              onClick={() => update.mutate({ followUpOn: addDays(today, FOLLOW_UP_DAYS) })}
-            >
-              Adiar {FOLLOW_UP_DAYS} dias
-            </Button>
-          </>
         )}
-        <Button
-          variant="ghost"
-          className="ml-auto text-muted-foreground"
-          disabled={update.isPending}
-          onClick={() => update.mutate({ status: "discarded" })}
-        >
-          Encerrar
-        </Button>
-      </div>
+      </CardContent>
     </Card>
   );
 }
@@ -539,106 +398,87 @@ function ActivityCard({ data }: { data: Dashboard }) {
     })),
     ...[
       activity.analyzed > 0 &&
-        `Leu os sites e deu nota para ${activity.analyzed} ${activity.analyzed === 1 ? "empresa" : "empresas"}`,
+        `Deu nota para ${activity.analyzed} ${activity.analyzed === 1 ? "empresa" : "empresas"}`,
       activity.messages > 0 &&
         `Escreveu ${activity.messages} ${activity.messages === 1 ? "mensagem" : "mensagens"}`,
       activity.discarded > 0 &&
         `Descartou ${activity.discarded} com nota abaixo de ${setup.minScore}`,
       activity.reminders > 0 &&
-        `Preparou ${activity.reminders} ${activity.reminders === 1 ? "lembrete" : "lembretes"} de retorno`,
+        `Preparou ${activity.reminders} ${activity.reminders === 1 ? "lembrete" : "lembretes"}`,
     ]
       .filter((text): text is string => Boolean(text))
       .map((text) => ({ text })),
   ];
 
   return (
-    <Card className="px-5 py-4">
-      <h2 className="mb-3.5 font-semibold">O que a IA fez hoje</h2>
-      {items.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Nada ainda hoje.</p>
-      ) : (
-        <ol className="grid gap-3 text-sm">
-          {items.map((item) => (
-            <li key={`${item.time ?? ""}${item.text}`} className="flex gap-3">
-              <span className="w-10 shrink-0 text-muted-foreground tabular-nums">
-                {item.time ?? ""}
-              </span>
-              <span>{item.text}</span>
-            </li>
-          ))}
-        </ol>
-      )}
+    <Card>
+      <CardHeader>
+        <CardTitle>Hoje</CardTitle>
+        <CardDescription>O que a IA fez</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {items.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Nada ainda hoje.</p>
+        ) : (
+          <ol className="grid gap-3 text-sm">
+            {items.map((item) => (
+              <li key={`${item.time ?? ""}${item.text}`} className="flex gap-3">
+                <span className="w-10 shrink-0 text-muted-foreground tabular-nums">
+                  {item.time ?? ""}
+                </span>
+                <span>{item.text}</span>
+              </li>
+            ))}
+          </ol>
+        )}
+      </CardContent>
     </Card>
   );
 }
 
 function FunnelCard({ data }: { data: Dashboard }) {
-  const rows: { label: string; value: number; view: LeadView; muted?: boolean }[] = [
+  const rows: { label: string; value: number; view: LeadView }[] = [
     { label: "Prontos para enviar", value: data.funnel.ready, view: "todo" },
     { label: "Aguardando resposta", value: data.funnel.waiting, view: "waiting" },
     { label: "Em conversa", value: data.funnel.talking, view: "talking" },
     { label: "Fechados", value: data.funnel.closed, view: "closed" },
-    {
-      label: "Descartados pela IA",
-      value: data.funnel.aiDiscarded,
-      view: "discarded",
-      muted: true,
-    },
+    { label: "Descartados pela IA", value: data.funnel.aiDiscarded, view: "discarded" },
   ];
   return (
-    <Card className="px-5 py-4">
-      <h2 className="mb-2 font-semibold">Funil</h2>
-      <ul className="grid">
-        {rows.map((row) => (
-          <li key={row.label}>
-            <Link
-              to="/leads"
-              search={{ view: row.view }}
-              className={cn(
-                "-mx-2 flex justify-between rounded-md px-2 py-1.5 text-[15px] hover:bg-muted",
-                row.muted && "text-muted-foreground",
-              )}
-            >
-              <span>{row.label}</span>
-              <span className={cn("tabular-nums", !row.muted && "font-semibold")}>{row.value}</span>
-            </Link>
-          </li>
-        ))}
-      </ul>
+    <Card>
+      <CardHeader>
+        <CardTitle>Funil</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <ul className="grid">
+          {rows.map((row) => (
+            <li key={row.label}>
+              <Link
+                to="/leads"
+                search={{ view: row.view }}
+                className="-mx-2 flex justify-between rounded-md px-2 py-1.5 text-sm hover:bg-muted"
+              >
+                <span>{row.label}</span>
+                <span className="font-medium tabular-nums">{row.value}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </CardContent>
     </Card>
   );
-}
-
-function CostCard({ data }: { data: Dashboard }) {
-  const { month, googleToday, googleLimit } = data.costs;
-  return (
-    <Card className="grid gap-1.5 px-5 py-4 text-sm text-muted-foreground">
-      <h2 className="mb-1 font-semibold text-foreground">Custo do mês</h2>
-      <p>Google: {month.placesRequests.toLocaleString("pt-BR")} de 1.000 requisições grátis</p>
-      <p>IA: US$ {month.aiCostUsd.toFixed(2).replace(".", ",")}</p>
-      <p>
-        Hoje: {googleToday} de {googleLimit} requisições ao Google
-      </p>
-    </Card>
-  );
-}
-
-function Card({ className, children }: { className?: string; children: ReactNode }) {
-  return <section className={cn("rounded-2xl border bg-card", className)}>{children}</section>;
-}
-
-function rating(lead: { rating: number | null; reviewCount: number | null }) {
-  return lead.rating !== null
-    ? `${lead.rating.toFixed(1).replace(".", ",")} no Google (${lead.reviewCount ?? 0})`
-    : null;
 }
 
 function DashboardSkeleton() {
   return (
-    <div className="mx-auto grid max-w-[1280px] grid-cols-[minmax(0,1fr)] gap-6 px-4 pt-8 sm:px-8">
-      <Skeleton className="h-16 w-full rounded-2xl" />
-      <Skeleton className="h-8 w-64" />
-      <Skeleton className="h-64 w-full rounded-2xl" />
-    </div>
+    <>
+      <Skeleton className="h-36 w-full rounded-xl" />
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {Array.from({ length: 4 }, (_, i) => (
+          <Skeleton key={i} className="h-32 rounded-xl" />
+        ))}
+      </div>
+      <Skeleton className="h-72 w-full rounded-xl" />
+    </>
   );
 }

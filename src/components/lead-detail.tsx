@@ -2,8 +2,16 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
-import { TIER_TEXT } from "@/components/lead-badges";
+import { ScoreBadge, StatusBadge } from "@/components/lead-badges";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -11,22 +19,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import { SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import type { Analysis, Lead, LeadStatus, SiteStatus } from "@/db/schema";
 import { addDays, formatDate, localDay, relativeDay } from "@/lib/format";
 import { whatsappLink } from "@/lib/phone";
 import { leadQuery, providerStatusQuery } from "@/lib/queries";
-import {
-  LEAD_STATUS_LABELS,
-  LEAD_STATUS_VALUES,
-  SCORE_TIERS,
-  scoreTier,
-  type UpdateLeadInput,
-} from "@/lib/schemas";
+import { LEAD_STATUS_LABELS, LEAD_STATUS_VALUES, type UpdateLeadInput } from "@/lib/schemas";
 import { useToday } from "@/lib/today";
-import { cn } from "@/lib/utils";
-import { generateMessage, reanalyzeLead, updateFirstMessage, updateLead } from "@/server/leads";
+import {
+  generateMessage,
+  reanalyzeLead,
+  updateFirstMessage,
+  updateFollowUpMessage,
+  updateLead,
+} from "@/server/leads";
 
 const SITE_STATUS_LABELS: Record<SiteStatus, string> = {
   pending: "ainda não lido",
@@ -37,18 +46,20 @@ const SITE_STATUS_LABELS: Record<SiteStatus, string> = {
 };
 
 const FOLLOW_UP_OPTIONS = [
-  { days: 1, label: "amanhã" },
-  { days: 3, label: "em 3 dias" },
-  { days: 7, label: "em 1 semana" },
-  { days: 14, label: "em 2 semanas" },
+  { days: 1, label: "Amanhã" },
+  { days: 3, label: "Em 3 dias" },
+  { days: 7, label: "Em 1 semana" },
+  { days: 14, label: "Em 2 semanas" },
 ] as const;
+
+const REMINDER_GAP_DAYS = 4;
 
 type LeadUpdate = Omit<UpdateLeadInput, "id">;
 
 /**
- * Everything about one lead, organized around the next thing to do with it.
- * `toolbar` sits above the header (pager or back link); `onStatusChanged` lets the
- * inbox move on once the lead leaves the current queue.
+ * One lead inside the side sheet, organized around the next thing to do with it.
+ * `toolbar` sits above the header (the pager); `onStatusChanged` lets the list move on
+ * once the lead leaves the current view.
  */
 export function LeadDetail({
   leadId,
@@ -61,9 +72,14 @@ export function LeadDetail({
 }) {
   const { data } = useQuery(leadQuery(leadId));
   const queryClient = useQueryClient();
+  const today = useToday();
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["lead", leadId] });
   const refreshAll = () =>
-    Promise.all([refresh(), queryClient.invalidateQueries({ queryKey: ["leads"] })]);
+    Promise.all([
+      refresh(),
+      queryClient.invalidateQueries({ queryKey: ["leads"] }),
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
+    ]);
 
   const update = useMutation({
     mutationFn: (changes: LeadUpdate) => updateLead({ data: { id: leadId, ...changes } }),
@@ -73,71 +89,66 @@ export function LeadDetail({
     },
     onError: () => toast.error("Não foi possível atualizar o lead"),
   });
-  const save = (changes: LeadUpdate) => update.mutate(changes);
-  const today = useToday();
 
   if (!data) return <DetailSkeleton toolbar={toolbar} />;
   const { lead, analysis, search } = data;
-
-  return (
-    <div className="mx-auto grid max-w-3xl gap-8 px-4 pt-4 pb-16 sm:px-8 sm:pt-6">
-      {toolbar}
-      <Header lead={lead} search={search} />
-      <QuickActions lead={lead} />
-      <NextStep
-        lead={lead}
-        analysis={analysis}
-        today={today}
-        busy={update.isPending}
-        onUpdate={save}
-        onMessageChanged={refresh}
-      />
-      <AnalysisSection lead={lead} analysis={analysis} />
-      <div className="grid gap-8 sm:grid-cols-2">
-        <ContactSection lead={lead} />
-        <NotesSection key={lead.id} lead={lead} onSave={(notes) => save({ notes })} />
-      </div>
-      <Footer
-        lead={lead}
-        analysis={analysis}
-        busy={update.isPending}
-        onStatus={(status) => save({ status })}
-        onChanged={refreshAll}
-      />
-    </div>
-  );
-}
-
-function Header({ lead, search }: { lead: Lead; search: { niche: string; city: string } | null }) {
-  const tier = lead.score !== null ? scoreTier(lead.score) : null;
   const facts = [
     search ? `${search.niche}, ${search.city}` : lead.city,
     lead.rating !== null
       ? `${lead.rating.toFixed(1).replace(".", ",")} no Google (${lead.reviewCount ?? 0})`
-      : "sem avaliações no Google",
+      : null,
   ].filter(Boolean);
 
   return (
-    <div className="flex items-start justify-between gap-6">
-      <div className="min-w-0">
-        <h1 className="text-xl leading-snug font-medium tracking-tight sm:text-2xl">{lead.name}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{facts.join(" · ")}</p>
-      </div>
-      <div className="shrink-0 text-right">
-        {lead.score !== null && tier ? (
-          <>
-            <p className={cn("text-3xl leading-none font-semibold tabular-nums", TIER_TEXT[tier])}>
-              {lead.score}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              nota {SCORE_TIERS[tier].label.toLowerCase()}
-            </p>
-          </>
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            {lead.analysisStatus === "error" ? "análise falhou" : "analisando…"}
-          </p>
-        )}
+    <div className="flex flex-col">
+      <SheetHeader className="gap-3 border-b">
+        {toolbar}
+        <div className="flex items-start justify-between gap-4 pr-6">
+          <div className="grid min-w-0 gap-1">
+            <SheetTitle className="text-lg leading-snug">{lead.name}</SheetTitle>
+            <SheetDescription>{facts.join(" · ")}</SheetDescription>
+          </div>
+          <ScoreBadge score={lead.score} pending={lead.analysisStatus === "pending"} />
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusBadge status={lead.status} />
+          {lead.followUpOn && (lead.status === "contacted" || lead.status === "replied") ? (
+            <span className="text-sm text-muted-foreground">
+              Retorno {relativeDay(lead.followUpOn, today)}
+            </span>
+          ) : null}
+          {lead.discardReason ? (
+            <span className="text-sm text-muted-foreground">
+              Descartado pela IA: {lead.discardReason}
+            </span>
+          ) : null}
+        </div>
+        <QuickActions lead={lead} />
+      </SheetHeader>
+
+      <div className="flex flex-col gap-6 p-4 sm:p-6">
+        <NextStep
+          lead={lead}
+          analysis={analysis}
+          today={today}
+          busy={update.isPending}
+          onUpdate={(changes) => update.mutate(changes)}
+          onChanged={refreshAll}
+        />
+        <AnalysisSection lead={lead} analysis={analysis} />
+        <Separator />
+        <div className="grid gap-6 sm:grid-cols-2">
+          <ContactSection lead={lead} />
+          <NotesSection key={lead.id} lead={lead} onSave={(notes) => update.mutate({ notes })} />
+        </div>
+        <Separator />
+        <Footer
+          lead={lead}
+          analysis={analysis}
+          busy={update.isPending}
+          onStatus={(status) => update.mutate({ status })}
+          onChanged={refreshAll}
+        />
       </div>
     </div>
   );
@@ -154,7 +165,7 @@ function QuickActions({ lead }: { lead: Lead }) {
   };
   const external = { target: "_blank", rel: "noreferrer" } as const;
   return (
-    <div className="-mt-2 flex flex-wrap gap-2">
+    <div className="flex flex-wrap gap-2">
       {lead.phoneE164 ? (
         <>
           <Button asChild variant="outline" size="sm">
@@ -190,61 +201,40 @@ function QuickActions({ lead }: { lead: Lead }) {
   );
 }
 
-function NextStep({
-  lead,
-  analysis,
-  today,
-  busy,
-  onUpdate,
-  onMessageChanged,
-}: {
+type StepProps = {
   lead: Lead;
   analysis: Analysis | null;
   today: string;
   busy: boolean;
   onUpdate: (changes: LeadUpdate) => void;
-  onMessageChanged: () => Promise<unknown>;
-}) {
+  onChanged: () => Promise<unknown>;
+};
+
+function NextStep(props: StepProps) {
+  const { lead, analysis, busy, onUpdate } = props;
   switch (lead.status) {
     case "new":
       return (
         <FirstContactStep
           key={`${analysis?.id ?? "none"}:${analysis?.firstMessage ?? ""}`}
-          lead={lead}
-          analysis={analysis}
-          today={today}
-          busy={busy}
-          onUpdate={onUpdate}
-          onMessageChanged={onMessageChanged}
+          {...props}
         />
       );
     case "contacted":
-    case "replied": {
-      const waiting = lead.status === "contacted";
       return (
-        <StepCard title={waiting ? "Aguardando resposta" : "Em conversa"}>
-          <p className="text-sm text-muted-foreground">
-            {lead.contactedAt
-              ? `Primeiro contato ${relativeDay(localDay(lead.contactedAt), today)}. `
-              : ""}
-            {waiting
-              ? "Se não responder, mande um lembrete curto no dia do retorno."
-              : "Anote nas notas o que foi combinado."}
-          </p>
-          <FollowUpPicker
-            label={waiting ? "Retornar" : "Próximo contato"}
-            value={lead.followUpOn}
-            today={today}
-            disabled={busy}
-            onChange={(followUpOn) => onUpdate({ followUpOn })}
-          />
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              disabled={busy}
-              onClick={() => onUpdate({ status: waiting ? "replied" : "closed" })}
-            >
-              {waiting ? "Respondeu" : "Fechou negócio"}
-            </Button>
+        <ReminderStep key={`${lead.followUpMessage ?? ""}:${lead.followUpOn ?? ""}`} {...props} />
+      );
+    case "replied":
+      return (
+        <Card>
+          <CardHeader>
+            <CardTitle>Em conversa</CardTitle>
+            <CardDescription>Anote nas notas o que foi combinado.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <FollowUpPicker {...props} label="Próximo contato" />
+          </CardContent>
+          <CardFooter className="flex-wrap gap-2">
             {lead.phoneE164 ? (
               <Button asChild variant="outline">
                 <a href={whatsappLink(lead.phoneE164)} target="_blank" rel="noreferrer">
@@ -252,32 +242,27 @@ function NextStep({
                 </a>
               </Button>
             ) : null}
+            <Button disabled={busy} onClick={() => onUpdate({ status: "closed" })}>
+              Fechou negócio
+            </Button>
             <Button
               variant="ghost"
-              className="ml-auto text-muted-foreground"
+              className="ml-auto"
               disabled={busy}
               onClick={() => onUpdate({ status: "discarded" })}
             >
-              {waiting ? "Sem interesse" : "Não fechou"}
+              Não fechou
             </Button>
-          </div>
-          {analysis?.firstMessage ? (
-            <details className="text-sm">
-              <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
-                Mensagem enviada
-              </summary>
-              <p className="mt-2 whitespace-pre-line text-muted-foreground">
-                {analysis.firstMessage}
-              </p>
-            </details>
-          ) : null}
-        </StepCard>
+          </CardFooter>
+        </Card>
       );
-    }
     case "closed":
       return (
-        <StepCard title="Negócio fechado">
-          <div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Negócio fechado</CardTitle>
+          </CardHeader>
+          <CardFooter>
             <Button
               variant="outline"
               disabled={busy}
@@ -285,39 +270,27 @@ function NextStep({
             >
               Reabrir conversa
             </Button>
-          </div>
-        </StepCard>
+          </CardFooter>
+        </Card>
       );
     default:
       return (
-        <StepCard title="Descartado">
-          <div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Descartado</CardTitle>
+          </CardHeader>
+          <CardFooter>
             <Button variant="outline" disabled={busy} onClick={() => onUpdate({ status: "new" })}>
               Voltar para a fila
             </Button>
-          </div>
-        </StepCard>
+          </CardFooter>
+        </Card>
       );
   }
 }
 
-function FirstContactStep({
-  lead,
-  analysis,
-  today,
-  busy,
-  onUpdate,
-  onMessageChanged,
-}: {
-  lead: Lead;
-  analysis: Analysis | null;
-  today: string;
-  busy: boolean;
-  onUpdate: (changes: LeadUpdate) => void;
-  onMessageChanged: () => Promise<unknown>;
-}) {
+function FirstContactStep({ lead, analysis, today, busy, onUpdate, onChanged }: StepProps) {
   const [message, setMessage] = useState(analysis?.firstMessage ?? "");
-  const [opened, setOpened] = useState(false);
   const [followUpDays, setFollowUpDays] = useState("3");
   const saved = analysis?.firstMessage ?? "";
   const hasMessage = message.trim().length > 0;
@@ -326,14 +299,25 @@ function FirstContactStep({
   const saveMessage = useMutation({
     mutationFn: () =>
       updateFirstMessage({ data: { analysisId: analysis?.id ?? "", firstMessage: message } }),
-    onSuccess: onMessageChanged,
+    onSuccess: onChanged,
     onError: () => toast.error("Não foi possível salvar a mensagem"),
   });
   const generate = useMutation({
     mutationFn: () => generateMessage({ data: { id: lead.id } }),
-    onSuccess: onMessageChanged,
+    onSuccess: onChanged,
     onError: (error) => toast.error(error.message || "Não foi possível gerar a mensagem"),
   });
+
+  // Sending is the one manual step: it opens WhatsApp and records the contact.
+  const markContacted = () => {
+    if (dirty) saveMessage.mutate();
+    const followUpOn = addDays(today, Number(followUpDays));
+    onUpdate({ status: "contacted", followUpOn });
+    toast(`${lead.name}: contatado`, {
+      description: `Retorno ${relativeDay(followUpOn, today)}. A IA prepara o lembrete.`,
+      action: { label: "Desfazer", onClick: () => onUpdate({ status: "new" }) },
+    });
+  };
 
   const copy = async () => {
     try {
@@ -345,89 +329,31 @@ function FirstContactStep({
   };
 
   return (
-    <StepCard
-      title="Primeira mensagem"
-      action={
-        analysis && hasMessage ? (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-muted-foreground"
-            onClick={() => generate.mutate()}
-            disabled={generate.isPending}
-          >
-            {generate.isPending ? "Escrevendo…" : "Gerar outra"}
-          </Button>
-        ) : null
-      }
-    >
-      <Textarea
-        aria-label="Mensagem de primeiro contato"
-        rows={5}
-        placeholder={
-          analysis
-            ? "A IA ainda não escreveu para este lead. Gere uma mensagem ou escreva a sua."
-            : "Disponível depois da análise."
-        }
-        className="min-h-32 resize-y bg-background px-3.5 py-3 text-[16px] leading-relaxed"
-        value={message}
-        onChange={(event) => setMessage(event.target.value)}
-        disabled={!analysis || generate.isPending}
-      />
-      <div className="flex flex-wrap items-center gap-2">
-        {analysis && !hasMessage ? (
-          <Button onClick={() => generate.mutate()} disabled={generate.isPending}>
-            {generate.isPending ? "Escrevendo…" : "Gerar mensagem"}
-          </Button>
-        ) : null}
-        {lead.phoneE164 && hasMessage ? (
-          <Button asChild variant={opened ? "outline" : "default"}>
-            <a
-              href={whatsappLink(lead.phoneE164, message)}
-              target="_blank"
-              rel="noreferrer"
-              onClick={() => {
-                if (dirty) saveMessage.mutate();
-                setOpened(true);
-              }}
-            >
-              Enviar pelo WhatsApp
-            </a>
-          </Button>
-        ) : null}
-        {hasMessage ? (
-          <Button variant="outline" onClick={() => void copy()}>
-            Copiar
-          </Button>
-        ) : null}
-        {dirty ? (
-          <Button
-            variant="ghost"
-            onClick={() => saveMessage.mutate()}
-            disabled={saveMessage.isPending}
-          >
-            Salvar edição
-          </Button>
-        ) : null}
-        {!lead.phoneE164 ? (
-          <span className="text-sm text-muted-foreground">Sem WhatsApp: use o telefone.</span>
-        ) : null}
-      </div>
-
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t pt-4">
-        <Button
-          variant={opened ? "default" : "outline"}
-          disabled={busy}
-          onClick={() =>
-            onUpdate({ status: "contacted", followUpOn: addDays(today, Number(followUpDays)) })
+    <Card>
+      <CardHeader>
+        <CardTitle>Primeira mensagem</CardTitle>
+        <CardDescription>
+          {hasMessage
+            ? "Escrita pela IA. Revise e envie."
+            : "A IA ainda não escreveu para este lead."}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-3">
+        <Textarea
+          aria-label="Mensagem de primeiro contato"
+          rows={6}
+          placeholder={
+            analysis ? "Gere uma mensagem ou escreva a sua." : "Disponível depois da análise."
           }
-        >
-          Marcar como contatado
-        </Button>
-        <span className="flex items-center gap-2 text-sm text-muted-foreground">
-          retornar
+          className="min-h-32"
+          value={message}
+          onChange={(event) => setMessage(event.target.value)}
+          disabled={!analysis || generate.isPending}
+        />
+        <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+          Retorno
           <Select value={followUpDays} onValueChange={setFollowUpDays}>
-            <SelectTrigger className="h-9 w-36" aria-label="Retornar em">
+            <SelectTrigger size="sm" className="w-36" aria-label="Retorno">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -438,46 +364,149 @@ function FirstContactStep({
               ))}
             </SelectContent>
           </Select>
-        </span>
+        </div>
+      </CardContent>
+      <CardFooter className="flex-wrap gap-2">
+        {hasMessage && lead.phoneE164 ? (
+          <Button asChild disabled={busy}>
+            <a
+              href={whatsappLink(lead.phoneE164, message)}
+              target="_blank"
+              rel="noreferrer"
+              onClick={markContacted}
+            >
+              Enviar no WhatsApp
+            </a>
+          </Button>
+        ) : null}
+        {hasMessage && !lead.phoneE164 ? (
+          <Button disabled={busy} onClick={markContacted}>
+            Marcar como contatado
+          </Button>
+        ) : null}
+        {analysis ? (
+          <Button
+            variant={hasMessage ? "outline" : "default"}
+            onClick={() => generate.mutate()}
+            disabled={generate.isPending}
+          >
+            {generate.isPending ? "Escrevendo…" : hasMessage ? "Gerar outra" : "Gerar mensagem"}
+          </Button>
+        ) : null}
+        {hasMessage ? (
+          <Button variant="outline" onClick={() => void copy()}>
+            Copiar
+          </Button>
+        ) : null}
         <Button
           variant="ghost"
-          className="ml-auto text-muted-foreground"
+          className="ml-auto"
           disabled={busy}
           onClick={() => onUpdate({ status: "discarded" })}
         >
           Descartar
         </Button>
-      </div>
-    </StepCard>
+      </CardFooter>
+    </Card>
   );
 }
 
-function FollowUpPicker({
-  label,
-  value,
-  today,
-  disabled,
-  onChange,
-}: {
-  label: string;
-  value: string | null;
-  today: string;
-  disabled: boolean;
-  onChange: (day: string | null) => void;
-}) {
-  const overdue = value !== null && value < today;
+function ReminderStep(props: StepProps) {
+  const { lead, analysis, today, busy, onUpdate, onChanged } = props;
+  const draft =
+    lead.followUpMessage && lead.followUpMessageFor === lead.followUpOn ? lead.followUpMessage : "";
+  const [message, setMessage] = useState(draft);
+  const due = lead.followUpOn !== null && lead.followUpOn <= today;
+  const contacted = lead.contactedAt ? relativeDay(localDay(lead.contactedAt), today) : null;
+
+  const saveMessage = useMutation({
+    mutationFn: () => updateFollowUpMessage({ data: { id: lead.id, message } }),
+    onSuccess: onChanged,
+  });
+
+  const sent = () => {
+    if (message !== draft) saveMessage.mutate();
+    onUpdate({ followUpOn: addDays(today, REMINDER_GAP_DAYS) });
+    toast(`${lead.name}: lembrete enviado`, {
+      description: `Próximo retorno em ${REMINDER_GAP_DAYS} dias.`,
+    });
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Aguardando resposta</CardTitle>
+        <CardDescription>
+          {contacted ? `Primeira mensagem ${contacted}. ` : ""}
+          {due
+            ? draft
+              ? "O lembrete está pronto."
+              : "A IA escreve o lembrete na próxima hora."
+            : "No dia do retorno a IA escreve um lembrete."}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-4">
+        {due ? (
+          <Textarea
+            aria-label="Lembrete"
+            rows={4}
+            placeholder="Escreva o lembrete ou aguarde a IA."
+            value={message}
+            onChange={(event) => setMessage(event.target.value)}
+          />
+        ) : null}
+        <FollowUpPicker {...props} label="Retorno" />
+        {analysis?.firstMessage ? (
+          <details className="text-sm">
+            <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+              Mensagem enviada
+            </summary>
+            <p className="mt-2 whitespace-pre-line text-muted-foreground">
+              {analysis.firstMessage}
+            </p>
+          </details>
+        ) : null}
+      </CardContent>
+      <CardFooter className="flex-wrap gap-2">
+        {due && message.trim() && lead.phoneE164 ? (
+          <Button asChild disabled={busy}>
+            <a
+              href={whatsappLink(lead.phoneE164, message)}
+              target="_blank"
+              rel="noreferrer"
+              onClick={sent}
+            >
+              Enviar lembrete
+            </a>
+          </Button>
+        ) : null}
+        <Button
+          variant={due ? "outline" : "default"}
+          disabled={busy}
+          onClick={() => onUpdate({ status: "replied" })}
+        >
+          Respondeu
+        </Button>
+        <Button
+          variant="ghost"
+          className="ml-auto"
+          disabled={busy}
+          onClick={() => onUpdate({ status: "discarded" })}
+        >
+          Sem interesse
+        </Button>
+      </CardFooter>
+    </Card>
+  );
+}
+
+function FollowUpPicker({ lead, today, busy, onUpdate, label }: StepProps & { label: string }) {
+  const value = lead.followUpOn;
   return (
     <div className="grid gap-2">
       <p className="text-sm">
         {label}:{" "}
-        {value ? (
-          <span className={cn("font-medium", overdue || value === today ? "text-brand" : "")}>
-            {relativeDay(value, today)}
-            {overdue ? " (atrasado)" : ""}
-          </span>
-        ) : (
-          <span className="text-muted-foreground">sem data</span>
-        )}
+        <span className="font-medium">{value ? relativeDay(value, today) : "sem data"}</span>
       </p>
       <div className="flex flex-wrap items-center gap-2">
         {FOLLOW_UP_OPTIONS.slice(0, 3).map((option) => (
@@ -485,8 +514,8 @@ function FollowUpPicker({
             key={option.days}
             variant="outline"
             size="sm"
-            disabled={disabled}
-            onClick={() => onChange(addDays(today, option.days))}
+            disabled={busy}
+            onClick={() => onUpdate({ followUpOn: addDays(today, option.days) })}
           >
             {option.label}
           </Button>
@@ -496,20 +525,10 @@ function FollowUpPicker({
           aria-label="Escolher data"
           value={value ?? ""}
           min={today}
-          disabled={disabled}
-          onChange={(event) => event.target.value && onChange(event.target.value)}
-          className="h-7 rounded-md border bg-background px-2 text-sm text-muted-foreground"
+          disabled={busy}
+          onChange={(event) => event.target.value && onUpdate({ followUpOn: event.target.value })}
+          className="h-8 rounded-md border bg-background px-2 text-sm"
         />
-        {value ? (
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={() => onChange(null)}
-            className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-          >
-            remover
-          </button>
-        ) : null}
       </div>
     </div>
   );
@@ -531,14 +550,14 @@ function AnalysisSection({ lead, analysis }: { lead: Lead; analysis: Analysis | 
   const hasLists = analysis.signals.length > 0 || analysis.painPoints.length > 0;
   return (
     <Section title="Análise">
-      <p className="text-[16px] leading-relaxed">{analysis.summary}</p>
+      <p className="text-sm leading-relaxed">{analysis.summary}</p>
       {hasLists ? (
-        <div className="mt-5 grid gap-6 sm:grid-cols-2">
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <PlainList title="Oportunidades" items={analysis.signals} />
           <PlainList title="Dores prováveis" items={analysis.painPoints} />
         </div>
       ) : status && !status.offerConfigured ? (
-        <p className="mt-5 text-sm text-muted-foreground">
+        <p className="mt-4 text-sm text-muted-foreground">
           Para ver oportunidades,{" "}
           <Link to="/settings" className="text-foreground underline underline-offset-4">
             descreva o que você vende
@@ -546,11 +565,11 @@ function AnalysisSection({ lead, analysis }: { lead: Lead; analysis: Analysis | 
           e reanalise.
         </p>
       ) : (
-        <p className="mt-5 text-sm text-muted-foreground">
+        <p className="mt-4 text-sm text-muted-foreground">
           Nenhuma oportunidade clara para a sua oferta.
         </p>
       )}
-      <details className="mt-5 text-sm">
+      <details className="mt-4 text-sm">
         <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
           Como a nota foi calculada
         </summary>
@@ -618,21 +637,14 @@ function ContactSection({ lead }: { lead: Lead }) {
 function NotesSection({ lead, onSave }: { lead: Lead; onSave: (notes: string) => void }) {
   const [notes, setNotes] = useState(lead.notes);
   return (
-    <Section
-      title="Notas"
-      action={
-        notes !== lead.notes ? (
-          <span className="text-xs text-muted-foreground">salva ao sair do campo</span>
-        ) : null
-      }
-    >
+    <Section title="Notas">
       <Textarea
         aria-label="Notas"
         rows={5}
         value={notes}
         onChange={(event) => setNotes(event.target.value)}
         onBlur={() => notes !== lead.notes && onSave(notes)}
-        placeholder="Ex.: falei com a recepção, retornar na segunda."
+        placeholder="Salvas ao sair do campo."
       />
     </Section>
   );
@@ -659,9 +671,9 @@ function Footer({
   });
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-4 border-t pt-5 text-xs text-muted-foreground">
+    <div className="flex flex-wrap items-center justify-between gap-4 text-sm text-muted-foreground">
       <div className="flex items-center gap-2">
-        <span>Status</span>
+        Status
         <Select
           value={lead.status}
           disabled={busy}
@@ -682,61 +694,30 @@ function Footer({
           </SelectContent>
         </Select>
       </div>
-      <p className="flex flex-wrap items-center gap-x-2">
+      <div className="flex flex-wrap items-center gap-3">
         {analysis ? (
-          <span>
+          <span className="text-xs">
             {analysis.model} · US$ {analysis.costEstimate.toFixed(4)} ·{" "}
             {formatDate(analysis.createdAt, true)}
           </span>
         ) : null}
-        <button
-          type="button"
+        <Button
+          variant="outline"
+          size="sm"
           onClick={() => reanalyze.mutate()}
           disabled={reanalyze.isPending || analyzing}
-          className="text-foreground underline-offset-4 hover:underline disabled:text-muted-foreground disabled:no-underline"
         >
           {analyzing ? "Analisando…" : "Reanalisar"}
-        </button>
-      </p>
+        </Button>
+      </div>
     </div>
   );
 }
 
-function StepCard({
-  title,
-  action,
-  children,
-}: {
-  title: string;
-  action?: ReactNode;
-  children: ReactNode;
-}) {
-  return (
-    <section className="grid gap-4 rounded-xl border bg-muted/30 p-4 sm:p-5">
-      <div className="flex min-h-8 items-center justify-between gap-4">
-        <h2 className="font-semibold">{title}</h2>
-        {action}
-      </div>
-      {children}
-    </section>
-  );
-}
-
-function Section({
-  title,
-  action,
-  children,
-}: {
-  title: string;
-  action?: ReactNode;
-  children: ReactNode;
-}) {
+function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section>
-      <div className="mb-3 flex min-h-6 items-center justify-between gap-4">
-        <h2 className="text-sm font-semibold">{title}</h2>
-        {action}
-      </div>
+      <h3 className="mb-2 text-sm font-semibold">{title}</h3>
       {children}
     </section>
   );
@@ -745,9 +726,9 @@ function Section({
 function PlainList({ title, items }: { title: string; items: string[] }) {
   return (
     <div>
-      <h3 className="mb-2 text-xs font-medium text-muted-foreground">{title}</h3>
+      <h4 className="mb-1.5 text-xs font-medium text-muted-foreground">{title}</h4>
       {items.length > 0 ? (
-        <ul className="grid list-disc gap-1.5 pl-4 text-sm leading-relaxed marker:text-muted-foreground/60">
+        <ul className="grid list-disc gap-1 pl-4 text-sm leading-relaxed">
           {items.map((item) => (
             <li key={item}>{item}</li>
           ))}
@@ -770,9 +751,10 @@ function Term({ label, children }: { label: string; children: ReactNode }) {
 
 function DetailSkeleton({ toolbar }: { toolbar?: ReactNode }) {
   return (
-    <div className="mx-auto grid max-w-3xl gap-6 px-4 pt-4 sm:px-8 sm:pt-6">
+    <div className="flex flex-col gap-4 p-4 sm:p-6">
       {toolbar}
-      <Skeleton className="h-8 w-2/3" />
+      <SheetTitle className="sr-only">Carregando lead</SheetTitle>
+      <Skeleton className="h-7 w-2/3" />
       <Skeleton className="h-4 w-1/3" />
       <Skeleton className="h-48 w-full" />
     </div>

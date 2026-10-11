@@ -17,6 +17,7 @@
     "drizzle",
     "src/routeTree.gen.ts",
     "worker-configuration.d.ts",
-    "src/components/ui"
+    "src/components/ui",
+    "src/hooks"
   ]
 }

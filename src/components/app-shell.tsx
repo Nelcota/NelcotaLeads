@@ -1,21 +1,36 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import {
   HistoryIcon,
   InboxIcon,
   LayoutDashboardIcon,
   MoonIcon,
-  PlusIcon,
-  SlidersHorizontalIcon,
+  SettingsIcon,
   SunIcon,
   type LucideIcon,
 } from "lucide-react";
 import { createContext, useContext, useState, type ReactNode } from "react";
 import { NewSearchDialog } from "@/components/new-search-dialog";
-import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuBadge,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarRail,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { leadCountsQuery, providerStatusQuery } from "@/lib/queries";
 import { useTheme } from "@/lib/theme";
-import { cn } from "@/lib/utils";
 
 const NAV: {
   to: "/" | "/leads" | "/searches" | "/settings";
@@ -25,12 +40,12 @@ const NAV: {
   { to: "/", label: "Painel", icon: LayoutDashboardIcon },
   { to: "/leads", label: "Leads", icon: InboxIcon },
   { to: "/searches", label: "Buscas", icon: HistoryIcon },
-  { to: "/settings", label: "Configurações", icon: SlidersHorizontalIcon },
+  { to: "/settings", label: "Configurações", icon: SettingsIcon },
 ];
 
 const NewSearchContext = createContext<() => void>(() => {});
 
-/** Opens the "Nova busca" dialog from anywhere in the app. */
+/** Opens the "Busca manual" dialog from anywhere in the app. */
 export function useOpenNewSearch() {
   return useContext(NewSearchContext);
 }
@@ -39,79 +54,75 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [newSearchOpen, setNewSearchOpen] = useState(false);
   return (
     <NewSearchContext value={() => setNewSearchOpen(true)}>
-      <div className="flex h-dvh flex-col">
-        <TopBar onNewSearch={() => setNewSearchOpen(true)} />
-        <main className="min-h-0 flex-1 overflow-y-auto">{children}</main>
-        <MobileTabBar />
-      </div>
+      <TooltipProvider delayDuration={0}>
+        <SidebarProvider>
+          <AppSidebar />
+          <SidebarInset>{children}</SidebarInset>
+        </SidebarProvider>
+      </TooltipProvider>
       <NewSearchDialog open={newSearchOpen} onOpenChange={setNewSearchOpen} />
     </NewSearchContext>
   );
 }
 
-function TopBar({ onNewSearch }: { onNewSearch: () => void }) {
+function AppSidebar() {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const { data: counts } = useQuery(leadCountsQuery({}));
+  const due = counts?.byView.followup ?? 0;
+
   return (
-    <header className="flex h-14 shrink-0 items-center gap-8 border-b px-4 sm:px-6">
-      <Link to="/" className="text-[16px] font-medium tracking-tight">
-        Nelcota <span className="text-muted-foreground">Leads</span>
-      </Link>
-      <nav className="hidden h-full items-stretch gap-6 md:flex" aria-label="Principal">
-        {NAV.map((item) => (
-          <Link
-            key={item.to}
-            to={item.to}
-            activeOptions={{ exact: item.to === "/", includeSearch: false }}
-            className="relative flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground data-[status=active]:text-foreground data-[status=active]:after:absolute data-[status=active]:after:inset-x-0 data-[status=active]:after:-bottom-px data-[status=active]:after:h-0.5 data-[status=active]:after:bg-foreground"
-          >
-            {item.label}
-            {item.to === "/" ? <FollowUpCount /> : null}
-          </Link>
-        ))}
-      </nav>
-      <div className="ml-auto flex items-center gap-2 sm:gap-4">
+    <Sidebar collapsible="icon">
+      <SidebarHeader>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton size="lg" asChild>
+              <Link to="/">
+                <span className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sm font-semibold text-sidebar-primary-foreground">
+                  N
+                </span>
+                <span className="grid flex-1 text-left leading-tight">
+                  <span className="truncate font-semibold">Nelcota Leads</span>
+                  <span className="truncate text-xs text-muted-foreground">Prospecção</span>
+                </span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarHeader>
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {NAV.map((item) => {
+                const active = item.to === "/" ? pathname === "/" : pathname.startsWith(item.to);
+                return (
+                  <SidebarMenuItem key={item.to}>
+                    <SidebarMenuButton asChild isActive={active} tooltip={item.label}>
+                      <Link to={item.to}>
+                        <item.icon />
+                        <span>{item.label}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                    {item.to === "/" && due > 0 ? (
+                      <SidebarMenuBadge title={`${due} retornos para hoje`}>{due}</SidebarMenuBadge>
+                    ) : null}
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+      <SidebarFooter>
         <UsageMeter />
-        <ThemeToggle />
-        <Button size="sm" variant="outline" onClick={onNewSearch}>
-          <PlusIcon /> Busca manual
-        </Button>
-      </div>
-    </header>
-  );
-}
-
-/** Follow-ups due today, so the nav says when there is something to come back to. */
-function FollowUpCount() {
-  const { data } = useQuery(leadCountsQuery({}));
-  const due = data?.byView.followup ?? 0;
-  if (due === 0) return null;
-  return (
-    <span
-      className="rounded-full bg-brand px-1.5 text-xs leading-5 font-medium text-white tabular-nums"
-      title={`${due} para retornar hoje`}
-    >
-      {due}
-    </span>
-  );
-}
-
-function MobileTabBar() {
-  return (
-    <nav
-      aria-label="Principal"
-      className="grid shrink-0 grid-cols-4 border-t bg-background pb-[env(safe-area-inset-bottom)] md:hidden"
-    >
-      {NAV.map((item) => (
-        <Link
-          key={item.to}
-          to={item.to}
-          activeOptions={{ exact: item.to === "/", includeSearch: false }}
-          className="flex flex-col items-center gap-1 py-2 text-[12px] font-medium text-muted-foreground data-[status=active]:text-foreground"
-        >
-          <item.icon className="size-5" />
-          {item.label}
-        </Link>
-      ))}
-    </nav>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <ThemeToggle />
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
+      <SidebarRail />
+    </Sidebar>
   );
 }
 
@@ -120,52 +131,49 @@ function UsageMeter() {
   if (!data) return null;
   const { used, limit } = data.placesUsage;
   return (
-    <span
-      className={cn(
-        "hidden text-xs tabular-nums sm:inline",
-        used >= limit ? "text-destructive" : "text-muted-foreground",
-      )}
-      title="Requisições ao Google Places hoje"
-    >
-      Google {used}/{limit}
-    </span>
+    <p className="px-2 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
+      Google hoje: {used} de {limit} requisições
+    </p>
   );
 }
 
 function ThemeToggle() {
   const { theme, setTheme } = useTheme();
-  const Icon = theme === "dark" ? SunIcon : MoonIcon;
-  const label = theme === "dark" ? "Tema claro" : "Tema escuro";
+  const dark = theme === "dark";
+  const label = dark ? "Tema claro" : "Tema escuro";
   return (
-    <Button
-      variant="ghost"
-      size="icon-sm"
-      aria-label={label}
-      title={label}
-      className="text-muted-foreground"
-      onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-    >
-      <Icon />
-    </Button>
+    <SidebarMenuButton tooltip={label} onClick={() => setTheme(dark ? "light" : "dark")}>
+      {dark ? <SunIcon /> : <MoonIcon />}
+      <span>{label}</span>
+    </SidebarMenuButton>
   );
 }
 
-/** Padded, centered column for the simple pages (Buscas, Configurações). */
-export function Page({ children, className }: { children: ReactNode; className?: string }) {
+/**
+ * The standard page frame: a header bar with the sidebar toggle, the title and the page
+ * actions, then the content with consistent padding.
+ */
+export function Page({
+  title,
+  actions,
+  children,
+}: {
+  title: string;
+  actions?: ReactNode;
+  children: ReactNode;
+}) {
   return (
-    <div className={cn("mx-auto max-w-4xl px-4 pt-8 pb-16 sm:px-8 lg:pt-12", className)}>
-      {children}
-    </div>
-  );
-}
-
-export function PageHeader({ title, actions }: { title: string; actions?: ReactNode }) {
-  return (
-    <div className="mb-8 flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
-      <h1 className="text-[28px] leading-tight font-medium tracking-tight sm:text-[32px]">
-        {title}
-      </h1>
-      {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
-    </div>
+    <>
+      <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 border-b bg-background px-4 lg:px-6">
+        <SidebarTrigger className="-ml-1" />
+        <Separator
+          orientation="vertical"
+          className="mx-2 data-vertical:h-4 data-vertical:self-auto"
+        />
+        <h1 className="truncate text-base font-medium">{title}</h1>
+        {actions ? <div className="ml-auto flex items-center gap-2">{actions}</div> : null}
+      </header>
+      <div className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">{children}</div>
+    </>
   );
 }

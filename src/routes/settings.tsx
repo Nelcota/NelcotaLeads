@@ -5,7 +5,17 @@ import { PlusIcon, Trash2Icon } from "lucide-react";
 import type { ReactNode } from "react";
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
-import { Page, PageHeader } from "@/components/app-shell";
+import { Page } from "@/components/app-shell";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Field } from "@/components/field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -53,10 +63,11 @@ const TONE_HINTS: Record<SettingsInput["tone"], string> = {
 function SettingsPage() {
   const { data } = useSuspenseQuery(settingsQuery);
   return (
-    <Page>
-      <PageHeader title="Configurações" />
-      <AutopilotForm />
-      <SettingsForm defaults={data} />
+    <Page title="Configurações">
+      <div className="mx-auto grid w-full max-w-3xl gap-4 lg:gap-6">
+        <AutopilotForm />
+        <SettingsForm defaults={data} />
+      </div>
     </Page>
   );
 }
@@ -85,24 +96,34 @@ function AutopilotForm() {
   return (
     <form
       id="piloto"
-      className="border-b pb-10"
+      className="scroll-mt-20"
       noValidate
       onSubmit={(event) => void form.handleSubmit((data) => mutation.mutate(data))(event)}
     >
       <SettingsSection
+        footer={
+          <Button type="submit" disabled={!isDirty || mutation.isPending}>
+            {mutation.isPending ? "Salvando…" : "Salvar piloto automático"}
+          </Button>
+        }
         title="Piloto automático"
         description="Todo dia, no horário escolhido, a IA busca empresas novas, dá nota, descarta as fracas e escreve as mensagens. A cada dia ela usa um bairro diferente da cidade para não repetir resultados."
         contentClassName="grid gap-6"
       >
-        <label className="flex items-center gap-3 text-sm font-medium">
-          <input
-            type="checkbox"
-            className="size-5 accent-foreground"
-            defaultChecked={defaults.enabled}
-            {...form.register("enabled")}
+        <div className="flex items-center gap-3">
+          <Controller
+            control={form.control}
+            name="enabled"
+            render={({ field }) => (
+              <Switch
+                id="autopilot-enabled"
+                checked={field.value}
+                onCheckedChange={field.onChange}
+              />
+            )}
           />
-          Ligado
-        </label>
+          <Label htmlFor="autopilot-enabled">Ligado</Label>
+        </div>
 
         <div className="grid gap-2">
           <p className="text-sm font-medium">O que buscar</p>
@@ -201,12 +222,6 @@ function AutopilotForm() {
             />
           </Field>
         </div>
-
-        <div className="flex justify-end">
-          <Button type="submit" disabled={!isDirty || mutation.isPending}>
-            {mutation.isPending ? "Salvando…" : "Salvar piloto automático"}
-          </Button>
-        </div>
       </SettingsSection>
     </form>
   );
@@ -241,7 +256,7 @@ function SettingsForm({ defaults }: { defaults: SettingsInput }) {
   // Inputs get explicit defaultValue so the server-rendered HTML is already filled in.
   return (
     <form
-      className="grid pb-24"
+      className="grid gap-4 lg:gap-6"
       onSubmit={(event) => void form.handleSubmit((data) => mutation.mutate(data))(event)}
       noValidate
     >
@@ -390,7 +405,7 @@ function SettingsForm({ defaults }: { defaults: SettingsInput }) {
       </SettingsSection>
 
       {isDirty || mutation.isPending ? (
-        <div className="sticky bottom-0 z-20 -mx-4 border-t bg-background/95 backdrop-blur sm:-mx-8">
+        <div className="sticky bottom-0 z-20 -mx-4 -mb-4 border-t bg-background/95 backdrop-blur lg:-mx-6 lg:-mb-6">
           <div className="flex items-center justify-between gap-4 px-4 py-3 sm:px-8">
             <p className="text-sm text-muted-foreground">Alterações não salvas</p>
             <div className="flex gap-2">
@@ -417,20 +432,23 @@ function SettingsSection({
   title,
   description,
   contentClassName,
+  footer,
   children,
 }: {
   title: string;
   description: string;
   contentClassName?: string;
+  footer?: ReactNode;
   children: ReactNode;
 }) {
   return (
-    <section className="grid gap-6 border-t py-10 first:border-t-0 first:pt-2 md:grid-cols-[220px_minmax(0,1fr)] md:gap-10">
-      <div>
-        <h2 className="font-semibold">{title}</h2>
-        <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{description}</p>
-      </div>
-      <div className={contentClassName}>{children}</div>
-    </section>
+    <Card>
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+      <CardContent className={contentClassName}>{children}</CardContent>
+      {footer ? <CardFooter className="justify-end border-t">{footer}</CardFooter> : null}
+    </Card>
   );
 }

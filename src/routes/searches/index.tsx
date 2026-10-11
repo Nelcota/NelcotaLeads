@@ -1,9 +1,18 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Page, PageHeader, useOpenNewSearch } from "@/components/app-shell";
-import { SearchStatusBadge } from "@/components/search-status";
+import { Page, useOpenNewSearch } from "@/components/app-shell";
+import { SearchStatusBadge } from "@/components/lead-badges";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import type { Search } from "@/db/schema";
 import { formatDate } from "@/lib/format";
 import { searchesQuery } from "@/lib/queries";
@@ -17,20 +26,40 @@ function SearchesPage() {
   const { data } = useSuspenseQuery(searchesQuery);
   const openNewSearch = useOpenNewSearch();
   return (
-    <Page>
-      <PageHeader title="Buscas" />
-      {data.length === 0 ? (
-        <div className="grid justify-items-center gap-4 py-16 text-center">
-          <p className="text-sm text-muted-foreground">Nenhuma busca ainda.</p>
-          <Button onClick={openNewSearch}>Nova busca</Button>
-        </div>
-      ) : (
-        <ul className="divide-y border-y">
-          {data.map((search) => (
-            <SearchRow key={search.id} search={search} />
-          ))}
-        </ul>
-      )}
+    <Page
+      title="Buscas"
+      actions={
+        <Button variant="outline" size="sm" onClick={openNewSearch}>
+          Busca manual
+        </Button>
+      }
+    >
+      <div className="overflow-x-auto rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Busca</TableHead>
+              <TableHead>Origem</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Leads novos</TableHead>
+              <TableHead className="hidden text-right md:table-cell">Requisições</TableHead>
+              <TableHead className="hidden md:table-cell">Data</TableHead>
+              <TableHead className="w-28" />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {data.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
+                  Nenhuma busca ainda. O piloto automático e a busca manual aparecem aqui.
+                </TableCell>
+              </TableRow>
+            ) : (
+              data.map((search) => <SearchRow key={search.id} search={search} />)
+            )}
+          </TableBody>
+        </Table>
+      </div>
     </Page>
   );
 }
@@ -38,50 +67,55 @@ function SearchesPage() {
 function SearchRow({ search }: { search: Search }) {
   const processed = search.analyzedCount + search.errorCount;
   const running = search.status === "collecting" || search.status === "analyzing";
-  const facts = [
-    `${search.foundCount} ${search.foundCount === 1 ? "lead novo" : "leads novos"}`,
-    search.duplicateCount > 0 ? `${search.duplicateCount} já existiam` : null,
-    `${search.placesRequests} ${search.placesRequests === 1 ? "requisição" : "requisições"}`,
-    formatDate(search.createdAt, true),
-  ].filter(Boolean);
-
   return (
-    <li className="grid gap-2 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-6">
-      <div className="min-w-0">
-        <p className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <span className="font-medium">
-            {search.niche} em {search.city}
-          </span>
-          <SearchStatusBadge status={search.status} errors={search.errorCount} />
+    <TableRow>
+      <TableCell className="max-w-72">
+        <p className="truncate font-medium">
+          {search.niche} em {search.city}
         </p>
-        <p className="mt-1 text-sm text-muted-foreground">{facts.join(" · ")}</p>
         {running ? (
-          <div className="mt-3 flex items-center gap-3 text-xs text-muted-foreground">
+          <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
             <Progress
-              className="max-w-64"
-              value={
-                search.status === "collecting" || search.foundCount === 0
-                  ? 5
-                  : (processed / search.foundCount) * 100
-              }
+              className="w-32"
+              value={search.foundCount > 0 ? (processed / search.foundCount) * 100 : 5}
               aria-label="Progresso da análise"
             />
-            <span className="tabular-nums">
-              {processed} de {search.foundCount}
-            </span>
+            {processed} de {search.foundCount}
           </div>
         ) : null}
         {search.errorMessage ? (
-          <p className="mt-2 text-sm text-destructive">{search.errorMessage}</p>
+          <p className="mt-1 text-xs whitespace-normal text-destructive">{search.errorMessage}</p>
         ) : null}
-      </div>
-      {search.foundCount > 0 ? (
-        <Button asChild variant="outline" size="sm" className="justify-self-start">
-          <Link to="/leads" search={{ view: "all", searchId: search.id }}>
-            Ver leads
-          </Link>
-        </Button>
-      ) : null}
-    </li>
+      </TableCell>
+      <TableCell>
+        <Badge variant="outline">{search.origin === "autopilot" ? "Automática" : "Manual"}</Badge>
+      </TableCell>
+      <TableCell>
+        <SearchStatusBadge status={search.status} />
+      </TableCell>
+      <TableCell className="text-right tabular-nums">
+        {search.foundCount}
+        {search.duplicateCount > 0 ? (
+          <span className="block text-xs text-muted-foreground">
+            {search.duplicateCount} já existiam
+          </span>
+        ) : null}
+      </TableCell>
+      <TableCell className="hidden text-right tabular-nums md:table-cell">
+        {search.placesRequests}
+      </TableCell>
+      <TableCell className="hidden whitespace-nowrap md:table-cell">
+        {formatDate(search.createdAt, true)}
+      </TableCell>
+      <TableCell className="text-right">
+        {search.foundCount > 0 ? (
+          <Button asChild variant="outline" size="sm">
+            <Link to="/leads" search={{ view: "all", searchId: search.id }}>
+              Ver leads
+            </Link>
+          </Button>
+        ) : null}
+      </TableCell>
+    </TableRow>
   );
 }

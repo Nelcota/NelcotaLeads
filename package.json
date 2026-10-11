@@ -59,6 +59,7 @@
     "oxfmt": "^0.72.0",
     "oxlint": "^1.87.0",
     "oxlint-tsgolint": "^7.0.2004",
+    "shadcn": "4.21.4",
     "typescript": "^6.0.2",
     "vite": "^8.0.0",
     "vitest": "^5.0.3",
