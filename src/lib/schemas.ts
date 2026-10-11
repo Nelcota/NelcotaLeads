@@ -112,3 +112,19 @@ export const updateMessageSchema = z.object({
   analysisId: z.string().min(1),
   firstMessage: z.string().trim().max(2000),
 });
+
+/** Score bands used by filters, badges and counts. */
+export const SCORE_TIERS = {
+  high: { label: "Alta", min: 60, max: 100 },
+  medium: { label: "Média", min: 30, max: 59 },
+  low: { label: "Baixa", min: 0, max: 29 },
+} as const;
+export type ScoreTier = keyof typeof SCORE_TIERS;
+
+export function scoreTier(score: number): ScoreTier {
+  return score >= SCORE_TIERS.high.min
+    ? "high"
+    : score >= SCORE_TIERS.medium.min
+      ? "medium"
+      : "low";
+}

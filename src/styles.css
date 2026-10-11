@@ -7,6 +7,14 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* State variants used by the shadcn/ui (radix) components: map them to Radix data attributes. */
+@custom-variant data-open (&:where([data-state="open"]), &:where([data-open]:not([data-open="false"])));
+@custom-variant data-closed (&:where([data-state="closed"]), &:where([data-closed]:not([data-closed="false"])));
+@custom-variant data-checked (&:where([data-state="checked"]), &:where([data-checked]:not([data-checked="false"])));
+@custom-variant data-active (&:where([data-state="active"]), &:where([data-active]:not([data-active="false"])));
+@custom-variant data-horizontal (&:where([data-orientation="horizontal"]));
+@custom-variant data-vertical (&:where([data-orientation="vertical"]));
+
 @theme {
   --font-sans: "Manrope", sans-serif;
 }
@@ -37,11 +45,15 @@
   --color-brand: var(--brand);
   --color-success: var(--success);
   --color-warning: var(--warning);
+  --color-sidebar: var(--sidebar);
+  --color-tier-high: var(--tier-high);
+  --color-tier-medium: var(--tier-medium);
+  --color-tier-low: var(--tier-low);
 }
 
 :root {
   --radius: 0.625rem;
-  --background: oklch(0.995 0 0);
+  --background: oklch(1 0 0);
   --foreground: oklch(0.2 0.01 260);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.2 0.01 260);
@@ -62,6 +74,10 @@
   --brand: oklch(0.55 0.2 15);
   --success: oklch(0.6 0.14 155);
   --warning: oklch(0.72 0.15 70);
+  --sidebar: oklch(0.982 0.002 260);
+  --tier-high: oklch(0.56 0.15 155);
+  --tier-medium: oklch(0.7 0.14 70);
+  --tier-low: oklch(0.7 0.01 260);
 }
 
 .dark {
@@ -86,6 +102,18 @@
   --brand: oklch(0.68 0.18 15);
   --success: oklch(0.72 0.14 155);
   --warning: oklch(0.8 0.14 75);
+  --sidebar: oklch(0.14 0.006 260);
+  --tier-high: oklch(0.74 0.15 155);
+  --tier-medium: oklch(0.8 0.13 75);
+  --tier-low: oklch(0.55 0.01 260);
+}
+
+/* Horizontal scrollers (tabs, filters) without a visible scrollbar. */
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 @layer base {

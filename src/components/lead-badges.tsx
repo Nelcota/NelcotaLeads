@@ -1,7 +1,66 @@
 import type { LeadStatus } from "@/db/schema";
-import { Badge } from "@/components/ui/badge";
-import { LEAD_STATUS_LABELS } from "@/lib/schemas";
+import { LEAD_STATUS_LABELS, scoreTier, type ScoreTier } from "@/lib/schemas";
 import { cn } from "@/lib/utils";
+
+const TIER_STROKE: Record<ScoreTier, string> = {
+  high: "stroke-tier-high",
+  medium: "stroke-tier-medium",
+  low: "stroke-tier-low",
+};
+
+/** Circular 0–100 gauge colored by score band. */
+export function ScoreRing({
+  score,
+  size = 22,
+  stroke = 3,
+  showValue = false,
+  className,
+}: {
+  score: number;
+  size?: number;
+  stroke?: number;
+  showValue?: boolean;
+  className?: string;
+}) {
+  const radius = (size - stroke) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference * (1 - Math.max(0, Math.min(100, score)) / 100);
+  return (
+    <span
+      className={cn("relative inline-grid shrink-0 place-items-center", className)}
+      style={{ width: size, height: size }}
+      role="img"
+      aria-label={`Nota ${score} de 100`}
+    >
+      <svg width={size} height={size} className="-rotate-90">
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          strokeWidth={stroke}
+          className="stroke-muted"
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          className={cn(TIER_STROKE[scoreTier(score)], "transition-[stroke-dashoffset]")}
+        />
+      </svg>
+      {showValue ? (
+        <span className="absolute inset-0 grid place-items-center font-medium tabular-nums">
+          {score}
+        </span>
+      ) : null}
+    </span>
+  );
+}
 
 export function ScoreBadge({
   score,
@@ -14,45 +73,46 @@ export function ScoreBadge({
 }) {
   if (score === null) {
     return (
-      <span className={cn("text-xs text-muted-foreground", className)}>
-        {pending ? "analisando…" : "—"}
+      <span
+        className={cn("inline-flex items-center gap-2 text-xs text-muted-foreground", className)}
+      >
+        {pending ? (
+          <>
+            <span className="size-[18px] animate-spin rounded-full border-2 border-muted border-t-foreground/50" />
+            analisando
+          </>
+        ) : (
+          "—"
+        )}
       </span>
     );
   }
-  const tone =
-    score >= 70
-      ? "bg-brand/12 text-brand ring-brand/25"
-      : score >= 40
-        ? "bg-warning/15 text-foreground ring-warning/30"
-        : "bg-muted text-muted-foreground ring-border";
   return (
-    <span
-      className={cn(
-        "inline-flex min-w-9 justify-center rounded-md px-1.5 py-0.5 text-sm font-medium tabular-nums ring-1 ring-inset",
-        tone,
-        className,
-      )}
-    >
-      {score}
+    <span className={cn("inline-flex items-center gap-2 tabular-nums", className)}>
+      <ScoreRing score={score} size={20} stroke={2.5} />
+      <span className="w-6 font-medium">{score}</span>
     </span>
   );
 }
 
-const STATUS_VARIANT: Record<LeadStatus, "default" | "secondary" | "outline" | "destructive"> = {
-  new: "outline",
-  contacted: "secondary",
-  replied: "default",
-  closed: "default",
-  discarded: "outline",
+export const STATUS_DOT: Record<LeadStatus, string> = {
+  new: "bg-muted-foreground/40",
+  contacted: "bg-sky-500",
+  replied: "bg-amber-500",
+  closed: "bg-emerald-500",
+  discarded: "bg-muted-foreground/25",
 };
 
 export function LeadStatusBadge({ status }: { status: LeadStatus }) {
   return (
-    <Badge
-      variant={STATUS_VARIANT[status]}
-      className={cn(status === "discarded" && "text-muted-foreground line-through")}
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 text-sm whitespace-nowrap",
+        status === "discarded" && "text-muted-foreground",
+      )}
     >
+      <span className={cn("size-1.5 rounded-full", STATUS_DOT[status])} />
       {LEAD_STATUS_LABELS[status]}
-    </Badge>
+    </span>
   );
 }

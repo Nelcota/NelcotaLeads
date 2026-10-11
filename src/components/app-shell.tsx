@@ -1,57 +1,165 @@
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { MoonIcon, SunIcon } from "lucide-react";
+import {
+  HistoryIcon,
+  MoonIcon,
+  PlusIcon,
+  SlidersHorizontalIcon,
+  SunIcon,
+  UsersIcon,
+  type LucideIcon,
+} from "lucide-react";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
+import { providerStatusQuery } from "@/lib/queries";
 import { useTheme } from "@/lib/theme";
+import { cn } from "@/lib/utils";
 
-const NAV = [
-  { to: "/", label: "Leads" },
-  { to: "/searches", label: "Buscas" },
-  { to: "/settings", label: "Configurações" },
-] as const;
+const NAV: { to: "/" | "/searches" | "/settings"; label: string; icon: LucideIcon }[] = [
+  { to: "/", label: "Leads", icon: UsersIcon },
+  { to: "/searches", label: "Buscas", icon: HistoryIcon },
+  { to: "/settings", label: "Configurações", icon: SlidersHorizontalIcon },
+];
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const { theme, setTheme } = useTheme();
   return (
-    <div className="min-h-dvh">
-      <header className="sticky top-0 z-30 border-b bg-background/80 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-1 px-4 py-2.5 sm:h-14 sm:flex-nowrap sm:py-0 sm:px-6">
-          <Link
-            to="/"
-            className="flex items-center gap-2 text-[15px] font-medium tracking-tight whitespace-nowrap"
-          >
-            <span className="inline-block size-2.5 rounded-full bg-brand" />
-            Nelcota Leads
-          </Link>
-          <nav className="-mx-2.5 order-last flex w-full items-center gap-1 overflow-x-auto text-sm sm:order-none sm:mx-0 sm:w-auto sm:overflow-visible">
-            {NAV.map((item) => (
-              <Link
-                key={item.to}
-                to={item.to}
-                activeOptions={{ exact: item.to === "/" }}
-                className="relative rounded-md px-2.5 py-1.5 whitespace-nowrap text-muted-foreground transition-colors hover:text-foreground data-[status=active]:text-foreground data-[status=active]:after:absolute data-[status=active]:after:inset-x-2.5 data-[status=active]:after:-bottom-[11px] data-[status=active]:after:h-px data-[status=active]:after:bg-foreground max-sm:data-[status=active]:after:hidden"
-              >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-          <div className="ml-auto flex items-center gap-2">
-            <Button asChild size="sm">
-              <Link to="/searches/new">Nova busca</Link>
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Alternar tema"
-              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            >
-              {theme === "dark" ? <SunIcon /> : <MoonIcon />}
-            </Button>
-          </div>
-        </div>
-      </header>
-      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">{children}</main>
+    <div className="min-h-dvh lg:grid lg:grid-cols-[248px_minmax(0,1fr)]">
+      <Sidebar />
+      <MobileTopBar />
+      <main className="min-w-0 px-4 pt-6 pb-28 sm:px-8 lg:px-12 lg:pt-12 lg:pb-16">
+        <div className="mx-auto max-w-6xl">{children}</div>
+      </main>
+      <MobileTabBar />
     </div>
+  );
+}
+
+function Brand() {
+  return (
+    <Link to="/" className="flex items-center gap-2.5 text-[15px] font-medium tracking-tight">
+      <span className="grid size-7 place-items-center rounded-lg bg-foreground">
+        <span className="size-2.5 rounded-full bg-brand" />
+      </span>
+      Nelcota Leads
+    </Link>
+  );
+}
+
+function Sidebar() {
+  return (
+    <aside className="sticky top-0 hidden h-dvh flex-col border-r bg-sidebar px-4 py-6 lg:flex">
+      <div className="px-2">
+        <Brand />
+      </div>
+      <Button asChild className="mt-8 h-9 w-full justify-start gap-2 px-3">
+        <Link to="/searches/new">
+          <PlusIcon /> Nova busca
+        </Link>
+      </Button>
+      <nav className="mt-6 grid gap-0.5" aria-label="Principal">
+        {NAV.map((item) => (
+          <Link
+            key={item.to}
+            to={item.to}
+            activeOptions={{ exact: item.to === "/" }}
+            className="group flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground data-[status=active]:bg-muted data-[status=active]:font-medium data-[status=active]:text-foreground"
+          >
+            <item.icon className="size-4 opacity-70 group-data-[status=active]:opacity-100" />
+            {item.label}
+          </Link>
+        ))}
+      </nav>
+      <div className="mt-auto grid gap-4">
+        <UsageMeter />
+        <ThemeToggle className="justify-start" />
+      </div>
+    </aside>
+  );
+}
+
+function MobileTopBar() {
+  return (
+    <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b bg-background/85 px-4 backdrop-blur lg:hidden">
+      <Brand />
+      <div className="flex items-center gap-1">
+        <ThemeToggle iconOnly />
+        <Button asChild size="sm">
+          <Link to="/searches/new">
+            <PlusIcon /> Nova busca
+          </Link>
+        </Button>
+      </div>
+    </header>
+  );
+}
+
+function MobileTabBar() {
+  return (
+    <nav
+      aria-label="Principal"
+      className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-3 border-t bg-background/90 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden"
+    >
+      {NAV.map((item) => (
+        <Link
+          key={item.to}
+          to={item.to}
+          activeOptions={{ exact: item.to === "/" }}
+          className="flex flex-col items-center gap-1 py-2.5 text-[11px] text-muted-foreground data-[status=active]:font-medium data-[status=active]:text-foreground"
+        >
+          <item.icon className="size-5" />
+          {item.label}
+        </Link>
+      ))}
+    </nav>
+  );
+}
+
+/** Today's Google Places usage against the daily limit. */
+function UsageMeter() {
+  const { data } = useQuery(providerStatusQuery);
+  if (!data) return null;
+  const { used, limit } = data.placesUsage;
+  const ratio = limit > 0 ? Math.min(1, used / limit) : 1;
+  return (
+    <div className="rounded-lg border bg-background px-3 py-3">
+      <div className="flex items-baseline justify-between text-xs">
+        <span className="text-muted-foreground">Google hoje</span>
+        <span className="tabular-nums">
+          {used}
+          <span className="text-muted-foreground">/{limit}</span>
+        </span>
+      </div>
+      <div className="mt-2 h-1 overflow-hidden rounded-full bg-muted">
+        <div
+          className={cn(
+            "h-full rounded-full transition-[width]",
+            ratio >= 1 ? "bg-destructive" : ratio >= 0.8 ? "bg-warning" : "bg-foreground/70",
+          )}
+          style={{ width: `${ratio * 100}%` }}
+        />
+      </div>
+      <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
+        requisições pagas · renova à 0h
+      </p>
+    </div>
+  );
+}
+
+function ThemeToggle({ iconOnly, className }: { iconOnly?: boolean; className?: string }) {
+  const { theme, setTheme } = useTheme();
+  const Icon = theme === "dark" ? SunIcon : MoonIcon;
+  const label = theme === "dark" ? "Tema claro" : "Tema escuro";
+  return (
+    <Button
+      variant="ghost"
+      size={iconOnly ? "icon-sm" : "sm"}
+      aria-label={label}
+      className={cn("text-muted-foreground", className)}
+      onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+    >
+      <Icon />
+      {iconOnly ? null : label}
+    </Button>
   );
 }
 
@@ -59,15 +167,20 @@ export function PageHeader({
   title,
   description,
   actions,
+  eyebrow,
 }: {
   title: string;
   description?: string;
   actions?: ReactNode;
+  eyebrow?: ReactNode;
 }) {
   return (
     <div className="mb-8 flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
       <div className="min-w-0">
-        <h1 className="text-2xl font-medium tracking-tight sm:text-[28px]">{title}</h1>
+        {eyebrow ? <div className="mb-3">{eyebrow}</div> : null}
+        <h1 className="text-[26px] leading-tight font-medium tracking-tight sm:text-[30px]">
+          {title}
+        </h1>
         {description ? (
           <p className="mt-2 max-w-2xl text-[15px] leading-relaxed font-light text-muted-foreground">
             {description}

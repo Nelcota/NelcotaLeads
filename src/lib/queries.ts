@@ -1,6 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
 import type { LeadFilters } from "@/lib/schemas";
-import { getLead, listLeads } from "@/server/leads";
+import { getLead, getLeadCounts, listLeads } from "@/server/leads";
 import { getProviderStatus, getSearch, listSearches } from "@/server/searches";
 
 const isRunning = (status: string) => status === "collecting" || status === "analyzing";
@@ -40,4 +40,11 @@ export const leadQuery = (id: string) =>
     queryFn: () => getLead({ data: { id } }),
     refetchInterval: (query) =>
       query.state.data?.lead.analysisStatus === "pending" ? 3000 : false,
+  });
+
+export const leadCountsQuery = (filters: LeadFilters) =>
+  queryOptions({
+    queryKey: ["leads", "counts", filters],
+    queryFn: () => getLeadCounts({ data: filters }),
+    refetchInterval: (query) => ((query.state.data?.pending ?? 0) > 0 ? 3000 : false),
   });

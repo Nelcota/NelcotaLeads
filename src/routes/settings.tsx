@@ -2,12 +2,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { queryOptions, useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { PlusIcon, Trash2Icon } from "lucide-react";
+import type { ReactNode } from "react";
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/app-shell";
 import { Field } from "@/components/field";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -37,7 +37,7 @@ const TONE_HINTS: Record<SettingsInput["tone"], string> = {
 function SettingsPage() {
   const { data } = useSuspenseQuery(settingsQuery);
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="mx-auto max-w-4xl">
       <PageHeader
         title="O que eu vendo"
         description="A IA usa estas informações para analisar cada empresa, dar a nota e escrever a mensagem."
@@ -76,170 +76,153 @@ function SettingsForm({ defaults }: { defaults: SettingsInput }) {
   // Inputs get explicit defaultValue so the server-rendered HTML is already filled in.
   return (
     <form
-      className="grid gap-6 pb-24"
+      className="grid pb-24"
       onSubmit={(event) => void form.handleSubmit((data) => mutation.mutate(data))(event)}
       noValidate
     >
-      <Card>
-        <CardHeader>
-          <CardTitle>Oferta e cliente ideal</CardTitle>
-          <CardDescription>Quanto mais específico, melhor a nota e a mensagem.</CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-6">
-          <Field
-            label="O que você oferece"
-            htmlFor="offer"
-            hint="Ex.: criação de sites e automação de agendamento para clínicas odontológicas"
-            error={errors.offer?.message}
-          >
-            <Textarea
-              id="offer"
-              rows={3}
-              defaultValue={defaults.offer}
-              {...form.register("offer")}
-            />
-          </Field>
-          <Field
-            label="Para quem"
-            htmlFor="idealCustomer"
-            hint="Ex.: clínicas pequenas, sem site ou com site antigo, que dependem de indicação"
-            error={errors.idealCustomer?.message}
-          >
-            <Textarea
-              id="idealCustomer"
-              rows={3}
-              defaultValue={defaults.idealCustomer}
-              {...form.register("idealCustomer")}
-            />
-          </Field>
-        </CardContent>
-      </Card>
+      <SettingsSection
+        title="Oferta e cliente ideal"
+        description="Quanto mais específico, melhor a nota e a mensagem."
+        contentClassName="grid gap-6"
+      >
+        <Field
+          label="O que você oferece"
+          htmlFor="offer"
+          hint="Ex.: criação de sites e automação de agendamento para clínicas odontológicas"
+          error={errors.offer?.message}
+        >
+          <Textarea id="offer" rows={3} defaultValue={defaults.offer} {...form.register("offer")} />
+        </Field>
+        <Field
+          label="Para quem"
+          htmlFor="idealCustomer"
+          hint="Ex.: clínicas pequenas, sem site ou com site antigo, que dependem de indicação"
+          error={errors.idealCustomer?.message}
+        >
+          <Textarea
+            id="idealCustomer"
+            rows={3}
+            defaultValue={defaults.idealCustomer}
+            {...form.register("idealCustomer")}
+          />
+        </Field>
+      </SettingsSection>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Critérios de pontuação</CardTitle>
-          <CardDescription>
-            A nota é a soma dos pesos dos critérios que se aplicam a cada empresa, limitada a 100.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-2">
-          <div className="grid grid-cols-[1fr_6.5rem_2rem] gap-2 text-xs font-medium text-muted-foreground">
-            <span>Sinal</span>
-            <span>Peso</span>
-          </div>
-          {criteria.fields.map((field, index) => (
-            <div key={field.id} className="grid grid-cols-[1fr_6.5rem_2rem] items-start gap-2">
-              <Input
-                aria-label={`Sinal ${index + 1}`}
-                defaultValue={field.label}
-                {...form.register(`criteria.${index}.label`)}
-                aria-invalid={Boolean(errors.criteria?.[index]?.label)}
-              />
-              <Input
-                aria-label={`Peso ${index + 1}`}
-                type="number"
-                inputMode="numeric"
-                className="tabular-nums"
-                defaultValue={field.weight}
-                {...form.register(`criteria.${index}.weight`, { valueAsNumber: true })}
-                aria-invalid={Boolean(errors.criteria?.[index]?.weight)}
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                aria-label={`Remover critério ${index + 1}`}
-                className="text-muted-foreground hover:text-destructive"
-                onClick={() => criteria.remove(index)}
-              >
-                <Trash2Icon />
-              </Button>
-            </div>
-          ))}
-          <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => criteria.append({ label: "", weight: 10 })}
-            >
-              <PlusIcon /> Adicionar critério
-            </Button>
-            <p className="text-xs text-muted-foreground">
-              Soma dos pesos positivos:{" "}
-              <span
-                className={cn("font-medium tabular-nums", maxScore !== 100 && "text-foreground")}
-              >
-                {maxScore}
-              </span>
-              {maxScore < 100 ? " (a nota máxima possível fica abaixo de 100)" : null}
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Mensagem de abordagem</CardTitle>
-          <CardDescription>
-            A IA escreve uma mensagem para os leads com nota alta. O envio é sempre manual.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-6 sm:grid-cols-2">
-          <Field label="Tom" hint={TONE_HINTS[tone]}>
-            <Controller
-              control={form.control}
-              name="tone"
-              render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger className="w-full" aria-label="Tom da mensagem">
-                    <SelectValue>{TONE_LABELS[field.value]}</SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TONES.map((value) => (
-                      <SelectItem key={value} value={value}>
-                        {TONE_LABELS[value]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            />
-          </Field>
-          <Field
-            label="Gerar mensagem a partir da nota"
-            htmlFor="threshold"
-            hint="Abaixo disso, você ainda pode gerar na página do lead."
-            error={errors.messageScoreThreshold?.message}
-          >
+      <SettingsSection
+        title="Critérios de pontuação"
+        description="A nota é a soma dos pesos dos critérios que se aplicam a cada empresa, limitada a 100."
+        contentClassName="grid gap-2"
+      >
+        <div className="grid grid-cols-[1fr_6.5rem_2rem] gap-2 text-xs font-medium text-muted-foreground">
+          <span>Sinal</span>
+          <span>Peso</span>
+        </div>
+        {criteria.fields.map((field, index) => (
+          <div key={field.id} className="grid grid-cols-[1fr_6.5rem_2rem] items-start gap-2">
             <Input
-              id="threshold"
+              aria-label={`Sinal ${index + 1}`}
+              defaultValue={field.label}
+              {...form.register(`criteria.${index}.label`)}
+              aria-invalid={Boolean(errors.criteria?.[index]?.label)}
+            />
+            <Input
+              aria-label={`Peso ${index + 1}`}
               type="number"
               inputMode="numeric"
-              min={0}
-              max={100}
-              defaultValue={defaults.messageScoreThreshold}
-              {...form.register("messageScoreThreshold", { valueAsNumber: true })}
+              className="tabular-nums"
+              defaultValue={field.weight}
+              {...form.register(`criteria.${index}.weight`, { valueAsNumber: true })}
+              aria-invalid={Boolean(errors.criteria?.[index]?.weight)}
             />
-          </Field>
-          <Field label="Seu nome" htmlFor="senderName" error={errors.senderName?.message}>
-            <Input
-              id="senderName"
-              autoComplete="name"
-              defaultValue={defaults.senderName}
-              {...form.register("senderName")}
-            />
-          </Field>
-          <Field label="Sua empresa" htmlFor="senderCompany" error={errors.senderCompany?.message}>
-            <Input
-              id="senderCompany"
-              autoComplete="organization"
-              defaultValue={defaults.senderCompany}
-              {...form.register("senderCompany")}
-            />
-          </Field>
-        </CardContent>
-      </Card>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label={`Remover critério ${index + 1}`}
+              className="text-muted-foreground hover:text-destructive"
+              onClick={() => criteria.remove(index)}
+            >
+              <Trash2Icon />
+            </Button>
+          </div>
+        ))}
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => criteria.append({ label: "", weight: 10 })}
+          >
+            <PlusIcon /> Adicionar critério
+          </Button>
+          <p className="text-xs text-muted-foreground">
+            Soma dos pesos positivos:{" "}
+            <span className={cn("font-medium tabular-nums", maxScore !== 100 && "text-foreground")}>
+              {maxScore}
+            </span>
+            {maxScore < 100 ? " (a nota máxima possível fica abaixo de 100)" : null}
+          </p>
+        </div>
+      </SettingsSection>
+
+      <SettingsSection
+        title="Mensagem de abordagem"
+        description="A IA escreve uma mensagem para os leads com nota alta. O envio é sempre manual."
+        contentClassName="grid gap-6 sm:grid-cols-2"
+      >
+        <Field label="Tom" hint={TONE_HINTS[tone]}>
+          <Controller
+            control={form.control}
+            name="tone"
+            render={({ field }) => (
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger className="w-full" aria-label="Tom da mensagem">
+                  <SelectValue>{TONE_LABELS[field.value]}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {TONES.map((value) => (
+                    <SelectItem key={value} value={value}>
+                      {TONE_LABELS[value]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+        </Field>
+        <Field
+          label="Gerar mensagem a partir da nota"
+          htmlFor="threshold"
+          hint="Abaixo disso, você ainda pode gerar na página do lead."
+          error={errors.messageScoreThreshold?.message}
+        >
+          <Input
+            id="threshold"
+            type="number"
+            inputMode="numeric"
+            min={0}
+            max={100}
+            defaultValue={defaults.messageScoreThreshold}
+            {...form.register("messageScoreThreshold", { valueAsNumber: true })}
+          />
+        </Field>
+        <Field label="Seu nome" htmlFor="senderName" error={errors.senderName?.message}>
+          <Input
+            id="senderName"
+            autoComplete="name"
+            defaultValue={defaults.senderName}
+            {...form.register("senderName")}
+          />
+        </Field>
+        <Field label="Sua empresa" htmlFor="senderCompany" error={errors.senderCompany?.message}>
+          <Input
+            id="senderCompany"
+            autoComplete="organization"
+            defaultValue={defaults.senderCompany}
+            {...form.register("senderCompany")}
+          />
+        </Field>
+      </SettingsSection>
 
       <div
         className={cn(
@@ -247,7 +230,7 @@ function SettingsForm({ defaults }: { defaults: SettingsInput }) {
           isDirty || mutation.isPending ? "translate-y-0" : "translate-y-full",
         )}
       >
-        <div className="mx-auto flex max-w-3xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
+        <div className="mx-auto flex max-w-4xl items-center justify-between gap-4 px-4 py-3 sm:px-8 lg:pl-[calc(248px+3rem)]">
           <p className="text-sm text-muted-foreground">Alterações não salvas</p>
           <div className="flex gap-2">
             <Button
@@ -265,5 +248,27 @@ function SettingsForm({ defaults }: { defaults: SettingsInput }) {
         </div>
       </div>
     </form>
+  );
+}
+
+function SettingsSection({
+  title,
+  description,
+  contentClassName,
+  children,
+}: {
+  title: string;
+  description: string;
+  contentClassName?: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="grid gap-6 border-t py-10 first:border-t-0 first:pt-2 md:grid-cols-[220px_minmax(0,1fr)] md:gap-10">
+      <div>
+        <h2 className="font-medium">{title}</h2>
+        <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{description}</p>
+      </div>
+      <div className={contentClassName}>{children}</div>
+    </section>
   );
 }

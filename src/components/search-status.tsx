@@ -1,11 +1,11 @@
 import type { SearchStatus } from "@/db/schema";
-import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 const LABELS: Record<SearchStatus, string> = {
   collecting: "Coletando",
   analyzing: "Analisando",
   done: "Concluída",
-  error: "Com erro",
+  error: "Falhou",
 };
 
 export function SearchStatusBadge({
@@ -15,15 +15,24 @@ export function SearchStatusBadge({
   status: SearchStatus;
   errors?: number;
 }) {
-  if (status === "done" && errors > 0) return <Badge variant="outline">Concluída com erros</Badge>;
+  const running = status === "collecting" || status === "analyzing";
+  const withErrors = status === "done" && errors > 0;
   return (
-    <Badge
-      variant={status === "error" ? "destructive" : status === "done" ? "secondary" : "outline"}
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 text-xs whitespace-nowrap",
+        status === "error" ? "text-destructive" : "text-muted-foreground",
+      )}
     >
-      {status === "collecting" || status === "analyzing" ? (
-        <span className="mr-1 inline-block size-1.5 animate-pulse rounded-full bg-brand" />
-      ) : null}
-      {LABELS[status]}
-    </Badge>
+      <span
+        className={cn(
+          "size-1.5 rounded-full",
+          running && "animate-pulse bg-brand",
+          status === "done" && (withErrors ? "bg-warning" : "bg-tier-high"),
+          status === "error" && "bg-destructive",
+        )}
+      />
+      {withErrors ? `Concluída · ${errors} com erro` : LABELS[status]}
+    </span>
   );
 }

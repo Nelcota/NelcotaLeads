@@ -38,7 +38,7 @@ pnpm dev                           # http://localhost:3000
 
 As duas chaves (`GOOGLE_PLACES_API_KEY` e `DEEPSEEK_API_KEY`) são obrigatórias: o app não usa dados simulados. Enquanto alguma faltar, a tela de nova busca mostra qual é e bloqueia a busca.
 
-Fluxo de uso: **Configurações** (descreva sua oferta e os critérios) → **Nova busca** → acompanhe o progresso → **Leads** → detalhe → copiar mensagem / abrir WhatsApp → **Exportar CSV**.
+Fluxo de uso: **Configurações** (descreva sua oferta e os critérios) → **Nova busca** → acompanhe o progresso → **Leads** (abas por status, filtro por faixa de nota) → clique num lead para abrir o painel lateral → revise a mensagem, abra o WhatsApp e avance o status no funil → **Exportar CSV**.
 
 ### Variáveis
 

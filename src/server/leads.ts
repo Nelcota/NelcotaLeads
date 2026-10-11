@@ -6,13 +6,17 @@ import { getDb } from "@/db/client";
 import { analyses, leads, searches } from "@/db/schema";
 import { leadFiltersSchema, updateLeadSchema, updateMessageSchema } from "@/lib/schemas";
 import { getAnalyzer } from "@/lib/ai";
-import { queryLeads } from "./leads-query";
+import { countLeads, queryLeads } from "./leads-query";
 import { writeMessageForLead } from "./process-lead";
 import { enqueueLeads } from "./queue";
 
 export const listLeads = createServerFn({ method: "GET" })
   .validator(leadFiltersSchema)
   .handler(({ data }) => queryLeads(getDb(), data));
+
+export const getLeadCounts = createServerFn({ method: "GET" })
+  .validator(leadFiltersSchema)
+  .handler(({ data }) => countLeads(getDb(), data));
 
 export const getLead = createServerFn({ method: "GET" })
   .validator(z.object({ id: z.string().min(1) }))

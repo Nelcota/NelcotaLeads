@@ -1,7 +1,12 @@
 import { and, asc, desc, eq, gte, isNull, like, lte, sql, type SQL } from "drizzle-orm";
 import type { Db } from "@/db/client";
 import { analyses, leads } from "@/db/schema";
-import type { LeadFilters } from "@/lib/schemas";
+import {
+  SCORE_TIERS,
+  type LEAD_STATUS_VALUES,
+  type LeadFilters,
+  type ScoreTier,
+} from "@/lib/schemas";
 
 export const LIST_LIMIT = 1000;
 
@@ -70,3 +75,70 @@ export function queryLeads(db: Db, filters: LeadFilters) {
 }
 
 export type LeadRow = Awaited<ReturnType<typeof queryLeads>>[number];
+
+export type LeadCounts = {
+  total: number;
+  byStatus: Record<(typeof LEAD_STATUS_VALUES)[number], number>;
+  byTier: Record<ScoreTier, number>;
+  pending: number;
+};
+
+/**
+ * Counts for the status tabs and score bands. Each dimension ignores its own filter
+ * (status counts ignore the status filter, band counts ignore the score range).
+ */
+export async function countLeads(db: Db, filters: LeadFilters): Promise<LeadCounts> {
+  const [statusRows, tierRows] = await Promise.all([
+    db
+      .select({
+        status: leads.status,
+        count: sql<number>`count(*)`.mapWith(Number),
+        pending:
+          sql<number>`coalesce(sum(case when ${leads.analysisStatus} = 'pending' then 1 else 0 end), 0)`.mapWith(
+            Number,
+          ),
+      })
+      .from(leads)
+      .where(whereClause({ ...filters, status: undefined }))
+      .groupBy(leads.status),
+    db
+      .select({
+        high: sql<number>`coalesce(sum(case when ${leads.score} >= ${SCORE_TIERS.high.min} then 1 else 0 end), 0)`.mapWith(
+          Number,
+        ),
+        medium:
+          sql<number>`coalesce(sum(case when ${leads.score} between ${SCORE_TIERS.medium.min} and ${SCORE_TIERS.medium.max} then 1 else 0 end), 0)`.mapWith(
+            Number,
+          ),
+        low: sql<number>`coalesce(sum(case when ${leads.score} <= ${SCORE_TIERS.low.max} then 1 else 0 end), 0)`.mapWith(
+          Number,
+        ),
+      })
+      .from(leads)
+      .where(whereClause({ ...filters, minScore: undefined, maxScore: undefined })),
+  ]);
+
+  const byStatus: LeadCounts["byStatus"] = {
+    new: 0,
+    contacted: 0,
+    replied: 0,
+    closed: 0,
+    discarded: 0,
+  };
+  let pending = 0;
+  for (const row of statusRows) {
+    byStatus[row.status] = row.count;
+    pending += row.pending;
+  }
+  const tiers = tierRows[0];
+  return {
+    total: Object.values(byStatus).reduce((a, b) => a + b, 0),
+    byStatus,
+    byTier: {
+      high: tiers?.high ?? 0,
+      medium: tiers?.medium ?? 0,
+      low: tiers?.low ?? 0,
+    },
+    pending,
+  };
+}

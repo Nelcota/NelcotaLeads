@@ -95,8 +95,8 @@ function SearchPage() {
               >
                 <div className="min-w-0">
                   <Link
-                    to="/leads/$leadId"
-                    params={{ leadId: lead.id }}
+                    to="/"
+                    search={{ searchId, lead: lead.id }}
                     className="block truncate text-sm font-medium after:absolute after:inset-0"
                   >
                     {lead.name}
