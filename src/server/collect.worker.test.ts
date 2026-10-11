@@ -1,5 +1,6 @@
 import { env } from "cloudflare:test";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
+import { resetDb } from "../../test/reset-db";
 import { getDb } from "@/db/client";
 import { leads } from "@/db/schema";
 import { createMockPlacesProvider } from "@/lib/places/mock";
@@ -23,6 +24,8 @@ function fakeQueue() {
 const input = { niche: "Dentistas", city: "Belo Horizonte", maxResults: 9 };
 
 describe("runSearch", () => {
+  beforeEach(resetDb);
+
   it("stores unique leads and enqueues one job per new lead", async () => {
     const db = getDb(env.DB);
     const { sent, queue } = fakeQueue();

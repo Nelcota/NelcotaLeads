@@ -1,9 +1,12 @@
 import { env } from "cloudflare:test";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
+import { resetDb } from "../../test/reset-db";
 import { getDb } from "@/db/client";
 import { DEFAULT_SETTINGS, loadSettings, storeSettings } from "./settings-store";
 
 describe("settings store", () => {
+  beforeEach(resetDb);
+
   it("returns defaults before anything is saved", async () => {
     expect(await loadSettings(getDb(env.DB))).toEqual(DEFAULT_SETTINGS);
   });

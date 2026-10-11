@@ -8,7 +8,7 @@
   "name": "nelcota-leads",
   "compatibility_date": "2026-10-01",
   "compatibility_flags": ["nodejs_compat"],
-  "main": "@tanstack/react-start/server-entry",
+  "main": "src/server.ts",
   "observability": { "enabled": true },
   "upload_source_maps": true,
   "vars": {
@@ -26,5 +26,17 @@
   ],
   "queues": {
     "producers": [{ "binding": "LEAD_QUEUE", "queue": "nelcota-leads-analysis" }],
+    "consumers": [
+      {
+        "queue": "nelcota-leads-analysis",
+        // Each message reads one site and makes up to two LLM calls; keep the fan-out modest.
+        "max_batch_size": 5,
+        "max_batch_timeout": 5,
+        "max_concurrency": 3,
+        // Must exceed MAX_ATTEMPTS in src/server/process-lead.ts so failures get recorded.
+        "max_retries": 5,
+        "dead_letter_queue": "nelcota-leads-analysis-dlq",
+      },
+    ],
   },
 }
