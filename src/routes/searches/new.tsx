@@ -122,11 +122,8 @@ function NewSearchPage() {
           <p className="text-sm text-muted-foreground">
             {requests > 0 ? (
               <>
-                Usa até{" "}
-                <span className="font-medium text-foreground">
-                  {requests} {requests === 1 ? "requisição" : "requisições"}
-                </span>{" "}
-                · restam {remaining} de {limit} hoje
+                Usa até {requests} {requests === 1 ? "requisição" : "requisições"} · restam{" "}
+                {remaining} de {limit} hoje
               </>
             ) : (
               `Restam ${remaining} de ${limit} requisições hoje`

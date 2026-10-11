@@ -35,9 +35,8 @@ function SearchesPage() {
                   params={{ searchId: search.id }}
                   className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 py-4 transition-colors hover:bg-muted/40 sm:px-3"
                 >
-                  <span>
-                    <span className="font-medium">{search.niche}</span>
-                    <span className="text-muted-foreground"> em {search.city}</span>
+                  <span className="font-medium">
+                    {search.niche} em {search.city}
                   </span>
                   <span className="flex items-baseline gap-4 text-sm text-muted-foreground">
                     <span className="tabular-nums">

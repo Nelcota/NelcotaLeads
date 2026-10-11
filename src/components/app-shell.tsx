@@ -59,7 +59,7 @@ function Sidebar() {
             key={item.to}
             to={item.to}
             activeOptions={{ exact: item.to === "/" }}
-            className="group flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground data-[status=active]:bg-muted data-[status=active]:font-medium data-[status=active]:text-foreground"
+            className="group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground data-[status=active]:bg-muted data-[status=active]:text-foreground"
           >
             <item.icon className="size-4 opacity-70 group-data-[status=active]:opacity-100" />
             {item.label}
@@ -101,7 +101,7 @@ function MobileTabBar() {
           key={item.to}
           to={item.to}
           activeOptions={{ exact: item.to === "/" }}
-          className="flex flex-col items-center gap-1 py-2.5 text-[12px] text-muted-foreground data-[status=active]:font-medium data-[status=active]:text-foreground"
+          className="flex flex-col items-center gap-1 py-2.5 text-[12px] font-medium text-muted-foreground data-[status=active]:text-foreground"
         >
           <item.icon className="size-5" />
           {item.label}
@@ -143,7 +143,7 @@ function ThemeToggle({ iconOnly, className }: { iconOnly?: boolean; className?: 
       variant="ghost"
       size={iconOnly ? "icon-sm" : "sm"}
       aria-label={label}
-      className={cn("text-muted-foreground", className)}
+      className={cn("font-normal text-muted-foreground", className)}
       onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
     >
       <Icon />

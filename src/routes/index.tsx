@@ -252,14 +252,16 @@ function StatusTabs({
               aria-selected={selected}
               onClick={() => onChange(tab.value)}
               className={cn(
-                "relative flex items-center gap-2 pb-3 text-sm whitespace-nowrap transition-colors",
+                "relative flex items-center gap-2 pb-3 text-sm font-medium whitespace-nowrap transition-colors",
                 selected
-                  ? "font-medium text-foreground after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:rounded-full after:bg-foreground"
+                  ? "text-foreground after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:rounded-full after:bg-foreground"
                   : "text-muted-foreground hover:text-foreground",
               )}
             >
               {tab.label}
-              <span className="text-xs text-muted-foreground tabular-nums">{tab.count ?? ""}</span>
+              <span className="text-xs font-normal text-muted-foreground tabular-nums">
+                {tab.count ?? ""}
+              </span>
             </button>
           );
         })}
@@ -395,9 +397,7 @@ function Segment({
       onClick={onClick}
       className={cn(
         "flex h-full items-center gap-1.5 rounded-md px-3 whitespace-nowrap transition-colors",
-        checked
-          ? "bg-muted font-medium text-foreground"
-          : "text-muted-foreground hover:text-foreground",
+        checked ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground",
       )}
     >
       {children}
