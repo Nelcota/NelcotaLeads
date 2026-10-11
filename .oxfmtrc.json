@@ -5,6 +5,7 @@
     "drizzle/**",
     "src/routeTree.gen.ts",
     "worker-configuration.d.ts",
-    "pnpm-lock.yaml"
+    "pnpm-lock.yaml",
+    "src/components/ui/**"
   ]
 }

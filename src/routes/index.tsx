@@ -152,7 +152,7 @@ function LeadsPage() {
       )}
 
       <Sheet open={Boolean(openLeadId)} onOpenChange={(open) => !open && void openLead(undefined)}>
-        <SheetContent>
+        <SheetContent className="gap-0 data-[side=right]:w-full data-[side=right]:sm:max-w-2xl">
           <SheetTitle className="sr-only">Detalhes do lead</SheetTitle>
           <SheetDescription className="sr-only">
             Análise, mensagem e dados de contato do lead.
