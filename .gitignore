@@ -20,3 +20,6 @@ todos.json
 /e2e/.auth/
 /test-results/
 /playwright-report/
+
+# Agent worktrees nested in the checkout
+.claude/worktrees/
