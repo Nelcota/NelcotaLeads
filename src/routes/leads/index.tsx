@@ -422,10 +422,11 @@ function Toolbar({
     return () => clearTimeout(timer);
   }, [q, filters.q]);
 
-  // Cleared at once, without waiting for the debounce.
+  // Cleared at once, without waiting for the debounce. Always navigates: a search that was
+  // just sent may not be in `filters` yet, and would otherwise come back when it lands.
   const clearSearch = () => {
     setQ("");
-    if (filters.q) onChange({ q: undefined });
+    onChange({ q: undefined });
   };
 
   const { data: searches } = useQuery(searchesQuery);
