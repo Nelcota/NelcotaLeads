@@ -79,12 +79,18 @@ export class Backend {
     return this.call({ action: "inbound", ...email });
   }
 
-  lead(lead: { name: string; website?: string | null; email?: string | null }) {
+  lead(lead: {
+    name: string;
+    website?: string | null;
+    email?: string | null;
+    phone?: string | null;
+  }) {
     return this.call<{ id: string }>({
       action: "lead",
       name: lead.name,
       website: lead.website ?? null,
       email: lead.email ?? null,
+      phone: lead.phone ?? null,
     });
   }
 

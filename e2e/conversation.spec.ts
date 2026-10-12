@@ -8,7 +8,12 @@ const OTHER = { name: "Clínica Aurora", email: "contato@aurora.test" };
  * Writes and sends the first e-mail from the lead panel; returns its Message-ID. A second
  * conversation waits for the gap between first e-mails, so it needs a cron tick (`sendAt`).
  */
-async function startConversation(page: Page, backend: Backend, lead = LEAD, sendAt?: Date) {
+async function startConversation(
+  page: Page,
+  backend: Backend,
+  lead: { name: string; email: string; phone?: string } = LEAD,
+  sendAt?: Date,
+) {
   const before = (await backend.sent()).length;
   const { id } = await backend.lead(lead);
   await visit(page, `/leads?lead=${id}`);
@@ -324,5 +329,21 @@ test.describe("e-mail conversations", () => {
     await page.keyboard.press("Escape");
     await expect(page).not.toHaveURL(/lead=/);
     await expect(page.getByRole("button", { name: new RegExp(LEAD.name) })).toBeVisible();
+  });
+
+  test("WhatsApp opens from the conversation when the lead has a phone", async ({
+    page,
+    backend,
+  }) => {
+    const { id } = await startConversation(page, backend, { ...LEAD, phone: "(31) 99999-0000" });
+    await visit(page, `/conversas?lead=${id}`);
+    const whatsapp = page.getByRole("link", { name: "WhatsApp", exact: true });
+    await expect(whatsapp).toHaveAttribute("href", "https://wa.me/5531999990000");
+    await expect(whatsapp).toHaveAttribute("target", "_blank");
+
+    const other = await startConversation(page, backend, OTHER, tickTimes(1)[0]);
+    await visit(page, `/conversas?lead=${other.id}`);
+    await expect(page.getByLabel("Sua resposta")).toBeVisible();
+    await expect(page.getByRole("link", { name: /WhatsApp/ })).toHaveCount(0);
   });
 });

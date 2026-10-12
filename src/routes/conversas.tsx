@@ -6,6 +6,7 @@ import {
   CircleCheckIcon,
   GlobeIcon,
   HandIcon,
+  MessageCircleIcon,
   MessagesSquareIcon,
   PhoneIcon,
   RefreshCwIcon,
@@ -64,6 +65,7 @@ import {
 import { pageTitle } from "@/lib/page-title";
 import { isSendChord, sendShortcut } from "@/lib/shortcuts";
 import { matchesQuery } from "@/lib/text-search";
+import { whatsappLink } from "@/lib/phone";
 import { useListHotkeys } from "@/hooks/use-list-hotkeys";
 
 const FILTERS = ["all", "needsYou", "aiTalking", "waiting", "closed"] as const;
@@ -586,6 +588,14 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
               {reopen.isPending ? "Reabrindo…" : "Reabrir conversa"}
             </Button>
           )}
+          {lead.phoneE164 ? (
+            <Button asChild size="sm" variant="secondary" className="text-green">
+              <ExternalLink href={whatsappLink(lead.phoneE164)} indicator={false}>
+                <MessageCircleIcon />
+                WhatsApp
+              </ExternalLink>
+            </Button>
+          ) : null}
           {lead.phone ? (
             <Button asChild size="sm" variant="secondary">
               <a href={`tel:${lead.phone}`}>
@@ -717,6 +727,18 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
             <ScoreBadge score={lead.score} />
           </div>
           <div className="mt-1 flex gap-2">
+            {lead.phoneE164 ? (
+              <Hint label="Abrir WhatsApp em nova aba">
+                <ExternalLink
+                  href={whatsappLink(lead.phoneE164)}
+                  indicator={false}
+                  className="press"
+                  aria-label="WhatsApp"
+                >
+                  <IconTile icon={MessageCircleIcon} tone="green" size={32} round />
+                </ExternalLink>
+              </Hint>
+            ) : null}
             {lead.phone ? (
               <Hint label="Ligar">
                 <a href={`tel:${lead.phone}`} className="press" aria-label="Ligar">

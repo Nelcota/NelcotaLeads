@@ -3,6 +3,7 @@ import { env } from "cloudflare:workers";
 import { z } from "zod";
 import { getDb } from "@/db/client";
 import { analyses, leads, searches } from "@/db/schema";
+import { toE164 } from "@/lib/phone";
 import { DEFAULT_SETTINGS, storeSettings } from "@/server/settings-store";
 import { runTick } from "@/server/tick";
 import type { E2eFault } from "../../../e2e/fakes/faults";
@@ -29,6 +30,7 @@ const actionSchema = z.discriminatedUnion("action", [
     name: z.string(),
     website: z.string().nullable(),
     email: z.string().nullable(),
+    phone: z.string().nullable().optional(),
   }),
   // Arms a one-shot failure in a fake: the next Places search, AI e-mail draft or send throws.
   z.object({ action: z.literal("fault"), fault: z.enum(FAULTS) }),
@@ -100,6 +102,8 @@ export const Route = createFileRoute("/api/e2e")({
               name: input.name,
               website: input.website,
               email: input.email,
+              phone: input.phone ?? null,
+              phoneE164: toE164(input.phone),
               siteStatus: "none",
               analysisStatus: "done",
               score: 80,
