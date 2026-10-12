@@ -304,7 +304,9 @@ export const closeConversation = createServerFn({ method: "POST" })
     await db
       .update(leads)
       .set({
-        ...leadPatch(lead, { id: lead.id, status: data.outcome }, now, localDay(now)),
+        ...leadPatch(lead, { id: lead.id, status: data.outcome }, now, localDay(now), {
+          anyStatus: true,
+        }),
         aiMode: false,
         handoffReason: null,
       })

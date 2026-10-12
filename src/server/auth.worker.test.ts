@@ -37,9 +37,12 @@ describe("attemptLogin", () => {
     expect((await login(PASSWORD, "2001:db8:1:3::1")).ok).toBe(true);
   });
 
-  it("stops everyone after too many failures in total", async () => {
+  it("gives each IP a single attempt once the total is reached", async () => {
     for (let i = 0; i < LOGIN_DAILY_FAILURES_TOTAL; i++) await login("nope", `198.51.100.${i}`);
-    expect(await login(PASSWORD, "192.0.2.1")).toMatchObject({ status: 429 });
+    expect(await login("nope", "198.51.100.0")).toMatchObject({ status: 429 });
+    expect(await login("nope", "192.0.2.2")).toMatchObject({ status: 401 });
+    expect(await login(PASSWORD, "192.0.2.2")).toMatchObject({ status: 429 });
+    expect((await login(PASSWORD, "192.0.2.1")).ok).toBe(true);
   });
 
   it("counts parallel attempts before comparing, so bursts can't exceed the limit", async () => {

@@ -5,6 +5,15 @@ const now = new Date("2026-10-11T15:00:00Z");
 const fresh = { status: "new" as const, unsubscribedAt: null, contactedAt: null, followUpOn: null };
 
 describe("leadPatch", () => {
+  it("lets a conversation be ended from any status", () => {
+    expect(() => leadPatch(fresh, { id: "1", status: "closed" }, now, "2026-10-11")).toThrow(
+      "Não é possível mudar o lead",
+    );
+    expect(
+      leadPatch(fresh, { id: "1", status: "closed" }, now, "2026-10-11", { anyStatus: true }),
+    ).toMatchObject({ status: "closed", followUpOn: null });
+  });
+
   it("records the contact and schedules a follow-up in three days", () => {
     expect(leadPatch(fresh, { id: "1", status: "contacted" }, now, "2026-10-11")).toEqual({
       status: "contacted",

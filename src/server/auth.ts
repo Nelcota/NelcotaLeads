@@ -12,6 +12,8 @@ export const MIN_PASSWORD_LENGTH = 8;
 const MAX_PASSWORD_LENGTH = 512;
 // Failed logins allowed per day (Brazil time), counted in api_usage: per IP (IPv6 per /64) as
 // `login:<ip>`, and across all IPs as `login:*`, so rotating addresses doesn't buy more guesses.
+// Past the total, an IP gets only its first attempt of the day, so the owner can't be locked out
+// by someone else's failures while address rotation still costs the attacker.
 export const LOGIN_DAILY_FAILURES = 10;
 export const LOGIN_DAILY_FAILURES_TOTAL = 100;
 
@@ -227,12 +229,16 @@ export async function attemptLogin(
   if (!(await reserveRequest(db, perIp, LOGIN_DAILY_FAILURES, now))) {
     return loginFailure(429, "limite");
   }
-  if (!(await reserveRequest(db, total, LOGIN_DAILY_FAILURES_TOTAL, now))) {
+  const counted = await reserveRequest(db, total, LOGIN_DAILY_FAILURES_TOTAL, now);
+  if (!counted) {
     await releaseRequest(db, perIp, now);
-    return loginFailure(429, "limite");
+    if (!(await reserveRequest(db, perIp, 1, now))) return loginFailure(429, "limite");
   }
   if (await passwordMatches(attempt.input, attempt.password)) {
-    await Promise.all([releaseRequest(db, perIp, now), releaseRequest(db, total, now)]);
+    await Promise.all([
+      releaseRequest(db, perIp, now),
+      counted ? releaseRequest(db, total, now) : undefined,
+    ]);
     return { ok: true, cookie: sessionCookie(await createSessionToken(attempt.password, now)) };
   }
   return loginFailure(401, "senha");

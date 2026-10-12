@@ -866,7 +866,12 @@ export async function autoDispatch(
         sql`not exists (select 1 from emails e where e.lead_id = ${leads.id} and e.direction = 'out' and e.status <> 'draft')`,
       ),
     )
-    .orderBy(desc(leads.score))
+    // Leads that already have a draft go last: a draft held for review must not take the
+    // slots of fresh leads on every tick, or nothing would ever be sent.
+    .orderBy(
+      sql`exists (select 1 from emails e where e.lead_id = ${leads.id} and e.direction = 'out')`,
+      desc(leads.score),
+    )
     .limit(room);
   if (candidates.length === 0) return 0;
   const { drafts } = await prepareDrafts(

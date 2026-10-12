@@ -464,6 +464,25 @@ describe("e-mail outreach", () => {
     expect(await autoDispatch({ db, analyzer: pricey, fromAddress: FROM, limit: 30 })).toBe(0);
     expect((await leadEmails("a")).map((e) => e.status)).toEqual(["draft"]);
   });
+
+  it("auto-dispatch moves past a draft held for review", async () => {
+    await db.update(settingsTable).set({ autoDispatch: true });
+    await db.update(leads).set({ email: "oi@clinicab.com.br", score: 10 }).where(eq(leads.id, "b"));
+    await db.update(leads).set({ score: 90 }).where(eq(leads.id, "a"));
+    await db.insert(emails).values({
+      id: "held",
+      leadId: "a",
+      direction: "out",
+      status: "draft",
+      author: "ai",
+      fromAddress: FROM,
+      toAddress: "contato@clinica.com.br",
+      subject: "Oi",
+      body: "Sites a partir de R$ 900.",
+    });
+    expect(await autoDispatch({ db, analyzer, fromAddress: FROM, limit: 1 })).toBe(1);
+    expect((await leadEmails("b")).map((e) => e.status)).toEqual(["queued"]);
+  });
 });
 
 describe("isUnsubscribeRequest", () => {

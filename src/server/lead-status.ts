@@ -46,15 +46,17 @@ export function assertTransition(
 /**
  * Turns a lead update into the columns to write. Marking a lead as contacted records
  * when it happened and schedules a follow-up; leaving the pipeline clears the follow-up.
- * Throws when the status change is not allowed (see LEAD_TRANSITIONS).
+ * Throws when the status change is not allowed (see LEAD_TRANSITIONS), unless the caller
+ * ends the conversation itself, which may close or discard a lead from any status.
  */
 export function leadPatch(
   current: Pick<Lead, "status" | "unsubscribedAt" | "contactedAt" | "followUpOn">,
   { id: _id, ...changes }: UpdateLeadInput,
   now: Date,
   today: string,
+  { anyStatus = false } = {},
 ): Patch {
-  assertTransition(current, changes.status);
+  if (!anyStatus) assertTransition(current, changes.status);
   const patch: Patch = { ...changes };
   if (changes.status === "contacted") {
     patch.contactedAt = current.contactedAt ?? now;
