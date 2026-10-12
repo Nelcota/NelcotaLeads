@@ -84,6 +84,11 @@ test.describe("e-mail conversations", () => {
     await expect(page.getByText("A IA parou: Teste: handoff")).toBeVisible();
     await expect(page.getByRole("switch", { name: /IA/ })).not.toBeChecked();
     await expect(page.getByLabel("Sua resposta")).toHaveValue("Rascunho para você");
+
+    // The tab shows how many need the user, on every page.
+    await expect(page).toHaveTitle("(1) Conversas · Nelcota Leads");
+    await page.getByRole("link", { name: "Leads", exact: true }).click();
+    await expect(page).toHaveTitle("(1) Leads · Nelcota Leads");
   });
 
   test("closing can be undone: same filter, same AI, same queue", async ({ page, backend }) => {
