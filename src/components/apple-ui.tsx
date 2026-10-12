@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { ChevronRightIcon } from "lucide-react";
+import { ArrowUpRightIcon, ChevronRightIcon } from "lucide-react";
 import type { ComponentProps, ReactElement, ReactNode } from "react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -24,6 +24,24 @@ export function Hint({
         {label}
       </TooltipContent>
     </Tooltip>
+  );
+}
+
+/**
+ * A link that opens in a new tab: ↗ after the text, "abre em nova aba" for screen readers and
+ * `rel="noopener noreferrer"`. `indicator={false}` drops the arrow where the link is an icon.
+ */
+export function ExternalLink({
+  children,
+  indicator = true,
+  ...props
+}: Omit<ComponentProps<"a">, "target" | "rel"> & { indicator?: boolean }) {
+  return (
+    <a {...props} target="_blank" rel="noopener noreferrer">
+      {children}
+      {indicator ? <ArrowUpRightIcon aria-hidden className="size-3 shrink-0" /> : null}
+      <span className="sr-only"> (abre em nova aba)</span>
+    </a>
   );
 }
 

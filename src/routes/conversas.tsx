@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
-  ArrowUpRightIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   CircleCheckIcon,
@@ -23,6 +22,7 @@ import { z } from "zod";
 import {
   Avatar,
   EmptyState,
+  ExternalLink,
   Hint,
   IconTile,
   PropertyRow,
@@ -620,16 +620,15 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
               </Hint>
             ) : null}
             {safeHttpUrl(lead.website) ? (
-              <Hint label="Abrir site">
-                <a
+              <Hint label="Abrir site em nova aba">
+                <ExternalLink
                   href={safeHttpUrl(lead.website) ?? undefined}
-                  target="_blank"
-                  rel="noreferrer"
+                  indicator={false}
                   className="press"
                   aria-label="Site"
                 >
                   <IconTile icon={GlobeIcon} tone="gray" size={32} round />
-                </a>
+                </ExternalLink>
               </Hint>
             ) : null}
           </div>
@@ -640,15 +639,12 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
             {lead.website && !safeHttpUrl(lead.website) ? (
               <span className="break-all">{lead.website}</span>
             ) : lead.website ? (
-              <a
+              <ExternalLink
                 href={safeHttpUrl(lead.website) ?? undefined}
-                target="_blank"
-                rel="noreferrer"
                 className="inline-flex items-center gap-1 text-blue hover:underline"
               >
                 {lead.website.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")}
-                <ArrowUpRightIcon className="size-3 shrink-0" />
-              </a>
+              </ExternalLink>
             ) : (
               "sem site"
             )}

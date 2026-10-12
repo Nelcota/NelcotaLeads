@@ -12,10 +12,10 @@ import {
   PhoneIcon,
   RefreshCwIcon,
   SparklesIcon,
-  ArrowUpRightIcon,
 } from "lucide-react";
 import {
   Avatar,
+  ExternalLink,
   IconTile,
   ProgressRing,
   SaveStatus,
@@ -265,9 +265,7 @@ function NextStep(props: StepProps) {
           <CardFooter className="flex-wrap gap-2">
             {lead.phoneE164 ? (
               <Button asChild variant="outline">
-                <a href={whatsappLink(lead.phoneE164)} target="_blank" rel="noreferrer">
-                  Abrir conversa
-                </a>
+                <ExternalLink href={whatsappLink(lead.phoneE164)}>Abrir conversa</ExternalLink>
               </Button>
             ) : null}
             <Button disabled={busy} onClick={() => onUpdate({ status: "closed" })}>
@@ -406,14 +404,9 @@ function FirstContactStep({ lead, analysis, today, busy, onUpdate, onChanged }: 
       <CardFooter className="flex-wrap gap-2">
         {hasMessage && lead.phoneE164 ? (
           <Button asChild disabled={busy}>
-            <a
-              href={whatsappLink(lead.phoneE164, message)}
-              target="_blank"
-              rel="noreferrer"
-              onClick={markContacted}
-            >
+            <ExternalLink href={whatsappLink(lead.phoneE164, message)} onClick={markContacted}>
               Enviar no WhatsApp
-            </a>
+            </ExternalLink>
           </Button>
         ) : null}
         {hasMessage && !lead.phoneE164 ? (
@@ -465,9 +458,7 @@ function WaitingStep(props: StepProps) {
       <CardFooter className="flex-wrap gap-2">
         {lead.phoneE164 ? (
           <Button asChild variant="outline">
-            <a href={whatsappLink(lead.phoneE164)} target="_blank" rel="noreferrer">
-              Abrir WhatsApp
-            </a>
+            <ExternalLink href={whatsappLink(lead.phoneE164)}>Abrir WhatsApp</ExternalLink>
           </Button>
         ) : null}
         <Button disabled={busy} onClick={() => onUpdate({ status: "replied" })}>
@@ -782,15 +773,12 @@ function ContactSection({ lead }: { lead: Lead }) {
             <span className="break-all">{lead.website}</span>
           ) : lead.website ? (
             <>
-              <a
+              <ExternalLink
                 href={safeHttpUrl(lead.website) ?? undefined}
-                target="_blank"
-                rel="noreferrer"
                 className="inline-flex items-center gap-1 break-all text-blue hover:underline"
               >
                 {lead.website.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")}
-                <ArrowUpRightIcon className="size-3 shrink-0" />
-              </a>
+              </ExternalLink>
               {SITE_STATUS_LABELS[lead.siteStatus] ? (
                 <span className="text-muted-foreground">
                   {" "}
@@ -808,15 +796,15 @@ function ContactSection({ lead }: { lead: Lead }) {
         {site && site.socialLinks.length > 0 ? (
           <Term label="Redes">
             {site.socialLinks.map((link) => (
-              <a
+              <ExternalLink
                 key={link}
                 href={safeHttpUrl(link) ?? undefined}
-                target="_blank"
-                rel="noreferrer"
-                className="block truncate text-blue hover:underline"
+                className="flex min-w-0 items-center gap-1 text-blue hover:underline"
               >
-                {link.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")}
-              </a>
+                <span className="truncate">
+                  {link.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")}
+                </span>
+              </ExternalLink>
             ))}
           </Term>
         ) : null}
