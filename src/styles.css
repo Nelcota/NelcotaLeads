@@ -255,6 +255,8 @@ select:-webkit-autofill {
   -webkit-text-fill-color: var(--foreground);
   caret-color: var(--foreground);
   filter: none;
+  /* The fill must cover the browser's color at once, not grow over the field's transition. */
+  transition: none;
   box-shadow:
     var(--tw-inset-shadow, 0 0 #0000),
     var(--tw-inset-ring-shadow, 0 0 #0000),
