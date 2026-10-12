@@ -222,7 +222,7 @@ function ConversationsPage() {
             openId && "max-lg:hidden",
           )}
         >
-          <div className="grid gap-2 px-3.5 pt-3 pb-2">
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-2 px-3.5 pt-3 pb-2">
             <div className="relative">
               <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-tertiary" />
               <Input
