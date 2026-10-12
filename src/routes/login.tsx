@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { ArrowRightIcon, EyeIcon, EyeOffIcon, Loader2Icon } from "lucide-react";
 import { useRef, useState, type FormEvent } from "react";
+import { flushSync } from "react-dom";
 import { z } from "zod";
 import { Input } from "@/components/ui/input";
 import { LOGIN_ERROR_CODES, LOGIN_ERRORS } from "@/lib/login";
@@ -24,6 +25,18 @@ function LoginPage() {
   const [failures, setFailures] = useState(0);
   const [showPassword, setShowPassword] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  function togglePassword() {
+    const input = inputRef.current;
+    const start = input?.selectionStart ?? null;
+    const end = input?.selectionEnd ?? null;
+    flushSync(() => setShowPassword((shown) => !shown));
+    if (!input || start === null || end === null) return;
+    // Chrome rebuilds a field whose type changed on its next layout and moves the caret
+    // to 0. Force that layout now, then put the caret back.
+    void input.offsetWidth;
+    input.setSelectionRange(start, end);
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -121,7 +134,7 @@ function LoginPage() {
                 aria-controls="password"
                 // Keeps the caret in the field when toggled with the mouse.
                 onMouseDown={(event) => event.preventDefault()}
-                onClick={() => setShowPassword((shown) => !shown)}
+                onClick={togglePassword}
                 className="press grid size-8 place-items-center rounded-full text-tertiary transition-colors hover:bg-fill-2 hover:text-muted-foreground focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none"
               >
                 {showPassword ? <EyeOffIcon className="size-4" /> : <EyeIcon className="size-4" />}

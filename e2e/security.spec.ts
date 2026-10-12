@@ -69,8 +69,19 @@ test.describe("signed out", () => {
     await expect(field).toHaveAttribute("type", "text");
     await expect(field).toHaveValue("segredo-123");
     await expect(field).toBeFocused();
+    // The caret stays where it was instead of jumping to the start.
+    await expect
+      .poll(() => field.evaluate((input: HTMLInputElement) => input.selectionStart))
+      .toBe(11);
+    await page.keyboard.type("4");
+    await expect(field).toHaveValue("segredo-1234");
 
     await page.getByRole("button", { name: "Ocultar senha" }).click();
     await expect(field).toHaveAttribute("type", "password");
+    await expect
+      .poll(() => field.evaluate((input: HTMLInputElement) => input.selectionStart))
+      .toBe(12);
+    await page.keyboard.type("5");
+    await expect(field).toHaveValue("segredo-12345");
   });
 });
