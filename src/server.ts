@@ -2,7 +2,7 @@ import handler from "@tanstack/react-start/server-entry";
 import { getDb } from "./db/client";
 import { getAnalyzer } from "./lib/ai";
 import { fetchSite } from "./lib/scrape";
-import { authGate } from "./server/auth";
+import { authGate, loadSessionsValidFrom } from "./server/auth";
 import { handleLeadBatch } from "./server/consumer";
 import type { LeadJob } from "./server/queue";
 import { runTick } from "./server/tick";
@@ -27,7 +27,9 @@ function withHeaders(response: Response, setCookie: string | null): Response {
 
 export default {
   fetch: async (request, env) => {
-    const gate = await authGate(request, env.APP_PASSWORD);
+    const gate = await authGate(request, env.APP_PASSWORD, new Date(), () =>
+      loadSessionsValidFrom(getDb(env.DB)),
+    );
     if ("response" in gate) return withHeaders(gate.response, null);
     return withHeaders(await handler.fetch(request), gate.renewCookie);
   },

@@ -11,7 +11,7 @@ import {
   type SettingsInput,
 } from "@/lib/schemas";
 
-const SETTINGS_ID = 1;
+export const SETTINGS_ID = 1;
 
 export const DEFAULT_SETTINGS: SettingsInput = {
   offer: "",

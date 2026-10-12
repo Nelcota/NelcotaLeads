@@ -123,6 +123,25 @@ describe("authGate", () => {
     expect("renewCookie" in old && old.renewCookie).toMatch(/HttpOnly; Secure; SameSite=Lax$/);
   });
 
+  it("refuses a session issued before the last logout", async () => {
+    const cookie = await sessionCookie(days(-1));
+    const issued = Math.floor(now.getTime() / 1000) - 86_400;
+    const before = await authGate(
+      request("/api/leads.csv", { cookie }),
+      PASSWORD,
+      now,
+      async () => issued + 60,
+    );
+    expect("response" in before && before.response.status).toBe(401);
+    const after = await authGate(
+      request("/api/leads.csv", { cookie }),
+      PASSWORD,
+      now,
+      async () => issued - 60,
+    );
+    expect(after).toEqual({ renewCookie: null });
+  });
+
   it.each([
     ["same-site", {}],
     [null, { Origin: "https://evil.test" }],

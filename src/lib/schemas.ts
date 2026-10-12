@@ -223,6 +223,9 @@ export const LEAD_VIEW_LABELS: Record<LeadView, string> = {
 export const LEAD_SORT_FIELDS = ["score", "name", "rating", "reviewCount", "createdAt"] as const;
 
 /** Lead list filters; shared by the table, the URL and the CSV export. */
+/** Rows in one CSV export; the leads page warns before exporting more than this. */
+export const EXPORT_LIMIT = 10_000;
+
 export const leadFiltersSchema = z.object({
   q: userText().max(120).optional(),
   searchId: z.string().max(64).optional(),

@@ -1,0 +1,1 @@
+ALTER TABLE `settings` ADD `sessions_valid_from` integer DEFAULT 0 NOT NULL;
