@@ -140,6 +140,14 @@ describe("authGate", () => {
       async () => issued - 60,
     );
     expect(after).toEqual({ renewCookie: null });
+    // A login in the same second as the logout still works.
+    const sameSecond = await authGate(
+      request("/api/leads.csv", { cookie }),
+      PASSWORD,
+      now,
+      async () => issued,
+    );
+    expect(sameSecond).toEqual({ renewCookie: null });
   });
 
   it.each([
