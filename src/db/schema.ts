@@ -168,7 +168,15 @@ export const analyses = sqliteTable(
   (t) => [index("analyses_lead_idx").on(t.leadId, t.createdAt)],
 );
 
-export const EMAIL_STATUSES = ["draft", "queued", "sent", "failed", "received"] as const;
+// `cancelled`: stopped on purpose (the lead answered, the conversation ended); `failed`: the send broke.
+export const EMAIL_STATUSES = [
+  "draft",
+  "queued",
+  "sent",
+  "failed",
+  "cancelled",
+  "received",
+] as const;
 export type EmailStatus = (typeof EMAIL_STATUSES)[number];
 export type EmailAuthor = "ai" | "user" | "lead";
 

@@ -10,6 +10,7 @@ import { createFakeMailer, incoming } from "../../test/fake-mailer";
 import { resetDb } from "../../test/reset-db";
 import {
   autoDispatch,
+  CLOSED_REASON,
   EMAIL_OPT_OUT,
   ensureOptOut,
   EMAIL_PROVIDER,
@@ -142,6 +143,54 @@ describe("e-mail outreach", () => {
     const after = await lead("a");
     expect(after?.unsubscribedAt).toBeInstanceOf(Date);
     expect(after).toMatchObject({ status: "discarded", aiMode: false });
+  });
+
+  it("marks e-mails stopped on purpose as cancelled, never as failed", async () => {
+    const { mailer, messageId } = await sentFirstEmail();
+    await queueFollowUps({ db, analyzer, fromAddress: FROM }, new Date("2026-10-14T12:00:00Z"));
+    await handleInbound(
+      { db, mailer, analyzer },
+      incoming({ inReplyTo: messageId, text: "Quanto custa?" }),
+    );
+    const draft = (await leadEmails("a")).find((e) => e.status === "draft");
+    // The AI closes the conversation: its pending draft is cancelled with the reason.
+    const closing: LeadAnalyzer = {
+      ...analyzer,
+      replyEmail: async () => ({
+        decision: { action: "close", reason: "Já tem fornecedor", reply: "", draft: "" },
+        usage: { model: "m", tokensIn: 1, tokensOut: 1, cost: 0 },
+      }),
+    };
+    await db.update(leads).set({ aiMode: true }).where(eq(leads.id, "a"));
+    await handleInbound(
+      { db, mailer, analyzer: closing },
+      incoming({ inReplyTo: messageId, text: "Já temos alguém, obrigado." }),
+    );
+    const rows = await leadEmails("a");
+    expect(rows.find((e) => e.id === draft?.id)).toMatchObject({
+      status: "cancelled",
+      error: CLOSED_REASON,
+    });
+    expect(rows.some((e) => e.status === "failed")).toBe(false);
+
+    // An opt-out cancels whatever is still queued for the lead.
+    await db.insert(emails).values({
+      id: "late",
+      leadId: "a",
+      direction: "out",
+      status: "queued",
+      author: "user",
+      fromAddress: FROM,
+      toAddress: "contato@clinica.com.br",
+      subject: "Re: x",
+      body: "Oi",
+      sendAfter: new Date(),
+    });
+    await handleInbound({ db, mailer, analyzer }, incoming({ inReplyTo: messageId, text: "sair" }));
+    expect((await leadEmails("a")).find((e) => e.id === "late")).toMatchObject({
+      status: "cancelled",
+      error: "Cancelado: o lead pediu para não receber",
+    });
   });
 
   it("ignores auto-replies and mail from unknown senders", async () => {
@@ -290,7 +339,10 @@ describe("e-mail outreach", () => {
     });
     expect(await sendDue({ db, mailer, limit: 30 }, now)).toBe(0);
     expect(sent).toHaveLength(1);
-    expect((await leadEmails("a")).find((e) => e.id === "ai-row")?.status).toBe("failed");
+    expect((await leadEmails("a")).find((e) => e.id === "ai-row")).toMatchObject({
+      status: "cancelled",
+      error: "Cancelado: a conversa passou para você",
+    });
   });
 
   it("blocks drafts to an address that opted out on another lead", async () => {
@@ -367,7 +419,7 @@ describe("e-mail outreach", () => {
       incoming({ inReplyTo: messageId, text: "Quanto custa?" }),
     );
     const followUp = (await leadEmails("a")).find((e) => e.body.startsWith("Lembrete"));
-    expect(followUp).toMatchObject({ status: "failed", error: "Cancelado: o lead respondeu" });
+    expect(followUp).toMatchObject({ status: "cancelled", error: "Cancelado: o lead respondeu" });
   });
 
   it("hands off a reply matched only by the From address", async () => {

@@ -577,9 +577,11 @@ function Message({ message, leadName }: { message: Email; leadName: string }) {
         : "na fila"
       : message.status === "failed"
         ? `não enviado: ${message.error ?? "erro"}`
-        : message.sentAt
-          ? shortTime(message.sentAt)
-          : "";
+        : message.status === "cancelled"
+          ? (message.error ?? "Cancelado")
+          : message.sentAt
+            ? shortTime(message.sentAt)
+            : "";
   return (
     <article
       className={cn(
@@ -607,7 +609,12 @@ function Message({ message, leadName }: { message: Email; leadName: string }) {
           {when}
         </span>
       </div>
-      <p className="text-base leading-[1.7] whitespace-pre-line text-foreground/85">
+      <p
+        className={cn(
+          "text-base leading-[1.7] whitespace-pre-line",
+          message.status === "cancelled" ? "text-muted-foreground" : "text-foreground/85",
+        )}
+      >
         {message.body}
       </p>
     </article>

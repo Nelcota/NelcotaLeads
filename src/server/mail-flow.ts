@@ -42,6 +42,8 @@ const MAX_AUTO_LENGTH = 1200;
 export const EMAIL_OPT_OUT = 'Para não receber mais e-mails, responda com "sair".';
 const OPTED_OUT = "Pediu para não receber e-mails";
 const BLOCKED = "O lead pediu para não receber e-mails";
+/** Reason kept on the e-mails a closed conversation cancelled; undoing the close looks for it. */
+export const CLOSED_REASON = "Cancelado: conversa encerrada";
 
 export function mailDailyLimit(value: string | undefined): number {
   const n = Number(value);
@@ -408,10 +410,11 @@ async function claim(db: Db, emailId: string, now: Date) {
   return row;
 }
 
-async function failEmail(db: Db, emailId: string, error: string) {
+/** Stopped on purpose (not a send failure), so it is never offered for a retry. */
+async function cancelEmail(db: Db, emailId: string, reason: string) {
   await db
     .update(emails)
-    .set({ status: "failed", sentAt: null, error })
+    .set({ status: "cancelled", sentAt: null, error: reason })
     .where(eq(emails.id, emailId));
 }
 
@@ -430,11 +433,11 @@ export async function sendEmail(
   if (!row) return "skipped";
   const lead = await db.query.leads.findFirst({ where: eq(leads.id, row.leadId) });
   if (!lead || lead.unsubscribedAt || (await addressUnsubscribed(db, row.toAddress))) {
-    await failEmail(db, row.id, BLOCKED);
+    await cancelEmail(db, row.id, BLOCKED);
     return "failed";
   }
   if (row.author === "ai" && !lead.aiMode) {
-    await failEmail(db, row.id, "Cancelado: a conversa passou para você");
+    await cancelEmail(db, row.id, "Cancelado: a conversa passou para você");
     return "failed";
   }
   if (!(await reserveRequest(db, EMAIL_PROVIDER, deps.limit, now))) {
@@ -585,7 +588,7 @@ async function unsubscribe(db: Db, leadId: string, now: Date) {
       .where(eq(leads.id, leadId)),
     db
       .update(emails)
-      .set({ status: "failed", error: "Cancelado: o lead pediu para não receber" })
+      .set({ status: "cancelled", error: "Cancelado: o lead pediu para não receber" })
       .where(and(eq(emails.leadId, leadId), inArray(emails.status, ["queued", "draft"]))),
   ]);
 }
@@ -594,7 +597,7 @@ async function unsubscribe(db: Db, leadId: string, now: Date) {
 export async function cancelQueuedAi(db: Db, leadId: string, reason: string) {
   await db
     .update(emails)
-    .set({ status: "failed", error: reason })
+    .set({ status: "cancelled", error: reason })
     .where(and(eq(emails.leadId, leadId), eq(emails.status, "queued"), eq(emails.author, "ai")));
 }
 
@@ -731,7 +734,7 @@ export async function handleInbound(
             .where(eq(leads.id, lead.id)),
           db
             .update(emails)
-            .set({ status: "failed", error: "Cancelado: conversa encerrada" })
+            .set({ status: "cancelled", error: CLOSED_REASON })
             .where(and(eq(emails.leadId, lead.id), inArray(emails.status, ["queued", "draft"]))),
         ]);
       }
