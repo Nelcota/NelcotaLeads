@@ -80,6 +80,53 @@ test.describe("e-mail conversations", () => {
     await expect(page.getByLabel("Sua resposta")).toHaveValue("Rascunho para você");
   });
 
+  test("closing can be undone: same filter, same AI, same queue", async ({ page, backend }) => {
+    const [poll, send] = tickTimes(2);
+    const { id, messageId, subject } = await startConversation(page, backend);
+    await backend.inbound({
+      from: LEAD.email,
+      subject: `Re: ${subject}`,
+      text: "Oi! Pode me contar mais sobre isso?",
+      inReplyTo: messageId,
+    });
+    await backend.tick(poll);
+
+    await visit(page, `/conversas?filter=aiTalking&lead=${id}`);
+    const row = page.getByRole("button", { name: new RegExp(LEAD.name) });
+    await expect(row).toBeVisible();
+    await expect(page.getByRole("article").filter({ hasText: "na fila" })).toHaveCount(1);
+
+    await page.getByRole("button", { name: "Marcar como fechado" }).click();
+    await expect(page.getByText("Conversa encerrada", { exact: true })).toBeVisible();
+    await expect(row).toBeHidden();
+    await expect(page.getByRole("article").filter({ hasText: "Cancelado" })).toHaveCount(1);
+
+    await page.getByRole("button", { name: "Desfazer" }).click();
+    await expect(row).toBeVisible();
+    await expect(row).toContainText("IA conversando");
+    await expect(page.getByRole("switch", { name: /IA/ })).toBeChecked();
+    await expect(page.getByRole("article").filter({ hasText: "na fila" })).toHaveCount(1);
+
+    // The restored AI reply goes out once.
+    await backend.tick(send);
+    const sent = await backend.sent();
+    expect(sent).toHaveLength(2);
+    expect(sent[1]?.text).toContain("Resposta da IA");
+  });
+
+  test("a closed conversation can be reopened", async ({ page, backend }) => {
+    const { id } = await startConversation(page, backend);
+    await visit(page, `/conversas?lead=${id}`);
+    await page.getByRole("button", { name: "Marcar como fechado" }).click();
+    const row = page.getByRole("button", { name: new RegExp(LEAD.name) });
+    await expect(row).toContainText("Encerrada");
+    await expect(page.getByLabel("Sua resposta")).toHaveCount(0);
+
+    await page.getByRole("button", { name: "Reabrir conversa" }).click();
+    await expect(row).toContainText("Precisa de você");
+    await expect(page.getByLabel("Sua resposta")).toBeVisible();
+  });
+
   test("an opt-out unsubscribes the lead and blocks new e-mails", async ({ page, backend }) => {
     const [poll, later] = tickTimes(2);
     const { id, messageId, subject } = await startConversation(page, backend);

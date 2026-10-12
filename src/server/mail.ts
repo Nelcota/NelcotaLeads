@@ -6,7 +6,11 @@ import { getDb } from "@/db/client";
 import { emails, leads } from "@/db/schema";
 import { getAnalyzer } from "@/lib/ai";
 import { getMailer, mailConfigured } from "@/lib/mail";
-import { leadPatch } from "./lead-status";
+import {
+  closeConversation as closeLeadConversation,
+  closeSnapshotSchema,
+  undoCloseConversation as undoCloseLeadConversation,
+} from "./conversation";
 import {
   cancelQueuedAi,
   composeBody,
@@ -21,7 +25,6 @@ import {
   sendEmail,
 } from "./mail-flow";
 import { loadSettings } from "./settings-store";
-import { localDay } from "@/lib/format";
 import { idSchema } from "@/lib/schemas";
 
 const id = idSchema;
@@ -293,24 +296,14 @@ export const setConversationAi = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
-/** Ends a conversation as won (closed) or lost (discarded). */
+/** Ends a conversation as won (closed) or lost (discarded); returns what undo needs. */
 export const closeConversation = createServerFn({ method: "POST" })
   .validator(z.object({ leadId: id, outcome: z.enum(["closed", "discarded"]) }))
-  .handler(async ({ data }) => {
-    const db = getDb();
-    const lead = await db.query.leads.findFirst({ where: eq(leads.id, data.leadId) });
-    if (!lead) throw new Error("Lead não encontrado");
-    const now = new Date();
-    await db
-      .update(leads)
-      .set({
-        ...leadPatch(lead, { id: lead.id, status: data.outcome }, now, localDay(now)),
-        aiMode: false,
-        handoffReason: null,
-      })
-      .where(eq(leads.id, lead.id));
-    await db
-      .delete(emails)
-      .where(and(eq(emails.leadId, lead.id), inArray(emails.status, ["draft", "queued"])));
-    return { ok: true as const };
-  });
+  .handler(({ data }) => closeLeadConversation(getDb(), data.leadId, data.outcome));
+
+/** Undoes `closeConversation` from the snapshot it returned. */
+export const undoCloseConversation = createServerFn({ method: "POST" })
+  .validator(closeSnapshotSchema.extend({ leadId: id }))
+  .handler(({ data: { leadId, ...snapshot } }) =>
+    undoCloseLeadConversation(getDb(), leadId, snapshot),
+  );

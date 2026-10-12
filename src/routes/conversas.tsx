@@ -10,6 +10,7 @@ import {
   MessagesSquareIcon,
   PhoneIcon,
   RefreshCwIcon,
+  RotateCcwIcon,
   SendIcon,
   SparklesIcon,
   StarIcon,
@@ -39,11 +40,15 @@ import type { Email } from "@/db/schema";
 import { shortTime } from "@/lib/format";
 import { conversationQuery, conversationsQuery } from "@/lib/queries";
 import { cn, safeHttpUrl } from "@/lib/utils";
+import type { CloseSnapshot } from "@/server/conversation";
+import { reopenBlocker } from "@/server/lead-status";
+import { updateLead } from "@/server/leads";
 import {
   checkMailNow,
   closeConversation,
   sendReply,
   setConversationAi,
+  undoCloseConversation,
   type ConversationState,
 } from "@/server/mail";
 
@@ -284,11 +289,31 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
     onSuccess: refresh,
     onError: errorToast("Não foi possível mudar a IA desta conversa"),
   });
+  // Runs from the toast, which may outlive this thread (the user opened another one).
+  const undoClose = async (snapshot: CloseSnapshot) => {
+    try {
+      await undoCloseConversation({ data: { leadId, ...snapshot } });
+      await refresh();
+    } catch (error) {
+      errorToast("Não foi possível desfazer")(error);
+    }
+  };
   const close = useMutation({
     mutationFn: (outcome: "closed" | "discarded") =>
       closeConversation({ data: { leadId, outcome } }),
-    onSuccess: refresh,
+    onSuccess: async (snapshot, outcome) => {
+      await refresh();
+      toast(outcome === "closed" ? "Conversa encerrada" : "Encerrada sem negócio", {
+        duration: 6000,
+        action: { label: "Desfazer", onClick: () => void undoClose(snapshot) },
+      });
+    },
     onError: errorToast("Não foi possível encerrar"),
+  });
+  const reopen = useMutation({
+    mutationFn: () => updateLead({ data: { id: leadId, status: "replied" } }),
+    onSuccess: refresh,
+    onError: errorToast("Não foi possível reabrir a conversa"),
   });
 
   if (!data) {
@@ -302,6 +327,7 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
   const { lead, state, messages, draft, summary } = data;
   const value = text ?? draft?.body ?? "";
   const closed = state === "closed";
+  const blocker = closed ? reopenBlocker(lead) : null;
   const firstOut = messages.find((message) => message.direction === "out" && !message.inReplyTo);
 
   return (
@@ -368,7 +394,18 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
                 Sem negócio
               </Button>
             </>
-          ) : null}
+          ) : (
+            <Button
+              size="sm"
+              variant="secondary"
+              className="text-blue"
+              disabled={Boolean(blocker) || reopen.isPending}
+              onClick={() => reopen.mutate()}
+            >
+              <RotateCcwIcon />
+              {reopen.isPending ? "Reabrindo…" : "Reabrir conversa"}
+            </Button>
+          )}
           {lead.phone ? (
             <Button asChild size="sm" variant="secondary">
               <a href={`tel:${lead.phone}`}>
@@ -384,6 +421,11 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
             </Link>
           </Button>
         </div>
+        {blocker ? (
+          <p className="-mt-1 px-5 pb-3 text-xs font-light text-muted-foreground sm:px-7 xl:hidden">
+            {blocker}
+          </p>
+        ) : null}
 
         <div className="scroll-fade min-h-0 flex-1 overflow-y-auto px-5 pb-4 sm:px-7">
           {firstOut ? (
@@ -560,8 +602,21 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
                 Encerrar sem negócio
               </button>
             </>
-          ) : null}
+          ) : (
+            <button
+              type="button"
+              disabled={Boolean(blocker) || reopen.isPending}
+              onClick={() => reopen.mutate()}
+              className="grouped-row flex min-h-[44px] w-full items-center gap-2 px-4 text-left font-medium text-blue [--inset:16px] hover:bg-fill-3 disabled:opacity-50"
+            >
+              <RotateCcwIcon className="size-4" />
+              {reopen.isPending ? "Reabrindo…" : "Reabrir conversa"}
+            </button>
+          )}
         </div>
+        {blocker ? (
+          <p className="-mt-3 px-4 text-xs font-light text-muted-foreground">{blocker}</p>
+        ) : null}
       </aside>
     </>
   );

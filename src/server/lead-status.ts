@@ -44,6 +44,18 @@ export function assertTransition(
 }
 
 /**
+ * Why a closed conversation cannot be reopened, or null when it can. Reopening moves the lead
+ * back to "replied", so it follows LEAD_TRANSITIONS and the opt-out rule.
+ */
+export function reopenBlocker(lead: Pick<Lead, "status" | "unsubscribedAt">): string | null {
+  if (lead.unsubscribedAt) return "Este lead pediu para não receber contato.";
+  if (lead.status === "replied" || LEAD_TRANSITIONS[lead.status].includes("replied")) return null;
+  return lead.status === "discarded"
+    ? "Conversas encerradas sem negócio não podem ser reabertas."
+    : "Esta conversa ainda não pode ser reaberta.";
+}
+
+/**
  * Turns a lead update into the columns to write. Marking a lead as contacted records
  * when it happened and schedules a follow-up; leaving the pipeline clears the follow-up.
  * Throws when the status change is not allowed (see LEAD_TRANSITIONS).
