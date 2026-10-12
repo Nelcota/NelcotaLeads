@@ -23,8 +23,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { name: "color-scheme", content: "dark light" },
-      { name: "theme-color", media: "(prefers-color-scheme: dark)", content: THEME_COLOR.dark },
-      { name: "theme-color", media: "(prefers-color-scheme: light)", content: THEME_COLOR.light },
       { name: "apple-mobile-web-app-title", content: "Nelcota" },
       { title: "Nelcota Leads" },
     ],
@@ -63,6 +61,13 @@ function RootDocument({ children }: { children: ReactNode }) {
       <head>
         {/* oxlint-disable-next-line react/no-danger -- static, inlined theme bootstrap */}
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+        {/* Here, not in `head`: HeadContent keeps one meta per name, and these are two. */}
+        <meta name="theme-color" media="(prefers-color-scheme: dark)" content={THEME_COLOR.dark} />
+        <meta
+          name="theme-color"
+          media="(prefers-color-scheme: light)"
+          content={THEME_COLOR.light}
+        />
         <HeadContent />
       </head>
       <body>
