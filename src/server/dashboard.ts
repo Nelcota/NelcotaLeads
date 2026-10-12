@@ -117,6 +117,7 @@ export const getDashboard = createServerFn({ method: "GET" }).handler(async () =
       .orderBy(desc(searches.createdAt)),
     db
       .select({
+        id: emails.id,
         leadId: emails.leadId,
         name: leads.name,
         direction: emails.direction,

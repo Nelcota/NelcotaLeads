@@ -546,6 +546,7 @@ function Funnel({ data }: { data: Dashboard }) {
 function Activity({ data }: { data: Dashboard }) {
   const events = [
     ...data.activity.searches.map((search) => ({
+      key: `search:${search.id}`,
       at: search.createdAt,
       tone: (search.origin === "autopilot" ? "purple" : "blue") as Tone,
       icon: search.origin === "autopilot" ? BotIcon : SearchIcon,
@@ -561,7 +562,7 @@ function Activity({ data }: { data: Dashboard }) {
               ? ({ tone: "purple", icon: SparklesIcon, verb: "a IA respondeu" } as const)
               : ({ tone: "blue", icon: SendIcon, verb: "e-mail enviado" } as const)
             : ({ tone: "gray", icon: UserIcon, verb: "você respondeu" } as const);
-      return { at: email.at ?? new Date(0), title: email.name, ...kind };
+      return { key: `email:${email.id}`, at: email.at ?? new Date(0), title: email.name, ...kind };
     }),
   ]
     // oxlint-disable-next-line unicorn/no-array-sort -- sorts the fresh array built above
@@ -577,7 +578,7 @@ function Activity({ data }: { data: Dashboard }) {
         ) : (
           events.map((event) => (
             <GroupedRow
-              key={`${event.at.getTime()}${event.title}${event.verb}`}
+              key={event.key}
               lead={<IconTile icon={event.icon} tone={event.tone} size={30} />}
               title={event.title}
               subtitle={event.verb}
