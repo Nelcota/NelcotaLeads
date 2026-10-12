@@ -125,6 +125,8 @@
   --gray: #6c6c70;
   --glass-edge: rgb(255 255 255 / 0.7);
   --shadow-panel: 0 1px 3px rgb(0 0 0 / 0.06), 0 8px 24px rgb(0 0 0 / 0.06);
+  /* The Input fill (bg-black/[0.03]) over a card, as one opaque color. */
+  --field: color-mix(in srgb, var(--card) 97%, #000);
 }
 
 /* Dark mode (primary): Apple system palette. */
@@ -173,6 +175,8 @@
   --gray: #8e8e93;
   --glass-edge: rgb(255 255 255 / 0.09);
   --shadow-panel: 0 24px 60px rgb(0 0 0 / 0.4);
+  /* The Input fill (dark:bg-black/25) over a card, as one opaque color. */
+  --field: color-mix(in srgb, var(--card) 75%, #000);
 }
 
 @layer base {
@@ -220,6 +224,29 @@
     scrollbar-width: thin;
     scrollbar-color: rgb(127 127 127 / 0.3) transparent;
   }
+}
+
+/*
+ * Autofill: Chrome paints filled fields blue or yellow with an !important background. An inset
+ * shadow covers it with the field's own fill, after the ring and border shadows the Tailwind
+ * utilities set. Unlayered, so it wins over those utilities' box-shadow.
+ */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active,
+textarea:-webkit-autofill,
+select:-webkit-autofill {
+  -webkit-text-fill-color: var(--foreground);
+  caret-color: var(--foreground);
+  filter: none;
+  box-shadow:
+    var(--tw-inset-shadow, 0 0 #0000),
+    var(--tw-inset-ring-shadow, 0 0 #0000),
+    var(--tw-ring-offset-shadow, 0 0 #0000),
+    var(--tw-ring-shadow, 0 0 #0000),
+    var(--tw-shadow, 0 0 #0000),
+    inset 0 0 0 1000px var(--field);
 }
 
 /* ---------- Materials ---------- */
