@@ -28,6 +28,7 @@ import { Switch } from "@/components/ui/switch";
 import { Field } from "@/components/field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberStepper } from "@/components/number-stepper";
 import {
   Select,
   SelectContent,
@@ -54,6 +55,9 @@ import { pageTitle } from "@/lib/page-title";
 
 const settingsQuery = queryOptions({ queryKey: ["settings"], queryFn: () => getSettings() });
 const autopilotQuery = queryOptions({ queryKey: ["autopilot"], queryFn: () => getAutopilot() });
+
+// Same bounds as the criterion schema (src/lib/schemas.ts).
+const WEIGHT_RANGE = { min: -100, max: 100 };
 
 const HOURS = Array.from({ length: 24 }, (_, hour) => hour);
 
@@ -342,7 +346,10 @@ function SettingsForm({ defaults }: { defaults: SettingsInput }) {
   const criteria = useFieldArray({ control: form.control, name: "criteria" });
   const watchedCriteria = useWatch({ control: form.control, name: "criteria" });
   const tone = useWatch({ control: form.control, name: "tone" });
-  const { errors, isDirty } = form.formState;
+  const minScore = useWatch({ control: form.control, name: "minScore" });
+  const { errors, isDirty, isSubmitted } = form.formState;
+  const setNumber = (name: "minScore" | `criteria.${number}.weight`, value: number) =>
+    form.setValue(name, value, { shouldDirty: true, shouldValidate: isSubmitted });
   const maxScore = (watchedCriteria ?? []).reduce(
     (sum, c) => sum + (Number.isFinite(c.weight) && c.weight > 0 ? c.weight : 0),
     0,
@@ -400,31 +407,33 @@ function SettingsForm({ defaults }: { defaults: SettingsInput }) {
         description="A nota é a soma dos pesos dos critérios que se aplicam a cada empresa, limitada a 100."
         contentClassName="grid gap-2 px-4 py-3.5"
       >
-        <div className="grid grid-cols-[1fr_5.5rem_22px] gap-2 px-1 text-xs font-medium text-tertiary">
+        <div className="grid grid-cols-[1fr_7.5rem_22px] gap-2 px-1 text-xs font-medium text-tertiary">
           <span>Sinal</span>
-          <span className="text-right">Peso</span>
+          <span className="text-center">Peso</span>
         </div>
         {criteria.fields.map((field, index) => {
           const weight = watchedCriteria?.[index]?.weight ?? field.weight;
           return (
-            <div key={field.id} className="grid grid-cols-[1fr_5.5rem_22px] items-center gap-2">
+            <div key={field.id} className="grid grid-cols-[1fr_7.5rem_22px] items-center gap-2">
               <Input
                 aria-label={`Sinal ${index + 1}`}
                 defaultValue={field.label}
                 {...form.register(`criteria.${index}.label`)}
                 aria-invalid={Boolean(errors.criteria?.[index]?.label)}
               />
-              <Input
+              <NumberStepper
+                {...form.register(`criteria.${index}.weight`, { valueAsNumber: true })}
                 aria-label={`Peso ${index + 1}`}
-                type="number"
-                inputMode="numeric"
-                className={cn(
-                  "text-right font-medium tabular-nums",
+                current={weight}
+                min={WEIGHT_RANGE.min}
+                max={WEIGHT_RANGE.max}
+                step={5}
+                onStep={(value) => setNumber(`criteria.${index}.weight`, value)}
+                inputClassName={cn(
                   Number.isFinite(weight) && weight > 0 && "text-green",
                   Number.isFinite(weight) && weight < 0 && "text-red",
                 )}
                 defaultValue={field.weight}
-                {...form.register(`criteria.${index}.weight`, { valueAsNumber: true })}
                 aria-invalid={Boolean(errors.criteria?.[index]?.weight)}
               />
               <button
@@ -488,14 +497,17 @@ function SettingsForm({ defaults }: { defaults: SettingsInput }) {
           hint="A IA descarta sozinha e não escreve para eles. Use 0 para manter todos."
           error={errors.minScore?.message}
         >
-          <Input
+          <NumberStepper
+            {...form.register("minScore", { valueAsNumber: true })}
             id="minScore"
-            type="number"
-            inputMode="numeric"
+            className="max-w-36"
+            current={minScore}
             min={0}
             max={100}
+            step={5}
+            onStep={(value) => setNumber("minScore", value)}
             defaultValue={defaults.minScore}
-            {...form.register("minScore", { valueAsNumber: true })}
+            aria-invalid={Boolean(errors.minScore)}
           />
         </Field>
         <Field label="Seu nome" htmlFor="senderName" error={errors.senderName?.message}>
