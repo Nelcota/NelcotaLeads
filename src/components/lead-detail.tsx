@@ -704,14 +704,14 @@ function FollowUpPicker({ lead, today, busy, onUpdate, label }: StepProps & { la
             {option.label}
           </Button>
         ))}
-        <input
+        <Input
           type="date"
-          aria-label="Escolher data"
+          aria-label={`${label}: escolher data`}
           value={value ?? ""}
           min={today}
           disabled={busy}
           onChange={(event) => event.target.value && onUpdate({ followUpOn: event.target.value })}
-          className="h-8 rounded-md border bg-background px-2 text-sm"
+          className="h-8 w-auto tabular-nums [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-60 [&::-webkit-calendar-picker-indicator]:hover:opacity-100"
         />
       </div>
     </div>
