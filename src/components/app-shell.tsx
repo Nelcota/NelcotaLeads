@@ -13,7 +13,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { createContext, useContext, useState, type ReactNode } from "react";
-import { ProgressRing, TONE_TEXT, toneVar, type Tone } from "@/components/apple-ui";
+import { Avatar, ProgressRing, TONE_TEXT, toneVar, type Tone } from "@/components/apple-ui";
 import { NewSearchDialog } from "@/components/new-search-dialog";
 import {
   Sidebar,
@@ -33,7 +33,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { attentionQuery, providerStatusQuery } from "@/lib/queries";
+import { accountQuery, attentionQuery, providerStatusQuery } from "@/lib/queries";
 import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
@@ -243,11 +243,14 @@ function MeterRow({
   );
 }
 
+/** Who is signed in, with the mailbox status under the name. */
 function AccountRow() {
   const { data } = useQuery(providerStatusQuery);
+  const { data: account } = useQuery(accountQuery);
   const { theme, setTheme } = useTheme();
   const dark = theme === "dark";
   const address = data?.mail.configured ? data.mail.address : null;
+  const name = account?.name ?? "Sua conta";
   return (
     <div className="flex items-center gap-2.5 px-1 pt-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
       <Link
@@ -255,19 +258,17 @@ function AccountRow() {
         title="Conta"
         className="press flex min-w-0 flex-1 items-center gap-2.5 rounded-[9px] group-data-[collapsible=icon]:hidden"
       >
-        <span className="grid size-7 shrink-0 place-items-center rounded-full bg-[linear-gradient(180deg,#6e6e73,#48484a)] text-[11px] font-medium text-white group-data-[collapsible=icon]:hidden">
-          {(address ?? "N").slice(0, 1).toUpperCase()}
-        </span>
+        <Avatar name={name} size={28} />
         <div className="min-w-0 flex-1 leading-tight group-data-[collapsible=icon]:hidden">
-          <p className="truncate text-[12.5px] font-medium">{address ?? "Nenhuma caixa"}</p>
+          <p className="truncate text-[12.5px] font-medium">{name}</p>
           <p
             className={cn(
-              "flex items-center gap-1.5 text-[11.5px]",
+              "flex min-w-0 items-center gap-1.5 text-[11.5px]",
               address ? "text-green" : "text-orange",
             )}
           >
-            <span className="size-1.5 rounded-full bg-current" />
-            {address ? "Caixa conectada" : "Caixa não conectada"}
+            <span className="size-1.5 shrink-0 rounded-full bg-current" />
+            <span className="truncate">{address ?? "Caixa não conectada"}</span>
           </p>
         </div>
       </Link>

@@ -16,7 +16,7 @@ import { Avatar, GroupedRow, IconTile, PropertyRow, SectionHeader } from "@/comp
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { providerStatusQuery } from "@/lib/queries";
+import { accountQuery, providerStatusQuery } from "@/lib/queries";
 import type { SettingsInput } from "@/lib/schemas";
 import { useTheme } from "@/lib/theme";
 import { getSettings, saveSettings } from "@/server/settings";
@@ -28,6 +28,7 @@ export const Route = createFileRoute("/conta")({
     Promise.all([
       context.queryClient.ensureQueryData(settingsQuery),
       context.queryClient.ensureQueryData(providerStatusQuery),
+      context.queryClient.ensureQueryData(accountQuery),
     ]),
   component: AccountPage,
 });
@@ -37,18 +38,19 @@ type ProfileInput = Pick<SettingsInput, "senderName" | "senderCompany">;
 function AccountPage() {
   const { data: settings } = useSuspenseQuery(settingsQuery);
   const { data: status } = useQuery(providerStatusQuery);
-  const name = settings.senderName || "Sem nome";
+  const { data: account } = useQuery(accountQuery);
+  const name = account?.name || settings.senderName || "Sem nome";
   const mail = status?.mail;
 
   return (
     <Page title="Conta">
       <div className="mx-auto grid w-full max-w-2xl gap-8">
         <section className="enter flex flex-col items-center gap-3 pt-2 text-center">
-          <Avatar name={settings.senderName || "?"} size={72} />
+          <Avatar name={name === "Sem nome" ? "?" : name} size={72} />
           <div className="grid gap-0.5">
             <p className="text-xl font-medium tracking-[-0.02em]">{name}</p>
             <p className="font-light text-muted-foreground">
-              {settings.senderCompany || "Empresa não informada"}
+              {account?.email ?? (settings.senderCompany || "Empresa não informada")}
             </p>
           </div>
         </section>
@@ -102,7 +104,7 @@ function AccountPage() {
             <GroupedRow
               lead={<IconTile icon={LogOutIcon} tone="red" size={30} />}
               title="Sair deste navegador"
-              subtitle="A senha será pedida no próximo acesso."
+              subtitle="O e-mail e a senha serão pedidos no próximo acesso."
               trailing={
                 <form method="post" action="/api/logout">
                   <Button type="submit" variant="outline" size="sm">

@@ -122,6 +122,13 @@ export class ConsoleErrors {
 
 const SESSION = "e2e/.auth/session.json";
 
+/** The account every signed-in test uses (created by auth.setup.ts). */
+export const E2E_ACCOUNT = {
+  name: "Conta E2E",
+  email: "e2e@nelcota.test",
+  password: "e2e-account-password",
+};
+
 export const test = base.extend<{ backend: Backend; consoleErrors: ConsoleErrors }>({
   // Auto: every test starts from the same data. Signed in on its own, so a test may use a
   // signed-out page (test.use({ storageState })) and still drive the backend.

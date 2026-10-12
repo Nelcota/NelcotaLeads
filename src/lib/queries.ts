@@ -1,5 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
 import type { LeadFilters } from "@/lib/schemas";
+import { getAccount } from "@/server/account";
 import { getAttentionCount, getDashboard } from "@/server/dashboard";
 import { getConversation, listConversations } from "@/server/mail";
 import { getLead, getLeadCounts, listLeads } from "@/server/leads";
@@ -21,6 +22,13 @@ export const searchQuery = (id: string) =>
     refetchInterval: (query) =>
       query.state.data && isRunning(query.state.data.status) ? 2000 : false,
   });
+
+/** The signed-in account; it only changes on sign-in, so it is never refetched on its own. */
+export const accountQuery = queryOptions({
+  queryKey: ["account"],
+  queryFn: () => getAccount(),
+  staleTime: Infinity,
+});
 
 export const providerStatusQuery = queryOptions({
   queryKey: ["provider-status"],
