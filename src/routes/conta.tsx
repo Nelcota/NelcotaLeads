@@ -15,14 +15,12 @@ import { Avatar, GroupedRow, IconTile, PropertyRow, SectionHeader } from "@/comp
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { providerStatusQuery } from "@/lib/queries";
+import { accountQuery, providerStatusQuery } from "@/lib/queries";
 import type { SettingsInput } from "@/lib/schemas";
 import { useTheme } from "@/lib/theme";
-import { getAccount } from "@/server/account";
 import { getSettings, saveSettings } from "@/server/settings";
 
 const settingsQuery = queryOptions({ queryKey: ["settings"], queryFn: () => getSettings() });
-const accountQuery = queryOptions({ queryKey: ["account"], queryFn: () => getAccount() });
 
 export const Route = createFileRoute("/conta")({
   loader: ({ context }) =>
@@ -40,18 +38,18 @@ function AccountPage() {
   const { data: settings } = useSuspenseQuery(settingsQuery);
   const { data: status } = useQuery(providerStatusQuery);
   const { data: account } = useQuery(accountQuery);
-  const name = settings.senderName || "Sem nome";
+  const name = account?.name || settings.senderName || "Sem nome";
   const mail = status?.mail;
 
   return (
     <Page title="Conta">
       <div className="mx-auto grid w-full max-w-2xl gap-8">
         <section className="enter flex flex-col items-center gap-3 pt-2 text-center">
-          <Avatar name={settings.senderName || "?"} size={72} />
+          <Avatar name={name === "Sem nome" ? "?" : name} size={72} />
           <div className="grid gap-0.5">
             <p className="text-xl font-medium tracking-[-0.02em]">{name}</p>
             <p className="font-light text-muted-foreground">
-              {settings.senderCompany || "Empresa não informada"}
+              {account?.email ?? (settings.senderCompany || "Empresa não informada")}
             </p>
           </div>
         </section>
@@ -102,13 +100,6 @@ function AccountPage() {
         <section className="enter min-w-0">
           <SectionHeader title="Sessão" />
           <div className="grouped">
-            {account ? (
-              <GroupedRow
-                lead={<Avatar name={account.name} size={30} />}
-                title={account.name}
-                subtitle={account.email}
-              />
-            ) : null}
             <GroupedRow
               lead={<IconTile icon={LogOutIcon} tone="red" size={30} />}
               title="Sair deste navegador"
