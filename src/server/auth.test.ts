@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  PUBLIC_PATHS,
   SESSION_COOKIE,
   accessCodeMatches,
   authGate,
@@ -150,6 +151,49 @@ describe("authGate", () => {
       expect(await authGate(request(path, { method: "POST" }), deps, now)).toEqual({
         renewCookie: null,
       });
+    }
+  });
+
+  it("serves the app icons and manifest without a session", async () => {
+    const files = [
+      "/favicon.svg",
+      "/manifest.webmanifest",
+      "/apple-touch-icon.png",
+      "/icon-192.png",
+      "/icon-512.png",
+    ];
+    for (const path of files) {
+      expect(await authGate(request(path), deps, now)).toEqual({ renewCookie: null });
+    }
+  });
+
+  it("keeps everything else behind the session", async () => {
+    expect(PUBLIC_PATHS).toEqual(
+      new Set([
+        "/login",
+        "/criar-conta",
+        "/redefinir-senha",
+        "/api/login",
+        "/api/signup",
+        "/api/reset-password",
+        "/favicon.svg",
+        "/robots.txt",
+        "/manifest.webmanifest",
+        "/apple-touch-icon.png",
+        "/icon-192.png",
+        "/icon-512.png",
+      ]),
+    );
+    const near = [
+      "/manifest.json",
+      "/apple-touch-icon-precomposed.png",
+      "/icon-1024.png",
+      "/icons/icon-192.png",
+      "/icon-192.png/x",
+    ];
+    for (const path of near) {
+      const gate = await authGate(request(path), deps, now);
+      expect("response" in gate && gate.response.status).toBe(401);
     }
   });
 

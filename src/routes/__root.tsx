@@ -6,7 +6,7 @@ import {
   createRootRouteWithContext,
   useRouterState,
 } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { CompassIcon } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { EmptyState } from "@/components/apple-ui";
@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { RouteError } from "@/components/route-error";
 import { Toaster } from "@/components/ui/sonner";
 import { AUTH_PAGES } from "@/lib/login";
-import { THEME_INIT_SCRIPT } from "@/lib/theme";
+import { applyThemeColor, THEME_COLOR, THEME_INIT_SCRIPT, useTheme } from "@/lib/theme";
 import appCss from "../styles.css?url";
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
@@ -22,11 +22,17 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { name: "color-scheme", content: "dark light" },
+      { name: "theme-color", media: "(prefers-color-scheme: dark)", content: THEME_COLOR.dark },
+      { name: "theme-color", media: "(prefers-color-scheme: light)", content: THEME_COLOR.light },
+      { name: "apple-mobile-web-app-title", content: "Nelcota" },
       { title: "Nelcota Leads" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
       { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
+      { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
+      { rel: "manifest", href: "/manifest.webmanifest" },
     ],
   }),
   shellComponent: RootDocument,
@@ -50,6 +56,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 function RootDocument({ children }: { children: ReactNode }) {
   // The sign-in screens stand alone: no sidebar, and nothing that queries the (gated) server.
   const bare = useRouterState({ select: (state) => AUTH_PAGES.has(state.location.pathname) });
+  const { theme } = useTheme();
+  useEffect(() => applyThemeColor(theme), [theme]);
   return (
     <html lang="pt-BR" suppressHydrationWarning>
       <head>

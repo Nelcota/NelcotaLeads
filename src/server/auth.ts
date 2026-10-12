@@ -41,8 +41,22 @@ const SESSION_SECONDS = 30 * DAY_SECONDS;
 const RENEW_BELOW_SECONDS = 15 * DAY_SECONDS;
 
 const AUTH_ENDPOINTS = new Set(["/api/login", "/api/signup", "/api/reset-password"]);
-// Reachable without a session; everything else, server functions included, is gated.
-const PUBLIC_PATHS = new Set([...AUTH_PAGES, ...AUTH_ENDPOINTS, "/favicon.svg", "/robots.txt"]);
+// Fetched by the browser itself, which leaves the session cookie out of the manifest request,
+// so the sign-in screens and the installed app get their icons.
+const STATIC_FILES = [
+  "/favicon.svg",
+  "/robots.txt",
+  "/manifest.webmanifest",
+  "/apple-touch-icon.png",
+  "/icon-192.png",
+  "/icon-512.png",
+];
+/** Reachable without a session; everything else, server functions included, is gated. */
+export const PUBLIC_PATHS: ReadonlySet<string> = new Set([
+  ...AUTH_PAGES,
+  ...AUTH_ENDPOINTS,
+  ...STATIC_FILES,
+]);
 
 const encoder = new TextEncoder();
 
