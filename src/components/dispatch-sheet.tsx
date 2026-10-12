@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { errorToast } from "@/lib/mutation-toasts";
 import { Avatar, IconTile, PropertyRow } from "@/components/apple-ui";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -90,7 +91,7 @@ function DispatchReview({
       setDrafts(result.drafts);
       setSkipped(result.skipped);
     },
-    onError: (error) => toast.error(error.message || "A IA não conseguiu escrever os e-mails"),
+    onError: errorToast("A IA não conseguiu escrever os e-mails"),
   });
   const started = useRef(false);
   useEffect(() => {
@@ -113,15 +114,17 @@ function DispatchReview({
       );
       setEdits(({ [draft.id]: _dropped, ...rest }) => rest);
     },
-    onError: () => toast.error("Não foi possível reescrever"),
+    onError: errorToast("Não foi possível reescrever"),
   });
   const remove = useMutation({
     mutationFn: (id: string) => removeDraft({ data: { id } }),
     onSuccess: (_result, id) => setDrafts((list) => list.filter((item) => item.id !== id)),
+    onError: errorToast("Não foi possível tirar do disparo"),
   });
   const automation = useMutation({
     mutationFn: (aiAutoReply: boolean) => setAutomation({ data: { aiAutoReply } }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
+    onError: errorToast("Não foi possível mudar a resposta automática"),
   });
   const dispatch = useMutation({
     mutationFn: async () => {
@@ -143,7 +146,7 @@ function DispatchReview({
       onDispatched();
       onClose();
     },
-    onError: (error) => toast.error(error.message || "Não foi possível disparar"),
+    onError: errorToast("Não foi possível disparar"),
   });
 
   const mail = status?.mail;

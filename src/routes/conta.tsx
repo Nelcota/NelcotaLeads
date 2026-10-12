@@ -10,6 +10,7 @@ import { LogOutIcon, MailIcon, MoonIcon, SunIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { errorToast } from "@/lib/mutation-toasts";
 import { Page } from "@/components/app-shell";
 import { Avatar, GroupedRow, IconTile, PropertyRow, SectionHeader } from "@/components/apple-ui";
 import { Button } from "@/components/ui/button";
@@ -132,7 +133,7 @@ function ProfileForm({ defaults }: { defaults: SettingsInput }) {
       await queryClient.invalidateQueries({ queryKey: settingsQuery.queryKey });
       toast.success("Perfil salvo");
     },
-    onError: () => toast.error("Não foi possível salvar o perfil"),
+    onError: errorToast("Não foi possível salvar o perfil"),
   });
 
   return (

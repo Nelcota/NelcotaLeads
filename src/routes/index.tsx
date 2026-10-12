@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
+import { errorToast } from "@/lib/mutation-toasts";
 import {
   Avatar,
   GroupedRow,
@@ -220,7 +221,7 @@ function QuickActions({ data }: { data: Dashboard }) {
           : "Nenhuma resposta nova",
       );
     },
-    onError: (error) => toast.error(error.message || "Não foi possível verificar os e-mails"),
+    onError: errorToast("Não foi possível verificar os e-mails"),
   });
   const runNow = useMutation({
     mutationFn: () => runAutopilotNow(),
@@ -232,7 +233,7 @@ function QuickActions({ data }: { data: Dashboard }) {
           : "Nada para buscar agora",
       );
     },
-    onError: (error) => toast.error(error.message || "Não foi possível buscar agora"),
+    onError: errorToast("Não foi possível buscar agora"),
   });
 
   const ready = data.stats.readyToSend;
@@ -597,7 +598,7 @@ function Automation({ data }: { data: Dashboard }) {
     mutationFn: (changes: { autopilot?: boolean; aiAutoReply?: boolean; autoDispatch?: boolean }) =>
       setAutomation({ data: changes }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
-    onError: () => toast.error("Não foi possível mudar a automação"),
+    onError: errorToast("Não foi possível mudar a automação"),
   });
 
   const { mail, autopilot } = data;

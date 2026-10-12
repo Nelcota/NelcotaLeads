@@ -21,6 +21,7 @@ import { FloatingBar, IconTile, toneVar, type Tone } from "@/components/apple-ui
 import type { ReactNode } from "react";
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
+import { errorToast } from "@/lib/mutation-toasts";
 import { Page } from "@/components/app-shell";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -100,6 +101,7 @@ function MailCard() {
     mutationFn: () => testMailConnection(),
     onSuccess: (result) =>
       result.ok ? toast.success(result.message) : toast.error(result.message),
+    onError: errorToast("Não foi possível testar a conexão. Confira a sua internet."),
   });
   const mail = status?.mail;
   return (
@@ -163,7 +165,7 @@ function AutopilotForm() {
       await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       toast.success("Piloto automático salvo");
     },
-    onError: () => toast.error("Não foi possível salvar o piloto automático"),
+    onError: errorToast("Não foi possível salvar o piloto automático"),
   });
 
   return (
@@ -355,7 +357,7 @@ function SettingsForm({ defaults }: { defaults: SettingsInput }) {
       await queryClient.invalidateQueries({ queryKey: ["provider-status"] });
       toast.success("Configurações salvas");
     },
-    onError: () => toast.error("Não foi possível salvar as configurações"),
+    onError: errorToast("Não foi possível salvar as configurações"),
   });
 
   // Inputs get explicit defaultValue so the server-rendered HTML is already filled in.

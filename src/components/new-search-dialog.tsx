@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { SearchIcon } from "lucide-react";
 import { useForm, useWatch } from "react-hook-form";
-import { toast } from "sonner";
+import { errorToast } from "@/lib/mutation-toasts";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -84,7 +84,7 @@ function NewSearchForm({ onDone }: { onDone: () => void }) {
       // Straight to the new leads; they show up as the analysis finishes.
       await navigate({ to: "/leads", search: { searchId, view: "all" } });
     },
-    onError: (error) => toast.error(error.message || "Não foi possível iniciar a busca"),
+    onError: errorToast("Não foi possível iniciar a busca"),
   });
 
   const blocker =

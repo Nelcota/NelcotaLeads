@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
+import { errorToast } from "@/lib/mutation-toasts";
 import {
   ChevronRightIcon,
   CopyIcon,
@@ -102,7 +103,7 @@ export function LeadDetail({
       await refreshAll();
       if (changes.status) onStatusChanged?.(changes.status);
     },
-    onError: (error) => toast.error(error.message || "Não foi possível atualizar o lead"),
+    onError: errorToast("Não foi possível atualizar o lead"),
   });
 
   if (!data) return <DetailSkeleton toolbar={toolbar} />;
@@ -317,12 +318,12 @@ function FirstContactStep({ lead, analysis, today, busy, onUpdate, onChanged }: 
     mutationFn: () =>
       updateFirstMessage({ data: { analysisId: analysis?.id ?? "", firstMessage: message } }),
     onSuccess: onChanged,
-    onError: () => toast.error("Não foi possível salvar a mensagem"),
+    onError: errorToast("Não foi possível salvar a mensagem"),
   });
   const generate = useMutation({
     mutationFn: () => generateMessage({ data: { id: lead.id } }),
     onSuccess: onChanged,
-    onError: (error) => toast.error(error.message || "Não foi possível gerar a mensagem"),
+    onError: errorToast("Não foi possível gerar a mensagem"),
   });
 
   // Sending is the one manual step: it opens WhatsApp and records the contact.
@@ -493,7 +494,7 @@ function EmailStep({ lead, busy, onUpdate, onChanged }: StepProps) {
       if (result.skipped[0]) toast.error(`Não deu para escrever: ${result.skipped[0].reason}`);
       await refresh();
     },
-    onError: (error) => toast.error(error.message || "A IA não conseguiu escrever"),
+    onError: errorToast("A IA não conseguiu escrever"),
   });
   const rewrite = useMutation({
     mutationFn: () => rewriteDraft({ data: { id: draft?.id ?? "" } }),
@@ -501,6 +502,7 @@ function EmailStep({ lead, busy, onUpdate, onChanged }: StepProps) {
       setEdit(null);
       await refresh();
     },
+    onError: errorToast("Não foi possível reescrever"),
   });
   const send = useMutation({
     mutationFn: async () => {
@@ -513,7 +515,7 @@ function EmailStep({ lead, busy, onUpdate, onChanged }: StepProps) {
       await refresh();
       toast.success("E-mail enviado", { description: "A resposta aparece em Conversas." });
     },
-    onError: (error) => toast.error(error.message || "Não foi possível enviar"),
+    onError: errorToast("Não foi possível enviar"),
   });
 
   return (
@@ -805,7 +807,7 @@ function Footer({
   const reanalyze = useMutation({
     mutationFn: () => reanalyzeLead({ data: { id: lead.id } }),
     onSuccess: onChanged,
-    onError: () => toast.error("Não foi possível iniciar a nova análise"),
+    onError: errorToast("Não foi possível iniciar a nova análise"),
   });
 
   return (

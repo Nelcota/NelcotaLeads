@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { errorToast } from "@/lib/mutation-toasts";
 import { z } from "zod";
 import {
   Avatar,
@@ -114,7 +115,7 @@ function ConversationsPage() {
           : "Nenhuma resposta nova",
       );
     },
-    onError: (error) => toast.error(error.message || "Não foi possível verificar os e-mails"),
+    onError: errorToast("Não foi possível verificar os e-mails"),
   });
 
   const countOf = (item: Filter) =>
@@ -276,18 +277,18 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
       await refresh();
       toast.success("Enviado");
     },
-    onError: (error) => toast.error(error.message || "Não foi possível enviar"),
+    onError: errorToast("Não foi possível enviar"),
   });
   const ai = useMutation({
     mutationFn: (aiMode: boolean) => setConversationAi({ data: { leadId, aiMode } }),
     onSuccess: refresh,
-    onError: () => toast.error("Não foi possível mudar a IA desta conversa"),
+    onError: errorToast("Não foi possível mudar a IA desta conversa"),
   });
   const close = useMutation({
     mutationFn: (outcome: "closed" | "discarded") =>
       closeConversation({ data: { leadId, outcome } }),
     onSuccess: refresh,
-    onError: () => toast.error("Não foi possível encerrar"),
+    onError: errorToast("Não foi possível encerrar"),
   });
 
   if (!data) {
