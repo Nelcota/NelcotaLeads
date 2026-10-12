@@ -391,6 +391,7 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
   const messageActions: MessageActions = {
     today,
     canEdit: !closed && Boolean(lead.email),
+    canRetry: !closed,
     busyId: retry.isPending
       ? retry.variables
       : cancelQueued.isPending
@@ -721,6 +722,8 @@ type MessageActions = {
   today: string;
   /** The composer is open, so a queued e-mail can go back to it. */
   canEdit: boolean;
+  /** A closed conversation sends nothing; it has to be reopened first. */
+  canRetry: boolean;
   busyId: string | undefined;
   onRetry: (id: string) => void;
   onCancel: (id: string) => void;
@@ -815,7 +818,7 @@ function Message({
           >
             {when}
           </span>
-          {next === "retry" ? (
+          {next === "retry" && actions.canRetry ? (
             <MessageAction
               busy={busy}
               busyLabel="Reenviando…"
