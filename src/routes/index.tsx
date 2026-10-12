@@ -39,8 +39,10 @@ import type { LeadFilters } from "@/lib/schemas";
 import { cn } from "@/lib/utils";
 import { runAutopilotNow, setAutomation, type Dashboard } from "@/server/dashboard";
 import { checkMailNow } from "@/server/mail";
+import { pageTitle } from "@/lib/page-title";
 
 export const Route = createFileRoute("/")({
+  head: () => ({ meta: [{ title: pageTitle("Visão geral") }] }),
   loader: ({ context }) => context.queryClient.ensureQueryData(dashboardQuery),
   component: OverviewPage,
 });

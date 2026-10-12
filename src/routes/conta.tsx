@@ -20,10 +20,12 @@ import { accountQuery, providerStatusQuery } from "@/lib/queries";
 import type { SettingsInput } from "@/lib/schemas";
 import { useTheme } from "@/lib/theme";
 import { getSettings, saveSettings } from "@/server/settings";
+import { pageTitle } from "@/lib/page-title";
 
 const settingsQuery = queryOptions({ queryKey: ["settings"], queryFn: () => getSettings() });
 
 export const Route = createFileRoute("/conta")({
+  head: () => ({ meta: [{ title: pageTitle("Conta") }] }),
   loader: ({ context }) =>
     Promise.all([
       context.queryClient.ensureQueryData(settingsQuery),

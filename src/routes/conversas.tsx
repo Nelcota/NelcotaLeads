@@ -58,6 +58,7 @@ import {
   undoCloseConversation,
   type ConversationState,
 } from "@/server/mail";
+import { pageTitle } from "@/lib/page-title";
 
 const FILTERS = ["all", "needsYou", "aiTalking", "waiting", "closed"] as const;
 type Filter = (typeof FILTERS)[number];
@@ -80,6 +81,7 @@ const STATE_BADGE: Record<ConversationState, { label: string; tone: Tone }> = {
 const FILTER_TONE: Partial<Record<Filter, Tone>> = { needsYou: "orange", aiTalking: "purple" };
 
 export const Route = createFileRoute("/conversas")({
+  head: () => ({ meta: [{ title: pageTitle("Conversas") }] }),
   validateSearch: z.object({
     lead: z.string().max(64).optional(),
     filter: z.enum(FILTERS).optional(),

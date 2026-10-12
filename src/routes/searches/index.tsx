@@ -11,8 +11,10 @@ import type { Search } from "@/db/schema";
 import { formatDate } from "@/lib/format";
 import { searchesQuery } from "@/lib/queries";
 import { cn } from "@/lib/utils";
+import { pageTitle } from "@/lib/page-title";
 
 export const Route = createFileRoute("/searches/")({
+  head: () => ({ meta: [{ title: pageTitle("Buscas") }] }),
   loader: ({ context }) => context.queryClient.ensureQueryData(searchesQuery),
   component: SearchesPage,
 });

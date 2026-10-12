@@ -12,7 +12,7 @@ import {
   UserIcon,
   type LucideIcon,
 } from "lucide-react";
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { Avatar, ProgressRing, TONE_TEXT, toneVar, type Tone } from "@/components/apple-ui";
 import { NewSearchDialog } from "@/components/new-search-dialog";
 import {
@@ -33,6 +33,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { withAttentionCount } from "@/lib/page-title";
 import { accountQuery, attentionQuery, providerStatusQuery } from "@/lib/queries";
 import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
@@ -62,8 +63,30 @@ export function useOpenNewSearch() {
   return useContext(NewSearchContext);
 }
 
+/**
+ * Keeps the "Precisa de você" count in front of the tab title on every page. The routes own
+ * the title itself (their `head`), so the count is put back whenever a navigation rewrites it.
+ */
+function useAttentionTitle() {
+  const { data: attention = 0 } = useQuery(attentionQuery);
+  useEffect(() => {
+    const apply = () => {
+      const next = withAttentionCount(document.title, attention);
+      if (next !== document.title) document.title = next;
+    };
+    apply();
+    const observer = new MutationObserver(apply);
+    observer.observe(document.head, { childList: true, subtree: true, characterData: true });
+    return () => {
+      observer.disconnect();
+      document.title = withAttentionCount(document.title, 0);
+    };
+  }, [attention]);
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
   const [newSearchOpen, setNewSearchOpen] = useState(false);
+  useAttentionTitle();
   return (
     <NewSearchContext value={() => setNewSearchOpen(true)}>
       <TooltipProvider delayDuration={300}>

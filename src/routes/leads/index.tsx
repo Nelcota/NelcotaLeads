@@ -63,6 +63,7 @@ import {
 import { useToday } from "@/lib/today";
 import { cn } from "@/lib/utils";
 import type { LeadRow } from "@/server/leads-query";
+import { pageTitle } from "@/lib/page-title";
 
 // `lead` is UI state (the open side sheet), kept out of the data filters.
 const searchSchema = leadFiltersSchema.extend({ lead: z.string().max(64).optional() });
@@ -70,6 +71,7 @@ const searchSchema = leadFiltersSchema.extend({ lead: z.string().max(64).optiona
 const DEFAULT_VIEW: LeadView = "todo";
 
 export const Route = createFileRoute("/leads/")({
+  head: () => ({ meta: [{ title: pageTitle("Leads") }] }),
   validateSearch: searchSchema,
   loaderDeps: ({ search: { lead: _lead, ...filters } }) => withView(filters),
   loader: ({ context, deps }) =>

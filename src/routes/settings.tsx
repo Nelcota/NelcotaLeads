@@ -50,6 +50,7 @@ import { providerStatusQuery } from "@/lib/queries";
 import { getAutopilot, saveAutopilot } from "@/server/dashboard";
 import { testMailConnection } from "@/server/mail";
 import { getSettings, saveSettings } from "@/server/settings";
+import { pageTitle } from "@/lib/page-title";
 
 const settingsQuery = queryOptions({ queryKey: ["settings"], queryFn: () => getSettings() });
 const autopilotQuery = queryOptions({ queryKey: ["autopilot"], queryFn: () => getAutopilot() });
@@ -57,6 +58,7 @@ const autopilotQuery = queryOptions({ queryKey: ["autopilot"], queryFn: () => ge
 const HOURS = Array.from({ length: 24 }, (_, hour) => hour);
 
 export const Route = createFileRoute("/settings")({
+  head: () => ({ meta: [{ title: pageTitle("Configurações") }] }),
   loader: ({ context }) =>
     Promise.all([
       context.queryClient.ensureQueryData(settingsQuery),
