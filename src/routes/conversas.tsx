@@ -534,10 +534,7 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
 
         {!closed && lead.email ? (
           <div className="px-4 pb-4 sm:px-5">
-            <div
-              data-glass
-              className="rounded-[18px] bg-[rgb(44_44_48/0.6)] shadow-[inset_0_1px_0_rgb(255_255_255/0.1),inset_0_0_0_1px_rgb(255_255_255/0.06),0_16px_36px_rgb(0_0_0/0.4)] backdrop-blur-[30px] [:root:not(.dark)_&]:bg-white [:root:not(.dark)_&]:shadow-[0_0_0_1px_rgb(0_0_0/0.06),0_8px_24px_rgb(0_0_0/0.08)]"
-            >
+            <div className="rounded-[18px] bg-card shadow-[inset_0_1px_0_rgb(255_255_255/0.1),inset_0_0_0_1px_rgb(255_255_255/0.06),0_16px_36px_rgb(0_0_0/0.4)] [:root:not(.dark)_&]:shadow-[0_0_0_1px_rgb(0_0_0/0.06),0_8px_24px_rgb(0_0_0/0.08)]">
               <div className="flex min-w-0 items-center gap-2 px-4 pt-3 text-[12.5px] text-muted-foreground">
                 Para
                 <span className="min-w-0 truncate rounded-full bg-fill-2 px-2.5 py-0.5 text-[11.5px] font-medium text-foreground">
