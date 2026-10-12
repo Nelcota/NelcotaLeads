@@ -164,6 +164,54 @@ test.describe("e-mail conversations", () => {
     await expect(page.getByLabel("Sua resposta")).toHaveValue("");
     const sent = await backend.sent();
     expect(sent.at(-1)?.text).toContain("Oi! Posso te ligar amanhã às 11h?");
+    // No message from the lead yet: it still carries the opt-out line.
+    expect(sent.at(-1)?.text).toContain('responda com "sair"');
+  });
+
+  test("a failed send offers a retry that sends exactly once", async ({ page, backend }) => {
+    const [t1, t2] = tickTimes(2);
+    const { id } = await startConversation(page, backend);
+    await backend.fault("mailSend");
+    await visit(page, `/conversas?lead=${id}`);
+    await page.getByLabel("Sua resposta").fill("Posso te ligar amanhã?");
+    await page.getByRole("button", { name: "Enviar", exact: true }).click();
+    await expect(page.getByText("O servidor SMTP recusou o envio.", { exact: true })).toBeVisible();
+
+    const failed = page.getByRole("article").filter({ hasText: "Posso te ligar amanhã?" });
+    await expect(failed).toContainText("não enviado");
+    await failed.getByRole("button", { name: "Tentar de novo" }).click();
+    await expect(failed.first()).toContainText("reenviado");
+    await expect(page.getByRole("button", { name: "Tentar de novo" })).toHaveCount(0);
+    await expect(page.getByRole("article").filter({ hasText: "na fila" })).toHaveCount(1);
+
+    await backend.tick(t1);
+    await backend.tick(t2);
+    const sent = await backend.sent();
+    expect(sent.filter((email) => email.text.includes("Posso te ligar amanhã?"))).toHaveLength(1);
+  });
+
+  test("a queued AI reply can go back to the composer before it is sent", async ({
+    page,
+    backend,
+  }) => {
+    const [poll, later] = tickTimes(2);
+    const { id, messageId, subject } = await startConversation(page, backend);
+    await backend.inbound({
+      from: LEAD.email,
+      subject: `Re: ${subject}`,
+      text: "Oi! Pode me contar mais sobre isso?",
+      inReplyTo: messageId,
+    });
+    await backend.tick(poll);
+
+    await visit(page, `/conversas?lead=${id}`);
+    const queued = page.getByRole("article").filter({ hasText: "na fila" });
+    await queued.getByRole("button", { name: "Editar" }).click();
+    await expect(page.getByLabel("Sua resposta")).toHaveValue("Resposta da IA");
+    await expect(queued).toHaveCount(0);
+
+    await backend.tick(later);
+    expect(await backend.sent()).toHaveLength(1);
   });
 
   test("an opt-out unsubscribes the lead and blocks new e-mails", async ({ page, backend }) => {

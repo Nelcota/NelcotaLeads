@@ -50,7 +50,7 @@ export type SentEmail = {
   inReplyTo?: string | null;
 };
 
-export type Fault = "places" | "writeEmail";
+export type Fault = "places" | "writeEmail" | "mailSend";
 
 /** Drives the test-only `/api/e2e` route: data reset, cron ticks and the fake mailbox. */
 export class Backend {

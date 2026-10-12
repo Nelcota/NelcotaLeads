@@ -8,7 +8,11 @@ export function createFakeMailer(address = "eu@exemplo.com.br") {
   const mailer: Mailer = {
     address,
     send: async (email) => {
-      if (fail) throw new Error("SMTP envio: 550 recusado");
+      if (fail) {
+        // One-shot, like a passing server hiccup: the next send works again.
+        fail = false;
+        throw new Error("SMTP envio: 550 recusado");
+      }
       sent.push(email);
     },
     fetchNew: async (cursor) => ({

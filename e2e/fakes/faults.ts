@@ -1,5 +1,5 @@
 /** One-shot failures the E2E control route arms and the fakes consume. */
-export type E2eFault = "places" | "writeEmail";
+export type E2eFault = "places" | "writeEmail" | "mailSend";
 
 declare global {
   // oxlint-disable-next-line no-var -- a global shared by the fakes and the E2E control route

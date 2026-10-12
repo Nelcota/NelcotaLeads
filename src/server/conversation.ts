@@ -5,7 +5,15 @@ import { emails, leads, type Email } from "@/db/schema";
 import { localDay } from "@/lib/format";
 import { idSchema } from "@/lib/schemas";
 import { leadPatch, UNSUBSCRIBED_MESSAGE } from "./lead-status";
-import { CLOSED_REASON, replySubject, userDraftOf } from "./mail-flow";
+import { RETRIED_PREFIX } from "@/lib/email-errors";
+import {
+  addressUnsubscribed,
+  CLOSED_REASON,
+  replySubject,
+  stripComposed,
+  userDraftOf,
+} from "./mail-flow";
+import { loadSettings } from "./settings-store";
 
 /**
  * Actions a person takes on one e-mail conversation. Nothing here deletes what was written:
@@ -197,4 +205,127 @@ export async function saveReplyDraft(
     where not exists (select 1 from emails where lead_id = ${lead.id} and status = 'draft' and author = 'user')`);
   const [saved] = await write();
   return saved ?? null;
+}
+
+/**
+ * Sends a failed e-mail again as a new queued row; the failed one stays as it was, marked
+ * "Reenviado". Marking it is the claim, so two clicks (or two tabs) queue it only once, and
+ * the normal send then applies the daily limit and the gap like for any other e-mail.
+ */
+export async function retryEmail(
+  db: Db,
+  emailId: string,
+  { fromAddress, now = new Date() }: { fromAddress: string; now?: Date },
+): Promise<Email> {
+  const failed = await db.query.emails.findFirst({ where: eq(emails.id, emailId) });
+  if (!failed || failed.direction !== "out" || failed.status !== "failed") {
+    throw new Error("Só dá para reenviar um e-mail que falhou.");
+  }
+  if (failed.error?.startsWith(RETRIED_PREFIX)) throw new Error("Este e-mail já foi reenviado.");
+  const lead = await db.query.leads.findFirst({ where: eq(leads.id, failed.leadId) });
+  if (!lead?.email) throw new Error("Este lead não tem e-mail.");
+  if (lead.unsubscribedAt || (await addressUnsubscribed(db, lead.email))) {
+    throw new Error("Este lead pediu para não receber e-mails.");
+  }
+  if (lead.status === "closed" || lead.status === "discarded") {
+    throw new Error("Reabra a conversa para reenviar.");
+  }
+
+  const claimed = await db
+    .update(emails)
+    .set({ error: `${RETRIED_PREFIX}${failed.error ?? "erro"}` })
+    .where(
+      and(
+        eq(emails.id, failed.id),
+        eq(emails.status, "failed"),
+        or(isNull(emails.error), sql`${emails.error} not like ${`${RETRIED_PREFIX}%`}`),
+      ),
+    )
+    .returning({ id: emails.id });
+  if (claimed.length === 0) throw new Error("Este e-mail já foi reenviado.");
+  try {
+    const [queued] = await db
+      .insert(emails)
+      .values({
+        id: crypto.randomUUID(),
+        leadId: lead.id,
+        direction: "out",
+        status: "queued",
+        // The person asked for it, so it goes out even with the AI off.
+        author: "user",
+        fromAddress,
+        toAddress: lead.email,
+        subject: failed.subject,
+        body: failed.body,
+        inReplyTo: failed.inReplyTo,
+        sendAfter: now,
+      })
+      .returning();
+    if (!queued) throw new Error("Não foi possível reenviar.");
+    return queued;
+  } catch (error) {
+    // Nothing was queued: free the failed e-mail for another try.
+    await db.update(emails).set({ error: failed.error }).where(eq(emails.id, failed.id));
+    throw error;
+  }
+}
+
+const SENDING_NOW = "Já está saindo, não dá mais para cancelar.";
+const SENDING_NOW_EDIT = "Já está saindo, não dá mais para editar.";
+const NOT_QUEUED = "Este e-mail não está mais na fila.";
+
+/** Not yet picked up by a send: a queued row whose sent_at (the send's claim) is empty. */
+function waiting(emailId: string) {
+  return and(eq(emails.id, emailId), eq(emails.status, "queued"), isNull(emails.sentAt));
+}
+
+async function whyNotWaiting(db: Db, emailId: string, sendingMessage: string) {
+  const row = await db.query.emails.findFirst({ where: eq(emails.id, emailId) });
+  return new Error(
+    row?.status === "queued" || row?.status === "sent" ? sendingMessage : NOT_QUEUED,
+  );
+}
+
+/** Takes a queued e-mail out of the queue, unless a send already picked it up. */
+export async function cancelQueuedEmail(db: Db, emailId: string): Promise<Email> {
+  const [cancelled] = await db
+    .update(emails)
+    .set({ status: "cancelled", error: "Cancelado por você" })
+    .where(waiting(emailId))
+    .returning();
+  if (!cancelled) throw await whyNotWaiting(db, emailId, SENDING_NOW);
+  return cancelled;
+}
+
+/**
+ * Turns a queued e-mail back into the user's reply draft (without the signature and opt-out
+ * line, which are added again when it is sent). Refused when the user already has a draft,
+ * so nothing they typed is replaced.
+ */
+export async function editQueuedEmail(db: Db, emailId: string): Promise<Email> {
+  const email = await db.query.emails.findFirst({ where: eq(emails.id, emailId) });
+  if (!email || email.status !== "queued") throw new Error(NOT_QUEUED);
+  if (email.sentAt) throw new Error(SENDING_NOW_EDIT);
+  const settings = await loadSettings(db);
+  const [draft] = await db
+    .update(emails)
+    .set({
+      status: "draft",
+      author: "user",
+      body: stripComposed(email.body, settings),
+      sendAfter: null,
+      error: null,
+    })
+    .where(
+      and(
+        waiting(emailId),
+        sql`not exists (select 1 from emails d where d.lead_id = ${email.leadId} and d.status = 'draft' and d.author = 'user')`,
+      ),
+    )
+    .returning();
+  if (draft) return draft;
+  const [mine] = await db.select({ id: emails.id }).from(emails).where(userDraftOf(email.leadId));
+  if (mine)
+    throw new Error("Você já tem uma resposta em rascunho. Envie ou apague antes de editar.");
+  throw await whyNotWaiting(db, emailId, SENDING_NOW_EDIT);
 }

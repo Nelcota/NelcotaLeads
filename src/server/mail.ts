@@ -8,8 +8,11 @@ import { getAnalyzer } from "@/lib/ai";
 import { getMailer, mailConfigured } from "@/lib/mail";
 import {
   closeConversation as closeLeadConversation,
+  cancelQueuedEmail as cancelQueued,
   closeSnapshotSchema,
   conversationDraft,
+  editQueuedEmail as editQueued,
+  retryEmail as retryFailedEmail,
   saveReplyDraft as saveLeadReplyDraft,
   undoCloseConversation as undoCloseLeadConversation,
 } from "./conversation";
@@ -27,6 +30,7 @@ import {
   sendEmail,
 } from "./mail-flow";
 import { loadSettings } from "./settings-store";
+import { DAILY_LIMIT_ERROR } from "@/lib/email-errors";
 import { idSchema } from "@/lib/schemas";
 
 const id = idSchema;
@@ -270,7 +274,8 @@ export const sendReply = createServerFn({ method: "POST" })
         fromAddress: mailer.address,
         toAddress: lead.email,
         subject: /^(re|res):/i.test(subject) ? subject : `Re: ${subject}`,
-        body: composeBody(data.body, settings, false),
+        // Without a message from the lead this is cold outreach, which carries the opt-out line.
+        body: composeBody(data.body, settings, !lastIn),
         inReplyTo: lastIn?.messageId ?? null,
         sendAfter: now,
         sentAt: now,
@@ -282,7 +287,7 @@ export const sendReply = createServerFn({ method: "POST" })
       // Not left queued: a retry from the page would otherwise send it twice tomorrow.
       await db
         .update(emails)
-        .set({ status: "failed", error: "Limite diário de e-mails atingido" })
+        .set({ status: "failed", error: DAILY_LIMIT_ERROR })
         .where(eq(emails.id, email.id));
       throw new Error("O limite de e-mails de hoje acabou. Tente amanhã.");
     }
@@ -318,3 +323,28 @@ export const undoCloseConversation = createServerFn({ method: "POST" })
   .handler(({ data: { leadId, ...snapshot } }) =>
     undoCloseLeadConversation(getDb(), leadId, snapshot),
   );
+
+/** Sends a failed e-mail again; it goes through the queue (limit and gap) like any other. */
+export const retryEmail = createServerFn({ method: "POST" })
+  .validator(z.object({ emailId: id }))
+  .handler(async ({ data }) => {
+    if (!mailConfigured(env)) throw new Error("Conecte a sua caixa de e-mail nas Configurações.");
+    const db = getDb();
+    const mailer = getMailer(env);
+    await retryFailedEmail(db, data.emailId, { fromAddress: mailer.address });
+    await sendDue({ db, mailer, limit: limit() });
+    return { ok: true as const };
+  });
+
+/** Takes an e-mail out of the send queue while no send has picked it up. */
+export const cancelQueuedEmail = createServerFn({ method: "POST" })
+  .validator(z.object({ emailId: id }))
+  .handler(async ({ data }) => {
+    await cancelQueued(getDb(), data.emailId);
+    return { ok: true as const };
+  });
+
+/** Moves a queued e-mail back to the composer as the user's draft. */
+export const editQueuedEmail = createServerFn({ method: "POST" })
+  .validator(z.object({ emailId: id }))
+  .handler(({ data }) => editQueued(getDb(), data.emailId));

@@ -1,4 +1,6 @@
+import type { Mailer } from "../../src/lib/mail/index";
 import { createFakeMailer } from "../../test/fake-mailer";
+import { takeFault } from "./faults";
 
 export type { MailboxCursor } from "../../src/lib/mail/imap";
 export { newMessageId, type OutgoingEmail } from "../../src/lib/mail/mime";
@@ -22,6 +24,13 @@ export function mailConfigured(_env: unknown): boolean {
   return true;
 }
 
-export function getMailer(_env: unknown) {
-  return e2eMailbox().mailer;
+export function getMailer(_env: unknown): Mailer {
+  const { mailer } = e2eMailbox();
+  return {
+    ...mailer,
+    send: (email) =>
+      takeFault("mailSend")
+        ? Promise.reject(new Error("SMTP envio: falha simulada"))
+        : mailer.send(email),
+  };
 }

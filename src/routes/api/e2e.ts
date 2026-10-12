@@ -11,7 +11,7 @@ import type { E2eMailbox } from "../../../e2e/fakes/mail";
 const TABLES = ["emails", "analyses", "leads", "searches", "settings", "api_usage"];
 
 // Listed here rather than imported, so no fake module code reaches this route's bundle.
-const FAULTS = ["places", "writeEmail"] as const satisfies readonly E2eFault[];
+const FAULTS = ["places", "writeEmail", "mailSend"] as const satisfies readonly E2eFault[];
 
 const actionSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("reset") }),
@@ -30,7 +30,7 @@ const actionSchema = z.discriminatedUnion("action", [
     website: z.string().nullable(),
     email: z.string().nullable(),
   }),
-  // Arms a one-shot failure in a fake: the next Places search or AI e-mail draft throws.
+  // Arms a one-shot failure in a fake: the next Places search, AI e-mail draft or send throws.
   z.object({ action: z.literal("fault"), fault: z.enum(FAULTS) }),
 ]);
 

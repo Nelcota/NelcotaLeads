@@ -79,6 +79,18 @@ export function composeBody(text: string, settings: SettingsInput, optOut: boole
   return [cleanText(text), signature, optOut ? EMAIL_OPT_OUT : ""].filter(Boolean).join("\n\n");
 }
 
+/** The text a person wrote, without what composeBody added (signature, opt-out line). */
+export function stripComposed(body: string, settings: SettingsInput): string {
+  let text = body;
+  const optOut = `\n\n${EMAIL_OPT_OUT}`;
+  if (text.endsWith(optOut)) text = text.slice(0, -optOut.length);
+  const signature = [settings.senderName, settings.senderCompany].filter(Boolean).join("\n");
+  if (signature && text.endsWith(`\n\n${signature}`)) {
+    text = text.slice(0, -(signature.length + 2));
+  }
+  return text;
+}
+
 export function replySubject(subject: string) {
   return /^(re|res|resp):/i.test(subject.trim()) ? subject : `Re: ${subject}`;
 }
@@ -199,7 +211,7 @@ function thread(db: Db, leadId: string) {
 }
 
 /** Opt-out is per address: another lead row with the same e-mail is blocked too. */
-async function addressUnsubscribed(db: Db, address: string) {
+export async function addressUnsubscribed(db: Db, address: string) {
   const rows = await db
     .select({ id: leads.id })
     .from(leads)

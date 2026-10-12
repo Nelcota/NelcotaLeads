@@ -38,15 +38,20 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import type { Email } from "@/db/schema";
 import { useAutosave } from "@/lib/autosave";
+import { failedEmailAction } from "@/lib/email-errors";
 import { shortTime } from "@/lib/format";
 import { conversationQuery, conversationsQuery } from "@/lib/queries";
+import { useToday } from "@/lib/today";
 import { cn, safeHttpUrl } from "@/lib/utils";
 import type { CloseSnapshot } from "@/server/conversation";
 import { reopenBlocker } from "@/server/lead-status";
 import { updateLead } from "@/server/leads";
 import {
+  cancelQueuedEmail,
   checkMailNow,
   closeConversation,
+  editQueuedEmail,
+  retryEmail,
   saveReplyDraft,
   sendReply,
   setConversationAi,
@@ -276,6 +281,7 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
   const { data } = useQuery(conversationQuery(leadId));
   const refresh = useRefresh();
   const queryClient = useQueryClient();
+  const today = useToday();
   const [text, setText] = useState<string | null>(null);
   const setDraft = (draft: Email | null) =>
     queryClient.setQueryData(conversationQuery(leadId).queryKey, (old) =>
@@ -303,7 +309,11 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
       await refresh();
       toast.success("Enviado");
     },
-    onError: errorToast("Não foi possível enviar"),
+    onError: (error) => {
+      errorToast("Não foi possível enviar")(error);
+      // A send that failed stays in the thread, with "Tentar de novo".
+      void refresh();
+    },
   });
   const ai = useMutation({
     mutationFn: (aiMode: boolean) => setConversationAi({ data: { leadId, aiMode } }),
@@ -334,6 +344,29 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
     },
     onError: errorToast("Não foi possível encerrar"),
   });
+  const retry = useMutation({
+    mutationFn: (emailId: string) => retryEmail({ data: { emailId } }),
+    onSuccess: refresh,
+    onError: errorToast("Não foi possível reenviar"),
+  });
+  const cancelQueued = useMutation({
+    mutationFn: (emailId: string) => cancelQueuedEmail({ data: { emailId } }),
+    onSuccess: refresh,
+    onError: errorToast("Não foi possível cancelar o envio"),
+  });
+  const editQueued = useMutation({
+    mutationFn: async (emailId: string) => {
+      // What is in the composer is saved first; the server refuses to replace it.
+      await autosave.flush();
+      return editQueuedEmail({ data: { emailId } });
+    },
+    onSuccess: async (draft) => {
+      setDraft(draft);
+      setText(null);
+      await refresh();
+    },
+    onError: errorToast("Não foi possível editar o e-mail"),
+  });
   const reopen = useMutation({
     mutationFn: () => updateLead({ data: { id: leadId, status: "replied" } }),
     onSuccess: refresh,
@@ -355,6 +388,20 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
   const closed = state === "closed";
   const blocker = closed ? reopenBlocker(lead) : null;
   const firstOut = messages.find((message) => message.direction === "out" && !message.inReplyTo);
+  const messageActions: MessageActions = {
+    today,
+    canEdit: !closed && Boolean(lead.email),
+    busyId: retry.isPending
+      ? retry.variables
+      : cancelQueued.isPending
+        ? cancelQueued.variables
+        : editQueued.isPending
+          ? editQueued.variables
+          : undefined,
+    onRetry: (id) => retry.mutate(id),
+    onCancel: (id) => cancelQueued.mutate(id),
+    onEdit: (id) => editQueued.mutate(id),
+  };
 
   return (
     <>
@@ -460,7 +507,12 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
             </h3>
           ) : null}
           {messages.map((message) => (
-            <Message key={message.id} message={message} leadName={lead.name} />
+            <Message
+              key={message.id}
+              message={message}
+              leadName={lead.name}
+              actions={messageActions}
+            />
           ))}
           {state === "needsYou" && lead.handoffReason ? (
             <div className="my-4 flex max-w-[68ch] items-center gap-3 rounded-2xl bg-[color-mix(in_srgb,var(--orange)_11%,transparent)] px-4 py-3 shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--orange)_24%,transparent)]">
@@ -665,47 +717,138 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
   );
 }
 
-function Message({ message, leadName }: { message: Email; leadName: string }) {
+type MessageActions = {
+  today: string;
+  /** The composer is open, so a queued e-mail can go back to it. */
+  canEdit: boolean;
+  busyId: string | undefined;
+  onRetry: (id: string) => void;
+  onCancel: (id: string) => void;
+  onEdit: (id: string) => void;
+};
+
+/** A link-sized action inside a message, still a 32px touch target. */
+function MessageAction({
+  busy,
+  busyLabel,
+  disabled,
+  onClick,
+  children,
+}: {
+  busy: boolean;
+  busyLabel: string;
+  disabled: boolean;
+  onClick: () => void;
+  children: string;
+}) {
+  return (
+    <Button
+      variant="link"
+      size="xs"
+      className="h-8 px-1.5 text-xs"
+      disabled={disabled}
+      onClick={onClick}
+    >
+      {busy ? busyLabel : children}
+    </Button>
+  );
+}
+
+function Message({
+  message,
+  leadName,
+  actions,
+}: {
+  message: Email;
+  leadName: string;
+  actions: MessageActions;
+}) {
   const out = message.direction === "out";
   const fromAi = out && message.author === "ai";
   const who = out ? (fromAi ? "IA, em seu nome" : "Você") : leadName;
+  const failed = message.status === "failed";
+  const next = failed ? failedEmailAction(message, actions.today) : null;
+  const alarming = failed && next !== "retried";
+  // Queued with sent_at set means a send already picked it up.
+  const waiting = message.status === "queued" && !message.sentAt;
   const when =
     message.status === "queued"
-      ? message.sendAfter
-        ? `na fila, sai ${shortTime(message.sendAfter)}`
-        : "na fila"
-      : message.status === "failed"
-        ? `não enviado: ${message.error ?? "erro"}`
+      ? !waiting
+        ? "saindo agora"
+        : message.sendAfter
+          ? `na fila, sai ${shortTime(message.sendAfter)}`
+          : "na fila"
+      : failed
+        ? next === "retried"
+          ? "não enviado, reenviado"
+          : `não enviado: ${message.error ?? "erro"}`
         : message.status === "cancelled"
           ? (message.error ?? "Cancelado")
           : message.sentAt
             ? shortTime(message.sentAt)
             : "";
+  const busy = actions.busyId === message.id;
+  const pending = actions.busyId !== undefined;
   return (
     <article
       className={cn(
         "grid max-w-[68ch] gap-2.5 border-b border-border/70 py-5",
-        message.status === "failed" && "border-l-2 border-l-red pl-3",
+        alarming && "border-l-2 border-l-red pl-3",
       )}
     >
-      <div className="flex items-center gap-2.5">
+      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
         {fromAi ? (
           <IconTile icon={SparklesIcon} tone="purple" size={30} round />
         ) : (
           <Avatar name={out ? "Você" : leadName} size={30} />
         )}
         <span className={cn("font-medium", fromAi && "text-purple")}>{who}</span>
-        <span
-          className={cn(
-            "ml-auto text-xs tabular-nums",
-            message.status === "failed"
-              ? "text-red"
-              : message.status === "queued"
-                ? "text-muted-foreground"
-                : "text-tertiary",
-          )}
-        >
-          {when}
+        <span className="ml-auto flex flex-wrap items-center justify-end gap-x-1 text-xs tabular-nums">
+          <span
+            className={cn(
+              alarming
+                ? "text-red"
+                : message.status === "queued"
+                  ? "text-muted-foreground"
+                  : "text-tertiary",
+            )}
+          >
+            {when}
+          </span>
+          {next === "retry" ? (
+            <MessageAction
+              busy={busy}
+              busyLabel="Reenviando…"
+              disabled={pending}
+              onClick={() => actions.onRetry(message.id)}
+            >
+              Tentar de novo
+            </MessageAction>
+          ) : next === "tomorrow" ? (
+            <span className="text-muted-foreground">· Tenta amanhã</span>
+          ) : null}
+          {waiting && out ? (
+            <>
+              {actions.canEdit ? (
+                <MessageAction
+                  busy={busy}
+                  busyLabel="Abrindo…"
+                  disabled={pending}
+                  onClick={() => actions.onEdit(message.id)}
+                >
+                  Editar
+                </MessageAction>
+              ) : null}
+              <MessageAction
+                busy={busy}
+                busyLabel="Cancelando…"
+                disabled={pending}
+                onClick={() => actions.onCancel(message.id)}
+              >
+                Cancelar
+              </MessageAction>
+            </>
+          ) : null}
         </span>
       </div>
       <p
