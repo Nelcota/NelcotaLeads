@@ -154,6 +154,7 @@ export const listConversations = createServerFn({ method: "GET" }).handler(async
     .select({
       id: leads.id,
       name: leads.name,
+      email: leads.email,
       status: leads.status,
       aiMode: leads.aiMode,
       handoffReason: leads.handoffReason,

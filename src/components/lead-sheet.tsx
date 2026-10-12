@@ -5,6 +5,7 @@ import { LeadDetail } from "@/components/lead-detail";
 import { UnsavedEditsScope, useUnsavedEditsGuard } from "@/components/unsaved-edits";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { useListHotkeys } from "@/hooks/use-list-hotkeys";
 import type { LeadStatus } from "@/db/schema";
 
 /**
@@ -36,22 +37,11 @@ export function LeadSheet({
   const { guard, report, dialog } = useUnsavedEditsGuard();
   const go = (id: string | undefined) => guard(() => onSelect(id));
 
-  const handlers = useRef({ prevId, nextId, go });
-  useEffect(() => {
-    handlers.current = { prevId, nextId, go };
-  });
   const open = Boolean(leadId);
-  useEffect(() => {
-    if (!open) return undefined;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.metaKey || event.ctrlKey || event.altKey || isTyping(event.target)) return;
-      const { prevId: prev, nextId: next, go: select } = handlers.current;
-      if (event.key === "j" && next) select(next);
-      if (event.key === "k" && prev) select(prev);
-    };
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [open]);
+  useListHotkeys(open, {
+    onNext: nextId ? () => go(nextId) : undefined,
+    onPrev: prevId ? () => go(prevId) : undefined,
+  });
 
   return (
     <Sheet open={open} onOpenChange={(value) => !value && go(undefined)}>
@@ -113,14 +103,5 @@ export function LeadSheet({
         ) : null}
       </SheetContent>
     </Sheet>
-  );
-}
-
-function isTyping(target: EventTarget | null) {
-  return (
-    target instanceof HTMLElement &&
-    (target.isContentEditable ||
-      ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName) ||
-      target.closest("[role=listbox]") !== null)
   );
 }

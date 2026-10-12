@@ -249,4 +249,80 @@ test.describe("e-mail conversations", () => {
     await backend.tick(later);
     expect(await backend.sent()).toHaveLength(1);
   });
+
+  test("Ctrl+Enter sends the reply once", async ({ page, backend }) => {
+    const { id } = await startConversation(page, backend);
+    await visit(page, `/conversas?lead=${id}`);
+    const reply = page.getByLabel("Sua resposta");
+    // An empty reply goes nowhere.
+    await reply.press("Control+Enter");
+    await reply.fill("Posso te ligar amanhã?");
+    await page.getByRole("button", { name: "Enviar", exact: true }).hover();
+    await expect(page.getByRole("tooltip")).toHaveText("Enviar Ctrl+Enter");
+
+    await reply.press("Control+Enter");
+    await expect(page.getByText("Enviado", { exact: true })).toBeVisible();
+    await expect(reply).toHaveValue("");
+    const sent = await backend.sent();
+    expect(sent).toHaveLength(2);
+    expect(sent[1]?.text).toContain("Posso te ligar amanhã?");
+  });
+
+  test("searching by name filters the list and its counts", async ({ page, backend }) => {
+    const [second] = tickTimes(1);
+    await startConversation(page, backend, OTHER);
+    await startConversation(page, backend, LEAD, second);
+    await visit(page, "/conversas");
+    const all = page.getByRole("tab", { name: /Todas/ });
+    await expect(all).toContainText("2");
+
+    const search = page.getByRole("searchbox", { name: "Buscar conversa" });
+    // No accent, other case.
+    await search.fill("CLINICA AURORA");
+    await expect(page.getByRole("button", { name: new RegExp(OTHER.name) })).toBeVisible();
+    await expect(page.getByRole("button", { name: new RegExp(LEAD.name) })).toHaveCount(0);
+    await expect(all).toContainText("1");
+    await expect(page).toHaveURL(/q=CLINICA/);
+
+    // By e-mail too; nothing found offers to clear.
+    await search.fill("sorriso.test");
+    await expect(page.getByRole("button", { name: new RegExp(LEAD.name) })).toBeVisible();
+    await search.fill("padaria");
+    await expect(page.getByText("Nenhuma conversa com “padaria”.")).toBeVisible();
+    await expect(all).toContainText("0");
+    await page.getByRole("button", { name: "Limpar busca" }).last().click();
+    await expect(search).toHaveValue("");
+    await expect(all).toContainText("2");
+  });
+
+  test("J and K walk the list, but not while typing", async ({ page, backend }) => {
+    const [second] = tickTimes(1);
+    const older = await startConversation(page, backend, OTHER);
+    const newer = await startConversation(page, backend, LEAD, second);
+    await visit(page, "/conversas");
+    await expect(page.getByRole("button", { name: new RegExp(LEAD.name) })).toBeVisible();
+
+    await page.keyboard.press("j");
+    await expect(page).toHaveURL(new RegExp(`lead=${newer.id}`));
+    await page.keyboard.press("j");
+    await expect(page).toHaveURL(new RegExp(`lead=${older.id}`));
+    await page.keyboard.press("k");
+    await expect(page).toHaveURL(new RegExp(`lead=${newer.id}`));
+
+    const reply = page.getByLabel("Sua resposta");
+    await reply.click();
+    await page.keyboard.type("jk");
+    await expect(reply).toHaveValue("jk");
+    await expect(page).toHaveURL(new RegExp(`lead=${newer.id}`));
+  });
+
+  test("Esc closes the conversation on a phone", async ({ page, backend }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    const { id } = await startConversation(page, backend);
+    await visit(page, `/conversas?lead=${id}`);
+    await expect(page.getByLabel("Sua resposta")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page).not.toHaveURL(/lead=/);
+    await expect(page.getByRole("button", { name: new RegExp(LEAD.name) })).toBeVisible();
+  });
 });

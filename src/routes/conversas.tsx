@@ -10,12 +10,13 @@ import {
   PhoneIcon,
   RefreshCwIcon,
   RotateCcwIcon,
+  SearchIcon,
   SendIcon,
   SparklesIcon,
   StarIcon,
   XIcon,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { errorToast } from "@/lib/mutation-toasts";
 import { z } from "zod";
@@ -33,6 +34,7 @@ import { Page } from "@/components/app-shell";
 import { ScoreBadge } from "@/components/lead-badges";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -60,6 +62,9 @@ import {
   type ConversationState,
 } from "@/server/mail";
 import { pageTitle } from "@/lib/page-title";
+import { isSendChord, sendShortcut } from "@/lib/shortcuts";
+import { matchesQuery } from "@/lib/text-search";
+import { useListHotkeys } from "@/hooks/use-list-hotkeys";
 
 const FILTERS = ["all", "needsYou", "aiTalking", "waiting", "closed"] as const;
 type Filter = (typeof FILTERS)[number];
@@ -81,11 +86,15 @@ const STATE_BADGE: Record<ConversationState, { label: string; tone: Tone }> = {
 
 const FILTER_TONE: Partial<Record<Filter, Tone>> = { needsYou: "orange", aiTalking: "purple" };
 
+// From `lg` the list and the thread sit side by side, so Esc has nothing to close.
+const SIDE_BY_SIDE = "(min-width: 1024px)";
+
 export const Route = createFileRoute("/conversas")({
   head: () => ({ meta: [{ title: pageTitle("Conversas") }] }),
   validateSearch: z.object({
     lead: z.string().max(64).optional(),
     filter: z.enum(FILTERS).optional(),
+    q: z.string().max(100).optional(),
   }),
   loader: ({ context }) => context.queryClient.ensureQueryData(conversationsQuery),
   component: ConversationsPage,
@@ -116,8 +125,32 @@ function StateBadge({ state }: { state: ConversationState }) {
 }
 
 function ConversationsPage() {
-  const { lead: openId, filter = "all" } = Route.useSearch();
+  const { lead: openId, filter = "all", q: urlQuery = "" } = Route.useSearch();
   const navigate = useNavigate({ from: "/conversas" });
+  const [query, setQuery] = useState(urlQuery);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
+  // Follows the URL when it changes elsewhere (back, a link); state adjusted during render.
+  const [syncedQuery, setSyncedQuery] = useState(urlQuery);
+  if (urlQuery !== syncedQuery) {
+    setSyncedQuery(urlQuery);
+    setQuery(urlQuery);
+  }
+  // The list filters at once; the URL catches up when the typing pauses.
+  useEffect(() => {
+    if (query === urlQuery) return undefined;
+    const timer = setTimeout(
+      () =>
+        void navigate({ search: (prev) => ({ ...prev, q: query || undefined }), replace: true }),
+      300,
+    );
+    return () => clearTimeout(timer);
+  }, [query, urlQuery, navigate]);
+  const clearSearch = () => {
+    setQuery("");
+    void navigate({ search: (prev) => ({ ...prev, q: undefined }), replace: true });
+  };
+
   const { data } = useQuery(conversationsQuery);
   const refresh = useRefresh();
   const check = useMutation({
@@ -133,11 +166,34 @@ function ConversationsPage() {
     onError: errorToast("Não foi possível verificar os e-mails"),
   });
 
+  const searched = (data ?? []).filter((row) =>
+    matchesQuery([row.name, row.email, row.preview], query),
+  );
   const countOf = (item: Filter) =>
-    item === "all" ? (data?.length ?? 0) : (data?.filter((row) => row.state === item).length ?? 0);
-  const rows = (data ?? []).filter((row) => filter === "all" || row.state === filter);
+    item === "all" ? searched.length : searched.filter((row) => row.state === item).length;
+  const rows = searched.filter((row) => filter === "all" || row.state === filter);
   const select = (lead: string | undefined) =>
     void navigate({ search: (prev) => ({ ...prev, lead }) });
+
+  // J/K walk the list as filtered; Esc goes back to it where the thread covers it.
+  const position = openId ? rows.findIndex((row) => row.id === openId) : -1;
+  const nextRow = position < 0 ? rows[0] : rows[position + 1];
+  const prevRow = position > 0 ? rows[position - 1] : undefined;
+  useListHotkeys(true, {
+    onNext: nextRow ? () => select(nextRow.id) : undefined,
+    onPrev: prevRow ? () => select(prevRow.id) : undefined,
+    onEscape: openId
+      ? () => {
+          if (!window.matchMedia(SIDE_BY_SIDE).matches) select(undefined);
+        }
+      : undefined,
+  });
+  // The row J/K moved to stays in view.
+  useEffect(() => {
+    if (!openId) return;
+    const row = listRef.current?.querySelector(`[data-row="${CSS.escape(openId)}"]`);
+    row?.scrollIntoView({ block: "nearest" });
+  }, [openId]);
 
   return (
     <Page
@@ -164,7 +220,43 @@ function ConversationsPage() {
             openId && "max-lg:hidden",
           )}
         >
-          <div className="px-3.5 pt-3 pb-2">
+          <div className="grid gap-2 px-3.5 pt-3 pb-2">
+            <div className="relative">
+              <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-tertiary" />
+              <Input
+                ref={searchRef}
+                type="search"
+                aria-label="Buscar conversa"
+                placeholder="Buscar por nome ou e-mail"
+                className={cn("h-10 rounded-full pl-8 sm:h-[30px]", query && "pr-9")}
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key !== "Escape" || !query) return;
+                  // Only the search: Esc doesn't also close the conversation.
+                  event.preventDefault();
+                  event.stopPropagation();
+                  clearSearch();
+                }}
+              />
+              {query ? (
+                <Hint label="Limpar busca">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Limpar busca"
+                    className="absolute top-1/2 right-1.5 -translate-y-1/2 sm:right-0.5 sm:size-6"
+                    onClick={() => {
+                      clearSearch();
+                      searchRef.current?.focus();
+                    }}
+                  >
+                    <XIcon />
+                  </Button>
+                </Hint>
+              ) : null}
+            </div>
             <Tabs
               value={filter}
               onValueChange={(value) => {
@@ -200,6 +292,12 @@ function ConversationsPage() {
               <Skeleton className="h-20" />
               <Skeleton className="h-20" />
             </div>
+          ) : rows.length === 0 && data.length > 0 && query.trim() ? (
+            <EmptyState icon={SearchIcon} title={`Nenhuma conversa com “${query.trim()}”.`}>
+              <Button variant="secondary" size="sm" onClick={clearSearch}>
+                Limpar busca
+              </Button>
+            </EmptyState>
           ) : rows.length === 0 ? (
             <EmptyState
               icon={MessagesSquareIcon}
@@ -210,7 +308,7 @@ function ConversationsPage() {
               }
             />
           ) : (
-            <ul className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
+            <ul ref={listRef} className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
               {rows.map((row) => {
                 const selectedRow = row.id === openId;
                 const unread = row.state === "needsYou";
@@ -219,6 +317,7 @@ function ConversationsPage() {
                     <button
                       type="button"
                       onClick={() => select(row.id)}
+                      data-row={row.id}
                       aria-current={selectedRow || undefined}
                       className={cn(
                         "grid w-full grid-cols-[12px_minmax(0,1fr)] gap-1.5 rounded-xl py-3 pr-3 pl-2 text-left transition-[background-color,transform] duration-300 ease-spring",
@@ -387,6 +486,7 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
   }
   const { lead, state, messages, draft, summary } = data;
   const value = text ?? draft?.body ?? "";
+  const canSend = value.trim() !== "" && !send.isPending;
   const savedDraft =
     text === null ? draft?.author === "user" : autosave.state === "saved" && text.trim() !== "";
   const closed = state === "closed";
@@ -412,15 +512,17 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
     <>
       <div className="flex min-h-0 min-w-0 flex-col">
         <div className="flex flex-wrap items-center gap-3 px-5 pt-4 pb-3 sm:px-7">
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="lg:hidden"
-            onClick={onBack}
-            aria-label="Voltar"
-          >
-            <ChevronLeftIcon />
-          </Button>
+          <Hint label="Voltar (Esc)">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="lg:hidden"
+              onClick={onBack}
+              aria-label="Voltar"
+            >
+              <ChevronLeftIcon />
+            </Button>
+          </Hint>
           <Avatar name={lead.name} />
           <div className="min-w-0 flex-1">
             <h2 className="truncate text-base font-medium">{lead.name}</h2>
@@ -559,6 +661,11 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
                   setText(event.target.value);
                   autosave.schedule(leadId, event.target.value);
                 }}
+                onKeyDown={(event) => {
+                  if (!isSendChord(event)) return;
+                  event.preventDefault();
+                  if (canSend) send.mutate(value);
+                }}
               />
               <div className="flex flex-wrap items-center justify-end gap-2 px-2 pt-1 pb-2 pl-4">
                 <span
@@ -589,14 +696,12 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
                     Devolver para a IA
                   </Button>
                 ) : null}
-                <Button
-                  size="sm"
-                  disabled={!value.trim() || send.isPending}
-                  onClick={() => send.mutate(value)}
-                >
-                  <SendIcon />
-                  {send.isPending ? "Enviando…" : "Enviar"}
-                </Button>
+                <Hint label={`Enviar ${sendShortcut()}`}>
+                  <Button size="sm" disabled={!canSend} onClick={() => send.mutate(value)}>
+                    <SendIcon />
+                    {send.isPending ? "Enviando…" : "Enviar"}
+                  </Button>
+                </Hint>
               </div>
             </div>
           </div>
