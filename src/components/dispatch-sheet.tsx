@@ -9,7 +9,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { errorToast } from "@/lib/mutation-toasts";
-import { Avatar, IconTile, PropertyRow, SaveStatus } from "@/components/apple-ui";
+import { Avatar, Hint, IconTile, PropertyRow, SaveStatus } from "@/components/apple-ui";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -215,24 +215,28 @@ function DispatchReview({
           <div className="grid gap-3.5">
             <div className="flex items-center gap-2.5 text-sm">
               <div className="flex rounded-full bg-fill-2 p-0.5">
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="Anterior"
-                  disabled={index === 0}
-                  onClick={() => setIndex((i) => i - 1)}
-                >
-                  <ChevronLeftIcon />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="Próximo"
-                  disabled={index >= drafts.length - 1}
-                  onClick={() => setIndex((i) => i + 1)}
-                >
-                  <ChevronRightIcon />
-                </Button>
+                <Hint label="Anterior">
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Anterior"
+                    disabled={index === 0}
+                    onClick={() => setIndex((i) => i - 1)}
+                  >
+                    <ChevronLeftIcon />
+                  </Button>
+                </Hint>
+                <Hint label="Próximo">
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Próximo"
+                    disabled={index >= drafts.length - 1}
+                    onClick={() => setIndex((i) => i + 1)}
+                  >
+                    <ChevronRightIcon />
+                  </Button>
+                </Hint>
               </div>
               <span className="font-medium text-muted-foreground tabular-nums">
                 {index + 1} de {drafts.length}

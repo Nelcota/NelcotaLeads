@@ -37,6 +37,13 @@ test.describe("browser chrome", () => {
     await expect(page.getByRole("tooltip")).toHaveText("Verificar e-mails");
   });
 
+  test("the mobile menu button has the app tooltip", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await visit(page, "/");
+    await page.getByRole("button", { name: "Mostrar ou esconder o menu" }).focus();
+    await expect(page.getByRole("tooltip")).toHaveText("Menu");
+  });
+
   test("links that open a new tab say so", async ({ page, backend }) => {
     const { id } = await backend.lead({ name: "Clínica Norte", website: "https://norte.test" });
     await visit(page, `/leads?view=all&lead=${id}`);

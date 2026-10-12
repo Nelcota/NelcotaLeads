@@ -327,7 +327,12 @@ export function Page({
   return (
     <>
       <header className="flex h-14 shrink-0 items-center gap-2 px-4 sm:h-16 lg:pr-5 lg:pl-6">
-        <SidebarTrigger className="-ml-1 size-9 text-tertiary md:hidden" />
+        <Hint label="Menu">
+          <SidebarTrigger
+            aria-label="Mostrar ou esconder o menu"
+            className="-ml-1 size-9 text-tertiary md:hidden"
+          />
+        </Hint>
         <h1 className="min-w-0 flex-1 truncate text-xl font-medium tracking-[-0.03em] sm:text-2xl">
           {title}
         </h1>
