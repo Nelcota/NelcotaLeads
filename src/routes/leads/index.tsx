@@ -14,6 +14,7 @@ import {
   XIcon,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { z } from "zod";
 import { Avatar, EmptyState, FloatingBar, TONE_TEXT, type Tone } from "@/components/apple-ui";
 import { Page, Stat, useOpenNewSearch } from "@/components/app-shell";
@@ -52,6 +53,7 @@ import type { LeadStatus } from "@/db/schema";
 import { relativeDay } from "@/lib/format";
 import { leadCountsQuery, leadsQuery, searchesQuery } from "@/lib/queries";
 import {
+  EXPORT_LIMIT,
   LEAD_VIEW_LABELS,
   LEAD_VIEWS,
   leadFiltersSchema,
@@ -185,7 +187,17 @@ function LeadsPage() {
     <>
       {data && data.length > 0 ? (
         <Button asChild variant="outline" className="hidden sm:inline-flex">
-          <a href={exportHref} download>
+          <a
+            href={exportHref}
+            download
+            onClick={() => {
+              const total = counts?.byView[view] ?? 0;
+              if (total > EXPORT_LIMIT)
+                toast.warning(
+                  `O arquivo traz os primeiros ${EXPORT_LIMIT.toLocaleString("pt-BR")} de ${total.toLocaleString("pt-BR")} leads. Use filtros para exportar o resto.`,
+                );
+            }}
+          >
             <DownloadIcon />
             Exportar CSV
           </a>

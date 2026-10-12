@@ -49,6 +49,8 @@ export const settings = sqliteTable("settings", {
   // IMAP position: messages above this UID in this mailbox were not read yet.
   mailUidValidity: integer("mail_uid_validity").notNull().default(0),
   mailLastUid: integer("mail_last_uid").notNull().default(0),
+  // Unix seconds; session tokens issued before this were signed out (logout ends every session).
+  sessionsValidFrom: integer("sessions_valid_from").notNull().default(0),
   updatedAt: integer("updated_at", { mode: "timestamp" })
     .notNull()
     .default(sql`(unixepoch())`),

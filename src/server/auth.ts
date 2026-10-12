@@ -1,10 +1,15 @@
+import { eq } from "drizzle-orm";
 import type { Db } from "@/db/client";
+import { settings } from "@/db/schema";
 import { LOGIN_ERRORS, type LoginErrorCode } from "@/lib/login";
+import { DEFAULT_SETTINGS, SETTINGS_ID } from "./settings-store";
 import { releaseRequest, reserveRequest } from "./usage";
 
 /**
  * Single-user auth: one password (the APP_PASSWORD secret) and a signed, stateless session cookie.
  * The signing key is derived from the password, so changing it signs every session out.
+ * Logging out also ends every session: tokens issued before `settings.sessionsValidFrom`
+ * are refused, so a copied cookie stops working too.
  */
 
 export const SESSION_COOKIE = "__Host-nelcota_session";
@@ -88,6 +93,23 @@ export async function verifySessionToken(
   return equalBytes(encoder.encode(match[2]), encoder.encode(expected)) ? expires : null;
 }
 
+/** Signs out every session issued up to now. */
+export async function revokeSessions(db: Db, now = new Date()) {
+  const sessionsValidFrom = seconds(now) + 1;
+  await db
+    .insert(settings)
+    .values({ id: SETTINGS_ID, ...DEFAULT_SETTINGS, sessionsValidFrom })
+    .onConflictDoUpdate({ target: settings.id, set: { sessionsValidFrom } });
+}
+
+export async function loadSessionsValidFrom(db: Db): Promise<number> {
+  const row = await db.query.settings.findFirst({
+    where: eq(settings.id, SETTINGS_ID),
+    columns: { sessionsValidFrom: true },
+  });
+  return row?.sessionsValidFrom ?? 0;
+}
+
 export function sessionCookie(token: string): string {
   return `${SESSION_COOKIE}=${token}; Path=/; Max-Age=${SESSION_SECONDS}; HttpOnly; Secure; SameSite=Lax`;
 }
@@ -153,6 +175,7 @@ export async function authGate(
   request: Request,
   password: string | undefined,
   now = new Date(),
+  sessionsValidFrom: () => Promise<number> = async () => 0,
 ): Promise<GateResult> {
   const url = new URL(request.url);
   const unsafeMethod = request.method !== "GET" && request.method !== "HEAD";
@@ -162,9 +185,10 @@ export async function authGate(
     return { response: jsonResponse({ error: "Origem não permitida." }, 403) };
   }
 
-  const expires = isPasswordConfigured(password)
+  let expires = isPasswordConfigured(password)
     ? await verifySessionToken(readCookie(request, SESSION_COOKIE), password, now)
     : null;
+  if (expires !== null && expires - SESSION_SECONDS < (await sessionsValidFrom())) expires = null;
   const document = isDocumentRequest(request);
 
   if (url.pathname === "/login" && expires !== null && document) {

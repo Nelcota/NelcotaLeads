@@ -144,6 +144,25 @@ describe("e-mail outreach", () => {
     expect(after).toMatchObject({ status: "discarded", aiMode: false });
   });
 
+  it("does not act on an opt-out matched by the sender address alone", async () => {
+    const { mailer } = await sentFirstEmail();
+    await handleInbound({ db, mailer, analyzer }, incoming({ text: "sair" }));
+    const after = await lead("a");
+    expect(after?.unsubscribedAt).toBeNull();
+    expect(after).toMatchObject({ status: "replied", aiMode: false });
+    expect(after?.handoffReason).toContain("Pediu para sair");
+  });
+
+  it("hands a truncated reply to a person instead of the AI", async () => {
+    const { mailer, messageId } = await sentFirstEmail();
+    await handleInbound(
+      { db, mailer, analyzer },
+      incoming({ inReplyTo: messageId, text: "Pode explicar", truncated: true }),
+    );
+    expect(await lead("a")).toMatchObject({ status: "replied", aiMode: false });
+    expect((await leadEmails("a")).filter((e) => e.direction === "out")).toHaveLength(1);
+  });
+
   it("ignores auto-replies and mail from unknown senders", async () => {
     const { mailer, messageId } = await sentFirstEmail();
     expect(await handleInbound({ db, mailer, analyzer }, incoming({ from: "outro@x.com" }))).toBe(

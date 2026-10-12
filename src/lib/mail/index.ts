@@ -29,11 +29,13 @@ type MailEnv = {
  * Parses one message at a time. One that fails to parse is logged and skipped:
  * the cursor still moves past it, so it can never block the inbox.
  */
-export async function parseAll(raws: { uid: number; raw: Uint8Array }[]): Promise<IncomingEmail[]> {
+export async function parseAll(
+  raws: { uid: number; raw: Uint8Array; truncated?: boolean }[],
+): Promise<IncomingEmail[]> {
   const messages: IncomingEmail[] = [];
-  for (const { uid, raw } of raws) {
+  for (const { uid, raw, truncated } of raws) {
     try {
-      messages.push(await parseEmail(raw));
+      messages.push({ ...(await parseEmail(raw)), truncated: truncated ?? false });
     } catch (error) {
       console.warn(`mail: skipping unparsable message uid ${uid}`, error);
     }

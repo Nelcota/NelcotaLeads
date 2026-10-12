@@ -18,8 +18,7 @@ import { SCORE_TIERS, type LeadFilters, type LeadView, type ScoreTier } from "@/
 
 /** Rows shown in the leads table; the UI asks for narrower filters past this. */
 export const LIST_LIMIT = 1000;
-/** Rows in one CSV export. */
-export const EXPORT_LIMIT = 10_000;
+export { EXPORT_LIMIT } from "@/lib/schemas";
 
 const SORT_COLUMNS = {
   score: leads.score,

@@ -2,7 +2,13 @@ import { env } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
 import { getDb } from "@/db/client";
 import { resetDb } from "../../test/reset-db";
-import { LOGIN_DAILY_FAILURES, LOGIN_DAILY_FAILURES_TOTAL, attemptLogin } from "./auth";
+import {
+  LOGIN_DAILY_FAILURES,
+  LOGIN_DAILY_FAILURES_TOTAL,
+  attemptLogin,
+  loadSessionsValidFrom,
+  revokeSessions,
+} from "./auth";
 
 const db = getDb(env.DB);
 const PASSWORD = "correct horse battery";
@@ -62,5 +68,15 @@ describe("attemptLogin", () => {
   it("fails closed without a configured password", async () => {
     const result = await attemptLogin(db, { input: "", password: undefined, ip: "x" }, now);
     expect(result).toMatchObject({ ok: false, status: 503, code: "config" });
+  });
+});
+
+describe("revokeSessions", () => {
+  beforeEach(resetDb);
+
+  it("moves the session cutoff past now, with or without a settings row", async () => {
+    expect(await loadSessionsValidFrom(db)).toBe(0);
+    await revokeSessions(db, now);
+    expect(await loadSessionsValidFrom(db)).toBe(Math.floor(now.getTime() / 1000) + 1);
   });
 });

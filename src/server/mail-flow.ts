@@ -1,8 +1,7 @@
-import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, lt, lte, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, lt, lte, or, sql } from "drizzle-orm";
 import type { Db } from "@/db/client";
 import {
   analyses,
-  apiUsage,
   emails,
   leads,
   searches,
@@ -20,7 +19,7 @@ import type { SettingsInput } from "@/lib/schemas";
 import { leadPatch } from "./lead-status";
 import { buildContext, hasOffer, NO_OFFER_MESSAGE } from "./process-lead";
 import { DEFAULT_SETTINGS, loadSettings } from "./settings-store";
-import { recordAiCost, requestsToday, reserveRequest } from "./usage";
+import { recordAiCost, releaseRequestQuery, requestsToday, reserveRequest } from "./usage";
 
 export const EMAIL_PROVIDER = "email";
 export const DEFAULT_MAIL_DAILY_LIMIT = 30;
@@ -50,7 +49,6 @@ export function mailDailyLimit(value: string | undefined): number {
     : DEFAULT_MAIL_DAILY_LIMIT;
 }
 
-/** Body plus signature, and the opt-out line on first contacts and follow-ups. */
 /** Cold e-mails always carry the opt-out line, even after the user rewrote the whole draft. */
 export function ensureOptOut(body: string): string {
   return body.includes(EMAIL_OPT_OUT)
@@ -60,6 +58,7 @@ export function ensureOptOut(body: string): string {
 ${EMAIL_OPT_OUT}`;
 }
 
+/** Body plus signature, and the opt-out line on first contacts and follow-ups. */
 export function composeBody(text: string, settings: SettingsInput, optOut: boolean): string {
   const signature = [settings.senderName, settings.senderCompany].filter(Boolean).join("\n");
   return [cleanText(text), signature, optOut ? EMAIL_OPT_OUT : ""].filter(Boolean).join("\n\n");
@@ -466,16 +465,7 @@ export async function sendEmail(
         .set({ status: "failed", sentAt: null, error: mailErrorMessage(error) })
         .where(eq(emails.id, row.id)),
       // Nothing went out, so the day's quota gets its slot back.
-      db
-        .update(apiUsage)
-        .set({ requests: sql`${apiUsage.requests} - 1` })
-        .where(
-          and(
-            eq(apiUsage.day, localDay(now)),
-            eq(apiUsage.provider, EMAIL_PROVIDER),
-            gt(apiUsage.requests, 0),
-          ),
-        ),
+      releaseRequestQuery(db, EMAIL_PROVIDER, now),
     ]);
     return "failed";
   }
@@ -633,7 +623,9 @@ export async function handleInbound(
   // Out-of-office and bounces are kept in the thread but change nothing.
   if (message.automatic) return true;
 
-  if (isUnsubscribeRequest(message.text, message.subject)) {
+  const optOut = isUnsubscribeRequest(message.text, message.subject);
+  // A match on the From header alone can be forged, so only a reply in the thread opts out.
+  if (optOut && inThread) {
     await unsubscribe(db, lead.id, now);
     return true;
   }
@@ -655,8 +647,20 @@ export async function handleInbound(
     })
     .where(eq(leads.id, lead.id));
 
+  // Unverified sender: a person checks it before anything else happens.
   if (!inThread) {
-    await handOff(db, lead.id, "Resposta sem vínculo com o e-mail enviado; confira o remetente");
+    await handOff(
+      db,
+      lead.id,
+      optOut
+        ? "Pediu para sair, mas a mensagem não tem vínculo com o e-mail enviado; confira o remetente"
+        : "Resposta sem vínculo com o e-mail enviado; confira o remetente",
+    );
+    return true;
+  }
+
+  if (message.truncated) {
+    await handOff(db, lead.id, "Mensagem grande demais, lida só em parte; confira no seu e-mail");
     return true;
   }
 
