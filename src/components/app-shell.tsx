@@ -3,22 +3,25 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import {
   HistoryIcon,
   InboxIcon,
-  LayoutDashboardIcon,
-  MessagesSquareIcon,
+  LayoutGridIcon,
+  MessageCircleIcon,
   MoonIcon,
+  SearchIcon,
   SettingsIcon,
   SunIcon,
+  UserIcon,
   type LucideIcon,
 } from "lucide-react";
 import { createContext, useContext, useState, type ReactNode } from "react";
+import { ProgressRing, TONE_TEXT, toneVar, type Tone } from "@/components/apple-ui";
 import { NewSearchDialog } from "@/components/new-search-dialog";
-import { Separator } from "@/components/ui/separator";
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarHeader,
   SidebarInset,
   SidebarMenu,
@@ -32,17 +35,24 @@ import {
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { attentionQuery, providerStatusQuery } from "@/lib/queries";
 import { useTheme } from "@/lib/theme";
+import { cn } from "@/lib/utils";
 
-const NAV: {
-  to: "/" | "/leads" | "/conversas" | "/searches" | "/settings";
+type NavItem = {
+  to: "/" | "/leads" | "/conversas" | "/searches" | "/conta" | "/settings";
   label: string;
   icon: LucideIcon;
-}[] = [
-  { to: "/", label: "Visão geral", icon: LayoutDashboardIcon },
-  { to: "/leads", label: "Leads", icon: InboxIcon },
-  { to: "/conversas", label: "Conversas", icon: MessagesSquareIcon },
-  { to: "/searches", label: "Buscas", icon: HistoryIcon },
-  { to: "/settings", label: "Configurações", icon: SettingsIcon },
+  tone: Tone;
+};
+
+const NAV: NavItem[] = [
+  { to: "/", label: "Visão geral", icon: LayoutGridIcon, tone: "blue" },
+  { to: "/leads", label: "Leads", icon: InboxIcon, tone: "green" },
+  { to: "/conversas", label: "Conversas", icon: MessageCircleIcon, tone: "orange" },
+  { to: "/searches", label: "Buscas", icon: HistoryIcon, tone: "purple" },
+];
+const SYSTEM_NAV: NavItem[] = [
+  { to: "/conta", label: "Conta", icon: UserIcon, tone: "teal" },
+  { to: "/settings", label: "Configurações", icon: SettingsIcon, tone: "gray" },
 ];
 
 const NewSearchContext = createContext<() => void>(() => {});
@@ -56,10 +66,12 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [newSearchOpen, setNewSearchOpen] = useState(false);
   return (
     <NewSearchContext value={() => setNewSearchOpen(true)}>
-      <TooltipProvider delayDuration={0}>
+      <TooltipProvider delayDuration={300}>
         <SidebarProvider>
           <AppSidebar />
-          <SidebarInset>{children}</SidebarInset>
+          <SidebarInset className="h-svh overflow-hidden md:m-2.5 md:h-[calc(100svh-20px)] md:rounded-[18px] md:shadow-[inset_0_0_0_1px_rgb(255_255_255/0.07),inset_0_1px_0_rgb(255_255_255/0.05),var(--shadow-panel)]">
+            {children}
+          </SidebarInset>
         </SidebarProvider>
       </TooltipProvider>
       <NewSearchDialog open={newSearchOpen} onOpenChange={setNewSearchOpen} />
@@ -70,63 +82,104 @@ export function AppShell({ children }: { children: ReactNode }) {
 function AppSidebar() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const { data: attention = 0 } = useQuery(attentionQuery);
+  const openNewSearch = useOpenNewSearch();
+  const isActive = (to: NavItem["to"]) => (to === "/" ? pathname === "/" : pathname.startsWith(to));
+
+  const renderItem = (item: NavItem) => (
+    <SidebarMenuItem key={item.to}>
+      <SidebarMenuButton
+        asChild
+        isActive={isActive(item.to)}
+        tooltip={item.label}
+        className="press h-8 gap-2.5 text-muted-foreground data-active:text-foreground hover:text-foreground"
+      >
+        <Link to={item.to}>
+          <NavTile icon={item.icon} tone={item.tone} />
+          <span>{item.label}</span>
+        </Link>
+      </SidebarMenuButton>
+      {item.to === "/conversas" && attention > 0 ? (
+        <SidebarMenuBadge
+          title={`${attention} precisam de você`}
+          className="top-1.5! h-[18px] min-w-0 rounded-full bg-orange px-1.5 text-[11px] text-[#1b1000] tabular-nums"
+        >
+          {attention}
+        </SidebarMenuBadge>
+      ) : null}
+    </SidebarMenuItem>
+  );
 
   return (
-    <Sidebar collapsible="icon">
-      <SidebarHeader>
+    <Sidebar collapsible="icon" variant="floating">
+      <SidebarHeader className="gap-3 px-2.5 pt-3.5">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" asChild>
+            <SidebarMenuButton size="lg" asChild className="hover:bg-transparent">
               <Link to="/">
-                <span className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sm font-semibold text-sidebar-primary-foreground">
+                <span className="grid aspect-square size-[30px] shrink-0 place-items-center rounded-[9px] bg-[linear-gradient(180deg,#5be38f,#22b45a)] text-[13px] font-semibold text-[#032d12] shadow-[inset_0_1px_0_rgb(255_255_255/0.4),0_4px_12px_rgb(48_209_88/0.25)]">
                   N
                 </span>
                 <span className="grid flex-1 text-left leading-tight">
-                  <span className="truncate font-semibold">Nelcota Leads</span>
-                  <span className="truncate text-xs text-muted-foreground">Prospecção</span>
+                  <span className="truncate text-[13.5px] font-medium">Nelcota Leads</span>
+                  <span className="truncate text-[11.5px] font-light text-muted-foreground">
+                    Prospecção B2B
+                  </span>
                 </span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
+        <button
+          type="button"
+          onClick={openNewSearch}
+          className="press flex h-[30px] items-center gap-2 rounded-[9px] bg-fill-2 px-2.5 text-[12.5px] text-tertiary transition-colors hover:bg-fill hover:text-muted-foreground group-data-[collapsible=icon]:hidden"
+        >
+          <SearchIcon className="size-3.5" />
+          Nova busca
+        </button>
       </SidebarHeader>
-      <SidebarContent>
-        <SidebarGroup>
+      <SidebarContent className="px-0.5">
+        <SidebarGroup className="py-1">
+          <SidebarGroupLabel className="h-7 text-[11.5px] font-medium text-tertiary">
+            Prospecção
+          </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
-              {NAV.map((item) => {
-                const active = item.to === "/" ? pathname === "/" : pathname.startsWith(item.to);
-                return (
-                  <SidebarMenuItem key={item.to}>
-                    <SidebarMenuButton asChild isActive={active} tooltip={item.label}>
-                      <Link to={item.to}>
-                        <item.icon />
-                        <span>{item.label}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                    {item.to === "/conversas" && attention > 0 ? (
-                      <SidebarMenuBadge title={`${attention} precisam de você`}>
-                        {attention}
-                      </SidebarMenuBadge>
-                    ) : null}
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
+            <SidebarMenu className="gap-px">{NAV.map(renderItem)}</SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+        <SidebarGroup className="py-1">
+          <SidebarGroupLabel className="h-7 text-[11.5px] font-medium text-tertiary">
+            Sistema
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu className="gap-px">{SYSTEM_NAV.map(renderItem)}</SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter>
+      <SidebarFooter className="gap-1.5 px-2.5 pb-2.5">
         <UsageMeter />
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <ThemeToggle />
-          </SidebarMenuItem>
-        </SidebarMenu>
+        <AccountRow />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
   );
+}
+
+/** Gray when the item is idle; takes its color on hover and when active (see styles.css). */
+function NavTile({ icon: Icon, tone }: { icon: LucideIcon; tone: Tone }) {
+  return (
+    <span
+      aria-hidden
+      className="nav-tile grid size-[22px] shrink-0 place-items-center rounded-[6px] text-white"
+      style={{ "--tone": toneVar(tone) }}
+    >
+      <Icon className="size-3!" strokeWidth={2.2} />
+    </span>
+  );
+}
+
+function percent(used: number, limit: number) {
+  return limit > 0 ? (used / limit) * 100 : 0;
 }
 
 function UsageMeter() {
@@ -134,63 +187,160 @@ function UsageMeter() {
   if (!data) return null;
   const { mail, placesUsage } = data;
   return (
-    <div className="grid gap-1 px-2 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
+    <div className="grid gap-3 rounded-[14px] bg-black/[0.03] p-3 shadow-[inset_0_0_0_1px_var(--sidebar-border)] group-data-[collapsible=icon]:hidden dark:bg-white/[0.045]">
       {mail.configured ? (
-        <>
-          <span className="truncate text-foreground">{mail.address}</span>
-          <span>
-            E-mails hoje: {mail.sentToday} de {mail.limit}
-          </span>
-        </>
+        <MeterRow
+          value={percent(mail.sentToday, mail.limit)}
+          tone="green"
+          used={mail.sentToday}
+          limit={mail.limit}
+          label="e-mails hoje"
+        />
       ) : (
-        <Link to="/settings" hash="email" className="text-foreground underline underline-offset-4">
+        <Link
+          to="/settings"
+          hash="email"
+          className="flex items-center gap-2.5 text-[12.5px] font-medium text-orange"
+        >
+          <span className="size-2 rounded-full bg-orange" />
           Conectar e-mail
         </Link>
       )}
-      <span>
-        Google hoje: {placesUsage.used} de {placesUsage.limit}
-      </span>
+      <MeterRow
+        value={percent(placesUsage.used, placesUsage.limit)}
+        tone="blue"
+        used={placesUsage.used}
+        limit={placesUsage.limit}
+        label="buscas no Google"
+      />
     </div>
   );
 }
 
-function ThemeToggle() {
+function MeterRow({
+  value,
+  tone,
+  used,
+  limit,
+  label,
+}: {
+  value: number;
+  tone: Tone;
+  used: number;
+  limit: number;
+  label: string;
+}) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <ProgressRing value={value} tone={tone} size={32} thickness={4} track="var(--card-2)" />
+      <div className="leading-tight">
+        <p className="font-medium tabular-nums">
+          {used} <span className="font-normal text-tertiary">de {limit}</span>
+        </p>
+        <p className="text-xs font-light text-muted-foreground">{label}</p>
+      </div>
+    </div>
+  );
+}
+
+function AccountRow() {
+  const { data } = useQuery(providerStatusQuery);
   const { theme, setTheme } = useTheme();
   const dark = theme === "dark";
-  const label = dark ? "Tema claro" : "Tema escuro";
+  const address = data?.mail.configured ? data.mail.address : null;
   return (
-    <SidebarMenuButton tooltip={label} onClick={() => setTheme(dark ? "light" : "dark")}>
-      {dark ? <SunIcon /> : <MoonIcon />}
-      <span>{label}</span>
-    </SidebarMenuButton>
+    <div className="flex items-center gap-2.5 px-1 pt-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+      <Link
+        to="/conta"
+        title="Conta"
+        className="press flex min-w-0 flex-1 items-center gap-2.5 rounded-[9px] group-data-[collapsible=icon]:hidden"
+      >
+        <span className="grid size-7 shrink-0 place-items-center rounded-full bg-[linear-gradient(180deg,#6e6e73,#48484a)] text-[11px] font-medium text-white group-data-[collapsible=icon]:hidden">
+          {(address ?? "N").slice(0, 1).toUpperCase()}
+        </span>
+        <div className="min-w-0 flex-1 leading-tight group-data-[collapsible=icon]:hidden">
+          <p className="truncate text-[12.5px] font-medium">{address ?? "Nenhuma caixa"}</p>
+          <p
+            className={cn(
+              "flex items-center gap-1.5 text-[11.5px]",
+              address ? "text-green" : "text-orange",
+            )}
+          >
+            <span className="size-1.5 rounded-full bg-current" />
+            {address ? "Caixa conectada" : "Caixa não conectada"}
+          </p>
+        </div>
+      </Link>
+      <button
+        type="button"
+        onClick={() => setTheme(dark ? "light" : "dark")}
+        title={dark ? "Tema claro" : "Tema escuro"}
+        aria-label={dark ? "Tema claro" : "Tema escuro"}
+        className="press grid size-7 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-fill-2 hover:text-foreground"
+      >
+        {dark ? <SunIcon className="size-3.5" /> : <MoonIcon className="size-3.5" />}
+      </button>
+    </div>
   );
 }
 
 /**
- * The standard page frame: a header bar with the sidebar toggle, the title and the page
- * actions, then the content with consistent padding.
+ * The standard page frame inside the floating content panel: a toolbar with the large title
+ * and the page actions, an optional summary line, then the scrolling content.
  */
 export function Page({
   title,
+  description,
   actions,
+  bleed = false,
   children,
 }: {
   title: string;
+  description?: ReactNode;
   actions?: ReactNode;
+  /** Full-height content without padding (Conversas). */
+  bleed?: boolean;
   children: ReactNode;
 }) {
   return (
     <>
-      <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 border-b bg-background px-4 lg:px-6">
-        <SidebarTrigger className="-ml-1" />
-        <Separator
-          orientation="vertical"
-          className="mx-2 data-vertical:h-4 data-vertical:self-auto"
-        />
-        <h1 className="truncate text-base font-medium">{title}</h1>
-        {actions ? <div className="ml-auto flex items-center gap-2">{actions}</div> : null}
+      <header className="flex h-14 shrink-0 items-center gap-2 px-4 sm:h-16 lg:pr-5 lg:pl-6">
+        <SidebarTrigger className="-ml-1 size-9 text-tertiary md:hidden" />
+        <h1 className="min-w-0 flex-1 truncate text-xl font-medium tracking-[-0.03em] sm:text-2xl">
+          {title}
+        </h1>
+        {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
       </header>
-      <div className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">{children}</div>
+      {bleed ? (
+        <div className="flex min-h-0 flex-1 flex-col">{children}</div>
+      ) : (
+        <div className="scroll-fade min-h-0 flex-1 overflow-y-auto">
+          <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-6 px-4 pt-1 pb-12 lg:px-6">
+            {description ? (
+              <p className="-mt-1 text-base font-light text-muted-foreground">{description}</p>
+            ) : null}
+            {children}
+          </div>
+        </div>
+      )}
     </>
+  );
+}
+
+/** A number in the summary line, colored by what it means. */
+export function Stat({
+  value,
+  tone,
+  children,
+}: {
+  value: number;
+  tone?: Tone;
+  children: ReactNode;
+}) {
+  return (
+    <span className={cn(tone && TONE_TEXT[tone])}>
+      <b className={cn("font-medium tabular-nums", !tone && "text-foreground")}>{value}</b>{" "}
+      {children}
+    </span>
   );
 }

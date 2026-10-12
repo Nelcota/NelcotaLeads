@@ -1,7 +1,16 @@
 import type { QueryClient } from "@tanstack/react-query";
-import { HeadContent, Link, Scripts, createRootRouteWithContext } from "@tanstack/react-router";
+import {
+  HeadContent,
+  Link,
+  Scripts,
+  createRootRouteWithContext,
+  useRouterState,
+} from "@tanstack/react-router";
 import type { ReactNode } from "react";
+import { CompassIcon } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { EmptyState } from "@/components/apple-ui";
+import { Button } from "@/components/ui/button";
 import { RouteError } from "@/components/route-error";
 import { Toaster } from "@/components/ui/sonner";
 import { THEME_INIT_SCRIPT } from "@/lib/theme";
@@ -22,17 +31,24 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   shellComponent: RootDocument,
   errorComponent: RouteError,
   notFoundComponent: () => (
-    <div className="mx-auto max-w-md py-20 text-center">
-      <h1 className="text-2xl font-medium tracking-tight">Página não encontrada</h1>
-      <p className="mt-2 text-sm text-muted-foreground">O endereço não existe ou foi removido.</p>
-      <Link to="/" className="mt-6 inline-block text-sm underline underline-offset-4">
-        Ir para o painel
-      </Link>
+    <div className="grid min-h-full place-items-center p-6">
+      <EmptyState
+        icon={CompassIcon}
+        className="grouped w-full max-w-md"
+        title="Página não encontrada"
+        description="O endereço não existe ou foi removido."
+      >
+        <Button asChild variant="outline">
+          <Link to="/">Ir para o painel</Link>
+        </Button>
+      </EmptyState>
     </div>
   ),
 });
 
 function RootDocument({ children }: { children: ReactNode }) {
+  // The login screen stands alone: no sidebar, and nothing that queries the (gated) server.
+  const bare = useRouterState({ select: (state) => state.location.pathname === "/login" });
   return (
     <html lang="pt-BR" suppressHydrationWarning>
       <head>
@@ -41,7 +57,7 @@ function RootDocument({ children }: { children: ReactNode }) {
         <HeadContent />
       </head>
       <body>
-        <AppShell>{children}</AppShell>
+        {bare ? children : <AppShell>{children}</AppShell>}
         <Toaster position="bottom-right" />
         <Scripts />
       </body>

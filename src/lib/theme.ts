@@ -4,8 +4,8 @@ export type Theme = "light" | "dark";
 
 const STORAGE_KEY = "theme";
 
-/** Runs before hydration to avoid a flash of the wrong theme. */
-export const THEME_INIT_SCRIPT = `(function(){try{var s=localStorage.getItem('${STORAGE_KEY}');var d=s?s==='dark':matchMedia('(prefers-color-scheme: dark)').matches;document.documentElement.classList.toggle('dark',d);document.documentElement.style.colorScheme=d?'dark':'light';}catch(e){}})();`;
+/** Runs before hydration to avoid a flash of the wrong theme. Dark unless the user picked light. */
+export const THEME_INIT_SCRIPT = `(function(){var d=true;try{d=localStorage.getItem('${STORAGE_KEY}')!=='light';}catch(e){}document.documentElement.classList.toggle('dark',d);document.documentElement.style.colorScheme=d?'dark':'light';})();`;
 
 const listeners = new Set<() => void>();
 
@@ -19,7 +19,7 @@ function getSnapshot(): Theme {
 }
 
 export function useTheme() {
-  const theme = useSyncExternalStore(subscribe, getSnapshot, (): Theme => "light");
+  const theme = useSyncExternalStore(subscribe, getSnapshot, (): Theme => "dark");
   const setTheme = useCallback((next: Theme) => {
     document.documentElement.classList.toggle("dark", next === "dark");
     document.documentElement.style.colorScheme = next;

@@ -7,19 +7,21 @@ import {
   useSuspenseQuery,
 } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { PlusIcon, Trash2Icon } from "lucide-react";
+import {
+  ClockIcon,
+  MailIcon,
+  MinusIcon,
+  PlugZapIcon,
+  PlusIcon,
+  SendIcon,
+  SettingsIcon,
+  SparklesIcon,
+} from "lucide-react";
+import { FloatingBar, IconTile, toneVar, type Tone } from "@/components/apple-ui";
 import type { ReactNode } from "react";
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { Page } from "@/components/app-shell";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Field } from "@/components/field";
@@ -58,6 +60,8 @@ export const Route = createFileRoute("/settings")({
     Promise.all([
       context.queryClient.ensureQueryData(settingsQuery),
       context.queryClient.ensureQueryData(autopilotQuery),
+      // The e-mail card renders from it; prefetching keeps SSR and hydration in agreement.
+      context.queryClient.ensureQueryData(providerStatusQuery),
     ]),
   component: SettingsPage,
 });
@@ -72,7 +76,16 @@ function SettingsPage() {
   const { data } = useSuspenseQuery(settingsQuery);
   return (
     <Page title="Configurações">
-      <div className="mx-auto grid w-full max-w-3xl gap-4 lg:gap-6">
+      <div className="mx-auto grid w-full max-w-[720px] gap-8">
+        <div className="flex items-center gap-4 px-1">
+          <IconTile icon={SettingsIcon} tone="gray" size={60} className="rounded-[15px]!" />
+          <div>
+            <p className="text-lg font-medium tracking-[-0.02em]">Como a IA trabalha por você</p>
+            <p className="text-sm font-light text-muted-foreground">
+              Oferta, critérios de nota, tom das mensagens, caixa de e-mail e o que roda sozinho.
+            </p>
+          </div>
+        </div>
         <MailCard />
         <AutopilotForm />
         <SettingsForm defaults={data} />
@@ -90,38 +103,45 @@ function MailCard() {
   });
   const mail = status?.mail;
   return (
-    <Card id="email" className="scroll-mt-20">
-      <CardHeader>
-        <CardTitle>E-mail</CardTitle>
-        <CardDescription>
-          A caixa de onde os e-mails saem e onde as respostas chegam. Até {mail?.limit ?? 30} envios
-          por dia, um a cada 8 minutos.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-2 text-sm">
-        {mail?.configured ? (
-          <p>
-            Conectado como <span className="font-medium">{mail.address}</span>. Hoje:{" "}
-            {mail.sentToday} de {mail.limit} enviados.
-          </p>
-        ) : (
-          <p className="text-muted-foreground">
-            Coloque <code>MAIL_ADDRESS</code> e <code>MAIL_PASSWORD</code> da sua caixa da Hostinger
-            no arquivo <code>.dev.vars</code> e reinicie o app. Em produção, use{" "}
-            <code>wrangler secret put</code>.
-          </p>
-        )}
-      </CardContent>
-      <CardFooter className="justify-end border-t">
+    <SettingsSection
+      id="email"
+      title="E-mail"
+      description={`A caixa de onde os e-mails saem e onde as respostas chegam. Até ${mail?.limit ?? 30} envios por dia, um a cada 8 minutos.`}
+      contentClassName="p-0"
+    >
+      <div className="flex flex-wrap items-center gap-3 px-4 py-3">
+        <IconTile icon={MailIcon} tone={mail?.configured ? "green" : "orange"} size={30} />
+        <div className="min-w-0 flex-1 text-sm">
+          {mail?.configured ? (
+            <>
+              <p className="truncate font-medium">{mail.address}</p>
+              <p className="text-[12.5px] font-medium text-green">
+                Conectado · {mail.sentToday} de {mail.limit} enviados hoje
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="font-medium text-orange">Caixa não conectada</p>
+              <p className="font-light text-muted-foreground">
+                Coloque <code className={CODE}>MAIL_ADDRESS</code> e{" "}
+                <code className={CODE}>MAIL_PASSWORD</code> da sua caixa da Hostinger no arquivo{" "}
+                <code className={CODE}>.dev.vars</code> e reinicie o app. Em produção, use{" "}
+                <code className={CODE}>wrangler secret put</code>.
+              </p>
+            </>
+          )}
+        </div>
         <Button
           variant="outline"
+          size="sm"
           disabled={!mail?.configured || test.isPending}
           onClick={() => test.mutate()}
         >
+          <PlugZapIcon />
           {test.isPending ? "Testando…" : "Testar conexão"}
         </Button>
-      </CardFooter>
-    </Card>
+      </div>
+    </SettingsSection>
   );
 }
 
@@ -161,32 +181,42 @@ function AutopilotForm() {
         }
         title="Modo automático"
         description="O que a IA faz sozinha: responder e-mails, disparar para leads novos e buscar empresas todo dia, cada dia num bairro diferente da cidade."
-        contentClassName="grid gap-6"
+        contentClassName="grid gap-0 p-0"
       >
-        <div className="grid gap-4">
+        <div className="grid">
           {(
             [
               {
                 name: "aiAutoReply",
                 label: "IA responde sozinha",
                 hint: "Responde os e-mails até a pessoa demonstrar interesse, pedir preço ou reunião. Aí para e te avisa.",
+                icon: SparklesIcon,
+                tone: "purple",
               },
               {
                 name: "autoDispatch",
                 label: "Disparo automático",
                 hint: "Leads novos com e-mail entram na fila de envio sem você selecionar, dentro do limite diário.",
+                icon: SendIcon,
+                tone: "blue",
               },
               {
                 name: "enabled",
                 label: "Busca diária",
                 hint: "Busca os nichos e cidades abaixo todo dia, no horário escolhido.",
+                icon: ClockIcon,
+                tone: "green",
               },
-            ] as const
+            ] as const satisfies readonly { tone: Tone; [key: string]: unknown }[]
           ).map((item) => (
-            <div key={item.name} className="flex items-start justify-between gap-4">
-              <div className="grid gap-0.5">
+            <div
+              key={item.name}
+              className="grouped-row flex items-center gap-3 px-4 py-3 [--inset:58px]"
+            >
+              <IconTile icon={item.icon} tone={item.tone} size={30} />
+              <div className="grid min-w-0 flex-1 gap-0.5">
                 <Label htmlFor={`auto-${item.name}`}>{item.label}</Label>
-                <p className="text-sm text-muted-foreground">{item.hint}</p>
+                <p className="text-[12.5px] font-light text-muted-foreground">{item.hint}</p>
               </div>
               <Controller
                 control={form.control}
@@ -195,6 +225,7 @@ function AutopilotForm() {
                   <Switch
                     id={`auto-${item.name}`}
                     checked={field.value}
+                    style={{ "--switch-on": toneVar(item.tone) }}
                     onCheckedChange={field.onChange}
                   />
                 )}
@@ -203,50 +234,46 @@ function AutopilotForm() {
           ))}
         </div>
 
-        <div className="grid gap-2">
-          <p className="text-sm font-medium">O que buscar</p>
+        <div className="grid gap-2 border-t border-border/70 px-4 pt-3.5 pb-4">
+          <p className="text-[13px] font-medium text-muted-foreground">O que buscar</p>
           {targets.fields.map((field, index) => (
-            <div key={field.id} className="grid grid-cols-[1fr_1fr_2rem] items-start gap-2">
-              <Input
-                aria-label={`Nicho ${index + 1}`}
-                placeholder="Nicho, ex.: dentistas"
-                defaultValue={field.niche}
-                {...form.register(`targets.${index}.niche`)}
-                aria-invalid={Boolean(errors.targets?.[index]?.niche)}
-              />
-              <Input
-                aria-label={`Cidade ${index + 1}`}
-                placeholder="Cidade, ex.: Belo Horizonte"
-                defaultValue={field.city}
-                {...form.register(`targets.${index}.city`)}
-                aria-invalid={Boolean(errors.targets?.[index]?.city)}
-              />
-              <Button
+            <div key={field.id} className="flex items-center gap-2">
+              <div className="grid flex-1 grid-cols-[1fr_auto_1fr] items-center gap-2">
+                <Input
+                  aria-label={`Nicho ${index + 1}`}
+                  placeholder="Nicho, ex.: dentistas"
+                  defaultValue={field.niche}
+                  {...form.register(`targets.${index}.niche`)}
+                  aria-invalid={Boolean(errors.targets?.[index]?.niche)}
+                />
+                <span className="text-sm font-light text-tertiary">em</span>
+                <Input
+                  aria-label={`Cidade ${index + 1}`}
+                  placeholder="Cidade, ex.: Belo Horizonte"
+                  defaultValue={field.city}
+                  {...form.register(`targets.${index}.city`)}
+                  aria-invalid={Boolean(errors.targets?.[index]?.city)}
+                />
+              </div>
+              <button
                 type="button"
-                variant="ghost"
-                size="icon"
                 aria-label={`Remover busca ${index + 1}`}
-                className="text-muted-foreground hover:text-destructive"
+                className="press grid size-[22px] shrink-0 place-items-center rounded-full bg-red text-white"
                 onClick={() => targets.remove(index)}
               >
-                <Trash2Icon />
-              </Button>
+                <MinusIcon className="size-3" strokeWidth={3} />
+              </button>
             </div>
           ))}
-          <div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={targets.fields.length >= 10}
-              onClick={() => targets.append({ niche: "", city: "" })}
-            >
-              <PlusIcon /> Adicionar nicho e cidade
-            </Button>
-          </div>
+          <AddRow
+            disabled={targets.fields.length >= 10}
+            onClick={() => targets.append({ niche: "", city: "" })}
+          >
+            Adicionar nicho e cidade
+          </AddRow>
         </div>
 
-        <div className="grid gap-6 sm:grid-cols-2">
+        <div className="grid gap-6 border-t border-border/70 px-4 pt-3.5 pb-4 sm:grid-cols-2">
           <Field label="Horário" hint="Horário de Brasília.">
             <Controller
               control={form.control}
@@ -339,6 +366,7 @@ function SettingsForm({ defaults }: { defaults: SettingsInput }) {
       noValidate
     >
       <SettingsSection
+        id="oferta"
         title="Oferta e cliente ideal"
         description="Quanto mais específico, melhor a nota e a mensagem."
         contentClassName="grid gap-6"
@@ -369,53 +397,58 @@ function SettingsForm({ defaults }: { defaults: SettingsInput }) {
       <SettingsSection
         title="Critérios de pontuação"
         description="A nota é a soma dos pesos dos critérios que se aplicam a cada empresa, limitada a 100."
-        contentClassName="grid gap-2"
+        contentClassName="grid gap-2 px-4 py-3.5"
       >
-        <div className="grid grid-cols-[1fr_6.5rem_2rem] gap-2 text-xs text-muted-foreground">
+        <div className="grid grid-cols-[1fr_5.5rem_22px] gap-2 px-1 text-xs font-medium text-tertiary">
           <span>Sinal</span>
-          <span>Peso</span>
+          <span className="text-right">Peso</span>
         </div>
-        {criteria.fields.map((field, index) => (
-          <div key={field.id} className="grid grid-cols-[1fr_6.5rem_2rem] items-start gap-2">
-            <Input
-              aria-label={`Sinal ${index + 1}`}
-              defaultValue={field.label}
-              {...form.register(`criteria.${index}.label`)}
-              aria-invalid={Boolean(errors.criteria?.[index]?.label)}
-            />
-            <Input
-              aria-label={`Peso ${index + 1}`}
-              type="number"
-              inputMode="numeric"
-              className="tabular-nums"
-              defaultValue={field.weight}
-              {...form.register(`criteria.${index}.weight`, { valueAsNumber: true })}
-              aria-invalid={Boolean(errors.criteria?.[index]?.weight)}
-            />
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              aria-label={`Remover critério ${index + 1}`}
-              className="text-muted-foreground hover:text-destructive"
-              onClick={() => criteria.remove(index)}
-            >
-              <Trash2Icon />
-            </Button>
-          </div>
-        ))}
-        <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => criteria.append({ label: "", weight: 10 })}
-          >
-            <PlusIcon /> Adicionar critério
-          </Button>
-          <p className="text-xs text-muted-foreground">
+        {criteria.fields.map((field, index) => {
+          const weight = watchedCriteria?.[index]?.weight ?? field.weight;
+          return (
+            <div key={field.id} className="grid grid-cols-[1fr_5.5rem_22px] items-center gap-2">
+              <Input
+                aria-label={`Sinal ${index + 1}`}
+                defaultValue={field.label}
+                {...form.register(`criteria.${index}.label`)}
+                aria-invalid={Boolean(errors.criteria?.[index]?.label)}
+              />
+              <Input
+                aria-label={`Peso ${index + 1}`}
+                type="number"
+                inputMode="numeric"
+                className={cn(
+                  "text-right font-medium tabular-nums",
+                  Number.isFinite(weight) && weight > 0 && "text-green",
+                  Number.isFinite(weight) && weight < 0 && "text-red",
+                )}
+                defaultValue={field.weight}
+                {...form.register(`criteria.${index}.weight`, { valueAsNumber: true })}
+                aria-invalid={Boolean(errors.criteria?.[index]?.weight)}
+              />
+              <button
+                type="button"
+                aria-label={`Remover critério ${index + 1}`}
+                className="press relative grid size-[22px] shrink-0 place-items-center rounded-full bg-red text-white after:absolute after:-inset-2.5 after:content-['']"
+                onClick={() => criteria.remove(index)}
+              >
+                <MinusIcon className="size-3" strokeWidth={3} />
+              </button>
+            </div>
+          );
+        })}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <AddRow onClick={() => criteria.append({ label: "", weight: 10 })}>
+            Adicionar critério
+          </AddRow>
+          <p className="text-xs font-light text-muted-foreground">
             Soma dos pesos positivos:{" "}
-            <span className={cn("font-medium tabular-nums", maxScore !== 100 && "text-foreground")}>
+            <span
+              className={cn(
+                "font-medium tabular-nums",
+                maxScore === 100 ? "text-green" : "text-orange",
+              )}
+            >
               {maxScore}
             </span>
             {maxScore < 100 ? " (a nota máxima possível fica abaixo de 100)" : null}
@@ -483,36 +516,38 @@ function SettingsForm({ defaults }: { defaults: SettingsInput }) {
       </SettingsSection>
 
       {isDirty || mutation.isPending ? (
-        <div className="sticky bottom-0 z-20 -mx-4 -mb-4 border-t bg-background/95 backdrop-blur lg:-mx-6 lg:-mb-6">
-          <div className="flex items-center justify-between gap-4 px-4 py-3 sm:px-8">
-            <p className="text-sm text-muted-foreground">Alterações não salvas</p>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => form.reset(defaults)}
-                disabled={mutation.isPending}
-              >
-                Descartar
-              </Button>
-              <Button type="submit" disabled={mutation.isPending}>
-                {mutation.isPending ? "Salvando…" : "Salvar"}
-              </Button>
-            </div>
-          </div>
-        </div>
+        <FloatingBar>
+          <span className="text-sm font-light opacity-80">Alterações não salvas</span>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => form.reset(defaults)}
+            disabled={mutation.isPending}
+          >
+            Descartar
+          </Button>
+          <Button type="submit" size="sm" disabled={mutation.isPending}>
+            {mutation.isPending ? "Salvando…" : "Salvar"}
+          </Button>
+        </FloatingBar>
       ) : null}
     </form>
   );
 }
 
+const CODE = "rounded-[5px] bg-fill-2 px-1 py-px text-[12px] font-medium";
+
+/** Settings-style section: title above, grouped list, the description as a footnote below. */
 function SettingsSection({
+  id,
   title,
   description,
   contentClassName,
   footer,
   children,
 }: {
+  id?: string;
   title: string;
   description: string;
   contentClassName?: string;
@@ -520,13 +555,40 @@ function SettingsSection({
   children: ReactNode;
 }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
-      </CardHeader>
-      <CardContent className={contentClassName}>{children}</CardContent>
-      {footer ? <CardFooter className="justify-end border-t">{footer}</CardFooter> : null}
-    </Card>
+    <section id={id} className="enter scroll-mt-20">
+      <h2 className="px-1.5 pb-2 text-lg font-medium tracking-[-0.015em]">{title}</h2>
+      <div className="grouped">
+        <div className={cn("px-4 py-4", contentClassName)}>{children}</div>
+        {footer ? (
+          <div className="flex justify-end border-t border-border/70 px-4 py-3">{footer}</div>
+        ) : null}
+      </div>
+      <p className="px-4 pt-2 text-xs leading-relaxed font-light text-tertiary">{description}</p>
+    </section>
+  );
+}
+
+/** "+ Add …" row: green round plus and a blue label, like the Settings app. */
+function AddRow({
+  children,
+  disabled,
+  onClick,
+}: {
+  children: ReactNode;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className="press inline-flex items-center gap-2.5 py-1 text-sm font-medium text-blue disabled:opacity-50"
+    >
+      <span className="grid size-[22px] place-items-center rounded-full bg-green text-primary-foreground">
+        <PlusIcon className="size-3" strokeWidth={3} />
+      </span>
+      {children}
+    </button>
   );
 }
