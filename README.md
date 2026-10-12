@@ -37,7 +37,7 @@ pnpm db:migrate:local              # cria o banco D1 local
 pnpm dev                           # http://localhost:3000
 ```
 
-O app inteiro fica atrás de uma tela de login. Defina `APP_PASSWORD` (8+ caracteres) no `.dev.vars` e, em produção, com `wrangler secret put APP_PASSWORD`. A sessão dura 30 dias, trocar a senha desconecta todos os navegadores, e cada IP tem até 10 tentativas erradas por dia.
+O app inteiro fica atrás de uma tela de login com contas locais (e-mail e senha, guardadas no D1 com hash PBKDF2). Defina `APP_PASSWORD` (8+ caracteres) no `.dev.vars` e, em produção, com `wrangler secret put APP_PASSWORD`: ele é o **código de acesso** pedido para criar uma conta (`/criar-conta`) ou redefinir a senha (`/redefinir-senha`), e também a chave que assina as sessões. Na primeira vez, abra `/criar-conta` e use esse código. A sessão dura 30 dias; redefinir a senha desconecta os outros navegadores daquela conta, e trocar o `APP_PASSWORD` desconecta todos. Cada IP tem até 10 tentativas erradas por dia (senha ou código).
 
 As chaves `GOOGLE_PLACES_API_KEY` e `DEEPSEEK_API_KEY` são obrigatórias: o app não usa dados simulados. `MAIL_ADDRESS` e `MAIL_PASSWORD` são necessárias para disparar e-mails; teste a conexão em Configurações. Enquanto alguma faltar, a tela de nova busca mostra qual é e bloqueia a busca.
 
@@ -76,7 +76,7 @@ Os nomes `deepseek-chat` e `deepseek-reasoner` foram aposentados pela DeepSeek. 
 
 O `lefthook` roda formatação e lint em cada commit (é instalado pelo `pnpm install`).
 
-Os testes E2E sobem o app com `E2E=1 vite dev` na porta 3100. Nesse modo, Google Places, DeepSeek e a caixa de e-mail são trocados por versões em memória, e o banco D1 fica separado em `.wrangler/e2e`. O seu `.dev.vars` não é usado (a senha de teste é `e2e-password`). Esse modo só existe no servidor de desenvolvimento: o build de produção não inclui os simuladores nem a rota `/api/e2e`.
+Os testes E2E sobem o app com `E2E=1 vite dev` na porta 3100. Nesse modo, Google Places, DeepSeek e a caixa de e-mail são trocados por versões em memória, e o banco D1 fica separado em `.wrangler/e2e`. O seu `.dev.vars` não é usado (o código de acesso de teste é `e2e-password`, e o setup cria a conta `e2e@nelcota.test`). Para rodar uma segunda suíte ao lado de outra, use `E2E_PORT=3105 pnpm test:e2e`. Esse modo só existe no servidor de desenvolvimento: o build de produção não inclui os simuladores nem a rota `/api/e2e`.
 
 ## Deploy na Cloudflare
 

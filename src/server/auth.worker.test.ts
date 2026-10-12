@@ -1,63 +1,192 @@
 import { env } from "cloudflare:test";
+import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import { getDb } from "@/db/client";
+import { users } from "@/db/schema";
 import { resetDb } from "../../test/reset-db";
-import { LOGIN_DAILY_FAILURES, LOGIN_DAILY_FAILURES_TOTAL, attemptLogin } from "./auth";
+import {
+  LOGIN_DAILY_FAILURES,
+  LOGIN_DAILY_FAILURES_TOTAL,
+  SESSION_COOKIE,
+  attemptLogin,
+  attemptPasswordReset,
+  attemptSignUp,
+  readSession,
+  sessionVersionLookup,
+} from "./auth";
 
 const db = getDb(env.DB);
-const PASSWORD = "correct horse battery";
+const SECRET = "correct horse battery";
 const now = new Date("2026-10-11T12:00:00Z");
 const tomorrow = new Date("2026-10-12T12:00:00Z");
+const ACCOUNT = { name: "Ana", email: "ana@nelcota.test", password: "senha-da-ana" };
 
-const login = (input: string, ip = "203.0.113.7", at = now) =>
-  attemptLogin(db, { input, password: PASSWORD, ip }, at);
+const deps = (ip = "203.0.113.7") => ({ db, secret: SECRET, ip });
+// Every attempt runs a deliberately slow password hash, so the limit tests take a while.
+const SLOW = { timeout: 60_000 };
 
-describe("attemptLogin", () => {
+const signUp = (overrides: Partial<typeof ACCOUNT & { accessCode: string }> = {}, ip?: string) =>
+  attemptSignUp(deps(ip), { ...ACCOUNT, accessCode: SECRET, ...overrides }, now);
+
+const login = (password: string, ip?: string, at = now, email = ACCOUNT.email) =>
+  attemptLogin(deps(ip), { email, password }, at);
+
+/** The session a Set-Cookie header would give, as the gate would read it. */
+async function sessionOf(cookie: string) {
+  const token = cookie.split(";")[0] ?? "";
+  const request = new Request("https://app.test/", { headers: { Cookie: token } });
+  return readSession(request, SECRET, sessionVersionLookup(db), now);
+}
+
+describe("attemptSignUp", () => {
   beforeEach(resetDb);
 
-  it("returns a session cookie for the right password", async () => {
-    const result = await login(PASSWORD);
-    expect(result.ok && result.cookie).toMatch(/^__Host-nelcota_session=\d+\.[\w-]{43};/);
+  it("creates the account, stores only a hash and signs it in", async () => {
+    const result = await signUp();
+    expect(result.ok && result.cookie).toMatch(new RegExp(`^${SESSION_COOKIE}=[\\w-]+\\.1\\.`));
+    const row = await db.query.users.findFirst({ where: eq(users.email, ACCOUNT.email) });
+    expect(row).toMatchObject({ name: "Ana", sessionVersion: 1 });
+    expect(row?.passwordHash).not.toContain(ACCOUNT.password);
+    expect(result.ok && (await sessionOf(result.cookie))?.userId).toBe(row?.id);
   });
 
-  it("refuses a wrong password", async () => {
-    expect(await login("nope")).toMatchObject({ ok: false, status: 401, code: "senha" });
+  it("refuses a wrong access code and creates nothing", async () => {
+    expect(await signUp({ accessCode: "wrong code" })).toMatchObject({
+      ok: false,
+      status: 401,
+      code: "codigo",
+    });
+    expect(await db.query.users.findMany()).toHaveLength(0);
   });
 
-  it("locks an IP out for the day after too many failures, even with the right password", async () => {
-    for (let i = 0; i < LOGIN_DAILY_FAILURES; i++) await login("nope");
-    expect(await login(PASSWORD)).toMatchObject({ ok: false, status: 429, code: "limite" });
-    expect((await login(PASSWORD, "198.51.100.1")).ok).toBe(true);
-    expect((await login(PASSWORD, "203.0.113.7", tomorrow)).ok).toBe(true);
+  it("refuses a second account with the same e-mail", async () => {
+    await signUp();
+    expect(await signUp({ name: "Outra" })).toMatchObject({ status: 409, code: "email-em-uso" });
   });
 
-  it("counts every address of one IPv6 /64 together", async () => {
-    for (let i = 0; i < LOGIN_DAILY_FAILURES; i++) await login("nope", `2001:db8:1:2::${i + 1}`);
-    expect(await login(PASSWORD, "2001:db8:1:2:ffff::1")).toMatchObject({ status: 429 });
-    expect((await login(PASSWORD, "2001:db8:1:3::1")).ok).toBe(true);
+  it("counts wrong access codes toward the daily limit", SLOW, async () => {
+    for (let i = 0; i < LOGIN_DAILY_FAILURES; i++) await signUp({ accessCode: "nope" });
+    expect(await signUp()).toMatchObject({ status: 429, code: "limite" });
   });
 
-  it("stops everyone after too many failures in total", async () => {
-    for (let i = 0; i < LOGIN_DAILY_FAILURES_TOTAL; i++) await login("nope", `198.51.100.${i}`);
-    expect(await login(PASSWORD, "192.0.2.1")).toMatchObject({ status: 429 });
-  });
-
-  it("counts parallel attempts before comparing, so bursts can't exceed the limit", async () => {
-    const results = await Promise.all(
-      Array.from({ length: LOGIN_DAILY_FAILURES + 5 }, () => login("nope")),
+  it("fails closed without a configured secret", async () => {
+    const result = await attemptSignUp(
+      { db, secret: undefined, ip: "x" },
+      { ...ACCOUNT, accessCode: "" },
+      now,
     );
-    expect(results.filter((result) => !result.ok && result.status === 401)).toHaveLength(
-      LOGIN_DAILY_FAILURES,
-    );
-  });
-
-  it("does not count successful logins as failures", async () => {
-    for (let i = 0; i < LOGIN_DAILY_FAILURES + 2; i++)
-      expect((await login(PASSWORD)).ok).toBe(true);
-  });
-
-  it("fails closed without a configured password", async () => {
-    const result = await attemptLogin(db, { input: "", password: undefined, ip: "x" }, now);
     expect(result).toMatchObject({ ok: false, status: 503, code: "config" });
+  });
+});
+
+describe("attemptLogin", () => {
+  beforeEach(async () => {
+    await resetDb();
+    await signUp();
+  });
+
+  it("returns a session cookie for the right e-mail and password", async () => {
+    expect((await login(ACCOUNT.password)).ok).toBe(true);
+  });
+
+  it("gives the same answer for a wrong password and an unknown e-mail", async () => {
+    const wrong = await login("nope");
+    const unknown = await login(ACCOUNT.password, undefined, now, "ninguem@nelcota.test");
+    expect(wrong).toMatchObject({ ok: false, status: 401, code: "senha" });
+    expect(unknown).toEqual(wrong);
+  });
+
+  it(
+    "locks an IP out for the day after too many failures, even with the right password",
+    SLOW,
+    async () => {
+      for (let i = 0; i < LOGIN_DAILY_FAILURES; i++) await login("nope");
+      expect(await login(ACCOUNT.password)).toMatchObject({
+        ok: false,
+        status: 429,
+        code: "limite",
+      });
+      expect((await login(ACCOUNT.password, "198.51.100.1")).ok).toBe(true);
+      expect((await login(ACCOUNT.password, "203.0.113.7", tomorrow)).ok).toBe(true);
+    },
+  );
+
+  it("counts every address of one IPv6 /64 together", SLOW, async () => {
+    for (let i = 0; i < LOGIN_DAILY_FAILURES; i++) await login("nope", `2001:db8:1:2::${i + 1}`);
+    expect(await login(ACCOUNT.password, "2001:db8:1:2:ffff::1")).toMatchObject({ status: 429 });
+    expect((await login(ACCOUNT.password, "2001:db8:1:3::1")).ok).toBe(true);
+  });
+
+  it("stops everyone after too many failures in total", SLOW, async () => {
+    for (let i = 0; i < LOGIN_DAILY_FAILURES_TOTAL; i++) await login("nope", `198.51.100.${i}`);
+    expect(await login(ACCOUNT.password, "192.0.2.1")).toMatchObject({ status: 429 });
+  });
+
+  it(
+    "counts parallel attempts before comparing, so bursts can't exceed the limit",
+    SLOW,
+    async () => {
+      const results = await Promise.all(
+        Array.from({ length: LOGIN_DAILY_FAILURES + 5 }, () => login("nope")),
+      );
+      expect(results.filter((result) => !result.ok && result.status === 401)).toHaveLength(
+        LOGIN_DAILY_FAILURES,
+      );
+    },
+  );
+
+  it("does not count successful logins as failures", SLOW, async () => {
+    for (let i = 0; i < LOGIN_DAILY_FAILURES + 2; i++) {
+      expect((await login(ACCOUNT.password)).ok).toBe(true);
+    }
+  });
+
+  it("fails closed without a configured secret", async () => {
+    const result = await attemptLogin(
+      { db, secret: undefined, ip: "x" },
+      { email: ACCOUNT.email, password: ACCOUNT.password },
+      now,
+    );
+    expect(result).toMatchObject({ ok: false, status: 503, code: "config" });
+  });
+});
+
+describe("attemptPasswordReset", () => {
+  beforeEach(resetDb);
+
+  it("sets the new password and signs out the account's other sessions", async () => {
+    const first = await signUp();
+    if (!first.ok) throw new Error("sign-up failed");
+
+    const reset = await attemptPasswordReset(
+      deps(),
+      { email: ACCOUNT.email, password: "senha-nova-123", accessCode: SECRET },
+      now,
+    );
+    expect(reset.ok).toBe(true);
+    expect(await sessionOf(first.cookie)).toBeNull();
+    expect(reset.ok && (await sessionOf(reset.cookie))).not.toBeNull();
+    expect((await login(ACCOUNT.password)).ok).toBe(false);
+    expect((await login("senha-nova-123")).ok).toBe(true);
+  });
+
+  it("refuses a wrong access code and keeps the old password", async () => {
+    await signUp();
+    const result = await attemptPasswordReset(
+      deps(),
+      { email: ACCOUNT.email, password: "senha-nova-123", accessCode: "nope" },
+      now,
+    );
+    expect(result).toMatchObject({ status: 401, code: "codigo" });
+    expect((await login(ACCOUNT.password)).ok).toBe(true);
+  });
+
+  it("says so when there is no account with that e-mail", async () => {
+    const result = await attemptPasswordReset(
+      deps(),
+      { email: "ninguem@nelcota.test", password: "senha-nova-123", accessCode: SECRET },
+      now,
+    );
+    expect(result).toMatchObject({ status: 404, code: "sem-conta" });
   });
 });

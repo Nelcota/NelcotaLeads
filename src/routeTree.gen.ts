@@ -12,12 +12,16 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ContaRouteImport } from './routes/conta'
 import { Route as ConversasRouteImport } from './routes/conversas'
+import { Route as CriarContaRouteImport } from './routes/criar-conta'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as RedefinirSenhaRouteImport } from './routes/redefinir-senha'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ApiE2eRouteImport } from './routes/api/e2e'
 import { Route as ApiLeadsDotcsvRouteImport } from './routes/api/leads[.]csv'
 import { Route as ApiLoginRouteImport } from './routes/api/login'
 import { Route as ApiLogoutRouteImport } from './routes/api/logout'
+import { Route as ApiResetPasswordRouteImport } from './routes/api/reset-password'
+import { Route as ApiSignupRouteImport } from './routes/api/signup'
 import { Route as LeadsIndexRouteImport } from './routes/leads/index'
 import { Route as LeadsLeadIdRouteImport } from './routes/leads/$leadId'
 import { Route as SearchesIndexRouteImport } from './routes/searches/index'
@@ -38,9 +42,19 @@ const ConversasRoute = ConversasRouteImport.update({
   path: '/conversas',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CriarContaRoute = CriarContaRouteImport.update({
+  id: '/criar-conta',
+  path: '/criar-conta',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RedefinirSenhaRoute = RedefinirSenhaRouteImport.update({
+  id: '/redefinir-senha',
+  path: '/redefinir-senha',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsRoute = SettingsRouteImport.update({
@@ -68,6 +82,16 @@ const ApiLogoutRoute = ApiLogoutRouteImport.update({
   path: '/api/logout',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiResetPasswordRoute = ApiResetPasswordRouteImport.update({
+  id: '/api/reset-password',
+  path: '/api/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSignupRoute = ApiSignupRouteImport.update({
+  id: '/api/signup',
+  path: '/api/signup',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LeadsIndexRoute = LeadsIndexRouteImport.update({
   id: '/leads/',
   path: '/leads/',
@@ -93,12 +117,16 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/conta': typeof ContaRoute
   '/conversas': typeof ConversasRoute
+  '/criar-conta': typeof CriarContaRoute
   '/login': typeof LoginRoute
+  '/redefinir-senha': typeof RedefinirSenhaRoute
   '/settings': typeof SettingsRoute
   '/api/e2e': typeof ApiE2eRoute
   '/api/leads.csv': typeof ApiLeadsDotcsvRoute
   '/api/login': typeof ApiLoginRoute
   '/api/logout': typeof ApiLogoutRoute
+  '/api/reset-password': typeof ApiResetPasswordRoute
+  '/api/signup': typeof ApiSignupRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
   '/searches/$searchId': typeof SearchesSearchIdRoute
   '/leads/': typeof LeadsIndexRoute
@@ -108,12 +136,16 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/conta': typeof ContaRoute
   '/conversas': typeof ConversasRoute
+  '/criar-conta': typeof CriarContaRoute
   '/login': typeof LoginRoute
+  '/redefinir-senha': typeof RedefinirSenhaRoute
   '/settings': typeof SettingsRoute
   '/api/e2e': typeof ApiE2eRoute
   '/api/leads.csv': typeof ApiLeadsDotcsvRoute
   '/api/login': typeof ApiLoginRoute
   '/api/logout': typeof ApiLogoutRoute
+  '/api/reset-password': typeof ApiResetPasswordRoute
+  '/api/signup': typeof ApiSignupRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
   '/searches/$searchId': typeof SearchesSearchIdRoute
   '/leads': typeof LeadsIndexRoute
@@ -124,12 +156,16 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/conta': typeof ContaRoute
   '/conversas': typeof ConversasRoute
+  '/criar-conta': typeof CriarContaRoute
   '/login': typeof LoginRoute
+  '/redefinir-senha': typeof RedefinirSenhaRoute
   '/settings': typeof SettingsRoute
   '/api/e2e': typeof ApiE2eRoute
   '/api/leads.csv': typeof ApiLeadsDotcsvRoute
   '/api/login': typeof ApiLoginRoute
   '/api/logout': typeof ApiLogoutRoute
+  '/api/reset-password': typeof ApiResetPasswordRoute
+  '/api/signup': typeof ApiSignupRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
   '/searches/$searchId': typeof SearchesSearchIdRoute
   '/leads/': typeof LeadsIndexRoute
@@ -141,12 +177,16 @@ export interface FileRouteTypes {
     | '/'
     | '/conta'
     | '/conversas'
+    | '/criar-conta'
     | '/login'
+    | '/redefinir-senha'
     | '/settings'
     | '/api/e2e'
     | '/api/leads.csv'
     | '/api/login'
     | '/api/logout'
+    | '/api/reset-password'
+    | '/api/signup'
     | '/leads/$leadId'
     | '/searches/$searchId'
     | '/leads/'
@@ -156,12 +196,16 @@ export interface FileRouteTypes {
     | '/'
     | '/conta'
     | '/conversas'
+    | '/criar-conta'
     | '/login'
+    | '/redefinir-senha'
     | '/settings'
     | '/api/e2e'
     | '/api/leads.csv'
     | '/api/login'
     | '/api/logout'
+    | '/api/reset-password'
+    | '/api/signup'
     | '/leads/$leadId'
     | '/searches/$searchId'
     | '/leads'
@@ -171,12 +215,16 @@ export interface FileRouteTypes {
     | '/'
     | '/conta'
     | '/conversas'
+    | '/criar-conta'
     | '/login'
+    | '/redefinir-senha'
     | '/settings'
     | '/api/e2e'
     | '/api/leads.csv'
     | '/api/login'
     | '/api/logout'
+    | '/api/reset-password'
+    | '/api/signup'
     | '/leads/$leadId'
     | '/searches/$searchId'
     | '/leads/'
@@ -187,12 +235,16 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ContaRoute: typeof ContaRoute
   ConversasRoute: typeof ConversasRoute
+  CriarContaRoute: typeof CriarContaRoute
   LoginRoute: typeof LoginRoute
+  RedefinirSenhaRoute: typeof RedefinirSenhaRoute
   SettingsRoute: typeof SettingsRoute
   ApiE2eRoute: typeof ApiE2eRoute
   ApiLeadsDotcsvRoute: typeof ApiLeadsDotcsvRoute
   ApiLoginRoute: typeof ApiLoginRoute
   ApiLogoutRoute: typeof ApiLogoutRoute
+  ApiResetPasswordRoute: typeof ApiResetPasswordRoute
+  ApiSignupRoute: typeof ApiSignupRoute
   LeadsLeadIdRoute: typeof LeadsLeadIdRoute
   SearchesSearchIdRoute: typeof SearchesSearchIdRoute
   LeadsIndexRoute: typeof LeadsIndexRoute
@@ -222,11 +274,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ConversasRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/criar-conta': {
+      id: '/criar-conta'
+      path: '/criar-conta'
+      fullPath: '/criar-conta'
+      preLoaderRoute: typeof CriarContaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/redefinir-senha': {
+      id: '/redefinir-senha'
+      path: '/redefinir-senha'
+      fullPath: '/redefinir-senha'
+      preLoaderRoute: typeof RedefinirSenhaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings': {
@@ -264,6 +330,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiLogoutRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/reset-password': {
+      id: '/api/reset-password'
+      path: '/api/reset-password'
+      fullPath: '/api/reset-password'
+      preLoaderRoute: typeof ApiResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/signup': {
+      id: '/api/signup'
+      path: '/api/signup'
+      fullPath: '/api/signup'
+      preLoaderRoute: typeof ApiSignupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/leads/': {
       id: '/leads/'
       path: '/leads'
@@ -299,12 +379,16 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ContaRoute: ContaRoute,
   ConversasRoute: ConversasRoute,
+  CriarContaRoute: CriarContaRoute,
   LoginRoute: LoginRoute,
+  RedefinirSenhaRoute: RedefinirSenhaRoute,
   SettingsRoute: SettingsRoute,
   ApiE2eRoute: ApiE2eRoute,
   ApiLeadsDotcsvRoute: ApiLeadsDotcsvRoute,
   ApiLoginRoute: ApiLoginRoute,
   ApiLogoutRoute: ApiLogoutRoute,
+  ApiResetPasswordRoute: ApiResetPasswordRoute,
+  ApiSignupRoute: ApiSignupRoute,
   LeadsLeadIdRoute: LeadsLeadIdRoute,
   SearchesSearchIdRoute: SearchesSearchIdRoute,
   LeadsIndexRoute: LeadsIndexRoute,

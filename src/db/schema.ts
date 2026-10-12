@@ -218,8 +218,26 @@ export const apiUsage = sqliteTable(
   (t) => [primaryKey({ columns: [t.day, t.provider] })],
 );
 
+/**
+ * Local accounts that can sign in. `sessionVersion` is part of every session token, so bumping
+ * it (a password reset) signs that account out everywhere.
+ */
+export const users = sqliteTable(
+  "users",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    email: text("email").notNull(),
+    passwordHash: text("password_hash").notNull(),
+    sessionVersion: integer("session_version").notNull().default(1),
+    ...timestamps,
+  },
+  (t) => [uniqueIndex("users_email_idx").on(t.email)],
+);
+
 export type Settings = typeof settings.$inferSelect;
 export type Search = typeof searches.$inferSelect;
 export type Lead = typeof leads.$inferSelect;
 export type Analysis = typeof analyses.$inferSelect;
 export type Email = typeof emails.$inferSelect;
+export type User = typeof users.$inferSelect;

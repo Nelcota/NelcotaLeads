@@ -18,15 +18,18 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { providerStatusQuery } from "@/lib/queries";
 import type { SettingsInput } from "@/lib/schemas";
 import { useTheme } from "@/lib/theme";
+import { getAccount } from "@/server/account";
 import { getSettings, saveSettings } from "@/server/settings";
 
 const settingsQuery = queryOptions({ queryKey: ["settings"], queryFn: () => getSettings() });
+const accountQuery = queryOptions({ queryKey: ["account"], queryFn: () => getAccount() });
 
 export const Route = createFileRoute("/conta")({
   loader: ({ context }) =>
     Promise.all([
       context.queryClient.ensureQueryData(settingsQuery),
       context.queryClient.ensureQueryData(providerStatusQuery),
+      context.queryClient.ensureQueryData(accountQuery),
     ]),
   component: AccountPage,
 });
@@ -36,6 +39,7 @@ type ProfileInput = Pick<SettingsInput, "senderName" | "senderCompany">;
 function AccountPage() {
   const { data: settings } = useSuspenseQuery(settingsQuery);
   const { data: status } = useQuery(providerStatusQuery);
+  const { data: account } = useQuery(accountQuery);
   const name = settings.senderName || "Sem nome";
   const mail = status?.mail;
 
@@ -98,10 +102,17 @@ function AccountPage() {
         <section className="enter min-w-0">
           <SectionHeader title="Sessão" />
           <div className="grouped">
+            {account ? (
+              <GroupedRow
+                lead={<Avatar name={account.name} size={30} />}
+                title={account.name}
+                subtitle={account.email}
+              />
+            ) : null}
             <GroupedRow
               lead={<IconTile icon={LogOutIcon} tone="red" size={30} />}
               title="Sair deste navegador"
-              subtitle="A senha será pedida no próximo acesso."
+              subtitle="O e-mail e a senha serão pedidos no próximo acesso."
               trailing={
                 <form method="post" action="/api/logout">
                   <Button type="submit" variant="outline" size="sm">

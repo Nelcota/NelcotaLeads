@@ -13,6 +13,7 @@ import { EmptyState } from "@/components/apple-ui";
 import { Button } from "@/components/ui/button";
 import { RouteError } from "@/components/route-error";
 import { Toaster } from "@/components/ui/sonner";
+import { AUTH_PAGES } from "@/lib/login";
 import { THEME_INIT_SCRIPT } from "@/lib/theme";
 import appCss from "../styles.css?url";
 
@@ -47,8 +48,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function RootDocument({ children }: { children: ReactNode }) {
-  // The login screen stands alone: no sidebar, and nothing that queries the (gated) server.
-  const bare = useRouterState({ select: (state) => state.location.pathname === "/login" });
+  // The sign-in screens stand alone: no sidebar, and nothing that queries the (gated) server.
+  const bare = useRouterState({ select: (state) => AUTH_PAGES.has(state.location.pathname) });
   return (
     <html lang="pt-BR" suppressHydrationWarning>
       <head>
