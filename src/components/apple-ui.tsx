@@ -302,3 +302,30 @@ export function EmptyState({
     </div>
   );
 }
+
+/** Autosave feedback next to an edited draft; nothing until the first edit. */
+export function SaveStatus({
+  state,
+  className,
+}: {
+  state: "idle" | "saving" | "saved" | "error";
+  className?: string;
+}) {
+  if (state === "idle") return null;
+  return (
+    <span
+      aria-live="polite"
+      className={cn(
+        "text-xs font-light",
+        state === "error" ? "text-red" : "text-tertiary",
+        className,
+      )}
+    >
+      {state === "saving"
+        ? "Salvando…"
+        : state === "saved"
+          ? "Rascunho salvo"
+          : "Rascunho não salvo"}
+    </span>
+  );
+}

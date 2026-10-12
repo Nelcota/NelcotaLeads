@@ -103,4 +103,45 @@ Para não receber mais e-mails, responda com "sair".`,
     await backend.tick(t5);
     expect(await backend.sent()).toHaveLength(2);
   });
+
+  test("edits survive closing the sheet, and a rewrite can be undone", async ({
+    page,
+    backend,
+  }) => {
+    const lead = LEADS[0];
+    if (!lead) throw new Error("no lead");
+    await backend.lead(lead);
+    await visit(page, "/leads");
+    await page.getByRole("button", { name: "Selecionar", exact: true }).click();
+    await page.getByRole("button", { name: "Disparar e-mail" }).click();
+
+    const sheet = page.getByRole("dialog", { name: "Disparar 1 e-mail" });
+    const body = sheet.getByLabel("Mensagem");
+    await expect(body).toHaveValue(/Texto para Clínica Alfa\./);
+    await body.fill("Texto que eu escrevi.");
+    await expect(sheet.getByText("Rascunho salvo")).toBeVisible();
+
+    // A new AI version replaces the edit, and Desfazer brings the edit back.
+    await sheet.getByRole("button", { name: "Gerar outro" }).click();
+    await expect(page.getByText("Nova versão gerada")).toBeVisible();
+    await expect(body).toHaveValue(/Texto para Clínica Alfa\./);
+    await page.getByRole("button", { name: "Desfazer" }).click();
+    await expect(body).toHaveValue("Texto que eu escrevi.");
+
+    // Closing right after typing keeps the edit for the next time.
+    await sheet.getByLabel("Assunto").fill("Assunto que eu escrevi");
+    await page.keyboard.press("Escape");
+    await expect(sheet).toBeHidden();
+    await page.getByRole("button", { name: "Disparar e-mail" }).click();
+    const again = page.getByRole("dialog", { name: "Disparar 1 e-mail" });
+    await expect(again.getByLabel("Assunto")).toHaveValue("Assunto que eu escrevi");
+    await expect(again.getByLabel("Mensagem")).toHaveValue(/^Texto que eu escrevi\./);
+
+    await again.getByRole("button", { name: "Disparar 1 e-mail" }).click();
+    await expect(page.getByText("1 e-mail na fila")).toBeVisible();
+    const sent = await backend.sent();
+    expect(sent).toHaveLength(1);
+    expect(sent[0]?.subject).toBe("Assunto que eu escrevi");
+    expect(sent[0]?.text).toMatch(/^Texto que eu escrevi\./);
+  });
 });

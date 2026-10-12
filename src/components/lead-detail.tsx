@@ -14,7 +14,15 @@ import {
   SparklesIcon,
   ArrowUpRightIcon,
 } from "lucide-react";
-import { Avatar, IconTile, ProgressRing, TONE_TEXT, type Tone } from "@/components/apple-ui";
+import {
+  Avatar,
+  IconTile,
+  ProgressRing,
+  SaveStatus,
+  TONE_TEXT,
+  type Tone,
+} from "@/components/apple-ui";
+import { useReportUnsavedEdits } from "@/components/unsaved-edits";
 import { followUpTone, StatusBadge, TIER_TONE } from "@/components/lead-badges";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -38,6 +46,7 @@ import { SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import type { Analysis, Lead, LeadStatus, SiteStatus } from "@/db/schema";
+import { useAutosave } from "@/lib/autosave";
 import { addDays, formatDate, localDay, relativeDay } from "@/lib/format";
 import { whatsappLink } from "@/lib/phone";
 import { conversationQuery, leadQuery, providerStatusQuery } from "@/lib/queries";
@@ -69,6 +78,7 @@ const FOLLOW_UP_OPTIONS = [
 ] as const;
 
 type LeadUpdate = Omit<UpdateLeadInput, "id">;
+type DraftText = { subject: string; body: string };
 
 const STEP_CARD = "shadow-[inset_3px_0_0_var(--green),inset_0_1px_0_rgb(255_255_255/0.05)]!";
 
@@ -313,6 +323,7 @@ function FirstContactStep({ lead, analysis, today, busy, onUpdate, onChanged }: 
   const saved = analysis?.firstMessage ?? "";
   const hasMessage = message.trim().length > 0;
   const dirty = message !== saved && analysis !== null;
+  useReportUnsavedEdits(dirty);
 
   const saveMessage = useMutation({
     mutationFn: () =>
@@ -480,13 +491,41 @@ function EmailStep({ lead, busy, onUpdate, onChanged }: StepProps) {
   const { data } = useQuery(conversationQuery(lead.id));
   const queryClient = useQueryClient();
   const draft = data?.draft ?? null;
-  const [edit, setEdit] = useState<{ subject: string; body: string } | null>(null);
+  const [edit, setEdit] = useState<DraftText | null>(null);
   const value = edit ?? (draft ? { subject: draft.subject, body: draft.body } : null);
   const refresh = () =>
     Promise.all([
       onChanged(),
       queryClient.invalidateQueries({ queryKey: ["conversations", lead.id] }),
     ]);
+
+  // Edits are stored as they are typed, so closing the panel keeps them.
+  const autosave = useAutosave(
+    async (id, text: DraftText) => {
+      await updateDraft({ data: { id, ...text } });
+      queryClient.setQueryData(conversationQuery(lead.id).queryKey, (old) =>
+        old?.draft?.id === id ? { ...old, draft: { ...old.draft, ...text } } : old,
+      );
+    },
+    errorToast("Não foi possível salvar a edição", { id: "lead-draft" }),
+  );
+  const change = (next: DraftText) => {
+    setEdit(next);
+    if (!draft) return;
+    // The server keeps the last complete version; an empty subject or body is not saved.
+    if (next.subject.trim() && next.body.trim()) autosave.schedule(draft.id, next);
+    else void autosave.discard(draft.id);
+  };
+  // Runs from the toast, which may outlive the panel.
+  const restore = async (id: string, previous: DraftText) => {
+    try {
+      await updateDraft({ data: { id, ...previous } });
+      setEdit(null);
+      await refresh();
+    } catch (error) {
+      errorToast("Não foi possível desfazer")(error);
+    }
+  };
 
   const write = useMutation({
     mutationFn: () => prepareEmails({ data: { leadIds: [lead.id] } }),
@@ -497,16 +536,24 @@ function EmailStep({ lead, busy, onUpdate, onChanged }: StepProps) {
     onError: errorToast("A IA não conseguiu escrever"),
   });
   const rewrite = useMutation({
-    mutationFn: () => rewriteDraft({ data: { id: draft?.id ?? "" } }),
-    onSuccess: async () => {
+    mutationFn: async ({ id }: { id: string; previous: DraftText }) => {
+      await autosave.flush();
+      return rewriteDraft({ data: { id } });
+    },
+    onSuccess: async (_draft, { id, previous }) => {
       setEdit(null);
       await refresh();
+      toast("Nova versão gerada", {
+        duration: 6000,
+        action: { label: "Desfazer", onClick: () => void restore(id, previous) },
+      });
     },
     onError: errorToast("Não foi possível reescrever"),
   });
   const send = useMutation({
     mutationFn: async () => {
       if (!draft || !value) return;
+      await autosave.flush();
       if (edit) await updateDraft({ data: { id: draft.id, ...edit } });
       await dispatchEmails({ data: { ids: [draft.id] } });
     },
@@ -538,13 +585,15 @@ function EmailStep({ lead, busy, onUpdate, onChanged }: StepProps) {
             <Input
               aria-label="Assunto"
               value={value.subject}
-              onChange={(event) => setEdit({ ...value, subject: event.target.value })}
+              readOnly={rewrite.isPending}
+              onChange={(event) => change({ ...value, subject: event.target.value })}
             />
             <Textarea
               aria-label="Mensagem"
               rows={10}
               value={value.body}
-              onChange={(event) => setEdit({ ...value, body: event.target.value })}
+              readOnly={rewrite.isPending}
+              onChange={(event) => change({ ...value, body: event.target.value })}
             />
           </>
         ) : (
@@ -560,10 +609,15 @@ function EmailStep({ lead, busy, onUpdate, onChanged }: StepProps) {
             <Button disabled={send.isPending} onClick={() => send.mutate()}>
               {send.isPending ? "Enviando…" : "Enviar e-mail"}
             </Button>
-            <Button variant="outline" disabled={rewrite.isPending} onClick={() => rewrite.mutate()}>
+            <Button
+              variant="outline"
+              disabled={rewrite.isPending || !value}
+              onClick={() => value && rewrite.mutate({ id: draft.id, previous: value })}
+            >
               <SparklesIcon className="text-purple" />
               {rewrite.isPending ? "Reescrevendo…" : "Gerar outro"}
             </Button>
+            <SaveStatus state={autosave.state} className="self-center" />
           </>
         ) : (
           <Button disabled={write.isPending} onClick={() => write.mutate()}>

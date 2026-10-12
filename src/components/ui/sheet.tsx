@@ -66,6 +66,16 @@ function SheetContent({
           className
         )}
         {...props}
+        // Local change: a toast's action (e.g. "Desfazer") is not a click outside the sheet.
+        onInteractOutside={(event) => {
+          if (
+            event.target instanceof Element &&
+            event.target.closest("[data-sonner-toaster]")
+          ) {
+            event.preventDefault()
+          }
+          props.onInteractOutside?.(event)
+        }}
       >
         {children}
         {showCloseButton && (

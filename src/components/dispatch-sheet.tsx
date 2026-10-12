@@ -9,7 +9,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { errorToast } from "@/lib/mutation-toasts";
-import { Avatar, IconTile, PropertyRow } from "@/components/apple-ui";
+import { Avatar, IconTile, PropertyRow, SaveStatus } from "@/components/apple-ui";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +24,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { useAutosave } from "@/lib/autosave";
 import { dashboardQuery, providerStatusQuery } from "@/lib/queries";
 import { cn } from "@/lib/utils";
 import { setAutomation } from "@/server/dashboard";
@@ -37,6 +38,7 @@ import {
 
 type Draft = Awaited<ReturnType<typeof prepareEmails>>["drafts"][number];
 type Skip = Awaited<ReturnType<typeof prepareEmails>>["skipped"][number];
+type DraftText = { subject: string; body: string };
 
 /**
  * Review step of a send: the AI writes one e-mail per selected lead, the user can edit,
@@ -82,7 +84,7 @@ function DispatchReview({
   const { data: dashboard } = useQuery(dashboardQuery);
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [skipped, setSkipped] = useState<Skip[]>([]);
-  const [edits, setEdits] = useState<Record<string, { subject: string; body: string }>>({});
+  const [edits, setEdits] = useState<Record<string, DraftText>>({});
   const [index, setIndex] = useState(0);
 
   const prepare = useMutation({
@@ -105,19 +107,51 @@ function DispatchReview({
     ? (edits[current.id] ?? { subject: current.subject, body: current.body })
     : null;
 
+  // Edits are stored as they are typed, so closing the sheet keeps them.
+  const autosave = useAutosave(
+    (id, edit: DraftText) => updateDraft({ data: { id, ...edit } }),
+    errorToast("Não foi possível salvar a edição", { id: "dispatch-draft" }),
+  );
+  const edit = (id: string, next: DraftText) => {
+    setEdits((all) => ({ ...all, [id]: next }));
+    // The server keeps the last complete version; an empty subject or body is not saved.
+    if (next.subject.trim() && next.body.trim()) autosave.schedule(id, next);
+    else void autosave.discard(id);
+  };
+  const showVersion = (id: string, text: Partial<Draft>) => {
+    setDrafts((list) => list.map((item) => (item.id === id ? { ...item, ...text } : item)));
+    setEdits(({ [id]: _dropped, ...rest }) => rest);
+  };
+  // Runs from the toast, which may outlive the sheet.
+  const restore = async (id: string, previous: DraftText) => {
+    try {
+      await updateDraft({ data: { id, ...previous } });
+      showVersion(id, previous);
+    } catch (error) {
+      errorToast("Não foi possível desfazer")(error);
+    }
+  };
+
   const rewrite = useMutation({
-    mutationFn: (id: string) => rewriteDraft({ data: { id } }),
-    onSuccess: (draft) => {
+    mutationFn: async ({ id }: { id: string; previous: DraftText }) => {
+      await autosave.flush();
+      return rewriteDraft({ data: { id } });
+    },
+    onSuccess: (draft, { id, previous }) => {
       if (!draft) return;
-      setDrafts((list) =>
-        list.map((item) => (item.id === draft.id ? { ...item, ...draft } : item)),
-      );
-      setEdits(({ [draft.id]: _dropped, ...rest }) => rest);
+      showVersion(id, draft);
+      toast("Nova versão gerada", {
+        duration: 6000,
+        action: { label: "Desfazer", onClick: () => void restore(id, previous) },
+      });
     },
     onError: errorToast("Não foi possível reescrever"),
   });
   const remove = useMutation({
-    mutationFn: (id: string) => removeDraft({ data: { id } }),
+    mutationFn: async (id: string) => {
+      await autosave.discard(id);
+      return removeDraft({ data: { id } });
+    },
     onSuccess: (_result, id) => setDrafts((list) => list.filter((item) => item.id !== id)),
     onError: errorToast("Não foi possível tirar do disparo"),
   });
@@ -128,8 +162,10 @@ function DispatchReview({
   });
   const dispatch = useMutation({
     mutationFn: async () => {
-      for (const [id, edit] of Object.entries(edits)) {
-        await updateDraft({ data: { id, ...edit } });
+      await autosave.flush();
+      // Also surfaces an edit that could not be saved (e.g. an empty subject) before sending.
+      for (const [id, text] of Object.entries(edits)) {
+        await updateDraft({ data: { id, ...text } });
       }
       return dispatchEmails({ data: { ids: drafts.map((draft) => draft.id) } });
     },
@@ -242,13 +278,9 @@ function DispatchReview({
                 <Input
                   id="draft-subject"
                   value={value.subject}
+                  readOnly={rewrite.isPending}
                   className="h-auto bg-transparent! px-0 text-lg font-medium tracking-[-0.02em] shadow-none! focus-visible:ring-0"
-                  onChange={(event) =>
-                    setEdits((all) => ({
-                      ...all,
-                      [current.id]: { ...value, subject: event.target.value },
-                    }))
-                  }
+                  onChange={(event) => edit(current.id, { ...value, subject: event.target.value })}
                 />
                 <label htmlFor="draft-body" className="sr-only">
                   Mensagem
@@ -257,13 +289,9 @@ function DispatchReview({
                   id="draft-body"
                   rows={12}
                   value={value.body}
+                  readOnly={rewrite.isPending}
                   className="bg-transparent! px-0 text-base leading-[1.7] shadow-none! focus-visible:ring-0"
-                  onChange={(event) =>
-                    setEdits((all) => ({
-                      ...all,
-                      [current.id]: { ...value, body: event.target.value },
-                    }))
-                  }
+                  onChange={(event) => edit(current.id, { ...value, body: event.target.value })}
                 />
               </div>
             </div>
@@ -272,7 +300,7 @@ function DispatchReview({
                 variant="outline"
                 size="sm"
                 disabled={rewrite.isPending}
-                onClick={() => rewrite.mutate(current.id)}
+                onClick={() => rewrite.mutate({ id: current.id, previous: value })}
               >
                 <SparklesIcon className="text-purple" />
                 {rewrite.isPending ? "Reescrevendo…" : "Gerar outro"}
@@ -289,6 +317,7 @@ function DispatchReview({
               >
                 Tirar do disparo
               </Button>
+              <SaveStatus state={autosave.state} className="ml-auto self-center" />
             </div>
           </div>
         ) : !prepare.isPending ? (

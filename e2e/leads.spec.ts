@@ -58,4 +58,29 @@ test.describe("leads inbox", () => {
     await expect(rowOf(page, "Padaria Lua")).toBeVisible();
     await expect(rowOf(page, "Padaria Sol")).toHaveCount(0);
   });
+
+  test("closing the panel with an edited WhatsApp message asks first", async ({
+    page,
+    backend,
+  }) => {
+    const { id } = await backend.lead({ name: "Padaria Sol" });
+    await visit(page, `/leads?view=all&lead=${id}`);
+    const panel = page.getByRole("dialog", { name: "Padaria Sol" });
+    await panel.getByLabel("Mensagem de primeiro contato").fill("Oi! Vi a padaria no Google.");
+
+    await page.keyboard.press("Escape");
+    const ask = page.getByRole("alertdialog", { name: "Descartar alterações?" });
+    await expect(ask).toBeVisible();
+    // Keeping on editing is the default.
+    await expect(ask.getByRole("button", { name: "Continuar editando" })).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(ask).toBeHidden();
+    await expect(panel.getByLabel("Mensagem de primeiro contato")).toHaveValue(
+      "Oi! Vi a padaria no Google.",
+    );
+
+    await page.keyboard.press("Escape");
+    await ask.getByRole("button", { name: "Descartar" }).click();
+    await expect(panel).toBeHidden();
+  });
 });
