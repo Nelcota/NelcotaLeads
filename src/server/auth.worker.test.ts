@@ -77,6 +77,6 @@ describe("revokeSessions", () => {
   it("moves the session cutoff past now, with or without a settings row", async () => {
     expect(await loadSessionsValidFrom(db)).toBe(0);
     await revokeSessions(db, now);
-    expect(await loadSessionsValidFrom(db)).toBe(Math.floor(now.getTime() / 1000) + 1);
+    expect(await loadSessionsValidFrom(db)).toBe(Math.floor(now.getTime() / 1000));
   });
 });

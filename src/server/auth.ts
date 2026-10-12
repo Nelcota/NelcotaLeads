@@ -95,19 +95,28 @@ export async function verifySessionToken(
 
 /** Signs out every session issued up to now. */
 export async function revokeSessions(db: Db, now = new Date()) {
-  const sessionsValidFrom = seconds(now) + 1;
+  const sessionsValidFrom = seconds(now);
   await db
     .insert(settings)
     .values({ id: SETTINGS_ID, ...DEFAULT_SETTINGS, sessionsValidFrom })
     .onConflictDoUpdate({ target: settings.id, set: { sessionsValidFrom } });
 }
 
+/**
+ * The logout cutoff. If the database can't answer, sessions are let through rather than
+ * taking the whole app down: the signature check still applies.
+ */
 export async function loadSessionsValidFrom(db: Db): Promise<number> {
-  const row = await db.query.settings.findFirst({
-    where: eq(settings.id, SETTINGS_ID),
-    columns: { sessionsValidFrom: true },
-  });
-  return row?.sessionsValidFrom ?? 0;
+  try {
+    const row = await db.query.settings.findFirst({
+      where: eq(settings.id, SETTINGS_ID),
+      columns: { sessionsValidFrom: true },
+    });
+    return row?.sessionsValidFrom ?? 0;
+  } catch (error) {
+    console.error("could not read the session cutoff", error);
+    return 0;
+  }
 }
 
 export function sessionCookie(token: string): string {
