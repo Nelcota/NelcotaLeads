@@ -13,7 +13,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { Avatar, ProgressRing, TONE_TEXT, toneVar, type Tone } from "@/components/apple-ui";
+import { Avatar, Hint, ProgressRing, TONE_TEXT, toneVar, type Tone } from "@/components/apple-ui";
 import { NewSearchDialog } from "@/components/new-search-dialog";
 import {
   Sidebar,
@@ -122,11 +122,9 @@ function AppSidebar() {
         </Link>
       </SidebarMenuButton>
       {item.to === "/conversas" && attention > 0 ? (
-        <SidebarMenuBadge
-          title={`${attention} precisam de você`}
-          className="top-1.5! h-[18px] min-w-0 rounded-full bg-orange px-1.5 text-[11px] text-[#1b1000] tabular-nums"
-        >
+        <SidebarMenuBadge className="top-1.5! h-[18px] min-w-0 rounded-full bg-orange px-1.5 text-[11px] text-[#1b1000] tabular-nums">
           {attention}
+          <span className="sr-only"> precisam de você</span>
         </SidebarMenuBadge>
       ) : null}
     </SidebarMenuItem>
@@ -278,7 +276,6 @@ function AccountRow() {
     <div className="flex items-center gap-2.5 px-1 pt-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
       <Link
         to="/conta"
-        title="Conta"
         className="press flex min-w-0 flex-1 items-center gap-2.5 rounded-[9px] group-data-[collapsible=icon]:hidden"
       >
         <Avatar name={name} size={28} />
@@ -295,15 +292,16 @@ function AccountRow() {
           </p>
         </div>
       </Link>
-      <button
-        type="button"
-        onClick={() => setTheme(dark ? "light" : "dark")}
-        title={dark ? "Tema claro" : "Tema escuro"}
-        aria-label={dark ? "Tema claro" : "Tema escuro"}
-        className="press grid size-7 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-fill-2 hover:text-foreground"
-      >
-        {dark ? <SunIcon className="size-3.5" /> : <MoonIcon className="size-3.5" />}
-      </button>
+      <Hint label={dark ? "Tema claro" : "Tema escuro"} side="top">
+        <button
+          type="button"
+          onClick={() => setTheme(dark ? "light" : "dark")}
+          aria-label={dark ? "Tema claro" : "Tema escuro"}
+          className="press grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-fill-2 hover:text-foreground"
+        >
+          {dark ? <SunIcon className="size-3.5" /> : <MoonIcon className="size-3.5" />}
+        </button>
+      </Hint>
     </div>
   );
 }

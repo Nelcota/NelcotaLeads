@@ -1,5 +1,6 @@
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import { useEffect, useRef } from "react";
+import { Hint } from "@/components/apple-ui";
 import { LeadDetail } from "@/components/lead-detail";
 import { UnsavedEditsScope, useUnsavedEditsGuard } from "@/components/unsaved-edits";
 import { Button } from "@/components/ui/button";
@@ -70,26 +71,28 @@ export function LeadSheet({
                 position >= 0 ? (
                   <div className="flex items-center gap-2.5 pr-10 text-[12.5px] font-medium text-muted-foreground">
                     <div className="flex rounded-full bg-fill-2 p-0.5">
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label="Lead anterior (K)"
-                        title="Anterior (K)"
-                        disabled={!prevId}
-                        onClick={() => prevId && go(prevId)}
-                      >
-                        <ChevronLeftIcon />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label="Próximo lead (J)"
-                        title="Próximo (J)"
-                        disabled={!nextId}
-                        onClick={() => nextId && go(nextId)}
-                      >
-                        <ChevronRightIcon />
-                      </Button>
+                      <Hint label="Anterior (K)">
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label="Lead anterior (K)"
+                          disabled={!prevId}
+                          onClick={() => prevId && go(prevId)}
+                        >
+                          <ChevronLeftIcon />
+                        </Button>
+                      </Hint>
+                      <Hint label="Próximo (J)">
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label="Próximo lead (J)"
+                          disabled={!nextId}
+                          onClick={() => nextId && go(nextId)}
+                        >
+                          <ChevronRightIcon />
+                        </Button>
+                      </Hint>
                     </div>
                     <span className="tabular-nums">
                       {position + 1} de {ids.length}

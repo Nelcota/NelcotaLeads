@@ -1,7 +1,31 @@
 import type { LucideIcon } from "lucide-react";
 import { ChevronRightIcon } from "lucide-react";
-import type { ComponentProps, ReactNode } from "react";
+import type { ComponentProps, ReactElement, ReactNode } from "react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+
+/**
+ * The app's tooltip on hover and keyboard focus, in place of the native `title`. The trigger
+ * keeps its own `aria-label`; needs the TooltipProvider of the AppShell.
+ */
+export function Hint({
+  label,
+  side,
+  children,
+}: {
+  label: ReactNode;
+  side?: ComponentProps<typeof TooltipContent>["side"];
+  children: ReactElement;
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent side={side} sideOffset={6}>
+        {label}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
 
 /** The system colors; each one carries a status meaning across the app. */
 export type Tone = "green" | "orange" | "red" | "blue" | "purple" | "teal" | "pink" | "gray";

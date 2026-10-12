@@ -23,6 +23,7 @@ import { z } from "zod";
 import {
   Avatar,
   EmptyState,
+  Hint,
   IconTile,
   PropertyRow,
   TONE_TEXT,
@@ -143,16 +144,17 @@ function ConversationsPage() {
       title="Conversas"
       bleed
       actions={
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => check.mutate()}
-          disabled={check.isPending}
-          aria-label={check.isPending ? "Verificando…" : "Verificar e-mails"}
-          title={check.isPending ? "Verificando…" : "Verificar e-mails"}
-        >
-          <RefreshCwIcon className={cn(check.isPending && "animate-spin")} />
-        </Button>
+        <Hint label="Verificar e-mails">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => check.mutate()}
+            disabled={check.isPending}
+            aria-label={check.isPending ? "Verificando…" : "Verificar e-mails"}
+          >
+            <RefreshCwIcon className={cn(check.isPending && "animate-spin")} />
+          </Button>
+        </Hint>
       }
     >
       <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)] border-t border-border/70 lg:grid-cols-[330px_minmax(0,1fr)] xl:grid-cols-[330px_minmax(0,1fr)_290px]">
@@ -614,21 +616,24 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
           </div>
           <div className="mt-1 flex gap-2">
             {lead.phone ? (
-              <a href={`tel:${lead.phone}`} className="press" aria-label="Ligar" title="Ligar">
-                <IconTile icon={PhoneIcon} tone="green" size={32} round />
-              </a>
+              <Hint label="Ligar">
+                <a href={`tel:${lead.phone}`} className="press" aria-label="Ligar">
+                  <IconTile icon={PhoneIcon} tone="green" size={32} round />
+                </a>
+              </Hint>
             ) : null}
             {safeHttpUrl(lead.website) ? (
-              <a
-                href={safeHttpUrl(lead.website) ?? undefined}
-                target="_blank"
-                rel="noreferrer"
-                className="press"
-                aria-label="Site"
-                title="Site"
-              >
-                <IconTile icon={GlobeIcon} tone="gray" size={32} round />
-              </a>
+              <Hint label="Abrir site">
+                <a
+                  href={safeHttpUrl(lead.website) ?? undefined}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="press"
+                  aria-label="Site"
+                >
+                  <IconTile icon={GlobeIcon} tone="gray" size={32} round />
+                </a>
+              </Hint>
             ) : null}
           </div>
         </div>
