@@ -234,6 +234,11 @@
     -webkit-appearance: none;
     margin: 0;
   }
+  /* Search fields come with the app's own "Limpar busca" button. */
+  input[type="search"]::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+    display: none;
+  }
 }
 
 /*

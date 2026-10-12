@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
-import { Avatar, EmptyState, FloatingBar, TONE_TEXT, type Tone } from "@/components/apple-ui";
+import { Avatar, EmptyState, FloatingBar, Hint, TONE_TEXT, type Tone } from "@/components/apple-ui";
 import { Page, Stat, useOpenNewSearch } from "@/components/app-shell";
 import { followUpTone, ScoreBadge, StatusBadge, TIER_TONE } from "@/components/lead-badges";
 import { DispatchSheet } from "@/components/dispatch-sheet";
@@ -401,6 +401,7 @@ function Toolbar({
   onReset: () => void;
 }) {
   const [q, setQ] = useState(filters.q ?? "");
+  const searchRef = useRef<HTMLInputElement>(null);
   const onChangeRef = useRef(onChange);
   useEffect(() => {
     onChangeRef.current = onChange;
@@ -421,6 +422,12 @@ function Toolbar({
     return () => clearTimeout(timer);
   }, [q, filters.q]);
 
+  // Cleared at once, without waiting for the debounce.
+  const clearSearch = () => {
+    setQ("");
+    if (filters.q) onChange({ q: undefined });
+  };
+
   const { data: searches } = useQuery(searchesQuery);
   const tier = activeTier(filters);
   const activeSearch = searches?.find((item) => item.id === filters.searchId);
@@ -435,13 +442,38 @@ function Toolbar({
       <div className="relative w-full sm:w-60">
         <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-tertiary" />
         <Input
+          ref={searchRef}
           type="search"
           aria-label="Buscar empresa"
           placeholder="Buscar empresa"
-          className="h-10 rounded-full pl-8 sm:h-8"
+          className={cn("h-10 rounded-full pl-8 sm:h-8", q && "pr-9")}
           value={q}
           onChange={(event) => setQ(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key !== "Escape" || !q) return;
+            // Only the search: Esc doesn't also close what is around it.
+            event.preventDefault();
+            event.stopPropagation();
+            clearSearch();
+          }}
         />
+        {q ? (
+          <Hint label="Limpar busca">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Limpar busca"
+              className="absolute top-1/2 right-1.5 -translate-y-1/2 sm:right-0.5"
+              onClick={() => {
+                clearSearch();
+                searchRef.current?.focus();
+              }}
+            >
+              <XIcon />
+            </Button>
+          </Hint>
+        ) : null}
       </div>
 
       <div className="no-scrollbar -mx-4 flex items-center gap-2 overflow-x-auto px-4 sm:mx-0 sm:flex-1 sm:flex-wrap sm:overflow-visible sm:px-0">
