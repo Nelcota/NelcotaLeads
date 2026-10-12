@@ -1,13 +1,13 @@
 /**
  * Wrangler configuration: https://developers.cloudflare.com/workers/wrangler/configuration/
- * Secrets (GOOGLE_PLACES_API_KEY, DEEPSEEK_API_KEY, MAIL_ADDRESS, MAIL_PASSWORD) go in `.dev.vars` locally and
+ * Secrets (APP_PASSWORD, GOOGLE_PLACES_API_KEY, DEEPSEEK_API_KEY, MAIL_ADDRESS, MAIL_PASSWORD) go in `.dev.vars` locally and
  * `wrangler secret put` in production, never here.
  */
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "nelcota-leads",
   "compatibility_date": "2026-10-01",
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "main": "src/server.ts",
   "observability": { "enabled": true },
   "upload_source_maps": true,

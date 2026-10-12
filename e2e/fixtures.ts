@@ -1,0 +1,153 @@
+import { z } from "zod";
+import { test as base, expect, type APIRequestContext, type Page } from "@playwright/test";
+
+/**
+ * Resolves once React hydrated the server-rendered page (it tags DOM nodes with its fiber),
+ * so clicks reach their handlers instead of landing on inert SSR markup.
+ */
+export async function hydrated(page: Page) {
+  await page.waitForFunction(() =>
+    Object.keys(document.body).some((key) => key.startsWith("__reactFiber")),
+  );
+}
+
+const serverFnIdSchema = z.object({ export: z.string() });
+
+/**
+ * The server function behind a `/_serverFn/<id>` URL, e.g. "getProviderStatus" (the id is
+ * base64url JSON naming the export); null for any other URL.
+ */
+export function serverFnName(url: string): string | null {
+  const id = /\/_serverFn\/([\w-]+)/.exec(url)?.[1];
+  if (!id) return null;
+  try {
+    const parsed = serverFnIdSchema.safeParse(
+      JSON.parse(Buffer.from(id, "base64url").toString("utf8")),
+    );
+    return parsed.success ? parsed.data.export.replace(/_createServerFn_handler$/, "") : null;
+  } catch {
+    return null;
+  }
+}
+
+/** `page.goto` plus hydration. */
+export async function visit(page: Page, path: string) {
+  await page.goto(path);
+  await hydrated(page);
+}
+
+/** `page.reload` plus hydration. */
+export async function reload(page: Page) {
+  await page.reload();
+  await hydrated(page);
+}
+
+export type SentEmail = {
+  to: string;
+  subject: string;
+  text: string;
+  messageId: string;
+  inReplyTo?: string | null;
+};
+
+export type Fault = "places" | "writeEmail";
+
+/** Drives the test-only `/api/e2e` route: data reset, cron ticks and the fake mailbox. */
+export class Backend {
+  constructor(private readonly request: APIRequestContext) {}
+
+  private async call<T>(body: Record<string, unknown>): Promise<T> {
+    const response = await this.request.post("/api/e2e", { data: body });
+    expect(response.ok(), await response.text()).toBe(true);
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- shape owned by /api/e2e
+    return (await response.json()) as T;
+  }
+
+  reset() {
+    return this.call({ action: "reset" });
+  }
+
+  tick(now: Date) {
+    return this.call({ action: "tick", now: now.toISOString() });
+  }
+
+  sent() {
+    return this.call<SentEmail[]>({ action: "sent" });
+  }
+
+  inbound(email: { from: string; subject: string; text: string; inReplyTo: string | null }) {
+    return this.call({ action: "inbound", ...email });
+  }
+
+  lead(lead: { name: string; website?: string | null; email?: string | null }) {
+    return this.call<{ id: string }>({
+      action: "lead",
+      name: lead.name,
+      website: lead.website ?? null,
+      email: lead.email ?? null,
+    });
+  }
+
+  /** The next call of that fake throws once. */
+  fault(fault: Fault) {
+    return this.call({ action: "fault", fault });
+  }
+}
+
+/**
+ * Cron instants for `tick`, in order and 10 minutes apart: far enough ahead of the real clock
+ * that anything queued during the test is due, past the 8-minute send gap of the previous one,
+ * on a minute that reads the inbox (% 5) and never on the hour (autopilot, auto dispatch).
+ */
+export function tickTimes(count: number): Date[] {
+  const start = new Date();
+  start.setUTCDate(start.getUTCDate() + 1);
+  start.setUTCMinutes(5, 0, 0);
+  return Array.from({ length: count }, (_, i) => new Date(start.getTime() + i * 10 * 60_000));
+}
+
+/** Console errors seen in the page; the test may allow the ones it provokes on purpose. */
+export class ConsoleErrors {
+  readonly seen: string[] = [];
+  private readonly allowed: RegExp[] = [];
+
+  allow(pattern: RegExp) {
+    this.allowed.push(pattern);
+  }
+
+  unexpected() {
+    return this.seen.filter((text) => !this.allowed.some((pattern) => pattern.test(text)));
+  }
+}
+
+const SESSION = "e2e/.auth/session.json";
+
+export const test = base.extend<{ backend: Backend; consoleErrors: ConsoleErrors }>({
+  // Auto: every test starts from the same data. Signed in on its own, so a test may use a
+  // signed-out page (test.use({ storageState })) and still drive the backend.
+  backend: [
+    async ({ playwright, baseURL }, use) => {
+      const request = await playwright.request.newContext({ baseURL, storageState: SESSION });
+      const backend = new Backend(request);
+      await backend.reset();
+      await use(backend);
+      await request.dispose();
+    },
+    { auto: true },
+  ],
+  // Auto: fails the test on any console error it didn't allow.
+  consoleErrors: [
+    async ({ page }, use) => {
+      const errors = new ConsoleErrors();
+      page.on("console", (message) => {
+        if (message.type() === "error") errors.seen.push(message.text());
+      });
+      page.on("pageerror", (error) => errors.seen.push(error.message));
+      await use(errors);
+      expect(errors.unexpected(), "unexpected console errors").toEqual([]);
+    },
+    { auto: true },
+  ],
+});
+
+export { expect };

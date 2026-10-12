@@ -49,7 +49,7 @@ export function LeadSheet({
 
   return (
     <Sheet open={open} onOpenChange={(value) => !value && onSelect(undefined)}>
-      <SheetContent className="w-full gap-0 overflow-y-auto data-[side=right]:sm:max-w-2xl">
+      <SheetContent className="w-full gap-0 overflow-y-auto data-[side=right]:sm:max-w-[640px]">
         {leadId ? (
           <LeadDetail
             key={leadId}
@@ -61,29 +61,39 @@ export function LeadSheet({
             }}
             toolbar={
               position >= 0 ? (
-                <div className="flex items-center gap-1 pr-8 text-sm text-muted-foreground">
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Lead anterior (K)"
-                    title="Anterior (K)"
-                    disabled={!prevId}
-                    onClick={() => prevId && onSelect(prevId)}
-                  >
-                    <ChevronLeftIcon />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Próximo lead (J)"
-                    title="Próximo (J)"
-                    disabled={!nextId}
-                    onClick={() => nextId && onSelect(nextId)}
-                  >
-                    <ChevronRightIcon />
-                  </Button>
-                  <span className="ml-1 tabular-nums">
+                <div className="flex items-center gap-2.5 pr-10 text-[12.5px] font-medium text-muted-foreground">
+                  <div className="flex rounded-full bg-fill-2 p-0.5">
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label="Lead anterior (K)"
+                      title="Anterior (K)"
+                      disabled={!prevId}
+                      onClick={() => prevId && onSelect(prevId)}
+                    >
+                      <ChevronLeftIcon />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label="Próximo lead (J)"
+                      title="Próximo (J)"
+                      disabled={!nextId}
+                      onClick={() => nextId && onSelect(nextId)}
+                    >
+                      <ChevronRightIcon />
+                    </Button>
+                  </div>
+                  <span className="tabular-nums">
                     {position + 1} de {ids.length}
+                  </span>
+                  <span className="hidden gap-1 sm:flex" aria-hidden>
+                    <kbd className="grid h-[18px] min-w-[18px] place-items-center rounded-[5px] bg-fill-2 px-1 text-[10.5px] text-muted-foreground">
+                      K
+                    </kbd>
+                    <kbd className="grid h-[18px] min-w-[18px] place-items-center rounded-[5px] bg-fill-2 px-1 text-[10.5px] text-muted-foreground">
+                      J
+                    </kbd>
                   </span>
                 </div>
               ) : null

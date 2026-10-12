@@ -82,6 +82,44 @@ describe("findTells", () => {
   });
 });
 
+describe("withoutTells", () => {
+  const usage = { model: "m", tokensIn: 10, tokensOut: 5, cost: 0.5 };
+  const writer = (texts: string[]) => {
+    const prompts: string[] = [];
+    const write = async (extra: string) => {
+      prompts.push(extra);
+      return { value: texts[prompts.length - 1] ?? "", usage };
+    };
+    return { write, prompts };
+  };
+
+  it("keeps a clean first text as one call", async () => {
+    const { withoutTells } = await import("./analyzer");
+    const { write, prompts } = writer(["Crio sites para clínicas."]);
+    const result = await withoutTells(write, (text) => text);
+    expect(result.value).toBe("Crio sites para clínicas.");
+    expect(result.usage.calls ?? 1).toBe(1);
+    expect(prompts).toHaveLength(1);
+  });
+
+  it("asks for one rewrite and counts both calls", async () => {
+    const { withoutTells } = await import("./analyzer");
+    const { write, prompts } = writer(["Se fizer sentido, conversamos.", "Podemos conversar?"]);
+    const result = await withoutTells(write, (text) => text);
+    expect(result.value).toBe("Podemos conversar?");
+    expect(result.usage).toMatchObject({ calls: 2, cost: 1 });
+    expect(prompts[1]).toContain("Reescreva sem");
+  });
+
+  it("throws with the usage when the rewrite still has forbidden phrases", async () => {
+    const { withoutTells, ForbiddenPhrasesError } = await import("./analyzer");
+    const { write } = writer(["Notei que vocês...", "Percebi que vocês..."]);
+    const error: unknown = await withoutTells(write, (text) => text).catch((caught) => caught);
+    expect(error).toBeInstanceOf(ForbiddenPhrasesError);
+    expect(error).toMatchObject({ usage: { calls: 2 }, text: "Percebi que vocês..." });
+  });
+});
+
 describe("tidyMessage", () => {
   it("replaces dashes, collapses blank lines and moves the opt-out to its own last line", async () => {
     const { tidyMessage, OPT_OUT_LINE } = await import("./analyzer");

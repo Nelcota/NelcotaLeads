@@ -108,3 +108,20 @@ describe("fetchSite", () => {
     });
   });
 });
+
+describe("extractSite limits", () => {
+  it("bounds scraped fields so they always pass siteDataSchema", async () => {
+    const { siteDataSchema } = await import("@/lib/schemas");
+    const long = "x".repeat(5_000);
+    const { data } = extractSite(
+      `<html><head><title>${long}</title><meta name="description" content="${long}"></head><body>
+        <a href="https://instagram.com/${long}">a</a><a href="tel:${long}">b</a>
+        <a href="mailto:${long}@x.com">c</a> © 0001</body></html>`,
+      `https://x.com/${long}`,
+    );
+    expect(siteDataSchema.safeParse(data).success).toBe(true);
+    expect(data.socialLinks).toEqual([]);
+    expect(data.phones).toEqual([]);
+    expect(data.copyrightYear).toBeNull();
+  });
+});

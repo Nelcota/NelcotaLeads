@@ -23,6 +23,13 @@ export type CsvLead = {
   firstMessage: string | null;
 };
 
+/**
+ * CSV injection guard: string cells a spreadsheet could read as a formula get a leading `'`.
+ * Papaparse's default misses whitespace before the trigger and `|`. No `m` flag, so only the
+ * start of the cell counts, even in multi-line text.
+ */
+export const FORMULA_PATTERN = /^\s*[=+\-@\t\r\n|]/;
+
 /** CSV for spreadsheet apps in pt-BR: `;` separator and a UTF-8 BOM so Excel reads accents. */
 export function leadsToCsv(rows: CsvLead[]): string {
   const data = rows.map((lead) => ({
@@ -45,6 +52,9 @@ export function leadsToCsv(rows: CsvLead[]): string {
     google_maps: lead.mapsUrl ?? "",
     criado_em: formatIsoLocal(lead.createdAt),
   }));
-  // escapeFormulae guards against CSV injection (cells starting with =, +, -, @).
-  return `﻿${Papa.unparse(data, { delimiter: ";", escapeFormulae: true, newline: "\r\n" })}`;
+  return `﻿${Papa.unparse(data, {
+    delimiter: ";",
+    escapeFormulae: FORMULA_PATTERN,
+    newline: "\r\n",
+  })}`;
 }

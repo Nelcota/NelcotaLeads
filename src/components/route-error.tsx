@@ -1,15 +1,21 @@
 import { Link, useRouter, type ErrorComponentProps } from "@tanstack/react-router";
+import { TriangleAlertIcon } from "lucide-react";
+import { EmptyState } from "@/components/apple-ui";
 import { Button } from "@/components/ui/button";
 
 export function RouteError({ error, reset }: ErrorComponentProps) {
   const router = useRouter();
   return (
-    <div className="mx-auto max-w-md py-20 text-center">
-      <h1 className="text-2xl font-medium tracking-tight">Algo deu errado</h1>
-      <p className="mt-2 text-sm text-muted-foreground">
-        {(error instanceof Error && error.message) || "Não foi possível carregar esta página."}
-      </p>
-      <div className="mt-6 flex justify-center gap-2">
+    <div className="grid min-h-full place-items-center p-6">
+      <EmptyState
+        icon={TriangleAlertIcon}
+        tone="orange"
+        className="grouped w-full max-w-md"
+        title="Algo deu errado"
+        description={
+          (error instanceof Error && error.message) || "Não foi possível carregar esta página."
+        }
+      >
         <Button
           onClick={() => {
             reset();
@@ -21,7 +27,7 @@ export function RouteError({ error, reset }: ErrorComponentProps) {
         <Button asChild variant="outline">
           <Link to="/">Ir para o painel</Link>
         </Button>
-      </div>
+      </EmptyState>
     </div>
   );
 }

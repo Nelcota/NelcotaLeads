@@ -7,7 +7,7 @@ import { getPlacesProvider, type PlacesProvider } from "@/lib/places";
 import type { AutopilotTarget } from "@/lib/schemas";
 import { runSearch } from "./collect";
 import type { LeadJob } from "./queue";
-import { loadAutopilot, writeAutopilot } from "./settings-store";
+import { claimAutopilotDay, loadAutopilot, writeAutopilot } from "./settings-store";
 import { GOOGLE_PLACES, placesDailyLimit, recordAiCost, reserveRequest } from "./usage";
 
 export type AutopilotDeps = {
@@ -54,29 +54,34 @@ export async function nextQuery(
   };
 }
 
+export const ALREADY_RAN_MESSAGE =
+  "As buscas de hoje já foram feitas. O piloto automático volta a buscar amanhã.";
+
 /**
  * Searches every target once a day, from the configured hour on, stopping when the
- * Google daily limit runs out.
+ * Google daily limit runs out. `force` skips the schedule (hour and on/off switch) but
+ * still runs at most once a day.
  */
 export async function runAutopilot(
   deps: AutopilotDeps,
   now = new Date(),
   { force = false } = {},
-): Promise<{ searches: number }> {
+): Promise<{ searches: number; alreadyRan: boolean }> {
   const { db } = deps;
   const config = await loadAutopilot(db);
   const today = localDay(now);
   const hour = Number(formatIsoLocal(now).slice(11, 13));
   const due = force || (config.enabled && hour >= config.hour && config.lastRunOn !== today);
+  if (!due || config.targets.length === 0) return { searches: 0, alreadyRan: false };
+
+  // Claim the day atomically so overlapping ticks (or a tick and "run now") never both search.
+  if (!(await claimAutopilotDay(db, today))) return { searches: 0, alreadyRan: true };
 
   let searched = 0;
-  if (due && config.targets.length > 0) {
-    // Claim the day first so overlapping ticks do not search twice.
-    await writeAutopilot(db, { autopilotLastRunOn: today });
-    const targets = [...config.targets];
-    for (const [index, target] of targets.entries()) {
+  const targets = [...config.targets];
+  for (const [index, target] of targets.entries()) {
+    try {
       const { city, next } = await nextQuery(deps, target);
-      targets[index] = next;
       const { searchId } = await runSearch(
         db,
         deps.queue,
@@ -85,11 +90,16 @@ export async function runAutopilot(
         "autopilot",
       );
       searched += 1;
+      // Saved right away, so a later failure never repeats this target's area tomorrow.
+      targets[index] = next;
+      await writeAutopilot(db, { autopilotTargets: targets });
       const search = await db.query.searches.findFirst({ where: eq(searches.id, searchId) });
       if (search?.status === "error" || search?.errorMessage) break;
+    } catch (error) {
+      // One broken target must not keep the others from running.
+      console.error("autopilot target failed", target.niche, target.city, error);
     }
-    await writeAutopilot(db, { autopilotTargets: targets });
   }
 
-  return { searches: searched };
+  return { searches: searched, alreadyRan: false };
 }

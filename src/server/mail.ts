@@ -8,8 +8,11 @@ import { getAnalyzer } from "@/lib/ai";
 import { getMailer, mailConfigured } from "@/lib/mail";
 import { leadPatch } from "./lead-status";
 import {
+  cancelQueuedAi,
   composeBody,
+  ensureOptOut,
   mailDailyLimit,
+  mailErrorMessage,
   pollInbox,
   prepareDrafts,
   queueDrafts,
@@ -19,8 +22,9 @@ import {
 } from "./mail-flow";
 import { loadSettings } from "./settings-store";
 import { localDay } from "@/lib/format";
+import { idSchema } from "@/lib/schemas";
 
-const id = z.string().min(1).max(64);
+const id = idSchema;
 const limit = () => mailDailyLimit(env.MAIL_DAILY_LIMIT);
 const fromAddress = () => (env.MAIL_ADDRESS ?? "").toLowerCase();
 
@@ -56,9 +60,17 @@ export const updateDraft = createServerFn({ method: "POST" })
     }),
   )
   .handler(async ({ data }) => {
-    await getDb()
+    const db = getDb();
+    const draft = await db.query.emails.findFirst({
+      where: and(eq(emails.id, data.id), eq(emails.status, "draft")),
+      columns: { inReplyTo: true },
+    });
+    if (!draft) return { ok: true as const };
+    // First e-mails and follow-ups (not answers to the lead) keep the "sair" line.
+    const body = draft.inReplyTo ? data.body : ensureOptOut(data.body);
+    await db
       .update(emails)
-      .set({ subject: data.subject, body: data.body })
+      .set({ subject: data.subject, body })
       .where(and(eq(emails.id, data.id), eq(emails.status, "draft")));
     return { ok: true as const };
   });
@@ -106,10 +118,9 @@ export const testMailConnection = createServerFn({ method: "POST" }).handler(asy
     await getMailer(env).verify();
     return { ok: true as const, message: "Conexão funcionando: envio e leitura." };
   } catch (error) {
-    return {
-      ok: false as const,
-      message: error instanceof Error ? error.message : "Não foi possível conectar.",
-    };
+    // The server's own text stays in the log; the page gets a fixed message per step.
+    console.error("mail connection test failed", error);
+    return { ok: false as const, message: mailErrorMessage(error) };
   }
 });
 
@@ -230,6 +241,10 @@ export const sendReply = createServerFn({ method: "POST" })
       .where(
         and(eq(emails.leadId, lead.id), eq(emails.status, "draft"), isNotNull(emails.inReplyTo)),
       );
+    // The user answered, so a queued AI reply or follow-up would answer twice.
+    await cancelQueuedAi(db, lead.id, "Cancelado: você respondeu");
+    const now = new Date();
+    // Inserted already claimed (sent_at set), so the cron never picks it up as well.
     const [email] = await db
       .insert(emails)
       .values({
@@ -243,13 +258,24 @@ export const sendReply = createServerFn({ method: "POST" })
         subject: /^(re|res):/i.test(subject) ? subject : `Re: ${subject}`,
         body: composeBody(data.body, settings, false),
         inReplyTo: lastIn?.messageId ?? null,
-        sendAfter: new Date(),
+        sendAfter: now,
+        sentAt: now,
       })
       .returning();
     if (!email) throw new Error("Não foi possível criar o e-mail");
-    const result = await sendEmail({ db, mailer, limit: limit() }, email);
-    if (result === "limit") throw new Error("O limite de e-mails de hoje acabou. Ele sai amanhã.");
-    if (result === "failed") throw new Error("O servidor de e-mail recusou o envio.");
+    const result = await sendEmail({ db, mailer, limit: limit() }, email, now, { claimed: true });
+    if (result === "limit") {
+      // Not left queued: a retry from the page would otherwise send it twice tomorrow.
+      await db
+        .update(emails)
+        .set({ status: "failed", error: "Limite diário de e-mails atingido" })
+        .where(eq(emails.id, email.id));
+      throw new Error("O limite de e-mails de hoje acabou. Tente amanhã.");
+    }
+    if (result !== "sent") {
+      const row = await db.query.emails.findFirst({ where: eq(emails.id, email.id) });
+      throw new Error(row?.error ?? "O servidor de e-mail recusou o envio.");
+    }
     return { ok: true as const };
   });
 
@@ -257,10 +283,13 @@ export const sendReply = createServerFn({ method: "POST" })
 export const setConversationAi = createServerFn({ method: "POST" })
   .validator(z.object({ leadId: id, aiMode: z.boolean() }))
   .handler(async ({ data }) => {
-    await getDb()
+    const db = getDb();
+    await db
       .update(leads)
       .set({ aiMode: data.aiMode, ...(data.aiMode ? { handoffReason: null } : {}) })
       .where(eq(leads.id, data.leadId));
+    if (!data.aiMode)
+      await cancelQueuedAi(db, data.leadId, "Cancelado: a conversa passou para você");
     return { ok: true as const };
   });
 
@@ -275,7 +304,9 @@ export const closeConversation = createServerFn({ method: "POST" })
     await db
       .update(leads)
       .set({
-        ...leadPatch(lead, { id: lead.id, status: data.outcome }, now, localDay(now)),
+        ...leadPatch(lead, { id: lead.id, status: data.outcome }, now, localDay(now), {
+          anyStatus: true,
+        }),
         aiMode: false,
         handoffReason: null,
       })

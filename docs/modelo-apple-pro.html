@@ -1,0 +1,4050 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Nelcota Leads · B Apple Pro</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --green: #30d158;
+        --orange: #ff9f0a;
+        --red: #ff453a;
+        --blue: #0a84ff;
+        --purple: #bf5af2;
+        --pink: #ff375f;
+        --teal: #40c8e0;
+        --yellow: #ffd60a;
+        --gray: #8e8e93;
+        --label: #f5f5f7;
+        --label2: rgba(235, 235, 245, 0.64);
+        --label3: rgba(235, 235, 245, 0.48);
+        --label4: rgba(235, 235, 245, 0.28);
+        --sep: rgba(84, 84, 88, 0.42);
+        --fill: rgba(118, 118, 128, 0.2);
+        --fill2: rgba(118, 118, 128, 0.12);
+        --fill3: rgba(118, 118, 128, 0.08);
+        --bg: #131315;
+        --grouped: #1c1c1e;
+        --grouped2: #242426;
+        --spring: cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
+      }
+      html,
+      body {
+        height: 100%;
+        overflow: hidden;
+      }
+      body {
+        font:
+          400 13px/1.45 "Manrope",
+          sans-serif;
+        color: var(--label);
+        font-variant-numeric: tabular-nums;
+        -webkit-font-smoothing: antialiased;
+        background:
+          radial-gradient(1100px 700px at 8% -5%, #1d3a2b 0%, transparent 60%),
+          radial-gradient(900px 700px at -5% 105%, #2b2156 0%, transparent 55%),
+          radial-gradient(800px 600px at 105% 110%, #1a2a44 0%, transparent 55%), #0a0a0c;
+      }
+      svg {
+        width: 16px;
+        height: 16px;
+        stroke: currentColor;
+        fill: none;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        flex-shrink: 0;
+      }
+      button {
+        font: inherit;
+        color: inherit;
+        border: 0;
+        background: none;
+        cursor: pointer;
+      }
+      a {
+        color: inherit;
+        text-decoration: none;
+        cursor: pointer;
+      }
+      .c-green {
+        --c: var(--green);
+      }
+      .c-orange {
+        --c: var(--orange);
+      }
+      .c-red {
+        --c: var(--red);
+      }
+      .c-blue {
+        --c: var(--blue);
+      }
+      .c-purple {
+        --c: var(--purple);
+      }
+      .c-gray {
+        --c: var(--gray);
+      }
+      .c-teal {
+        --c: var(--teal);
+      }
+      .c-pink {
+        --c: var(--pink);
+      }
+      .c-yellow {
+        --c: var(--yellow);
+      }
+      .tx {
+        color: var(--c);
+      }
+      .press {
+        transition:
+          transform 0.12s var(--spring),
+          background 0.15s;
+      }
+      .press:active {
+        transform: scale(0.97);
+      }
+
+      .win {
+        display: flex;
+        height: 100vh;
+        padding: 10px;
+        gap: 10px;
+      }
+      /* ---------- sidebar de vidro ---------- */
+      .side {
+        width: 236px;
+        flex-shrink: 0;
+        border-radius: 18px;
+        padding: 14px 10px 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+        background: rgba(36, 36, 40, 0.52);
+        backdrop-filter: blur(44px) saturate(190%);
+        -webkit-backdrop-filter: blur(44px) saturate(190%);
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.09),
+          inset 0 0 0 1px rgba(255, 255, 255, 0.06),
+          0 24px 60px rgba(0, 0, 0, 0.5);
+      }
+      .lights {
+        display: flex;
+        gap: 8px;
+        padding: 2px 8px 14px;
+      }
+      .lights i {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #ff5f57;
+        box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.25);
+      }
+      .lights i:nth-child(2) {
+        background: #febc2e;
+      }
+      .lights i:nth-child(3) {
+        background: #28c840;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 2px 8px 12px;
+      }
+      .brand .mk {
+        width: 30px;
+        height: 30px;
+        border-radius: 9px;
+        background: linear-gradient(180deg, #5be38f, #22b45a);
+        display: grid;
+        place-items: center;
+        color: #032d12;
+        font-weight: 600;
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.4),
+          0 4px 12px rgba(48, 209, 88, 0.25);
+      }
+      .brand b {
+        display: block;
+        font-weight: 500;
+        font-size: 13.5px;
+        line-height: 17px;
+      }
+      .brand small {
+        color: var(--label2);
+        font-weight: 300;
+        font-size: 11.5px;
+      }
+      .sfield {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        height: 30px;
+        margin: 0 2px 8px;
+        padding: 0 10px;
+        border-radius: 9px;
+        background: var(--fill2);
+        color: var(--label3);
+        font-size: 12.5px;
+      }
+      .sfield svg {
+        width: 13px;
+        height: 13px;
+      }
+      .sfield kbd {
+        margin-left: auto;
+        font: 500 10.5px "Manrope";
+        color: var(--label3);
+      }
+      .sh {
+        font-size: 11.5px;
+        font-weight: 500;
+        color: var(--label3);
+        padding: 12px 10px 5px;
+      }
+      .it {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        height: 32px;
+        padding: 0 8px;
+        border-radius: 9px;
+        font-weight: 500;
+        color: var(--label);
+      }
+      .it:hover {
+        background: rgba(255, 255, 255, 0.055);
+      }
+      .it.on {
+        background: rgba(255, 255, 255, 0.12);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+      }
+      .tile {
+        width: 22px;
+        height: 22px;
+        border-radius: 6px;
+        display: grid;
+        place-items: center;
+        background: linear-gradient(180deg, color-mix(in srgb, var(--c) 82%, #fff), var(--c));
+        color: #fff;
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.28),
+          0 1px 2px rgba(0, 0, 0, 0.3);
+      }
+      .tile svg {
+        width: 13px;
+        height: 13px;
+        stroke-width: 2.2;
+      }
+      .it .n {
+        margin-left: auto;
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--label3);
+        min-width: 20px;
+        text-align: right;
+      }
+      .it .n.pill {
+        min-width: 0;
+        height: 18px;
+        line-height: 18px;
+        font-size: 11px;
+        padding: 0 7px;
+        border-radius: 99px;
+        color: #1b1000;
+        background: var(--c);
+      }
+      .meter {
+        margin-top: auto;
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.045);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+        padding: 12px;
+        display: grid;
+        gap: 12px;
+      }
+      .ring-row {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+      }
+      .ring {
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        background: conic-gradient(var(--c) calc(var(--p) * 1%), rgba(255, 255, 255, 0.1) 0);
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+      }
+      .ring::after {
+        content: "";
+        width: 25px;
+        height: 25px;
+        border-radius: 50%;
+        background: #2a2a2e;
+      }
+      .ring-row b {
+        display: block;
+        font-weight: 500;
+      }
+      .ring-row b span {
+        color: var(--label3);
+        font-weight: 400;
+      }
+      .ring-row small {
+        color: var(--label2);
+        font-weight: 300;
+        font-size: 12px;
+      }
+      .acct {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 6px 2px;
+        margin-top: 6px;
+      }
+      .acct .pic {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: linear-gradient(180deg, #6e6e73, #48484a);
+        display: grid;
+        place-items: center;
+        font-size: 11px;
+        font-weight: 500;
+      }
+      .acct b {
+        display: block;
+        font-weight: 500;
+        font-size: 12.5px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 140px;
+      }
+      .acct small {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 11.5px;
+        color: var(--green);
+      }
+      .acct small i {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--green);
+      }
+
+      /* ---------- janela de conteúdo ---------- */
+      .main {
+        flex: 1;
+        min-width: 0;
+        border-radius: 18px;
+        background: var(--bg);
+        box-shadow:
+          inset 0 0 0 1px rgba(255, 255, 255, 0.07),
+          inset 0 1px 0 rgba(255, 255, 255, 0.05),
+          0 24px 60px rgba(0, 0, 0, 0.4);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        position: relative;
+      }
+      .screen {
+        display: none;
+        flex: 1;
+        min-height: 0;
+        flex-direction: column;
+      }
+      .screen.on {
+        display: flex;
+        animation: in 0.32s var(--spring);
+      }
+      @keyframes in {
+        from {
+          opacity: 0;
+          transform: translateY(6px);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .screen.on {
+          animation: fade 0.2s;
+        }
+        @keyframes fade {
+          from {
+            opacity: 0;
+          }
+        }
+      }
+      .toolbar {
+        height: 64px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 0 18px 0 26px;
+        position: relative;
+        z-index: 3;
+      }
+      .toolbar h1 {
+        font-size: 26px;
+        font-weight: 500;
+        letter-spacing: -0.032em;
+      }
+      .toolbar .sp {
+        flex: 1;
+      }
+      .glass {
+        display: flex;
+        align-items: center;
+        padding: 3px;
+        border-radius: 999px;
+        background: rgba(118, 118, 128, 0.16);
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.07),
+          inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+      }
+      .gbtn {
+        height: 30px;
+        padding: 0 13px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        font-weight: 500;
+        color: var(--label);
+      }
+      .gbtn:hover {
+        background: rgba(255, 255, 255, 0.07);
+      }
+      .gbtn svg {
+        width: 14px;
+        height: 14px;
+        color: var(--label2);
+      }
+      .gicon {
+        width: 30px;
+        height: 30px;
+        border-radius: 999px;
+        display: grid;
+        place-items: center;
+        color: var(--label2);
+      }
+      .gicon:hover {
+        background: rgba(255, 255, 255, 0.07);
+        color: var(--label);
+      }
+      .gicon svg {
+        width: 15px;
+        height: 15px;
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        height: 36px;
+        padding: 0 16px;
+        border-radius: 999px;
+        font-weight: 500;
+        background: var(--fill);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+      }
+      .pill:hover {
+        background: rgba(118, 118, 128, 0.28);
+      }
+      .pill.primary {
+        background: linear-gradient(180deg, #45db6b, #2bc251);
+        color: #002b0d;
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.35),
+          0 6px 18px rgba(48, 209, 88, 0.22);
+      }
+      .pill.sm {
+        height: 28px;
+        padding: 0 12px;
+        font-size: 12.5px;
+      }
+      .pill svg {
+        width: 14px;
+        height: 14px;
+      }
+      .search {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        height: 30px;
+        width: 200px;
+        padding: 0 12px;
+        border-radius: 999px;
+        color: var(--label3);
+      }
+      .search svg {
+        width: 14px;
+        height: 14px;
+      }
+      .scroll {
+        flex: 1;
+        overflow-y: auto;
+        padding: 2px 26px 48px;
+        mask-image: linear-gradient(
+          to bottom,
+          transparent 0,
+          #000 16px,
+          #000 calc(100% - 24px),
+          transparent
+        );
+      }
+      .sub {
+        color: var(--label2);
+        font-weight: 300;
+        font-size: 14px;
+        margin: 6px 0 -6px;
+      }
+      .sub b {
+        font-weight: 500;
+        color: var(--label);
+      }
+      .sub b.tx {
+        color: var(--c);
+      }
+      .stack {
+        display: grid;
+        gap: 24px;
+        max-width: 1280px;
+      }
+
+      /* widgets */
+      .widgets {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 12px;
+      }
+      .w {
+        border-radius: 18px;
+        background: var(--grouped);
+        padding: 14px 16px 16px;
+        display: grid;
+        gap: 12px;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+        position: relative;
+        overflow: hidden;
+      }
+      .w::after {
+        content: "";
+        position: absolute;
+        right: -30px;
+        top: -30px;
+        width: 110px;
+        height: 110px;
+        border-radius: 50%;
+        background: radial-gradient(
+          closest-side,
+          color-mix(in srgb, var(--c) 16%, transparent),
+          transparent
+        );
+        pointer-events: none;
+      }
+      .w .top {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 500;
+        color: var(--c);
+      }
+      .w .num {
+        font-size: 36px;
+        line-height: 1;
+        font-weight: 500;
+        letter-spacing: -0.04em;
+      }
+      .w .cap {
+        font-size: 12.5px;
+        font-weight: 300;
+        color: var(--label2);
+      }
+      .w .cap b {
+        font-weight: 500;
+        color: var(--c);
+      }
+      .w.c-gray .top {
+        color: var(--label2);
+      }
+
+      /* listas agrupadas */
+      .gh {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        padding: 0 6px 8px;
+      }
+      .gh h2 {
+        font-size: 16px;
+        font-weight: 500;
+        letter-spacing: -0.015em;
+      }
+      .gh .cnt {
+        font-size: 12px;
+        font-weight: 500;
+        padding: 1px 8px;
+        border-radius: 99px;
+        color: var(--c);
+        background: color-mix(in srgb, var(--c) 16%, transparent);
+      }
+      .gh small {
+        color: var(--label2);
+        font-weight: 300;
+      }
+      .gh a {
+        margin-left: auto;
+        font-size: 12.5px;
+        color: var(--blue);
+        font-weight: 500;
+      }
+      .group {
+        border-radius: 16px;
+        background: var(--grouped);
+        overflow: hidden;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-height: 54px;
+        padding: 0 14px 0 16px;
+        position: relative;
+        transition: background 0.15s;
+      }
+      .row + .row::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        right: 0;
+        left: 60px;
+        height: 0.5px;
+        background: var(--sep);
+      }
+      .row.flat + .row.flat::before {
+        left: 16px;
+      }
+      .row:hover {
+        background: rgba(255, 255, 255, 0.03);
+      }
+      .av {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        font-size: 11.5px;
+        font-weight: 600;
+        color: #fff;
+        flex-shrink: 0;
+        background: linear-gradient(180deg, color-mix(in srgb, var(--c) 80%, #fff), var(--c));
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+      }
+      .av.sm {
+        width: 26px;
+        height: 26px;
+        font-size: 10px;
+      }
+      .row .t {
+        flex: 1;
+        min-width: 0;
+      }
+      .row .t b {
+        display: block;
+        font-weight: 500;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .row .t small {
+        font-size: 12.5px;
+        font-weight: 300;
+        color: var(--label2);
+      }
+      .row .t small.tx {
+        color: var(--c);
+        font-weight: 500;
+      }
+      .time {
+        color: var(--label3);
+        font-size: 12.5px;
+        white-space: nowrap;
+      }
+      .chev {
+        color: var(--label4);
+        width: 14px;
+        height: 14px;
+      }
+      .row .reveal {
+        opacity: 0;
+        transform: translateX(4px);
+        transition:
+          opacity 0.15s,
+          transform 0.2s var(--spring);
+      }
+      .row:hover .reveal {
+        opacity: 1;
+        transform: none;
+      }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 11.5px;
+        font-weight: 500;
+        height: 21px;
+        padding: 0 9px;
+        border-radius: 99px;
+        color: var(--c);
+        background: color-mix(in srgb, var(--c) 16%, transparent);
+        white-space: nowrap;
+      }
+      .badge i {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--c);
+      }
+      .badge svg {
+        width: 11px;
+        height: 11px;
+        stroke-width: 2.4;
+      }
+      .sym {
+        width: 30px;
+        height: 30px;
+        border-radius: 8px;
+        display: grid;
+        place-items: center;
+        color: #fff;
+        flex-shrink: 0;
+        background: linear-gradient(180deg, color-mix(in srgb, var(--c) 82%, #fff), var(--c));
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28);
+      }
+      .sym svg {
+        width: 15px;
+        height: 15px;
+        stroke-width: 2.1;
+      }
+      .toggle {
+        width: 44px;
+        height: 26px;
+        border-radius: 99px;
+        background: rgba(120, 120, 128, 0.32);
+        position: relative;
+        flex-shrink: 0;
+        transition: background 0.2s;
+      }
+      .toggle::after {
+        content: "";
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: #fff;
+        box-shadow:
+          0 3px 8px rgba(0, 0, 0, 0.25),
+          0 1px 1px rgba(0, 0, 0, 0.15);
+        transition: left 0.3s var(--spring);
+      }
+      .toggle.on {
+        background: var(--c, var(--green));
+      }
+      .toggle.on::after {
+        left: 20px;
+      }
+      .value {
+        color: var(--label2);
+        font-weight: 300;
+        white-space: nowrap;
+      }
+      .value b {
+        font-weight: 500;
+        color: var(--label);
+      }
+      .banner {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-height: 52px;
+        padding: 8px 10px 8px 14px;
+        border-radius: 16px;
+        background: color-mix(in srgb, var(--orange) 11%, var(--grouped));
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--orange) 24%, transparent);
+      }
+      .banner b {
+        font-weight: 500;
+        color: var(--orange);
+      }
+      .banner span {
+        color: var(--label2);
+        font-weight: 300;
+      }
+      .banner .pill {
+        margin-left: auto;
+      }
+      .two {
+        display: grid;
+        grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+        gap: 24px;
+      }
+      .fun {
+        padding: 8px 0;
+      }
+      .frow {
+        display: grid;
+        grid-template-columns: 120px 1fr 64px;
+        align-items: center;
+        gap: 14px;
+        padding: 9px 16px;
+      }
+      .frow .l {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 500;
+        color: var(--c);
+      }
+      .frow .l i {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--c);
+      }
+      .frow .track {
+        height: 8px;
+        border-radius: 99px;
+        background: var(--fill2);
+        overflow: hidden;
+      }
+      .frow .track i {
+        display: block;
+        height: 100%;
+        border-radius: 99px;
+        background: linear-gradient(90deg, color-mix(in srgb, var(--c) 65%, transparent), var(--c));
+        min-width: 8px;
+      }
+      .frow .v {
+        text-align: right;
+        font-weight: 500;
+      }
+      .frow .v small {
+        display: block;
+        font-size: 11px;
+        font-weight: 400;
+        color: var(--c);
+        opacity: 0.85;
+      }
+
+      /* ---------- Leads ---------- */
+      .seg {
+        display: inline-flex;
+        padding: 2px;
+        border-radius: 10px;
+        background: var(--fill2);
+        box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.04);
+        max-width: 100%;
+        overflow-x: auto;
+        scrollbar-width: none;
+      }
+      .seg span {
+        height: 28px;
+        padding: 0 13px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        font-weight: 500;
+        color: var(--label2);
+        font-size: 12.5px;
+        white-space: nowrap;
+        cursor: pointer;
+      }
+      .seg span em {
+        font-style: normal;
+        font-size: 11.5px;
+        color: var(--label3);
+      }
+      .seg span em.tx {
+        color: var(--c);
+      }
+      .seg span.on {
+        background: #5a5a5e;
+        color: #fff;
+        box-shadow:
+          0 3px 8px rgba(0, 0, 0, 0.3),
+          inset 0 1px 0 rgba(255, 255, 255, 0.14);
+      }
+      .seg span.on em {
+        color: rgba(255, 255, 255, 0.7);
+      }
+      .filters {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        margin-top: 14px;
+      }
+      .popup {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 28px;
+        padding: 0 10px 0 12px;
+        border-radius: 8px;
+        background: var(--fill2);
+        font-weight: 500;
+        font-size: 12.5px;
+        color: var(--label);
+      }
+      .popup:hover {
+        background: var(--fill);
+      }
+      .popup span {
+        color: var(--label2);
+        font-weight: 400;
+      }
+      .popup span.tx {
+        color: var(--c);
+        font-weight: 500;
+      }
+      .popup svg {
+        width: 12px;
+        height: 12px;
+        color: var(--label3);
+      }
+      .popup.on {
+        background: color-mix(in srgb, var(--green) 16%, transparent);
+        color: var(--green);
+      }
+      .popup.on svg {
+        color: var(--green);
+      }
+      .tbl {
+        border-radius: 16px;
+        background: var(--grouped);
+        overflow: hidden;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+        margin-top: 14px;
+      }
+      .tbl table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .tbl th {
+        height: 34px;
+        text-align: left;
+        font-size: 11.5px;
+        font-weight: 500;
+        color: var(--label3);
+        padding: 0 12px;
+        border-bottom: 0.5px solid var(--sep);
+        white-space: nowrap;
+      }
+      .tbl th svg {
+        width: 11px;
+        height: 11px;
+        vertical-align: -1px;
+        margin-left: 3px;
+      }
+      .tbl td {
+        height: 54px;
+        padding: 0 12px;
+        color: var(--label2);
+        white-space: nowrap;
+      }
+      .tbl tbody tr:nth-child(even) {
+        background: rgba(255, 255, 255, 0.018);
+      }
+      .tbl tbody tr:hover {
+        background: rgba(255, 255, 255, 0.04);
+      }
+      .tbl tr.sel {
+        background: color-mix(in srgb, var(--green) 11%, transparent) !important;
+      }
+      .cbx {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        box-shadow: inset 0 0 0 1.5px var(--label4);
+        display: inline-grid;
+        place-items: center;
+      }
+      .cbx.on {
+        background: var(--green);
+        box-shadow: none;
+        color: #002b0d;
+      }
+      .cbx svg {
+        width: 11px;
+        height: 11px;
+        stroke-width: 3.2;
+      }
+      .co {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+      }
+      .co b {
+        display: block;
+        font-weight: 500;
+        color: var(--label);
+      }
+      .co small {
+        font-size: 12px;
+        font-weight: 300;
+      }
+      .score {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 500;
+        color: var(--c);
+      }
+      .mini-ring {
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: conic-gradient(var(--c) calc(var(--p) * 1%), rgba(255, 255, 255, 0.1) 0);
+        display: grid;
+        place-items: center;
+      }
+      .mini-ring::after {
+        content: "";
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: var(--grouped);
+      }
+      tr:nth-child(even) .mini-ring::after {
+        background: #1f1f21;
+      }
+      tr.sel .mini-ring::after {
+        background: #1e2a21;
+      }
+      .star {
+        width: 12px;
+        height: 12px;
+        fill: var(--yellow);
+        stroke: none;
+      }
+      .tfoot {
+        display: flex;
+        justify-content: space-between;
+        padding: 12px 16px;
+        border-top: 0.5px solid var(--sep);
+        color: var(--label3);
+        font-size: 12px;
+      }
+      .tfoot b {
+        color: var(--label2);
+        font-weight: 500;
+      }
+      .floatbar {
+        position: absolute;
+        left: 50%;
+        bottom: 22px;
+        transform: translateX(-50%);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 6px 6px 6px 16px;
+        border-radius: 999px;
+        z-index: 5;
+        background: rgba(44, 44, 48, 0.72);
+        backdrop-filter: blur(30px) saturate(180%);
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.12),
+          inset 0 0 0 1px rgba(255, 255, 255, 0.07),
+          0 18px 40px rgba(0, 0, 0, 0.55);
+        animation: rise 0.45s var(--spring);
+      }
+      @keyframes rise {
+        from {
+          opacity: 0;
+          transform: translate(-50%, 16px) scale(0.96);
+        }
+        to {
+          opacity: 1;
+          transform: translate(-50%, 0);
+        }
+      }
+      .floatbar b {
+        font-weight: 500;
+      }
+      .floatbar span {
+        color: var(--orange);
+        font-weight: 400;
+        font-size: 12.5px;
+      }
+
+      /* ---------- Conversas ---------- */
+      .mail {
+        flex: 1;
+        min-height: 0;
+        display: grid;
+        grid-template-columns: 330px minmax(0, 1fr) 290px;
+        border-top: 0.5px solid var(--sep);
+      }
+      .mlist {
+        overflow-y: auto;
+        border-right: 0.5px solid var(--sep);
+      }
+      .mlist .seg {
+        margin: 12px 14px 6px;
+      }
+      .mrow {
+        display: grid;
+        grid-template-columns: 12px 1fr;
+        gap: 6px;
+        padding: 11px 14px 11px 8px;
+        margin: 0 8px;
+        border-radius: 12px;
+        cursor: pointer;
+        position: relative;
+      }
+      .mrow:hover {
+        background: rgba(255, 255, 255, 0.035);
+      }
+      .mrow.on {
+        background: color-mix(in srgb, var(--blue) 26%, transparent);
+      }
+      .mrow .dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: var(--c);
+        margin-top: 5px;
+        opacity: 0;
+      }
+      .mrow.unread .dot {
+        opacity: 1;
+      }
+      .mrow .h {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+      }
+      .mrow .h b {
+        flex: 1;
+        font-weight: 500;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .mrow.unread .h b {
+        font-weight: 600;
+      }
+      .mrow p {
+        color: var(--label2);
+        font-weight: 300;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        margin: 2px 0 6px;
+      }
+      .mrow.on p {
+        color: rgba(255, 255, 255, 0.75);
+      }
+      .mrow + .mrow::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 20px;
+        right: 6px;
+        height: 0.5px;
+        background: var(--sep);
+      }
+      .mrow.on::before,
+      .mrow.on + .mrow::before {
+        display: none;
+      }
+      .read {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+      }
+      .rhead {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 18px 28px 14px;
+      }
+      .rhead b {
+        font-weight: 500;
+        font-size: 14px;
+        display: block;
+      }
+      .rhead small {
+        color: var(--label2);
+        font-weight: 300;
+      }
+      .rhead .ai-tg {
+        white-space: nowrap;
+        flex-shrink: 0;
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 6px 6px 6px 12px;
+        border-radius: 999px;
+        background: var(--fill2);
+        font-weight: 500;
+        color: var(--purple);
+      }
+      .rbody {
+        flex: 1;
+        overflow-y: auto;
+        padding: 0 28px 20px;
+      }
+      .subject {
+        font-size: 22px;
+        font-weight: 500;
+        letter-spacing: -0.025em;
+        margin: 6px 0 4px;
+      }
+      .msg {
+        padding: 18px 0;
+        border-bottom: 0.5px solid var(--sep);
+        max-width: 68ch;
+      }
+      .msg .mh {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 10px;
+      }
+      .msg .mh b {
+        font-weight: 500;
+      }
+      .msg .mh .time {
+        margin-left: auto;
+      }
+      .msg .body {
+        font-size: 14px;
+        line-height: 1.72;
+        color: rgba(235, 235, 245, 0.84);
+        white-space: pre-line;
+      }
+      .aiav {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        color: #fff;
+        background: linear-gradient(180deg, #d68cff, #a24ae0);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
+      }
+      .aiav svg {
+        width: 15px;
+        height: 15px;
+        stroke-width: 2.1;
+      }
+      .handoff {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin: 18px 0;
+        max-width: 68ch;
+        padding: 12px 14px;
+        border-radius: 14px;
+        background: color-mix(in srgb, var(--orange) 11%, transparent);
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--orange) 24%, transparent);
+      }
+      .handoff b {
+        color: var(--orange);
+        font-weight: 500;
+      }
+      .handoff span {
+        color: var(--label2);
+        font-weight: 300;
+      }
+      .compose {
+        margin: 0 20px 18px;
+        border-radius: 18px;
+        background: rgba(44, 44, 48, 0.6);
+        backdrop-filter: blur(30px);
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.1),
+          inset 0 0 0 1px rgba(255, 255, 255, 0.06),
+          0 16px 36px rgba(0, 0, 0, 0.4);
+      }
+      .compose .to {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 14px 0;
+        color: var(--label2);
+        font-size: 12.5px;
+      }
+      .compose .ta {
+        padding: 10px 16px 6px;
+        font-size: 14px;
+        line-height: 1.7;
+        min-height: 70px;
+      }
+      .compose .bot {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 8px 8px 16px;
+      }
+      .compose .bot small {
+        margin-right: auto;
+        color: var(--label3);
+        font-size: 12px;
+        font-weight: 300;
+      }
+      .insp {
+        overflow-y: auto;
+        border-left: 0.5px solid var(--sep);
+        padding: 18px 14px;
+        display: grid;
+        gap: 18px;
+        align-content: start;
+      }
+      .insp .group .row {
+        min-height: 44px;
+      }
+      .insp h5 {
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--label3);
+        padding: 0 6px 6px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      /* ---------- Buscas ---------- */
+      .runs {
+        display: grid;
+        gap: 14px;
+      }
+      .run .rh {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 14px 14px 16px;
+      }
+      .run .rh b {
+        font-weight: 500;
+        font-size: 14px;
+      }
+      .run .meta {
+        font-size: 12px;
+        color: var(--label3);
+        font-weight: 300;
+        margin-top: 1px;
+      }
+      .run .meta .tx {
+        font-weight: 500;
+      }
+      .run .right {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .cntp {
+        font-size: 11.5px;
+        font-weight: 500;
+        color: var(--label2);
+        padding: 1px 8px;
+        border-radius: 99px;
+        background: var(--fill2);
+      }
+      .steps {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+        padding: 0 14px 14px;
+      }
+      .step {
+        border-radius: 12px;
+        background: var(--fill3);
+        padding: 12px;
+        display: grid;
+        gap: 6px;
+        position: relative;
+      }
+      .step .sh2 {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 500;
+        color: var(--label3);
+      }
+      .step .ico {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        box-shadow: inset 0 0 0 1.5px var(--label4);
+      }
+      .step .ico svg {
+        width: 11px;
+        height: 11px;
+        stroke-width: 3;
+      }
+      .step.done .ico {
+        box-shadow: none;
+        background: var(--green);
+        color: #002b0d;
+      }
+      .step.done .sh2 {
+        color: var(--label);
+      }
+      .step.run .ico {
+        box-shadow: none;
+        background: conic-gradient(var(--purple) 62%, rgba(255, 255, 255, 0.12) 0);
+      }
+      .step.run .ico::after {
+        content: "";
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: #232325;
+      }
+      .step.run .sh2 {
+        color: var(--purple);
+      }
+      .step.err .ico {
+        box-shadow: none;
+        background: var(--red);
+        color: #fff;
+      }
+      .step.err .sh2 {
+        color: var(--red);
+      }
+      .step p {
+        font-size: 12.5px;
+        color: var(--label2);
+        font-weight: 300;
+      }
+      .step p b {
+        font-weight: 500;
+        color: var(--label);
+      }
+      .step .track {
+        height: 6px;
+        border-radius: 99px;
+        background: var(--fill2);
+        overflow: hidden;
+        margin-top: 4px;
+      }
+      .step .track i {
+        display: block;
+        height: 100%;
+        width: 62%;
+        border-radius: 99px;
+        background: linear-gradient(90deg, #9a4be0, var(--purple));
+      }
+      .donerow {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0 16px 14px 58px;
+        color: var(--label2);
+        font-weight: 300;
+        font-size: 12.5px;
+      }
+      .donerow b {
+        font-weight: 500;
+        color: var(--label);
+      }
+      .donerow b.tx {
+        color: var(--c);
+      }
+      .donerow svg {
+        width: 15px;
+        height: 15px;
+        color: var(--green);
+      }
+
+      @media (max-width: 1180px) {
+        .widgets {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+        .two {
+          grid-template-columns: 1fr;
+        }
+        .mail {
+          grid-template-columns: 300px minmax(0, 1fr);
+        }
+        .insp {
+          display: none;
+        }
+      }
+      @media (max-width: 900px) {
+        .side {
+          width: 200px;
+        }
+        .search {
+          display: none;
+        }
+        .steps {
+          grid-template-columns: 1fr;
+        }
+      }
+      @media (max-width: 720px) {
+        .side {
+          display: none;
+        }
+        .win {
+          padding: 0;
+        }
+        .main {
+          border-radius: 0;
+        }
+        .widgets {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .mail {
+          grid-template-columns: 1fr;
+        }
+        .read {
+          display: none;
+        }
+        .toolbar .glass {
+          display: none;
+        }
+      }
+      @media (prefers-reduced-transparency: reduce) {
+        .side,
+        .floatbar,
+        .compose {
+          background: #2c2c2e;
+          backdrop-filter: none;
+        }
+      }
+
+      /* ================= MOVIMENTO (hover / entrada) ================= */
+      @property --p {
+        syntax: "<number>";
+        inherits: false;
+        initial-value: 0;
+      }
+      @property --mx {
+        syntax: "<length>";
+        inherits: true;
+        initial-value: -200px;
+      }
+      @property --my {
+        syntax: "<length>";
+        inherits: true;
+        initial-value: -200px;
+      }
+      .lift {
+        position: relative;
+        cursor: pointer;
+        transition:
+          transform 0.45s var(--spring),
+          box-shadow 0.45s var(--spring),
+          background 0.2s;
+        will-change: transform;
+      }
+      .lift::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.25s;
+        background: radial-gradient(
+          220px circle at var(--mx) var(--my),
+          rgba(255, 255, 255, 0.075),
+          transparent 65%
+        );
+      }
+      .lift::selection {
+        background: none;
+      }
+      .lift:hover {
+        transform: translateY(-3px);
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.08),
+          inset 0 0 0 1px rgba(255, 255, 255, 0.07),
+          0 14px 34px rgba(0, 0, 0, 0.42),
+          0 2px 6px rgba(0, 0, 0, 0.25);
+      }
+      .lift:hover::before {
+        opacity: 1;
+      }
+      .lift:active {
+        transform: translateY(-1px) scale(0.985);
+        transition-duration: 0.12s;
+      }
+      /* widgets: o ícone e o brilho reagem */
+      .w .tile {
+        transition: transform 0.5s var(--spring);
+      }
+      .w:hover .tile {
+        transform: scale(1.12) rotate(-6deg);
+      }
+      .w::after {
+        transition:
+          transform 0.6s var(--spring),
+          opacity 0.3s;
+      }
+      .w:hover::after {
+        transform: scale(1.5);
+        opacity: 1.4;
+      }
+      .w .num {
+        transition: transform 0.5s var(--spring);
+        transform-origin: left bottom;
+      }
+      .w:hover .num {
+        transform: scale(1.04);
+      }
+      .w .go {
+        position: absolute;
+        right: 14px;
+        bottom: 14px;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        background: color-mix(in srgb, var(--c) 22%, transparent);
+        color: var(--c);
+        opacity: 0;
+        transform: translateX(-6px) scale(0.8);
+        transition:
+          opacity 0.2s,
+          transform 0.45s var(--spring);
+      }
+      .w .go svg {
+        width: 12px;
+        height: 12px;
+        stroke-width: 2.4;
+      }
+      .w:hover .go {
+        opacity: 1;
+        transform: none;
+      }
+      /* linhas: seta desliza, avatar cresce */
+      .row .chev {
+        transition:
+          transform 0.35s var(--spring),
+          color 0.2s;
+      }
+      .row:hover .chev {
+        transform: translateX(3px);
+        color: var(--label2);
+      }
+      .row .av,
+      .row .sym {
+        transition: transform 0.45s var(--spring);
+      }
+      .row:hover .av,
+      .row:hover .sym {
+        transform: scale(1.08);
+      }
+      .row:active {
+        background: rgba(255, 255, 255, 0.05);
+      }
+      /* tabela */
+      .tbl tbody tr {
+        transition: background 0.15s;
+      }
+      .tbl tbody tr .av {
+        transition: transform 0.4s var(--spring);
+      }
+      .tbl tbody tr:hover .av {
+        transform: scale(1.1);
+      }
+      .mini-ring {
+        transition: transform 0.4s var(--spring);
+      }
+      .tbl tbody tr:hover .mini-ring {
+        transform: rotate(-20deg) scale(1.1);
+      }
+      /* lista de conversas */
+      .mrow {
+        transition:
+          background 0.2s,
+          transform 0.35s var(--spring);
+      }
+      .mrow:not(.on):hover {
+        transform: translateX(2px);
+      }
+      /* barra lateral */
+      .it .tile {
+        transition: transform 0.45s var(--spring);
+      }
+      .it:hover .tile {
+        transform: scale(1.1);
+      }
+      .it.on .tile {
+        transform: scale(1);
+      }
+      /* interruptor estica ao pressionar, como no iOS */
+      .toggle:active::after {
+        width: 28px;
+      }
+      .toggle.on:active::after {
+        left: 14px;
+      }
+      /* passos das buscas */
+      .step {
+        transition:
+          background 0.2s,
+          transform 0.4s var(--spring);
+      }
+      .run:hover .step {
+        background: rgba(118, 118, 128, 0.11);
+      }
+      /* ENTRADA: anéis e barras crescem do zero */
+      .ring,
+      .mini-ring {
+        animation: fillp 1.1s var(--spring) both;
+      }
+      @keyframes fillp {
+        from {
+          --p: 0;
+        }
+      }
+      .frow .track i,
+      .step .track i {
+        animation: grow 1s var(--spring) both;
+        transform-origin: left;
+      }
+      @keyframes grow {
+        from {
+          transform: scaleX(0);
+        }
+      }
+      .screen.on .w,
+      .screen.on .group,
+      .screen.on .banner {
+        animation: rise2 0.6s var(--spring) both;
+      }
+      .screen.on .widgets .w:nth-child(2) {
+        animation-delay: 0.04s;
+      }
+      .screen.on .widgets .w:nth-child(3) {
+        animation-delay: 0.08s;
+      }
+      .screen.on .widgets .w:nth-child(4) {
+        animation-delay: 0.12s;
+      }
+      .screen.on .widgets .w:nth-child(5) {
+        animation-delay: 0.16s;
+      }
+      @keyframes rise2 {
+        from {
+          opacity: 0;
+          transform: translateY(10px) scale(0.985);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .lift,
+        .lift:hover,
+        .lift:active,
+        .w:hover .tile,
+        .w:hover .num,
+        .row:hover .av,
+        .row:hover .sym,
+        .mrow:not(.on):hover {
+          transform: none !important;
+        }
+        .ring,
+        .mini-ring,
+        .frow .track i,
+        .step .track i,
+        .screen.on .w,
+        .screen.on .group,
+        .screen.on .banner {
+          animation: none;
+        }
+      }
+      @media (hover: none) {
+        .lift:hover {
+          transform: none;
+        }
+      }
+
+      .it .tile {
+        transition:
+          transform 0.45s var(--spring),
+          filter 0.25s,
+          background 0.25s;
+      }
+      .it:not(.on) .tile {
+        background: linear-gradient(180deg, #6b6b70, #4a4a4e);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+      }
+      .it:not(.on):hover .tile {
+        background: linear-gradient(180deg, color-mix(in srgb, var(--c) 82%, #fff), var(--c));
+      }
+      .it:not(.on) {
+        color: var(--label2);
+      }
+      .it:not(.on):hover {
+        color: var(--label);
+      }
+
+      /* ================= SHEETS (painel do lead, disparo) ================= */
+      .scrim {
+        position: absolute;
+        inset: 0;
+        z-index: 20;
+        background: rgba(0, 0, 0, 0.45);
+        backdrop-filter: blur(2px);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s;
+      }
+      .main.has-sheet .scrim {
+        opacity: 1;
+        pointer-events: auto;
+      }
+      .main.has-sheet .screen.on {
+        transform: scale(0.985);
+        filter: saturate(0.8);
+        transition:
+          transform 0.45s var(--spring),
+          filter 0.3s;
+      }
+      .screen.on {
+        transition:
+          transform 0.45s var(--spring),
+          filter 0.3s;
+      }
+      .sheet {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        bottom: 10px;
+        width: min(620px, calc(100% - 20px));
+        z-index: 30;
+        display: flex;
+        flex-direction: column;
+        border-radius: 16px;
+        background: rgba(30, 30, 32, 0.94);
+        backdrop-filter: blur(40px) saturate(180%);
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.1),
+          inset 0 0 0 1px rgba(255, 255, 255, 0.07),
+          -24px 0 60px rgba(0, 0, 0, 0.5);
+        transform: translateX(calc(100% + 24px));
+        transition: transform 0.5s var(--spring);
+        visibility: hidden;
+      }
+      .sheet.open {
+        transform: none;
+        visibility: visible;
+      }
+      .sheet:not(.open) {
+        transition:
+          transform 0.38s cubic-bezier(0.4, 0, 1, 1),
+          visibility 0s 0.38s;
+      }
+      .sh-bar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 14px 14px 10px 18px;
+      }
+      .sh-bar .close {
+        margin-left: auto;
+        background: var(--fill2);
+      }
+      .pos {
+        font-size: 12.5px;
+        font-weight: 500;
+        color: var(--label2);
+      }
+      .keys {
+        display: flex;
+        gap: 3px;
+      }
+      kbd {
+        font: 500 10.5px "Manrope";
+        min-width: 18px;
+        height: 18px;
+        padding: 0 4px;
+        display: inline-grid;
+        place-items: center;
+        border-radius: 5px;
+        background: var(--fill2);
+        color: var(--label2);
+        box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.3);
+      }
+      .sh-scroll {
+        flex: 1;
+        overflow-y: auto;
+        padding: 4px 20px 20px;
+        display: grid;
+        gap: 20px;
+        align-content: start;
+      }
+      .lh {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+      .lh-t {
+        flex: 1;
+        min-width: 0;
+      }
+      .lh h2 {
+        font-size: 21px;
+        font-weight: 500;
+        letter-spacing: -0.025em;
+      }
+      .lh p {
+        color: var(--label2);
+        font-weight: 300;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        flex-wrap: wrap;
+      }
+      .lh-b {
+        display: flex;
+        gap: 6px;
+        margin-top: 8px;
+      }
+      .bigscore {
+        display: grid;
+        place-items: center;
+        position: relative;
+        width: 64px;
+        height: 64px;
+        flex-shrink: 0;
+      }
+      .bigscore .ring.lg {
+        width: 64px;
+        height: 64px;
+        position: absolute;
+        inset: 0;
+      }
+      .bigscore .ring.lg::after {
+        width: 54px;
+        height: 54px;
+        background: #1e1e20;
+      }
+      .bigscore b {
+        position: relative;
+        font-size: 20px;
+        font-weight: 500;
+        line-height: 1;
+        color: var(--c);
+        margin-top: 6px;
+      }
+      .bigscore small {
+        position: relative;
+        font-size: 10px;
+        font-weight: 500;
+        color: var(--c);
+        margin-top: -14px;
+      }
+      .actions {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 8px;
+      }
+      .act {
+        display: grid;
+        justify-items: center;
+        gap: 6px;
+        padding: 10px 4px;
+        border-radius: 14px;
+        background: var(--fill3);
+        font-size: 11.5px;
+        font-weight: 500;
+        color: var(--c);
+      }
+      .act:hover {
+        background: var(--fill2);
+      }
+      .act .sym {
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+      }
+      .step-card {
+        border-radius: 16px;
+        background: var(--grouped);
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.05),
+          inset 3px 0 0 var(--green);
+        padding: 14px 16px;
+        display: grid;
+        gap: 10px;
+      }
+      .sc-h {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+      }
+      .sc-h b {
+        display: block;
+        font-weight: 500;
+        font-size: 14px;
+      }
+      .sc-h small {
+        color: var(--label2);
+        font-weight: 300;
+      }
+      .field {
+        border-radius: 10px;
+        background: rgba(0, 0, 0, 0.22);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+        padding: 9px 12px;
+      }
+      .field.subj {
+        font-weight: 500;
+        font-size: 14px;
+      }
+      .field.body {
+        white-space: pre-line;
+        line-height: 1.65;
+        color: rgba(235, 235, 245, 0.84);
+        font-size: 13.5px;
+        max-height: 180px;
+        overflow: auto;
+      }
+      .field:hover {
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+      }
+      .sc-f {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .danger-h:hover {
+        color: var(--red);
+        background: color-mix(in srgb, var(--red) 14%, transparent);
+      }
+      .sec .gh {
+        padding-left: 4px;
+      }
+      .group.pad {
+        padding: 14px 16px;
+        display: grid;
+        gap: 14px;
+      }
+      .lead-sum {
+        font-size: 14px;
+        line-height: 1.65;
+        color: rgba(235, 235, 245, 0.84);
+      }
+      .lists {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+      .lists h4 {
+        font-size: 12px;
+        font-weight: 500;
+        margin-bottom: 6px;
+      }
+      .lists ul {
+        list-style: none;
+        display: grid;
+        gap: 5px;
+      }
+      .lists li {
+        position: relative;
+        padding-left: 14px;
+        color: var(--label2);
+        font-weight: 300;
+      }
+      .lists li::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 7px;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--c);
+      }
+      details summary {
+        list-style: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--label2);
+        font-weight: 500;
+      }
+      details summary::-webkit-details-marker {
+        display: none;
+      }
+      details summary svg {
+        width: 13px;
+        height: 13px;
+        transition: transform 0.35s var(--spring);
+      }
+      details[open] summary svg {
+        transform: rotate(90deg);
+      }
+      details p {
+        margin-top: 8px;
+        color: var(--label2);
+        font-weight: 300;
+        line-height: 1.6;
+      }
+      .two-col {
+        display: grid;
+        grid-template-columns: 1.2fr 1fr;
+        gap: 16px;
+      }
+      .kv {
+        justify-content: space-between;
+        min-height: 42px !important;
+      }
+      .kv > span:first-child {
+        color: var(--label2);
+        font-weight: 300;
+      }
+      .kv b {
+        font-weight: 500;
+        text-align: right;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .link {
+        color: var(--blue) !important;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .link svg {
+        width: 12px;
+        height: 12px;
+      }
+      .notes {
+        padding: 12px 14px;
+        min-height: 96px;
+        color: var(--label);
+        line-height: 1.6;
+      }
+      .notes:hover {
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+      }
+      .sh-foot {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding-top: 12px;
+        border-top: 0.5px solid var(--sep);
+      }
+      .sh-foot .meta {
+        margin-left: auto;
+        font-size: 11.5px;
+        color: var(--label3);
+        font-weight: 300;
+      }
+      /* disparo */
+      .pager {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .pager b {
+        font-weight: 500;
+      }
+      .pager .dots {
+        margin-left: auto;
+        display: flex;
+        gap: 5px;
+      }
+      .pager .dots i {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--label4);
+      }
+      .pager .dots i.on {
+        background: var(--label);
+      }
+      .mailcard {
+        border-radius: 16px;
+        background: var(--grouped);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        overflow: hidden;
+      }
+      .mc-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-height: 42px;
+        padding: 0 14px;
+        border-bottom: 0.5px solid var(--sep);
+      }
+      .mc-row > span:first-child {
+        width: 40px;
+        color: var(--label3);
+        font-weight: 300;
+      }
+      .mc-row b {
+        font-weight: 500;
+      }
+      .mc-subj {
+        padding: 14px 16px 6px;
+        font-size: 17px;
+        font-weight: 500;
+        letter-spacing: -0.02em;
+      }
+      .mc-body {
+        padding: 4px 16px 16px;
+        white-space: pre-line;
+        font-size: 14px;
+        line-height: 1.7;
+        color: rgba(235, 235, 245, 0.84);
+      }
+      .skipped {
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+        padding: 12px 14px;
+        border-radius: 14px;
+        background: color-mix(in srgb, var(--orange) 10%, transparent);
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--orange) 22%, transparent);
+      }
+      .skipped b {
+        color: var(--orange);
+        font-weight: 500;
+      }
+      .skipped p {
+        color: var(--label2);
+        font-weight: 300;
+      }
+      .sh-bottom {
+        padding: 12px 16px 16px;
+        display: grid;
+        gap: 12px;
+        border-top: 0.5px solid var(--sep);
+        background: rgba(20, 20, 22, 0.4);
+      }
+      .pill.big {
+        height: 44px;
+        justify-content: center;
+        font-size: 14px;
+      }
+      .pill.big svg {
+        width: 16px;
+        height: 16px;
+      }
+      .tbl tbody tr {
+        cursor: pointer;
+      }
+
+      /* ================= CONFIGURAÇÕES ================= */
+      .setcol {
+        max-width: 720px;
+        margin: 0 auto;
+        display: grid;
+        gap: 26px;
+        padding-top: 8px;
+      }
+      .sethead {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 6px 4px;
+      }
+      .sethead b {
+        font-size: 18px;
+        font-weight: 500;
+        letter-spacing: -0.02em;
+      }
+      .sethead p {
+        color: var(--label2);
+        font-weight: 300;
+      }
+      .foot {
+        font-size: 12px;
+        color: var(--label3);
+        font-weight: 300;
+        padding: 8px 16px 0;
+        line-height: 1.5;
+      }
+      .gh.sub2 {
+        padding-top: 14px;
+      }
+      .gh h3 {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--label2);
+      }
+      .target {
+        gap: 10px;
+      }
+      .phr {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .phr .in {
+        flex: 1;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        padding: 0 12px;
+        border-radius: 9px;
+        background: rgba(0, 0, 0, 0.22);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+      }
+      .phr em {
+        font-style: normal;
+        color: var(--label3);
+        font-weight: 300;
+      }
+      .del {
+        color: #fff;
+        background: var(--red) !important;
+        width: 22px !important;
+        height: 22px !important;
+      }
+      .del svg {
+        width: 12px;
+        height: 12px;
+        stroke-width: 3;
+      }
+      .add {
+        gap: 10px;
+        cursor: pointer;
+      }
+      .plus {
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: var(--green);
+        display: grid;
+        place-items: center;
+        color: #002b0d;
+      }
+      .plus svg {
+        width: 12px;
+        height: 12px;
+        stroke-width: 3;
+      }
+      .ta-row {
+        display: grid;
+        gap: 6px;
+        padding: 12px 16px;
+      }
+      .ta-row + .ta-row {
+        border-top: 0.5px solid var(--sep);
+      }
+      .ta-row label {
+        font-weight: 500;
+      }
+      .ta {
+        min-height: 64px;
+        padding: 10px 12px;
+        border-radius: 10px;
+        background: rgba(0, 0, 0, 0.22);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+        line-height: 1.55;
+      }
+      .ta.empty {
+        color: var(--label3);
+        font-weight: 300;
+      }
+      .crit {
+        justify-content: space-between;
+      }
+      .crit > span:first-child {
+        flex: 1;
+      }
+      .stepper {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 9px;
+        background: var(--fill2);
+        overflow: hidden;
+      }
+      .stepper button {
+        width: 30px;
+        height: 28px;
+        color: var(--label2);
+        font-size: 15px;
+      }
+      .stepper button:hover {
+        background: var(--fill);
+      }
+      .stepper b {
+        min-width: 40px;
+        text-align: center;
+        font-weight: 500;
+      }
+      .val {
+        color: var(--label2) !important;
+        font-weight: 400 !important;
+      }
+      .kv .seg {
+        margin: 0;
+      }
+      @media (max-width: 760px) {
+        .two-col,
+        .lists {
+          grid-template-columns: 1fr;
+        }
+        .actions {
+          grid-template-columns: repeat(3, 1fr);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .sheet,
+        .sheet:not(.open) {
+          transition:
+            opacity 0.2s,
+            visibility 0s;
+        }
+        .sheet {
+          transform: none;
+          opacity: 0;
+        }
+        .sheet.open {
+          opacity: 1;
+        }
+        .main.has-sheet .screen.on {
+          transform: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <svg style="display: none">
+      <symbol id="grid" viewBox="0 0 24 24">
+        <rect x="3" y="3" width="7" height="7" rx="1.5" />
+        <rect x="14" y="3" width="7" height="7" rx="1.5" />
+        <rect x="14" y="14" width="7" height="7" rx="1.5" />
+        <rect x="3" y="14" width="7" height="7" rx="1.5" />
+      </symbol>
+      <symbol id="tray" viewBox="0 0 24 24">
+        <path d="M22 12h-6l-2 3h-4l-2-3H2" />
+        <path
+          d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"
+        />
+      </symbol>
+      <symbol id="bubble" viewBox="0 0 24 24"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" /></symbol>
+      <symbol id="clock" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 7v5l3 2" />
+      </symbol>
+      <symbol id="gear" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="3" />
+        <path
+          d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
+        />
+      </symbol>
+      <symbol id="search" viewBox="0 0 24 24">
+        <circle cx="11" cy="11" r="7" />
+        <path d="m20 20-3.5-3.5" />
+      </symbol>
+      <symbol id="plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></symbol>
+      <symbol id="send" viewBox="0 0 24 24">
+        <path d="m22 2-7 20-4-9-9-4Z" />
+        <path d="M22 2 11 13" />
+      </symbol>
+      <symbol id="reply" viewBox="0 0 24 24">
+        <path d="m9 17-5-5 5-5" />
+        <path d="M20 18v-2a4 4 0 0 0-4-4H4" />
+      </symbol>
+      <symbol id="spark" viewBox="0 0 24 24">
+        <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z" />
+      </symbol>
+      <symbol id="flame" viewBox="0 0 24 24">
+        <path
+          d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.07-2.14-.22-4.05 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.15.43-2.29 1-3a2.5 2.5 0 0 0 2.5 2.5z"
+        />
+      </symbol>
+      <symbol id="userx" viewBox="0 0 24 24">
+        <circle cx="9" cy="7" r="4" />
+        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M17 8l5 5M22 8l-5 5" />
+      </symbol>
+      <symbol id="chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6" /></symbol>
+      <symbol id="updown" viewBox="0 0 24 24"><path d="m7 15 5 5 5-5M7 9l5-5 5 5" /></symbol>
+      <symbol id="bot" viewBox="0 0 24 24">
+        <rect x="4" y="8" width="16" height="12" rx="3" />
+        <path d="M12 8V4M9 13v2M15 13v2" />
+      </symbol>
+      <symbol id="warn" viewBox="0 0 24 24">
+        <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" />
+        <path d="M12 9v4M12 17h.01" />
+      </symbol>
+      <symbol id="check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" /></symbol>
+      <symbol id="x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12" /></symbol>
+      <symbol id="star" viewBox="0 0 24 24">
+        <path
+          d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"
+        />
+      </symbol>
+      <symbol id="dl" viewBox="0 0 24 24">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+        <path d="m7 10 5 5 5-5M12 15V3" />
+      </symbol>
+      <symbol id="refresh" viewBox="0 0 24 24">
+        <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+        <path d="M21 3v5h-5" />
+        <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+        <path d="M8 16H3v5" />
+      </symbol>
+      <symbol id="hand" viewBox="0 0 24 24">
+        <path d="M18 11V6a2 2 0 0 0-4 0M14 10V4a2 2 0 0 0-4 0v2M10 10.5V6a2 2 0 0 0-4 0v8" />
+        <path
+          d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"
+        />
+      </symbol>
+      <symbol id="phone" viewBox="0 0 24 24">
+        <path
+          d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"
+        />
+      </symbol>
+      <symbol id="globe" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10" />
+        <path d="M2 12h20M12 2a15 15 0 0 1 0 20 15 15 0 0 1 0-20" />
+      </symbol>
+      <symbol id="arrow" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7" /></symbol>
+      <symbol id="mail" viewBox="0 0 24 24">
+        <rect x="2" y="4" width="20" height="16" rx="2" />
+        <path d="m22 7-10 6L2 7" />
+      </symbol>
+
+      <symbol id="chevl" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6" /></symbol>
+      <symbol id="copy" viewBox="0 0 24 24">
+        <rect x="8" y="8" width="13" height="13" rx="2" />
+        <path d="M4 16V5a1 1 0 0 1 1-1h11" />
+      </symbol>
+      <symbol id="pin" viewBox="0 0 24 24">
+        <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
+        <circle cx="12" cy="10" r="3" />
+      </symbol>
+      <symbol id="ext" viewBox="0 0 24 24"><path d="M7 7h10v10M7 17 17 7" /></symbol>
+      <symbol id="plug" viewBox="0 0 24 24">
+        <path d="M12 22v-5M9 8V2M15 8V2M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z" />
+      </symbol>
+      <symbol id="minus" viewBox="0 0 24 24"><path d="M5 12h14" /></symbol>
+    </svg>
+
+    <div class="win">
+      <aside class="side">
+        <div class="lights"><i></i><i></i><i></i></div>
+        <div class="brand">
+          <div class="mk">N</div>
+          <div><b>Nelcota Leads</b><small>Prospecção B2B</small></div>
+        </div>
+        <div class="sfield">
+          <svg><use href="#search" /></svg>Nova busca
+        </div>
+        <div class="sh">Prospecção</div>
+        <a class="it c-blue press" data-go="ov"
+          ><span class="tile"
+            ><svg><use href="#grid" /></svg></span
+          >Visão geral</a
+        >
+        <a class="it c-green press" data-go="leads"
+          ><span class="tile"
+            ><svg><use href="#tray" /></svg></span
+          >Leads<span class="n">38</span></a
+        >
+        <a class="it c-orange press" data-go="conv"
+          ><span class="tile"
+            ><svg><use href="#bubble" /></svg></span
+          >Conversas<span class="n pill">3</span></a
+        >
+        <a class="it c-purple press" data-go="search"
+          ><span class="tile"
+            ><svg><use href="#clock" /></svg></span
+          >Buscas<span class="n tx">1</span></a
+        >
+        <div class="sh">Sistema</div>
+        <a class="it c-gray press" data-go="settings"
+          ><span class="tile"
+            ><svg><use href="#gear" /></svg></span
+          >Configurações</a
+        >
+        <div class="meter">
+          <div class="ring-row c-green">
+            <span class="ring" style="--p: 40"></span>
+            <div>
+              <b>12 <span>de 30</span></b
+              ><small>e-mails hoje</small>
+            </div>
+          </div>
+          <div class="ring-row c-blue">
+            <span class="ring" style="--p: 16"></span>
+            <div>
+              <b>8 <span>de 50</span></b
+              ><small>buscas no Google</small>
+            </div>
+          </div>
+        </div>
+        <div class="acct">
+          <div class="pic">NL</div>
+          <div>
+            <b>contato@nelcota.com.br</b><small><i></i>Caixa conectada</small>
+          </div>
+        </div>
+      </aside>
+
+      <section class="main">
+        <!-- ===================== VISÃO GERAL ===================== -->
+        <div class="screen" id="ov">
+          <div class="toolbar">
+            <h1>Visão geral</h1>
+            <div class="sp"></div>
+            <button class="pill press">
+              <svg><use href="#search" /></svg>Buscar empresas
+            </button>
+            <button class="pill primary press">
+              <svg><use href="#send" /></svg>Selecionar e disparar
+            </button>
+          </div>
+          <div class="scroll">
+            <div class="stack">
+              <p class="sub">
+                <b>412</b> leads na base · <b class="tx c-blue">38 prontos</b> para disparo ·
+                <b class="tx c-orange">3 precisam de você</b>
+              </p>
+
+              <div class="banner">
+                <span class="sym c-orange" style="width: 28px; height: 28px"
+                  ><svg><use href="#warn" /></svg
+                ></span>
+                <div>
+                  <b>Falta dizer o que você vende</b><br /><span
+                    >Sem isso a IA não escreve e-mails, porque não teria o que oferecer.</span
+                  >
+                </div>
+                <button class="pill sm press">Descrever</button>
+              </div>
+
+              <div>
+                <div class="gh c-orange">
+                  <h2 class="tx">Precisa de você</h2>
+                  <span class="cnt">3</span><small>A IA parou e passou para você</small
+                  ><a data-go="conv">Ver todas</a>
+                </div>
+                <div class="group">
+                  <div class="row c-blue">
+                    <span class="av">OS</span>
+                    <div class="t">
+                      <b>Odonto Sorriso BH</b
+                      ><small class="tx c-orange">Pediu preço do plano</small>
+                    </div>
+                    <button class="pill sm press reveal">Responder</button
+                    ><span class="time">14:32</span><svg class="chev"><use href="#chev" /></svg>
+                  </div>
+                  <div class="row c-pink">
+                    <span class="av">CL</span>
+                    <div class="t">
+                      <b>Clínica Lumière</b
+                      ><small class="tx c-orange">Quer marcar uma reunião</small>
+                    </div>
+                    <button class="pill sm press reveal">Responder</button
+                    ><span class="time">11:05</span><svg class="chev"><use href="#chev" /></svg>
+                  </div>
+                  <div class="row c-orange">
+                    <span class="av">DP</span>
+                    <div class="t">
+                      <b>Dental Prime Savassi</b
+                      ><small class="tx c-orange">Perguntou se é um robô</small>
+                    </div>
+                    <button class="pill sm press reveal">Responder</button
+                    ><span class="time">09:47</span><svg class="chev"><use href="#chev" /></svg>
+                  </div>
+                </div>
+              </div>
+
+              <div class="widgets">
+                <div class="w c-blue lift" data-go="conv">
+                  <div class="top">
+                    <span class="tile"
+                      ><svg><use href="#send" /></svg></span
+                    >E-mails hoje
+                  </div>
+                  <div class="num">12</div>
+                  <div class="cap"><b>40%</b> do limite de 30</div>
+                  <span class="go"
+                    ><svg><use href="#arrow" /></svg
+                  ></span>
+                </div>
+                <div class="w c-green lift" data-go="leads">
+                  <div class="top">
+                    <span class="tile"
+                      ><svg><use href="#reply" /></svg></span
+                    >Responderam
+                  </div>
+                  <div class="num">27</div>
+                  <div class="cap"><b>18%</b> dos contatados</div>
+                  <span class="go"
+                    ><svg><use href="#arrow" /></svg
+                  ></span>
+                </div>
+                <div class="w c-purple lift" data-go="conv">
+                  <div class="top">
+                    <span class="tile"
+                      ><svg><use href="#spark" /></svg></span
+                    >IA conversando
+                  </div>
+                  <div class="num">9</div>
+                  <div class="cap"><b>responde</b> em minutos</div>
+                  <span class="go"
+                    ><svg><use href="#arrow" /></svg
+                  ></span>
+                </div>
+                <div class="w c-orange lift" data-go="leads">
+                  <div class="top">
+                    <span class="tile"
+                      ><svg><use href="#flame" /></svg></span
+                    >Interessados
+                  </div>
+                  <div class="num">6</div>
+                  <div class="cap"><b>esperando</b> você</div>
+                  <span class="go"
+                    ><svg><use href="#arrow" /></svg
+                  ></span>
+                </div>
+                <div class="w c-gray lift" data-go="leads">
+                  <div class="top">
+                    <span class="tile"
+                      ><svg><use href="#userx" /></svg></span
+                    >Descadastros
+                  </div>
+                  <div class="num">4</div>
+                  <div class="cap">nunca recebem de novo</div>
+                  <span class="go"
+                    ><svg><use href="#arrow" /></svg
+                  ></span>
+                </div>
+              </div>
+
+              <div class="two">
+                <div>
+                  <div class="gh">
+                    <h2>Funil</h2>
+                    <small>38 prontos para disparo</small>
+                  </div>
+                  <div class="group fun">
+                    <div class="frow c-gray">
+                      <span class="l"><i></i>Na base</span
+                      ><span class="track"><i style="width: 100%"></i></span
+                      ><span class="v">412</span>
+                    </div>
+                    <div class="frow c-teal">
+                      <span class="l"><i></i>Com e-mail</span
+                      ><span class="track"><i style="width: 56%"></i></span
+                      ><span class="v">231<small>56%</small></span>
+                    </div>
+                    <div class="frow c-blue">
+                      <span class="l"><i></i>Contatados</span
+                      ><span class="track"><i style="width: 36%"></i></span
+                      ><span class="v">148<small>64%</small></span>
+                    </div>
+                    <div class="frow c-orange">
+                      <span class="l"><i></i>Responderam</span
+                      ><span class="track"><i style="width: 7%"></i></span
+                      ><span class="v">27<small>18%</small></span>
+                    </div>
+                    <div class="frow c-purple">
+                      <span class="l"><i></i>Interessados</span
+                      ><span class="track"><i style="width: 3%"></i></span
+                      ><span class="v">6<small>22%</small></span>
+                    </div>
+                    <div class="frow c-green">
+                      <span class="l"><i></i>Fechados</span
+                      ><span class="track"><i style="width: 1.5%"></i></span
+                      ><span class="v">2<small>33%</small></span>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <div class="gh"><h2>Modo automático</h2></div>
+                  <div class="group">
+                    <div class="row c-purple">
+                      <span class="sym"
+                        ><svg><use href="#spark" /></svg
+                      ></span>
+                      <div class="t">
+                        <b>IA responde sozinha</b><small>Até haver interesse</small>
+                      </div>
+                      <span class="toggle on"></span>
+                    </div>
+                    <div class="row c-blue">
+                      <span class="sym"
+                        ><svg><use href="#send" /></svg
+                      ></span>
+                      <div class="t">
+                        <b>Disparo automático</b><small>Leads novos entram na fila</small>
+                      </div>
+                      <span class="toggle"></span>
+                    </div>
+                    <div class="row c-green">
+                      <span class="sym"
+                        ><svg><use href="#clock" /></svg
+                      ></span>
+                      <div class="t"><b>Busca diária</b><small>Às 9h · dentistas em BH</small></div>
+                      <span class="toggle on"></span>
+                    </div>
+                  </div>
+                  <div class="group" style="margin-top: 12px">
+                    <div class="row flat">
+                      <div class="t"><b>Fila de envio</b></div>
+                      <span class="value"><b>5</b> · próximo 14:40</span>
+                    </div>
+                    <div class="row flat">
+                      <div class="t"><b>IA no mês</b></div>
+                      <span class="value"><b>US$ 1,84</b></span>
+                    </div>
+                    <div class="row flat">
+                      <div class="t"><b>Google no mês</b></div>
+                      <span class="value"><b>212</b> de 1.000</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <div class="gh">
+                  <h2>Atividade de hoje</h2>
+                  <small>12 eventos</small>
+                </div>
+                <div class="group">
+                  <div class="row c-green">
+                    <span class="sym"
+                      ><svg><use href="#reply" /></svg
+                    ></span>
+                    <div class="t"><b>Odonto Sorriso BH</b><small class="tx">respondeu</small></div>
+                    <span class="time">14:32</span>
+                  </div>
+                  <div class="row c-purple">
+                    <span class="sym"
+                      ><svg><use href="#spark" /></svg
+                    ></span>
+                    <div class="t">
+                      <b>Clínica Vivace</b><small class="tx">a IA respondeu</small>
+                    </div>
+                    <span class="time">14:10</span>
+                  </div>
+                  <div class="row c-blue">
+                    <span class="sym"
+                      ><svg><use href="#send" /></svg
+                    ></span>
+                    <div class="t">
+                      <b>Sorria Mais Pampulha</b><small class="tx">e-mail enviado</small>
+                    </div>
+                    <span class="time">13:48</span>
+                  </div>
+                  <div class="row c-purple">
+                    <span class="sym"
+                      ><svg><use href="#bot" /></svg
+                    ></span>
+                    <div class="t">
+                      <b>dentistas em Belo Horizonte</b
+                      ><small class="tx">busca automática · 24 empresas novas</small>
+                    </div>
+                    <span class="time">09:00</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===================== LEADS ===================== -->
+        <div class="screen" id="leads">
+          <div class="toolbar">
+            <h1>Leads</h1>
+            <div class="sp"></div>
+            <div class="glass">
+              <div class="search">
+                <svg><use href="#search" /></svg>Buscar empresa
+              </div>
+            </div>
+            <div class="glass">
+              <button class="gicon" title="Exportar CSV">
+                <svg><use href="#dl" /></svg></button
+              ><button class="gicon" title="Busca manual">
+                <svg><use href="#plus" /></svg>
+              </button>
+            </div>
+          </div>
+          <div class="scroll">
+            <div class="stack" style="gap: 0">
+              <p class="sub">
+                <b>412</b> leads · <b class="tx c-blue">38 a contatar</b> ·
+                <b class="tx c-purple">4 em análise</b>
+              </p>
+              <div>
+                <div class="seg">
+                  <span class="on">A contatar <em>38</em></span
+                  ><span>Retornar hoje <em class="tx c-orange">5</em></span
+                  ><span>Aguardando <em>121</em></span
+                  ><span>Em conversa <em class="tx c-orange">27</em></span
+                  ><span>Fechados <em class="tx c-green">2</em></span
+                  ><span>Descartados <em>219</em></span
+                  ><span>Todos <em>412</em></span>
+                </div>
+              </div>
+              <div class="filters">
+                <button class="popup press">
+                  Nota <span class="tx c-green">Alta</span><svg><use href="#updown" /></svg>
+                </button>
+                <button class="popup press">
+                  Busca <span>todas</span><svg><use href="#updown" /></svg>
+                </button>
+                <button class="popup press">Sem site</button>
+                <button class="popup on press">
+                  <svg><use href="#check" /></svg>Com e-mail
+                </button>
+                <button class="popup press" style="margin-left: auto">
+                  Ordenar <span>maior nota</span><svg><use href="#updown" /></svg>
+                </button>
+              </div>
+              <div class="tbl">
+                <table>
+                  <thead>
+                    <tr>
+                      <th style="width: 44px"></th>
+                      <th>Empresa</th>
+                      <th>
+                        Nota<svg><use href="#updown" /></svg>
+                      </th>
+                      <th>E-mail</th>
+                      <th>Telefone</th>
+                      <th>
+                        Google<svg><use href="#updown" /></svg>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr class="sel">
+                      <td>
+                        <span class="cbx on"
+                          ><svg><use href="#check" /></svg
+                        ></span>
+                      </td>
+                      <td>
+                        <div class="co">
+                          <span class="av c-blue">OS</span>
+                          <div>
+                            <b>Odonto Sorriso BH</b><small>Site sem HTTPS e desatualizado</small>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <span class="score c-green"
+                          ><span class="mini-ring" style="--p: 86"></span>86</span
+                        >
+                      </td>
+                      <td>contato@odontosorriso.com.br</td>
+                      <td>(31) 3222-4410</td>
+                      <td>
+                        <svg class="star"><use href="#star" /></svg> 4,2
+                        <span style="color: var(--label3)">(38)</span>
+                      </td>
+                    </tr>
+                    <tr class="sel">
+                      <td>
+                        <span class="cbx on"
+                          ><svg><use href="#check" /></svg
+                        ></span>
+                      </td>
+                      <td>
+                        <div class="co">
+                          <span class="av c-pink">CL</span>
+                          <div>
+                            <b>Clínica Lumière</b><small>Sem presença em redes sociais</small>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <span class="score c-green"
+                          ><span class="mini-ring" style="--p: 78"></span>78</span
+                        >
+                      </td>
+                      <td>atendimento@lumiere.med.br</td>
+                      <td>(31) 99812-3301</td>
+                      <td>
+                        <svg class="star"><use href="#star" /></svg> 4,8
+                        <span style="color: var(--label3)">(112)</span>
+                      </td>
+                    </tr>
+                    <tr class="sel">
+                      <td>
+                        <span class="cbx on"
+                          ><svg><use href="#check" /></svg
+                        ></span>
+                      </td>
+                      <td>
+                        <div class="co">
+                          <span class="av c-orange">DP</span>
+                          <div>
+                            <b>Dental Prime Savassi</b
+                            ><small class="tx c-orange" style="font-weight: 500">Sem site</small>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <span class="score c-green"
+                          ><span class="mini-ring" style="--p: 71"></span>71</span
+                        >
+                      </td>
+                      <td style="color: var(--label3)">sem e-mail</td>
+                      <td>(31) 3014-8870</td>
+                      <td>
+                        <svg class="star"><use href="#star" /></svg> 3,9
+                        <span style="color: var(--label3)">(12)</span>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><span class="cbx"></span></td>
+                      <td>
+                        <div class="co">
+                          <span class="av c-green">SM</span>
+                          <div>
+                            <b>Sorria Mais Pampulha</b><small>Poucas avaliações no Google</small>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <span class="score c-orange"
+                          ><span class="mini-ring" style="--p: 54"></span>54</span
+                        >
+                      </td>
+                      <td>sorriamais@gmail.com</td>
+                      <td>(31) 3441-2290</td>
+                      <td>
+                        <svg class="star"><use href="#star" /></svg> 4,5
+                        <span style="color: var(--label3)">(9)</span>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><span class="cbx"></span></td>
+                      <td>
+                        <div class="co">
+                          <span class="av c-purple">CV</span>
+                          <div>
+                            <b>Clínica Vivace</b
+                            ><small class="tx c-purple" style="font-weight: 500"
+                              >Lendo o site…</small
+                            >
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <span class="badge c-purple"
+                          ><svg><use href="#spark" /></svg>analisando</span
+                        >
+                      </td>
+                      <td>contato@vivace.com.br</td>
+                      <td>(31) 3295-1180</td>
+                      <td>
+                        <svg class="star"><use href="#star" /></svg> 4,9
+                        <span style="color: var(--label3)">(201)</span>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><span class="cbx"></span></td>
+                      <td>
+                        <div class="co">
+                          <span class="av c-teal">OF</span>
+                          <div>
+                            <b>OdontoFamília Barreiro</b><small>odontofamilia.com.br</small>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <span class="score c-gray"
+                          ><span class="mini-ring" style="--p: 24"></span>24</span
+                        >
+                      </td>
+                      <td>recepcao@odontofamilia.com.br</td>
+                      <td>(31) 3384-0021</td>
+                      <td>
+                        <svg class="star"><use href="#star" /></svg> 4,6
+                        <span style="color: var(--label3)">(64)</span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+                <div class="tfoot">
+                  <span><b>38</b> leads · <span class="tx c-purple">4 em análise</span></span
+                  ><span>J e K navegam no lead aberto</span>
+                </div>
+              </div>
+              <div style="height: 70px"></div>
+            </div>
+          </div>
+          <div class="floatbar">
+            <b>3 selecionados</b><span>1 sem e-mail fica de fora</span
+            ><button class="pill sm press">Limpar</button
+            ><button class="pill sm primary press" data-open="sheet-dispatch">
+              <svg><use href="#send" /></svg>Disparar e-mail
+            </button>
+          </div>
+        </div>
+
+        <!-- ===================== CONVERSAS ===================== -->
+        <div class="screen" id="conv">
+          <div class="toolbar">
+            <h1>Conversas</h1>
+            <div class="sp"></div>
+            <div class="glass">
+              <button class="gicon" title="Verificar e-mails">
+                <svg><use href="#refresh" /></svg>
+              </button>
+            </div>
+          </div>
+          <div class="mail">
+            <div class="mlist">
+              <div class="seg">
+                <span class="on">Todas <em>31</em></span
+                ><span>Você <em class="tx c-orange">3</em></span
+                ><span>IA <em class="tx c-purple">9</em></span
+                ><span>Sem resposta <em>17</em></span>
+              </div>
+              <div class="mrow on unread c-orange">
+                <span class="dot"></span>
+                <div>
+                  <div class="h"><b>Odonto Sorriso BH</b><span class="time">14:32</span></div>
+                  <p>
+                    Oi! Gostei da proposta. Quanto custa o plano para uma clínica com duas cadeiras?
+                  </p>
+                  <span class="badge c-orange"><i></i>Precisa de você</span>
+                </div>
+              </div>
+              <div class="mrow c-purple">
+                <span class="dot"></span>
+                <div>
+                  <div class="h"><b>Clínica Vivace</b><span class="time">14:10</span></div>
+                  <p>Entendi, e o agendamento funciona pelo WhatsApp também ou só pelo site?</p>
+                  <span class="badge c-purple"
+                    ><svg><use href="#spark" /></svg>IA conversando</span
+                  >
+                </div>
+              </div>
+              <div class="mrow unread c-orange">
+                <span class="dot"></span>
+                <div>
+                  <div class="h"><b>Clínica Lumière</b><span class="time">11:05</span></div>
+                  <p>Podemos marcar uma conversa na quinta à tarde? Prefiro por vídeo.</p>
+                  <span class="badge c-orange"><i></i>Precisa de você</span>
+                </div>
+              </div>
+              <div class="mrow c-gray">
+                <span class="dot"></span>
+                <div>
+                  <div class="h"><b>Sorria Mais Pampulha</b><span class="time">ontem</span></div>
+                  <p>
+                    Olá, Sorria Mais! Vi que vocês têm ótimas avaliações mas ainda não têm site…
+                  </p>
+                  <span class="badge c-gray">Sem resposta</span>
+                </div>
+              </div>
+              <div class="mrow c-gray">
+                <span class="dot"></span>
+                <div>
+                  <div class="h"><b>OdontoFamília Barreiro</b><span class="time">09/10</span></div>
+                  <p>Obrigado, mas no momento não temos interesse.</p>
+                  <span class="badge c-gray" style="opacity: 0.7">Encerrada</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="read">
+              <div class="rhead">
+                <span class="av c-blue">OS</span>
+                <div><b>Odonto Sorriso BH</b><small>contato@odontosorriso.com.br</small></div>
+                <div class="ai-tg">
+                  <svg style="width: 14px; height: 14px"><use href="#spark" /></svg>IA no
+                  comando<span class="toggle c-purple"></span>
+                </div>
+              </div>
+              <div class="rbody">
+                <div class="subject">Agendamento online para a Odonto Sorriso</div>
+                <div class="msg">
+                  <div class="mh">
+                    <span class="aiav"
+                      ><svg><use href="#spark" /></svg
+                    ></span>
+                    <div>
+                      <b class="tx c-purple">IA, em seu nome</b><br /><small
+                        style="color: var(--label3); font-weight: 300"
+                        >para contato@odontosorriso.com.br</small
+                      >
+                    </div>
+                    <span class="time">08/10 · 10:14</span>
+                  </div>
+                  <div class="body">
+                    Olá, equipe da Odonto Sorriso! Vi que o site de vocês ainda não aceita
+                    agendamento online e que boa parte das avaliações elogia o atendimento, mas
+                    reclama da demora para conseguir horário pelo telefone. Nós criamos sites com
+                    agenda integrada para clínicas odontológicas em BH. Posso mostrar como ficaria
+                    para vocês?
+                  </div>
+                </div>
+                <div class="msg">
+                  <div class="mh">
+                    <span class="av c-blue">OS</span>
+                    <div>
+                      <b>Odonto Sorriso BH</b><br /><small
+                        style="color: var(--label3); font-weight: 300"
+                        >para você</small
+                      >
+                    </div>
+                    <span class="time">hoje · 14:32</span>
+                  </div>
+                  <div class="body">
+                    Oi! Gostei da proposta. Quanto custa o plano para uma clínica com duas cadeiras?
+                    E dá para integrar com a agenda que já usamos?
+                  </div>
+                </div>
+                <div class="handoff">
+                  <span class="sym c-orange" style="width: 28px; height: 28px"
+                    ><svg><use href="#hand" /></svg
+                  ></span>
+                  <div>
+                    <b>A IA parou: pediu preço</b><br /><span
+                      >A conversa é sua. Responda abaixo ou devolva para a IA.</span
+                    >
+                  </div>
+                </div>
+              </div>
+              <div class="compose">
+                <div class="to">
+                  Para
+                  <span class="badge c-gray" style="color: var(--label)"
+                    >contato@odontosorriso.com.br</span
+                  ><span class="badge c-purple" style="margin-left: auto"
+                    ><svg><use href="#spark" /></svg>Rascunho da IA</span
+                  >
+                </div>
+                <div class="ta">
+                  Olá! Que bom que gostaram. O plano para duas cadeiras sai por R$ 290/mês, com a
+                  integração da agenda inclusa. Posso te ligar amanhã às 10h para mostrar?
+                </div>
+                <div class="bot">
+                  <small>A assinatura é adicionada no envio.</small
+                  ><button class="pill sm press" style="color: var(--purple)">
+                    <svg><use href="#spark" /></svg>Devolver para a IA</button
+                  ><button class="pill sm primary press">
+                    <svg><use href="#send" /></svg>Enviar
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="insp">
+              <div
+                style="
+                  display: flex;
+                  flex-direction: column;
+                  align-items: center;
+                  gap: 8px;
+                  padding: 6px 0 4px;
+                  text-align: center;
+                "
+              >
+                <span class="av c-blue" style="width: 56px; height: 56px; font-size: 18px">OS</span>
+                <b style="font-weight: 500; font-size: 15px">Odonto Sorriso BH</b>
+                <div style="display: flex; gap: 6px">
+                  <span class="badge c-orange"><i></i>Precisa de você</span
+                  ><span class="badge c-green">Nota 86</span>
+                </div>
+                <div style="display: flex; gap: 8px; margin-top: 6px">
+                  <button class="sym c-green press" title="Ligar">
+                    <svg><use href="#phone" /></svg></button
+                  ><button class="sym c-gray press" title="Site">
+                    <svg><use href="#globe" /></svg>
+                  </button>
+                </div>
+              </div>
+              <div class="group">
+                <div class="row flat">
+                  <div class="t"><small>Telefone</small><b>(31) 3222-4410</b></div>
+                </div>
+                <div class="row flat">
+                  <div class="t">
+                    <small>Site</small><b style="color: var(--blue)">odontosorriso.com.br</b>
+                  </div>
+                </div>
+                <div class="row flat">
+                  <div class="t">
+                    <small>Google</small
+                    ><b
+                      ><svg class="star"><use href="#star" /></svg> 4,2 · 38 avaliações</b
+                    >
+                  </div>
+                </div>
+              </div>
+              <div>
+                <h5 class="tx c-purple">
+                  <svg style="width: 13px; height: 13px"><use href="#spark" /></svg>Resumo da IA
+                </h5>
+                <div
+                  class="group"
+                  style="
+                    padding: 12px 14px;
+                    color: var(--label2);
+                    font-weight: 300;
+                    line-height: 1.6;
+                  "
+                >
+                  Clínica de bairro com bom atendimento, site antigo sem HTTPS e sem agendamento
+                  online. Depende de telefone e indicação.
+                </div>
+              </div>
+              <div class="group">
+                <div class="row flat press" style="color: var(--blue)">
+                  <div class="t"><b style="color: var(--blue)">Ver análise completa</b></div>
+                  <svg class="chev"><use href="#chev" /></svg>
+                </div>
+                <div class="row flat press">
+                  <div class="t"><b style="color: var(--green)">Marcar como fechado</b></div>
+                </div>
+                <div class="row flat press">
+                  <div class="t"><b style="color: var(--red)">Encerrar sem negócio</b></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===================== BUSCAS ===================== -->
+        <div class="screen" id="search">
+          <div class="toolbar">
+            <h1>Buscas</h1>
+            <div class="sp"></div>
+            <button class="pill primary press">
+              <svg><use href="#plus" /></svg>Busca manual
+            </button>
+          </div>
+          <div class="scroll">
+            <div class="stack">
+              <p class="sub">
+                <b>14</b> buscas · <b class="tx c-green">412 leads novos</b> ·
+                <b class="tx c-purple">1 em andamento</b>
+              </p>
+              <div class="runs">
+                <div class="group run lift">
+                  <div class="rh">
+                    <span class="sym c-purple"
+                      ><svg><use href="#bot" /></svg
+                    ></span>
+                    <div>
+                      <b>dentistas em Belo Horizonte · Savassi</b>
+                      <span class="cntp">24 leads</span>
+                      <div class="meta">
+                        <span class="tx c-purple">Automática</span> · 11/10 09:00 · 2 requisições
+                      </div>
+                    </div>
+                    <div class="right">
+                      <span class="badge c-purple"><i></i>Analisando</span
+                      ><button class="pill sm press">Ver leads</button>
+                    </div>
+                  </div>
+                  <div class="steps">
+                    <div class="step done">
+                      <div class="sh2">
+                        <span class="ico"
+                          ><svg><use href="#check" /></svg></span
+                        >Coleta no Google Maps
+                      </div>
+                      <p><b>24</b> empresas novas · 16 já existiam</p>
+                    </div>
+                    <div class="step run">
+                      <div class="sh2"><span class="ico"></span>Análise com IA</div>
+                      <p><b>15</b> de 24 analisadas</p>
+                      <div class="track"><i></i></div>
+                    </div>
+                    <div class="step">
+                      <div class="sh2"><span class="ico"></span>Concluída</div>
+                      <p>aguardando a análise</p>
+                    </div>
+                  </div>
+                </div>
+                <div class="group run lift">
+                  <div class="rh">
+                    <span class="sym c-blue"
+                      ><svg><use href="#search" /></svg
+                    ></span>
+                    <div>
+                      <b>clínicas de estética em Contagem</b> <span class="cntp">0 leads</span>
+                      <div class="meta">
+                        <span class="tx c-blue">Manual</span> · 10/10 16:22 · 1 requisição
+                      </div>
+                    </div>
+                    <div class="right">
+                      <span class="badge c-red"
+                        ><svg><use href="#x" /></svg>Falhou</span
+                      >
+                    </div>
+                  </div>
+                  <div class="steps">
+                    <div class="step err">
+                      <div class="sh2">
+                        <span class="ico"
+                          ><svg><use href="#x" /></svg></span
+                        >Coleta no Google Maps
+                      </div>
+                      <p>Limite diário de requisições ao Google atingido. Volte amanhã.</p>
+                    </div>
+                    <div class="step">
+                      <div class="sh2"><span class="ico"></span>Análise com IA</div>
+                    </div>
+                    <div class="step">
+                      <div class="sh2"><span class="ico"></span>Concluída</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="group run lift">
+                  <div class="rh">
+                    <span class="sym c-purple"
+                      ><svg><use href="#bot" /></svg
+                    ></span>
+                    <div>
+                      <b>dentistas em Belo Horizonte · Pampulha</b>
+                      <span class="cntp">31 leads</span>
+                      <div class="meta">
+                        <span class="tx c-purple">Automática</span> · 10/10 09:00 · 3 requisições
+                      </div>
+                    </div>
+                    <div class="right">
+                      <span class="badge c-green"
+                        ><svg><use href="#check" /></svg>Concluída</span
+                      ><button class="pill sm press">Ver leads</button>
+                    </div>
+                  </div>
+                  <div class="donerow">
+                    <svg><use href="#check" /></svg><b>31</b> empresas novas · <b>31</b> analisadas
+                    · <b>29</b> já existiam
+                  </div>
+                </div>
+                <div class="group run lift">
+                  <div class="rh">
+                    <span class="sym c-blue"
+                      ><svg><use href="#search" /></svg
+                    ></span>
+                    <div>
+                      <b>dentistas em Belo Horizonte</b> <span class="cntp">60 leads</span>
+                      <div class="meta">
+                        <span class="tx c-blue">Manual</span> · 09/10 14:05 · 3 requisições
+                      </div>
+                    </div>
+                    <div class="right">
+                      <span class="badge c-green"
+                        ><svg><use href="#check" /></svg>Concluída</span
+                      ><button class="pill sm press">Ver leads</button>
+                    </div>
+                  </div>
+                  <div class="donerow">
+                    <svg><use href="#check" /></svg><b>60</b> empresas novas · <b>58</b> analisadas
+                    · <b class="tx c-red">2 com erro</b>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===================== CONFIGURAÇÕES ===================== -->
+        <div class="screen" id="settings">
+          <div class="toolbar">
+            <h1>Configurações</h1>
+            <div class="sp"></div>
+          </div>
+          <div class="scroll">
+            <div class="setcol">
+              <div class="sethead">
+                <span class="sym c-gray" style="width: 64px; height: 64px; border-radius: 16px"
+                  ><svg style="width: 30px; height: 30px"><use href="#gear" /></svg
+                ></span>
+                <div>
+                  <b>Como a IA trabalha por você</b>
+                  <p>
+                    Oferta, critérios de nota, tom das mensagens, caixa de e-mail e o que roda
+                    sozinho.
+                  </p>
+                </div>
+              </div>
+
+              <section id="email">
+                <div class="gh"><h2>E-mail</h2></div>
+                <div class="group">
+                  <div class="row c-green">
+                    <span class="sym"
+                      ><svg><use href="#mail" /></svg
+                    ></span>
+                    <div class="t">
+                      <b>contato@nelcota.com.br</b
+                      ><small class="tx">Conectado · 12 de 30 enviados hoje</small>
+                    </div>
+                    <button class="pill sm press">
+                      <svg><use href="#plug" /></svg>Testar conexão
+                    </button>
+                  </div>
+                </div>
+                <p class="foot">
+                  A caixa de onde os e-mails saem e onde as respostas chegam. Até 30 envios por dia,
+                  um a cada 8 minutos.
+                </p>
+              </section>
+
+              <section id="piloto">
+                <div class="gh"><h2>Modo automático</h2></div>
+                <div class="group">
+                  <div class="row c-purple">
+                    <span class="sym"
+                      ><svg><use href="#spark" /></svg
+                    ></span>
+                    <div class="t">
+                      <b>IA responde sozinha</b
+                      ><small
+                        >Até a pessoa demonstrar interesse, pedir preço ou reunião. Aí para e te
+                        avisa.</small
+                      >
+                    </div>
+                    <span class="toggle on"></span>
+                  </div>
+                  <div class="row c-blue">
+                    <span class="sym"
+                      ><svg><use href="#send" /></svg
+                    ></span>
+                    <div class="t">
+                      <b>Disparo automático</b
+                      ><small>Leads novos com e-mail entram na fila sem você selecionar.</small>
+                    </div>
+                    <span class="toggle"></span>
+                  </div>
+                  <div class="row c-green">
+                    <span class="sym"
+                      ><svg><use href="#clock" /></svg
+                    ></span>
+                    <div class="t">
+                      <b>Busca diária</b
+                      ><small
+                        >Busca os nichos e cidades abaixo todo dia, no horário escolhido.</small
+                      >
+                    </div>
+                    <span class="toggle on"></span>
+                  </div>
+                </div>
+                <div class="gh sub2"><h3>O que buscar</h3></div>
+                <div class="group">
+                  <div class="row flat target">
+                    <span class="phr"
+                      ><span class="in">dentistas</span><em>em</em
+                      ><span class="in">Belo Horizonte</span></span
+                    ><button class="gicon del" title="Remover">
+                      <svg><use href="#minus" /></svg>
+                    </button>
+                  </div>
+                  <div class="row flat target">
+                    <span class="phr"
+                      ><span class="in">clínicas de estética</span><em>em</em
+                      ><span class="in">Contagem</span></span
+                    ><button class="gicon del" title="Remover">
+                      <svg><use href="#minus" /></svg>
+                    </button>
+                  </div>
+                  <div class="row flat add press">
+                    <span class="plus"
+                      ><svg><use href="#plus" /></svg></span
+                    ><b style="color: var(--blue); font-weight: 500">Adicionar nicho e cidade</b>
+                  </div>
+                </div>
+                <div class="group" style="margin-top: 12px">
+                  <div class="row flat kv">
+                    <span>Horário</span
+                    ><button class="popup press">
+                      9h<svg><use href="#updown" /></svg>
+                    </button>
+                  </div>
+                  <div class="row flat kv">
+                    <span>Empresas por nicho, por dia</span
+                    ><button class="popup press">
+                      até 20<svg><use href="#updown" /></svg>
+                    </button>
+                  </div>
+                </div>
+                <p class="foot">
+                  Horário de Brasília. Cada 20 empresas usam 1 requisição do limite diário do
+                  Google.
+                </p>
+              </section>
+
+              <section>
+                <div class="gh"><h2>Oferta e cliente ideal</h2></div>
+                <div class="group">
+                  <div class="ta-row">
+                    <label>O que você oferece</label>
+                    <div class="ta empty">
+                      Ex.: criação de sites e automação de agendamento para clínicas odontológicas
+                    </div>
+                  </div>
+                  <div class="ta-row">
+                    <label>Para quem</label>
+                    <div class="ta empty">
+                      Ex.: clínicas pequenas, sem site ou com site antigo, que dependem de indicação
+                    </div>
+                  </div>
+                </div>
+                <p class="foot tx c-orange" style="font-weight: 400">
+                  Sem a oferta descrita, a IA não escreve e-mails.
+                </p>
+              </section>
+
+              <section>
+                <div class="gh">
+                  <h2>Critérios de pontuação</h2>
+                  <small
+                    >soma dos positivos:
+                    <b class="tx c-green" style="font-weight: 500">100</b></small
+                  >
+                </div>
+                <div class="group">
+                  <div class="row flat crit">
+                    <span>Sem site</span
+                    ><span class="stepper"
+                      ><button>−</button><b class="tx c-green">+25</b><button>+</button></span
+                    >
+                  </div>
+                  <div class="row flat crit">
+                    <span>Site desatualizado ou sem HTTPS</span
+                    ><span class="stepper"
+                      ><button>−</button><b class="tx c-green">+15</b><button>+</button></span
+                    >
+                  </div>
+                  <div class="row flat crit">
+                    <span>Poucas avaliações no Google</span
+                    ><span class="stepper"
+                      ><button>−</button><b class="tx c-green">+10</b><button>+</button></span
+                    >
+                  </div>
+                  <div class="row flat crit">
+                    <span>Nota abaixo de 4.0 no Google</span
+                    ><span class="stepper"
+                      ><button>−</button><b class="tx c-green">+10</b><button>+</button></span
+                    >
+                  </div>
+                  <div class="row flat crit">
+                    <span>Sem presença em redes sociais</span
+                    ><span class="stepper"
+                      ><button>−</button><b class="tx c-green">+10</b><button>+</button></span
+                    >
+                  </div>
+                  <div class="row flat crit">
+                    <span>Negócio ativo e com telefone</span
+                    ><span class="stepper"
+                      ><button>−</button><b class="tx c-green">+10</b><button>+</button></span
+                    >
+                  </div>
+                  <div class="row flat crit">
+                    <span>Demais sinais identificados pela IA</span
+                    ><span class="stepper"
+                      ><button>−</button><b class="tx c-green">+20</b><button>+</button></span
+                    >
+                  </div>
+                  <div class="row flat add press">
+                    <span class="plus"
+                      ><svg><use href="#plus" /></svg></span
+                    ><b style="color: var(--blue); font-weight: 500">Adicionar critério</b>
+                  </div>
+                </div>
+                <p class="foot">
+                  A nota é a soma dos pesos dos critérios que se aplicam a cada empresa, limitada a
+                  100.
+                </p>
+              </section>
+
+              <section>
+                <div class="gh"><h2>Mensagem de abordagem</h2></div>
+                <div class="group">
+                  <div class="row flat kv">
+                    <span>Tom</span>
+                    <div class="seg">
+                      <span>Formal</span><span class="on">Consultivo</span><span>Direto</span>
+                    </div>
+                  </div>
+                  <div class="row flat kv">
+                    <span>Descartar leads com nota abaixo de</span
+                    ><span class="stepper"><button>−</button><b>30</b><button>+</button></span>
+                  </div>
+                  <div class="row flat kv">
+                    <span>Seu nome</span
+                    ><b class="val" style="color: var(--label3) !important">Seu nome</b>
+                  </div>
+                  <div class="row flat kv"><span>Sua empresa</span><b class="val">Nelcota</b></div>
+                </div>
+                <p class="foot">
+                  A IA escreve para todo lead que passar da nota mínima. Você revisa e envia.
+                </p>
+              </section>
+              <div style="height: 70px"></div>
+            </div>
+          </div>
+          <div class="floatbar">
+            <span style="color: var(--label2)">Alterações não salvas</span
+            ><button class="pill sm press">Descartar</button
+            ><button class="pill sm primary press">Salvar</button>
+          </div>
+        </div>
+
+        <!-- ===================== PAINEL DO LEAD (sheet) ===================== -->
+        <div class="scrim" data-close></div>
+        <aside class="sheet" id="sheet-lead" aria-label="Lead">
+          <div class="sh-bar">
+            <div class="glass">
+              <button class="gicon" title="Anterior (K)">
+                <svg><use href="#chevl" /></svg></button
+              ><button class="gicon" title="Próximo (J)">
+                <svg><use href="#chev" /></svg>
+              </button>
+            </div>
+            <span class="pos">1 de 38</span><span class="keys"><kbd>K</kbd><kbd>J</kbd></span>
+            <button class="gicon close" data-close title="Fechar">
+              <svg><use href="#x" /></svg>
+            </button>
+          </div>
+          <div class="sh-scroll">
+            <div class="lh">
+              <span
+                class="av c-blue"
+                style="width: 52px; height: 52px; font-size: 17px; border-radius: 14px"
+                >OS</span
+              >
+              <div class="lh-t">
+                <h2>Odonto Sorriso BH</h2>
+                <p>
+                  dentistas, Belo Horizonte · <svg class="star"><use href="#star" /></svg> 4,2 no
+                  Google (38)
+                </p>
+                <div class="lh-b">
+                  <span class="badge c-blue"><i></i>Novo</span
+                  ><span class="badge c-gray">Retorno em 3 dias</span>
+                </div>
+              </div>
+              <div class="bigscore c-green">
+                <span class="ring lg" style="--p: 86"></span><b>86</b><small>Alta</small>
+              </div>
+            </div>
+            <div class="actions">
+              <button class="act c-green press">
+                <span class="sym"
+                  ><svg><use href="#bubble" /></svg></span
+                >WhatsApp
+              </button>
+              <button class="act c-green press">
+                <span class="sym"
+                  ><svg><use href="#phone" /></svg></span
+                >Ligar
+              </button>
+              <button class="act c-gray press">
+                <span class="sym"
+                  ><svg><use href="#copy" /></svg></span
+                >Copiar
+              </button>
+              <button class="act c-blue press">
+                <span class="sym"
+                  ><svg><use href="#globe" /></svg></span
+                >Site
+              </button>
+              <button class="act c-red press">
+                <span class="sym"
+                  ><svg><use href="#pin" /></svg></span
+                >Maps
+              </button>
+            </div>
+
+            <div class="step-card">
+              <div class="sc-h">
+                <span class="sym c-blue" style="width: 26px; height: 26px"
+                  ><svg><use href="#mail" /></svg
+                ></span>
+                <div>
+                  <b>Primeiro e-mail</b
+                  ><small
+                    >Para contato@odontosorriso.com.br. A IA escreve, você revisa e envia.</small
+                  >
+                </div>
+                <span class="badge c-purple" style="margin-left: auto"
+                  ><svg><use href="#spark" /></svg>Escrito pela IA</span
+                >
+              </div>
+              <div class="field subj">Agendamento online para a Odonto Sorriso</div>
+              <div class="field body">
+                Olá, equipe da Odonto Sorriso! Vi que o site de vocês ainda não aceita agendamento
+                online e que boa parte das avaliações elogia o atendimento, mas reclama da demora
+                para conseguir horário pelo telefone. Nós criamos sites com agenda integrada para
+                clínicas odontológicas em BH. Posso mostrar como ficaria para vocês?
+              </div>
+              <div class="sc-f">
+                <button class="pill sm primary press">
+                  <svg><use href="#send" /></svg>Enviar e-mail</button
+                ><button class="pill sm press">
+                  <svg style="color: var(--purple)"><use href="#spark" /></svg>Gerar outro</button
+                ><button class="pill sm press danger-h" style="margin-left: auto">Descartar</button>
+              </div>
+            </div>
+
+            <div class="sec">
+              <div class="gh">
+                <h2 class="tx c-purple" style="display: flex; align-items: center; gap: 6px">
+                  <svg style="width: 15px; height: 15px"><use href="#spark" /></svg>Análise
+                </h2>
+              </div>
+              <div class="group pad">
+                <p class="lead-sum">
+                  Clínica de bairro com bom atendimento, site antigo sem HTTPS e sem agendamento
+                  online. Depende de telefone e indicação para novos pacientes.
+                </p>
+                <div class="lists">
+                  <div>
+                    <h4 class="tx c-green">Oportunidades</h4>
+                    <ul class="c-green">
+                      <li>Site sem HTTPS e desatualizado</li>
+                      <li>Sem agendamento online</li>
+                      <li>Boa reputação para alavancar</li>
+                    </ul>
+                  </div>
+                  <div>
+                    <h4 class="tx c-orange">Dores prováveis</h4>
+                    <ul class="c-orange">
+                      <li>Demora para marcar horário</li>
+                      <li>Dependência de indicação</li>
+                      <li>Perde pacientes fora do horário</li>
+                    </ul>
+                  </div>
+                </div>
+                <details>
+                  <summary>
+                    <svg><use href="#chev" /></svg>Como a nota foi calculada
+                  </summary>
+                  <p>
+                    Sem agendamento online (+25), site sem HTTPS (+15), poucas avaliações (+10),
+                    negócio ativo e com telefone (+10), demais sinais (+26).
+                  </p>
+                </details>
+              </div>
+            </div>
+
+            <div class="two-col">
+              <div class="sec">
+                <div class="gh"><h2>Contato</h2></div>
+                <div class="group">
+                  <div class="row flat kv"><span>Telefone</span><b>(31) 3222-4410</b></div>
+                  <div class="row flat kv">
+                    <span>Site</span
+                    ><b class="link"
+                      >odontosorriso.com.br<svg><use href="#ext" /></svg
+                    ></b>
+                  </div>
+                  <div class="row flat kv">
+                    <span>E-mail</span><b>contato@odontosorriso.com.br</b>
+                  </div>
+                  <div class="row flat kv">
+                    <span>Endereço</span><b>R. Pernambuco, 1000 · Savassi</b>
+                  </div>
+                </div>
+              </div>
+              <div class="sec">
+                <div class="gh">
+                  <h2>Notas</h2>
+                  <small>salvas ao sair do campo</small>
+                </div>
+                <div class="group notes">Ligar depois das 14h, a recepção é mais tranquila.</div>
+              </div>
+            </div>
+
+            <div class="sh-foot">
+              <button class="popup press">
+                Status <span class="tx c-blue">Novo</span><svg><use href="#updown" /></svg>
+              </button>
+              <span class="meta">deepseek-flash · US$ 0,0015 · 11/10 14:02</span>
+              <button class="pill sm press">
+                <svg><use href="#refresh" /></svg>Reanalisar
+              </button>
+            </div>
+          </div>
+        </aside>
+
+        <!-- ===================== REVISÃO DO DISPARO (sheet) ===================== -->
+        <aside class="sheet" id="sheet-dispatch" aria-label="Disparo">
+          <div class="sh-bar">
+            <div>
+              <b style="font-size: 17px; font-weight: 500; letter-spacing: -0.02em"
+                >Disparar 2 e-mails</b
+              ><br /><small style="color: var(--label2); font-weight: 300"
+                >Cada e-mail é escrito pela IA para a empresa. Revise antes de enviar.</small
+              >
+            </div>
+            <button class="gicon close" data-close title="Fechar">
+              <svg><use href="#x" /></svg>
+            </button>
+          </div>
+          <div class="sh-scroll">
+            <div class="pager">
+              <div class="glass">
+                <button class="gicon">
+                  <svg><use href="#chevl" /></svg></button
+                ><button class="gicon">
+                  <svg><use href="#chev" /></svg>
+                </button>
+              </div>
+              <span class="pos">1 de 2</span><b>Odonto Sorriso BH</b>
+              <div class="dots"><i class="on"></i><i></i></div>
+            </div>
+            <div class="mailcard">
+              <div class="mc-row"><span>De</span><b>contato@nelcota.com.br</b></div>
+              <div class="mc-row">
+                <span>Para</span
+                ><span class="badge c-gray" style="color: var(--label)"
+                  ><span class="av c-blue" style="width: 16px; height: 16px; font-size: 7px"
+                    >OS</span
+                  >contato@odontosorriso.com.br</span
+                ><span class="badge c-purple" style="margin-left: auto"
+                  ><svg><use href="#spark" /></svg>Escrito pela IA</span
+                >
+              </div>
+              <div class="mc-subj">Agendamento online para a Odonto Sorriso</div>
+              <div class="mc-body">
+                Olá, equipe da Odonto Sorriso! Vi que o site de vocês ainda não aceita agendamento
+                online e que boa parte das avaliações elogia o atendimento, mas reclama da demora
+                para conseguir horário pelo telefone. Nós criamos sites com agenda integrada para
+                clínicas odontológicas em BH. Posso mostrar como ficaria para vocês? Se não quiser
+                receber mais e-mails, responda "sair".
+              </div>
+            </div>
+            <div style="display: flex; gap: 8px; margin-top: 12px">
+              <button class="pill sm press">
+                <svg style="color: var(--purple)"><use href="#spark" /></svg>Gerar outro</button
+              ><button class="pill sm press danger-h">Tirar do disparo</button>
+            </div>
+            <div class="skipped">
+              <span class="sym c-orange" style="width: 26px; height: 26px"
+                ><svg><use href="#warn" /></svg
+              ></span>
+              <div>
+                <b>Ficaram de fora</b>
+                <p>Dental Prime Savassi: sem e-mail</p>
+              </div>
+            </div>
+          </div>
+          <div class="sh-bottom">
+            <div class="group">
+              <div class="row flat kv"><span>Envio</span><b>um a cada 8 min</b></div>
+              <div class="row flat kv">
+                <span>Restam hoje</span><b><span class="tx c-green">18</span> de 30</b>
+              </div>
+              <div class="row flat c-purple">
+                <span class="sym" style="width: 26px; height: 26px"
+                  ><svg><use href="#spark" /></svg
+                ></span>
+                <div class="t"><b>IA responde sozinha até haver interesse</b></div>
+                <span class="toggle on"></span>
+              </div>
+            </div>
+            <button class="pill primary press big">
+              <svg><use href="#send" /></svg>Disparar 2 e-mails
+            </button>
+          </div>
+        </aside>
+      </section>
+    </div>
+
+    <script>
+      function go(id) {
+        document.querySelectorAll(".screen").forEach((s) => s.classList.toggle("on", s.id === id));
+        document
+          .querySelectorAll(".side .it[data-go]")
+          .forEach((b) => b.classList.toggle("on", b.dataset.go === id));
+        history.replaceState(null, "", "#" + id);
+      }
+      document
+        .querySelectorAll("[data-go]")
+        .forEach((b) => b.addEventListener("click", () => go(b.dataset.go)));
+      document
+        .querySelectorAll(".toggle")
+        .forEach((t) => t.addEventListener("click", () => t.classList.toggle("on")));
+      document.querySelectorAll(".seg").forEach((g) =>
+        g.querySelectorAll("span").forEach((s) =>
+          s.addEventListener("click", () => {
+            g.querySelectorAll("span").forEach((x) => x.classList.remove("on"));
+            s.classList.add("on");
+          }),
+        ),
+      );
+      go((location.hash || "#ov").slice(1));
+
+      document.querySelectorAll(".lift").forEach((el) => {
+        el.addEventListener("pointermove", (e) => {
+          const r = el.getBoundingClientRect();
+          el.style.setProperty("--mx", e.clientX - r.left + "px");
+          el.style.setProperty("--my", e.clientY - r.top + "px");
+        });
+      });
+
+      const main = document.querySelector(".main");
+      function openSheet(id) {
+        document.querySelectorAll(".sheet").forEach((x) => x.classList.toggle("open", x.id === id));
+        main.classList.add("has-sheet");
+      }
+      function closeSheet() {
+        document.querySelectorAll(".sheet").forEach((x) => x.classList.remove("open"));
+        main.classList.remove("has-sheet");
+      }
+      document.querySelectorAll("[data-open]").forEach((b) =>
+        b.addEventListener("click", (e) => {
+          e.stopPropagation();
+          openSheet(b.dataset.open);
+        }),
+      );
+      document.querySelectorAll(".tbl tbody tr").forEach((r) =>
+        r.addEventListener("click", (e) => {
+          if (e.target.closest(".cbx")) return;
+          openSheet("sheet-lead");
+        }),
+      );
+      document
+        .querySelectorAll("[data-close]")
+        .forEach((b) => b.addEventListener("click", closeSheet));
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") closeSheet();
+      });
+      document
+        .querySelectorAll(".side [data-go]")
+        .forEach((b) => b.addEventListener("click", closeSheet));
+    </script>
+  </body>
+</html>

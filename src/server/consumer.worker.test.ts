@@ -89,6 +89,33 @@ describe("handleLeadBatch", () => {
     });
   });
 
+  it("retries instead of rejecting the batch when recording the failure fails", async () => {
+    const deps = failingDeps();
+    const brokenDb = new Proxy(db, {
+      get: (target, key) =>
+        key === "batch"
+          ? () => Promise.reject(new Error("D1 unavailable"))
+          : Reflect.get(target, key),
+    });
+    const last = message("b", 3);
+    const ok = message("a", 1);
+    await expect(
+      handleLeadBatch(batch("main", [last, ok]), {
+        ...deps,
+        db: brokenDb,
+        analyzer: {
+          ...deps.analyzer,
+          analyze: async (...args) =>
+            args[1].name === "A"
+              ? createFakeAnalyzer().analyze(...args)
+              : deps.analyzer.analyze(...args),
+        },
+      }),
+    ).resolves.toBeUndefined();
+    expect(last.retry).toHaveBeenCalled();
+    expect(last.ack).not.toHaveBeenCalled();
+  });
+
   it("marks dead-lettered leads as failed", async () => {
     const dead = message("a", 6);
     await handleLeadBatch(batch(DEAD_LETTER_QUEUE, [dead]), failingDeps());

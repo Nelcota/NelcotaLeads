@@ -1,9 +1,9 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
+import { SearchIcon } from "lucide-react";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
-import { Field } from "@/components/field";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,11 +13,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { providerStatusQuery } from "@/lib/queries";
 import { newSearchSchema, type NewSearchInput } from "@/lib/schemas";
+import { cn } from "@/lib/utils";
 import { createSearch } from "@/server/searches";
 
 const PAGE_SIZE = 20;
@@ -32,7 +32,7 @@ export function NewSearchDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-[560px]">
         <DialogHeader>
           <DialogTitle>Busca manual</DialogTitle>
           <DialogDescription>
@@ -45,6 +45,10 @@ export function NewSearchDialog({
     </Dialog>
   );
 }
+
+// The two fields read as one sentence: "[nicho] em [cidade]".
+const PHRASE_INPUT =
+  "h-11 w-full min-w-0 bg-transparent px-3.5 text-base outline-none placeholder:text-tertiary aria-invalid:text-red";
 
 function NewSearchForm({ onDone }: { onDone: () => void }) {
   const navigate = useNavigate();
@@ -98,67 +102,94 @@ function NewSearchForm({ onDone }: { onDone: () => void }) {
       noValidate
       onSubmit={(event) => void form.handleSubmit((data) => mutation.mutate(data))(event)}
     >
-      <div className="grid gap-5 sm:grid-cols-2">
-        <Field label="Nicho" htmlFor="niche" hint="Ex.: dentistas" error={errors.niche?.message}>
-          <Input id="niche" autoFocus autoComplete="off" {...form.register("niche")} />
-        </Field>
-        <Field
-          label="Cidade"
-          htmlFor="city"
-          hint="Ex.: Belo Horizonte"
-          error={errors.city?.message}
+      <div className="grid gap-2">
+        <div className="grid grid-cols-[1fr_auto_1fr] text-xs font-medium text-muted-foreground">
+          <Label htmlFor="niche" className="px-1">
+            Nicho
+          </Label>
+          <span />
+          <Label htmlFor="city" className="px-1">
+            Cidade
+          </Label>
+        </div>
+        <div
+          className={cn(
+            "grid grid-cols-[1fr_auto_1fr] items-center rounded-full bg-black/[0.03] shadow-[inset_0_0_0_1px_var(--input)] transition-shadow focus-within:shadow-[inset_0_0_0_1px_var(--ring)] focus-within:ring-3 focus-within:ring-ring/30 dark:bg-black/25",
+            (errors.niche || errors.city) && "shadow-[inset_0_0_0_1px_var(--red)]",
+          )}
         >
-          <Input id="city" autoComplete="off" {...form.register("city")} />
-        </Field>
+          <input
+            id="niche"
+            autoFocus
+            autoComplete="off"
+            placeholder="Ex.: dentistas"
+            aria-invalid={Boolean(errors.niche)}
+            className={PHRASE_INPUT}
+            {...form.register("niche")}
+          />
+          <span className="px-1 text-sm font-light text-tertiary">em</span>
+          <input
+            id="city"
+            autoComplete="off"
+            placeholder="Ex.: Belo Horizonte"
+            aria-invalid={Boolean(errors.city)}
+            className={PHRASE_INPUT}
+            {...form.register("city")}
+          />
+        </div>
+        {errors.niche || errors.city ? (
+          <p className="px-1 text-xs text-red">{errors.niche?.message ?? errors.city?.message}</p>
+        ) : null}
       </div>
 
       <div className="grid gap-2">
-        <Label>Quantas empresas</Label>
-        <ToggleGroup
-          type="single"
-          variant="outline"
-          className="w-full"
+        <Label className="px-1 text-xs font-medium text-muted-foreground">Quantas empresas</Label>
+        <Tabs
           value={String(maxResults)}
           onValueChange={(value) => {
             const size = SIZES.find((n) => String(n) === value);
             if (size) form.setValue("maxResults", size);
           }}
         >
-          {SIZES.map((size) => (
-            <ToggleGroupItem key={size} value={String(size)} className="flex-1">
-              até {size}
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
-        <p className="text-xs text-muted-foreground">
+          <TabsList className="w-full">
+            {SIZES.map((size) => (
+              <TabsTrigger key={size} value={String(size)}>
+                até {size}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+        <p className="px-1 text-xs font-light text-muted-foreground tabular-nums">
           {requests} {requests === 1 ? "requisição" : "requisições"} ao Google · restam {remaining}{" "}
           de {limit} hoje
         </p>
       </div>
 
       {status && !status.offerConfigured ? (
-        <p className="text-sm text-muted-foreground">
-          Sua oferta ainda não foi descrita, então a nota e a mensagem saem genéricas.{" "}
-          <Link
-            to="/settings"
-            onClick={onDone}
-            className="text-foreground underline underline-offset-4"
-          >
+        <p className="rounded-xl bg-[color-mix(in_srgb,var(--orange)_10%,transparent)] px-3.5 py-2.5 text-sm font-light text-muted-foreground shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--orange)_22%,transparent)]">
+          <span className="font-medium text-orange">
+            Sua oferta ainda não foi descrita, então a nota e a mensagem saem genéricas.
+          </span>{" "}
+          <Link to="/settings" onClick={onDone} className="font-medium text-blue hover:underline">
             Descrever agora
           </Link>
         </p>
       ) : null}
       {blocker ? (
-        <p role="alert" className="text-sm text-destructive">
+        <p
+          role="alert"
+          className="rounded-xl bg-[color-mix(in_srgb,var(--red)_10%,transparent)] px-3.5 py-2.5 text-sm font-medium text-red shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--red)_22%,transparent)]"
+        >
           {blocker}
         </p>
       ) : null}
 
       <DialogFooter>
-        <Button type="button" variant="outline" onClick={onDone}>
+        <Button type="button" variant="ghost" onClick={onDone}>
           Cancelar
         </Button>
         <Button type="submit" disabled={mutation.isPending || Boolean(blocker)}>
+          <SearchIcon />
           {mutation.isPending ? "Buscando…" : "Buscar empresas"}
         </Button>
       </DialogFooter>

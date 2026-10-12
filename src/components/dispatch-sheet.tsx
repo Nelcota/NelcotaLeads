@@ -1,10 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  SendIcon,
+  SparklesIcon,
+  TriangleAlertIcon,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { Avatar, IconTile, PropertyRow } from "@/components/apple-ui";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Sheet,
   SheetContent,
@@ -17,6 +24,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { dashboardQuery, providerStatusQuery } from "@/lib/queries";
+import { cn } from "@/lib/utils";
 import { setAutomation } from "@/server/dashboard";
 import {
   dispatchEmails,
@@ -46,7 +54,7 @@ export function DispatchSheet({
 }) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full gap-0 data-[side=right]:sm:max-w-xl">
+      <SheetContent className="w-full gap-0 data-[side=right]:sm:max-w-[620px]">
         {open ? (
           <DispatchReview
             leadIds={leadIds}
@@ -146,8 +154,9 @@ function DispatchReview({
 
   return (
     <>
-      <SheetHeader className="border-b">
-        <SheetTitle>
+      <SheetHeader className="gap-1 px-5 pt-4 pb-3 pr-14">
+        <SheetTitle className="flex items-center gap-2 text-lg">
+          {prepare.isPending ? <SparklesIcon className="size-4 animate-pulse text-purple" /> : null}
           {prepare.isPending
             ? "Escrevendo os e-mails…"
             : `Disparar ${drafts.length} ${drafts.length === 1 ? "e-mail" : "e-mails"}`}
@@ -157,19 +166,16 @@ function DispatchReview({
         </SheetDescription>
       </SheetHeader>
 
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+      <div className="flex-1 overflow-y-auto px-5 pb-5">
         {prepare.isPending ? (
           <div className="grid gap-3">
             <Skeleton className="h-9 w-full" />
-            <Skeleton className="h-56 w-full" />
+            <Skeleton className="h-64 w-full rounded-2xl" />
           </div>
         ) : current && value ? (
-          <div className="grid gap-4">
-            <div className="flex items-center justify-between gap-2 text-sm">
-              <span className="truncate font-medium">
-                {index + 1} de {drafts.length} · {current.leadName}
-              </span>
-              <div className="flex">
+          <div className="grid gap-3.5">
+            <div className="flex items-center gap-2.5 text-sm">
+              <div className="flex rounded-full bg-fill-2 p-0.5">
                 <Button
                   variant="ghost"
                   size="icon-sm"
@@ -189,39 +195,74 @@ function DispatchReview({
                   <ChevronRightIcon />
                 </Button>
               </div>
+              <span className="font-medium text-muted-foreground tabular-nums">
+                {index + 1} de {drafts.length}
+              </span>
+              <span className="truncate font-medium">{current.leadName}</span>
+              {drafts.length > 1 ? (
+                <span className="ml-auto flex gap-1" aria-hidden>
+                  {drafts.map((draft, i) => (
+                    <span
+                      key={draft.id}
+                      className={cn(
+                        "size-1.5 rounded-full",
+                        i === index ? "bg-foreground" : "bg-quaternary",
+                      )}
+                    />
+                  ))}
+                </span>
+              ) : null}
             </div>
-            <dl className="grid grid-cols-[4rem_1fr] gap-x-3 gap-y-1 text-sm">
-              <dt className="text-muted-foreground">De</dt>
-              <dd className="truncate">{mail?.address || "caixa não conectada"}</dd>
-              <dt className="text-muted-foreground">Para</dt>
-              <dd className="truncate">{current.toAddress}</dd>
-            </dl>
-            <div className="grid gap-2">
-              <Label htmlFor="draft-subject">Assunto</Label>
-              <Input
-                id="draft-subject"
-                value={value.subject}
-                onChange={(event) =>
-                  setEdits((all) => ({
-                    ...all,
-                    [current.id]: { ...value, subject: event.target.value },
-                  }))
-                }
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="draft-body">Mensagem</Label>
-              <Textarea
-                id="draft-body"
-                rows={12}
-                value={value.body}
-                onChange={(event) =>
-                  setEdits((all) => ({
-                    ...all,
-                    [current.id]: { ...value, body: event.target.value },
-                  }))
-                }
-              />
+
+            <div className="grouped">
+              <div className="grouped-row flex min-h-[42px] items-center gap-3 px-4 [--inset:16px]">
+                <span className="w-10 font-light text-tertiary">De</span>
+                <span className="truncate font-medium">
+                  {mail?.address || "caixa não conectada"}
+                </span>
+              </div>
+              <div className="grouped-row flex min-h-[42px] items-center gap-3 px-4 [--inset:16px]">
+                <span className="w-10 font-light text-tertiary">Para</span>
+                <Badge variant="gray" className="text-foreground">
+                  <Avatar name={current.leadName} size={16} />
+                  {current.toAddress}
+                </Badge>
+                <Badge variant="purple" className="ml-auto">
+                  <SparklesIcon />
+                  Escrito pela IA
+                </Badge>
+              </div>
+              <div className="grouped-row grid gap-1 px-4 pt-3 pb-4 [--inset:16px]">
+                <label htmlFor="draft-subject" className="sr-only">
+                  Assunto
+                </label>
+                <Input
+                  id="draft-subject"
+                  value={value.subject}
+                  className="h-auto bg-transparent! px-0 text-lg font-medium tracking-[-0.02em] shadow-none! focus-visible:ring-0"
+                  onChange={(event) =>
+                    setEdits((all) => ({
+                      ...all,
+                      [current.id]: { ...value, subject: event.target.value },
+                    }))
+                  }
+                />
+                <label htmlFor="draft-body" className="sr-only">
+                  Mensagem
+                </label>
+                <Textarea
+                  id="draft-body"
+                  rows={12}
+                  value={value.body}
+                  className="bg-transparent! px-0 text-base leading-[1.7] shadow-none! focus-visible:ring-0"
+                  onChange={(event) =>
+                    setEdits((all) => ({
+                      ...all,
+                      [current.id]: { ...value, body: event.target.value },
+                    }))
+                  }
+                />
+              </div>
             </div>
             <div className="flex flex-wrap gap-2">
               <Button
@@ -230,11 +271,13 @@ function DispatchReview({
                 disabled={rewrite.isPending}
                 onClick={() => rewrite.mutate(current.id)}
               >
+                <SparklesIcon className="text-purple" />
                 {rewrite.isPending ? "Reescrevendo…" : "Gerar outro"}
               </Button>
               <Button
                 variant="ghost"
                 size="sm"
+                className="hover:bg-red/15 hover:text-red"
                 disabled={remove.isPending}
                 onClick={() => {
                   remove.mutate(current.id);
@@ -246,48 +289,53 @@ function DispatchReview({
             </div>
           </div>
         ) : !prepare.isPending ? (
-          <p className="text-sm text-muted-foreground">Nenhum e-mail para revisar.</p>
+          <p className="text-sm font-light text-muted-foreground">Nenhum e-mail para revisar.</p>
         ) : null}
 
         {skipped.length > 0 ? (
-          <div className="mt-6 grid gap-1 text-sm text-muted-foreground">
-            <p className="font-medium text-foreground">Ficaram de fora</p>
-            {skipped.map((skip) => (
-              <p key={skip.leadId}>
-                {skip.name}: {skip.reason}
-              </p>
-            ))}
+          <div className="mt-5 flex items-start gap-3 rounded-2xl bg-[color-mix(in_srgb,var(--orange)_10%,transparent)] px-4 py-3 shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--orange)_22%,transparent)]">
+            <IconTile icon={TriangleAlertIcon} tone="orange" size={26} />
+            <div className="grid gap-0.5 text-sm">
+              <p className="font-medium text-orange">Ficaram de fora</p>
+              {skipped.map((skip) => (
+                <p key={skip.leadId} className="font-light text-muted-foreground">
+                  {skip.name}: {skip.reason}
+                </p>
+              ))}
+            </div>
           </div>
         ) : null}
       </div>
 
-      <SheetFooter className="gap-4 border-t">
-        <dl className="grid gap-1 text-sm">
-          <div className="flex justify-between gap-4">
-            <dt className="text-muted-foreground">Envio</dt>
-            <dd>um a cada 8 min</dd>
+      <SheetFooter className="gap-3 border-t border-border/70 bg-black/[0.02] px-5 pt-3.5 pb-5 dark:bg-black/20">
+        <div className="grouped">
+          <PropertyRow label="Envio">um a cada 8 min</PropertyRow>
+          <PropertyRow label="Restam hoje">
+            <span className="text-green">{remaining}</span> de {mail?.limit ?? 0}
+            {drafts.length > remaining ? (
+              <span className="font-light text-orange"> (o resto sai amanhã)</span>
+            ) : null}
+          </PropertyRow>
+          <div className="grouped-row flex min-h-[46px] items-center gap-3 px-4 [--inset:16px]">
+            <IconTile icon={SparklesIcon} tone="purple" size={26} />
+            <label htmlFor="dispatch-ai" className="flex-1 font-medium">
+              IA responde sozinha até haver interesse
+            </label>
+            <Switch
+              id="dispatch-ai"
+              checked={aiAutoReply}
+              style={{ "--switch-on": "var(--purple)" }}
+              onCheckedChange={(checked) => automation.mutate(checked)}
+            />
           </div>
-          <div className="flex justify-between gap-4">
-            <dt className="text-muted-foreground">Restam hoje</dt>
-            <dd>
-              {remaining} de {mail?.limit ?? 0}
-              {drafts.length > remaining ? " (o resto sai amanhã)" : ""}
-            </dd>
-          </div>
-        </dl>
-        <div className="flex items-center justify-between gap-4">
-          <Label htmlFor="dispatch-ai">IA responde sozinha até haver interesse</Label>
-          <Switch
-            id="dispatch-ai"
-            checked={aiAutoReply}
-            onCheckedChange={(checked) => automation.mutate(checked)}
-          />
         </div>
         <Button
           size="lg"
+          className="w-full"
           disabled={drafts.length === 0 || dispatch.isPending || !mail?.configured}
           onClick={() => dispatch.mutate()}
         >
+          <SendIcon />
           {!mail?.configured
             ? "Conecte o e-mail nas Configurações"
             : dispatch.isPending

@@ -10,9 +10,14 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ContaRouteImport } from './routes/conta'
 import { Route as ConversasRouteImport } from './routes/conversas'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as ApiE2eRouteImport } from './routes/api/e2e'
 import { Route as ApiLeadsDotcsvRouteImport } from './routes/api/leads[.]csv'
+import { Route as ApiLoginRouteImport } from './routes/api/login'
+import { Route as ApiLogoutRouteImport } from './routes/api/logout'
 import { Route as LeadsIndexRouteImport } from './routes/leads/index'
 import { Route as LeadsLeadIdRouteImport } from './routes/leads/$leadId'
 import { Route as SearchesIndexRouteImport } from './routes/searches/index'
@@ -23,9 +28,19 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ContaRoute = ContaRouteImport.update({
+  id: '/conta',
+  path: '/conta',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ConversasRoute = ConversasRouteImport.update({
   id: '/conversas',
   path: '/conversas',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsRoute = SettingsRouteImport.update({
@@ -33,9 +48,24 @@ const SettingsRoute = SettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiE2eRoute = ApiE2eRouteImport.update({
+  id: '/api/e2e',
+  path: '/api/e2e',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiLeadsDotcsvRoute = ApiLeadsDotcsvRouteImport.update({
   id: '/api/leads.csv',
   path: '/api/leads.csv',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiLoginRoute = ApiLoginRouteImport.update({
+  id: '/api/login',
+  path: '/api/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiLogoutRoute = ApiLogoutRouteImport.update({
+  id: '/api/logout',
+  path: '/api/logout',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LeadsIndexRoute = LeadsIndexRouteImport.update({
@@ -61,9 +91,14 @@ const SearchesSearchIdRoute = SearchesSearchIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/conta': typeof ContaRoute
   '/conversas': typeof ConversasRoute
+  '/login': typeof LoginRoute
   '/settings': typeof SettingsRoute
+  '/api/e2e': typeof ApiE2eRoute
   '/api/leads.csv': typeof ApiLeadsDotcsvRoute
+  '/api/login': typeof ApiLoginRoute
+  '/api/logout': typeof ApiLogoutRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
   '/searches/$searchId': typeof SearchesSearchIdRoute
   '/leads/': typeof LeadsIndexRoute
@@ -71,9 +106,14 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/conta': typeof ContaRoute
   '/conversas': typeof ConversasRoute
+  '/login': typeof LoginRoute
   '/settings': typeof SettingsRoute
+  '/api/e2e': typeof ApiE2eRoute
   '/api/leads.csv': typeof ApiLeadsDotcsvRoute
+  '/api/login': typeof ApiLoginRoute
+  '/api/logout': typeof ApiLogoutRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
   '/searches/$searchId': typeof SearchesSearchIdRoute
   '/leads': typeof LeadsIndexRoute
@@ -82,9 +122,14 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/conta': typeof ContaRoute
   '/conversas': typeof ConversasRoute
+  '/login': typeof LoginRoute
   '/settings': typeof SettingsRoute
+  '/api/e2e': typeof ApiE2eRoute
   '/api/leads.csv': typeof ApiLeadsDotcsvRoute
+  '/api/login': typeof ApiLoginRoute
+  '/api/logout': typeof ApiLogoutRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
   '/searches/$searchId': typeof SearchesSearchIdRoute
   '/leads/': typeof LeadsIndexRoute
@@ -94,9 +139,14 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/conta'
     | '/conversas'
+    | '/login'
     | '/settings'
+    | '/api/e2e'
     | '/api/leads.csv'
+    | '/api/login'
+    | '/api/logout'
     | '/leads/$leadId'
     | '/searches/$searchId'
     | '/leads/'
@@ -104,9 +154,14 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/conta'
     | '/conversas'
+    | '/login'
     | '/settings'
+    | '/api/e2e'
     | '/api/leads.csv'
+    | '/api/login'
+    | '/api/logout'
     | '/leads/$leadId'
     | '/searches/$searchId'
     | '/leads'
@@ -114,9 +169,14 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/conta'
     | '/conversas'
+    | '/login'
     | '/settings'
+    | '/api/e2e'
     | '/api/leads.csv'
+    | '/api/login'
+    | '/api/logout'
     | '/leads/$leadId'
     | '/searches/$searchId'
     | '/leads/'
@@ -125,9 +185,14 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ContaRoute: typeof ContaRoute
   ConversasRoute: typeof ConversasRoute
+  LoginRoute: typeof LoginRoute
   SettingsRoute: typeof SettingsRoute
+  ApiE2eRoute: typeof ApiE2eRoute
   ApiLeadsDotcsvRoute: typeof ApiLeadsDotcsvRoute
+  ApiLoginRoute: typeof ApiLoginRoute
+  ApiLogoutRoute: typeof ApiLogoutRoute
   LeadsLeadIdRoute: typeof LeadsLeadIdRoute
   SearchesSearchIdRoute: typeof SearchesSearchIdRoute
   LeadsIndexRoute: typeof LeadsIndexRoute
@@ -143,11 +208,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/conta': {
+      id: '/conta'
+      path: '/conta'
+      fullPath: '/conta'
+      preLoaderRoute: typeof ContaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/conversas': {
       id: '/conversas'
       path: '/conversas'
       fullPath: '/conversas'
       preLoaderRoute: typeof ConversasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings': {
@@ -157,11 +236,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/e2e': {
+      id: '/api/e2e'
+      path: '/api/e2e'
+      fullPath: '/api/e2e'
+      preLoaderRoute: typeof ApiE2eRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/leads.csv': {
       id: '/api/leads.csv'
       path: '/api/leads.csv'
       fullPath: '/api/leads.csv'
       preLoaderRoute: typeof ApiLeadsDotcsvRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/login': {
+      id: '/api/login'
+      path: '/api/login'
+      fullPath: '/api/login'
+      preLoaderRoute: typeof ApiLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/logout': {
+      id: '/api/logout'
+      path: '/api/logout'
+      fullPath: '/api/logout'
+      preLoaderRoute: typeof ApiLogoutRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/leads/': {
@@ -197,9 +297,14 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ContaRoute: ContaRoute,
   ConversasRoute: ConversasRoute,
+  LoginRoute: LoginRoute,
   SettingsRoute: SettingsRoute,
+  ApiE2eRoute: ApiE2eRoute,
   ApiLeadsDotcsvRoute: ApiLeadsDotcsvRoute,
+  ApiLoginRoute: ApiLoginRoute,
+  ApiLogoutRoute: ApiLogoutRoute,
   LeadsLeadIdRoute: LeadsLeadIdRoute,
   SearchesSearchIdRoute: SearchesSearchIdRoute,
   LeadsIndexRoute: LeadsIndexRoute,

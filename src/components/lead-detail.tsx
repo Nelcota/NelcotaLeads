@@ -2,7 +2,20 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
-import { ScoreBadge, StatusBadge } from "@/components/lead-badges";
+import {
+  ChevronRightIcon,
+  CopyIcon,
+  GlobeIcon,
+  MapPinIcon,
+  MessageCircleIcon,
+  PhoneIcon,
+  RefreshCwIcon,
+  SparklesIcon,
+  ArrowUpRightIcon,
+} from "lucide-react";
+import { Avatar, IconTile, ProgressRing, TONE_TEXT, type Tone } from "@/components/apple-ui";
+import { followUpTone, StatusBadge, TIER_TONE } from "@/components/lead-badges";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -20,7 +33,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
 import { SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
@@ -28,7 +40,14 @@ import type { Analysis, Lead, LeadStatus, SiteStatus } from "@/db/schema";
 import { addDays, formatDate, localDay, relativeDay } from "@/lib/format";
 import { whatsappLink } from "@/lib/phone";
 import { conversationQuery, leadQuery, providerStatusQuery } from "@/lib/queries";
-import { LEAD_STATUS_LABELS, LEAD_STATUS_VALUES, type UpdateLeadInput } from "@/lib/schemas";
+import {
+  LEAD_STATUS_LABELS,
+  LEAD_STATUS_VALUES,
+  SCORE_TIERS,
+  scoreTier,
+  type UpdateLeadInput,
+} from "@/lib/schemas";
+import { cn, safeHttpUrl } from "@/lib/utils";
 import { useToday } from "@/lib/today";
 import { generateMessage, reanalyzeLead, updateFirstMessage, updateLead } from "@/server/leads";
 import { dispatchEmails, prepareEmails, rewriteDraft, updateDraft } from "@/server/mail";
@@ -49,6 +68,8 @@ const FOLLOW_UP_OPTIONS = [
 ] as const;
 
 type LeadUpdate = Omit<UpdateLeadInput, "id">;
+
+const STEP_CARD = "shadow-[inset_3px_0_0_var(--green),inset_0_1px_0_rgb(255_255_255/0.05)]!";
 
 /**
  * One lead inside the side sheet, organized around the next thing to do with it.
@@ -81,7 +102,7 @@ export function LeadDetail({
       await refreshAll();
       if (changes.status) onStatusChanged?.(changes.status);
     },
-    onError: () => toast.error("Não foi possível atualizar o lead"),
+    onError: (error) => toast.error(error.message || "Não foi possível atualizar o lead"),
   });
 
   if (!data) return <DetailSkeleton toolbar={toolbar} />;
@@ -95,32 +116,31 @@ export function LeadDetail({
 
   return (
     <div className="flex flex-col">
-      <SheetHeader className="gap-3 border-b">
+      <SheetHeader className="gap-4 px-5 pt-3.5 pb-4">
         {toolbar}
-        <div className="flex items-start justify-between gap-4 pr-6">
-          <div className="grid min-w-0 gap-1">
-            <SheetTitle className="text-lg leading-snug">{lead.name}</SheetTitle>
+        <div className="flex items-center gap-3.5">
+          <Avatar name={lead.name} size={52} square />
+          <div className="grid min-w-0 flex-1 gap-1">
+            <SheetTitle className="leading-snug">{lead.name}</SheetTitle>
             <SheetDescription>{facts.join(" · ")}</SheetDescription>
+            <div className="mt-1 flex flex-wrap items-center gap-1.5">
+              <StatusBadge status={lead.status} />
+              {lead.followUpOn && (lead.status === "contacted" || lead.status === "replied") ? (
+                <Badge variant={followUpTone(lead.followUpOn, today)} dot>
+                  Retorno {relativeDay(lead.followUpOn, today)}
+                </Badge>
+              ) : null}
+            </div>
           </div>
-          <ScoreBadge score={lead.score} pending={lead.analysisStatus === "pending"} />
+          <ScoreRingLarge score={lead.score} pending={lead.analysisStatus === "pending"} />
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <StatusBadge status={lead.status} />
-          {lead.followUpOn && (lead.status === "contacted" || lead.status === "replied") ? (
-            <span className="text-sm text-muted-foreground">
-              Retorno {relativeDay(lead.followUpOn, today)}
-            </span>
-          ) : null}
-          {lead.discardReason ? (
-            <span className="text-sm text-muted-foreground">
-              Descartado pela IA: {lead.discardReason}
-            </span>
-          ) : null}
-        </div>
+        {lead.discardReason ? (
+          <p className="text-[12.5px] text-red">Descartado pela IA: {lead.discardReason}</p>
+        ) : null}
         <QuickActions lead={lead} />
       </SheetHeader>
 
-      <div className="flex flex-col gap-6 p-4 sm:p-6">
+      <div className="flex flex-col gap-6 px-5 pb-6">
         <NextStep
           lead={lead}
           analysis={analysis}
@@ -130,12 +150,10 @@ export function LeadDetail({
           onChanged={refreshAll}
         />
         <AnalysisSection lead={lead} analysis={analysis} />
-        <Separator />
-        <div className="grid gap-6 sm:grid-cols-2">
+        <div className="grid gap-6 sm:grid-cols-[1.2fr_1fr]">
           <ContactSection lead={lead} />
           <NotesSection key={lead.id} lead={lead} onSave={(notes) => update.mutate({ notes })} />
         </div>
-        <Separator />
         <Footer
           lead={lead}
           analysis={analysis}
@@ -159,37 +177,41 @@ function QuickActions({ lead }: { lead: Lead }) {
   };
   const external = { target: "_blank", rel: "noreferrer" } as const;
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1">
       {lead.phoneE164 ? (
         <>
-          <Button asChild variant="outline" size="sm">
-            <a href={whatsappLink(lead.phoneE164)} {...external}>
-              WhatsApp
-            </a>
-          </Button>
-          <Button asChild variant="outline" size="sm">
-            <a href={`tel:${lead.phoneE164}`}>Ligar</a>
-          </Button>
+          <QuickAction
+            href={whatsappLink(lead.phoneE164)}
+            {...external}
+            icon={MessageCircleIcon}
+            tone="green"
+          >
+            WhatsApp
+          </QuickAction>
+          <QuickAction href={`tel:${lead.phoneE164}`} icon={PhoneIcon} tone="green">
+            Ligar
+          </QuickAction>
         </>
       ) : null}
       {lead.phone ? (
-        <Button variant="outline" size="sm" onClick={() => void copyPhone()}>
+        <QuickAction as="button" onClick={() => void copyPhone()} icon={CopyIcon} tone="gray">
           Copiar telefone
-        </Button>
+        </QuickAction>
       ) : null}
-      {lead.website ? (
-        <Button asChild variant="outline" size="sm">
-          <a href={lead.website} {...external}>
-            Site
-          </a>
-        </Button>
+      {safeHttpUrl(lead.website) ? (
+        <QuickAction
+          href={safeHttpUrl(lead.website) ?? undefined}
+          {...external}
+          icon={GlobeIcon}
+          tone="blue"
+        >
+          Site
+        </QuickAction>
       ) : null}
       {lead.mapsUrl ? (
-        <Button asChild variant="outline" size="sm">
-          <a href={lead.mapsUrl} {...external}>
-            Google Maps
-          </a>
-        </Button>
+        <QuickAction href={lead.mapsUrl} {...external} icon={MapPinIcon} tone="red">
+          Google Maps
+        </QuickAction>
       ) : null}
     </div>
   );
@@ -221,7 +243,7 @@ function NextStep(props: StepProps) {
       return <WaitingStep {...props} />;
     case "replied":
       return (
-        <Card>
+        <Card className={STEP_CARD}>
           <CardHeader>
             <CardTitle>Em conversa</CardTitle>
             <CardDescription>Anote nas notas o que foi combinado.</CardDescription>
@@ -253,7 +275,7 @@ function NextStep(props: StepProps) {
       );
     case "closed":
       return (
-        <Card>
+        <Card className={STEP_CARD}>
           <CardHeader>
             <CardTitle>Negócio fechado</CardTitle>
           </CardHeader>
@@ -270,7 +292,7 @@ function NextStep(props: StepProps) {
       );
     default:
       return (
-        <Card>
+        <Card className={STEP_CARD}>
           <CardHeader>
             <CardTitle>Descartado</CardTitle>
           </CardHeader>
@@ -324,9 +346,17 @@ function FirstContactStep({ lead, analysis, today, busy, onUpdate, onChanged }: 
   };
 
   return (
-    <Card>
+    <Card className={STEP_CARD}>
       <CardHeader>
-        <CardTitle>Primeira mensagem</CardTitle>
+        <div className="flex items-center gap-2.5">
+          <IconTile icon={MessageCircleIcon} tone="green" size={26} />
+          <CardTitle>Primeira mensagem</CardTitle>
+          {hasMessage ? (
+            <Badge variant="purple" className="ml-auto">
+              Escrito pela IA
+            </Badge>
+          ) : null}
+        </div>
         <CardDescription>
           {hasMessage
             ? "Escrita pela IA. Revise e envie."
@@ -385,6 +415,7 @@ function FirstContactStep({ lead, analysis, today, busy, onUpdate, onChanged }: 
             onClick={() => generate.mutate()}
             disabled={generate.isPending}
           >
+            <SparklesIcon className="text-purple" />
             {generate.isPending ? "Escrevendo…" : hasMessage ? "Gerar outra" : "Gerar mensagem"}
           </Button>
         ) : null}
@@ -395,7 +426,7 @@ function FirstContactStep({ lead, analysis, today, busy, onUpdate, onChanged }: 
         ) : null}
         <Button
           variant="ghost"
-          className="ml-auto"
+          className="ml-auto hover:bg-red/15 hover:text-red"
           disabled={busy}
           onClick={() => onUpdate({ status: "discarded" })}
         >
@@ -411,7 +442,7 @@ function WaitingStep(props: StepProps) {
   const { lead, today, busy, onUpdate } = props;
   const contacted = lead.contactedAt ? relativeDay(localDay(lead.contactedAt), today) : null;
   return (
-    <Card>
+    <Card className={STEP_CARD}>
       <CardHeader>
         <CardTitle>Aguardando resposta</CardTitle>
         <CardDescription>{contacted ? `Contatado ${contacted}.` : "Contatado."}</CardDescription>
@@ -432,7 +463,7 @@ function WaitingStep(props: StepProps) {
         </Button>
         <Button
           variant="ghost"
-          className="ml-auto"
+          className="ml-auto hover:bg-red/15 hover:text-red"
           disabled={busy}
           onClick={() => onUpdate({ status: "discarded" })}
         >
@@ -486,9 +517,17 @@ function EmailStep({ lead, busy, onUpdate, onChanged }: StepProps) {
   });
 
   return (
-    <Card>
+    <Card className={STEP_CARD}>
       <CardHeader>
-        <CardTitle>Primeiro e-mail</CardTitle>
+        <div className="flex items-center gap-2.5">
+          <IconTile icon={SparklesIcon} tone="purple" size={26} />
+          <CardTitle>Primeiro e-mail</CardTitle>
+          {draft ? (
+            <Badge variant="purple" className="ml-auto">
+              Escrito pela IA
+            </Badge>
+          ) : null}
+        </div>
         <CardDescription>Para {lead.email}. A IA escreve, você revisa e envia.</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-3">
@@ -520,17 +559,19 @@ function EmailStep({ lead, busy, onUpdate, onChanged }: StepProps) {
               {send.isPending ? "Enviando…" : "Enviar e-mail"}
             </Button>
             <Button variant="outline" disabled={rewrite.isPending} onClick={() => rewrite.mutate()}>
+              <SparklesIcon className="text-purple" />
               {rewrite.isPending ? "Reescrevendo…" : "Gerar outro"}
             </Button>
           </>
         ) : (
           <Button disabled={write.isPending} onClick={() => write.mutate()}>
+            <SparklesIcon />
             {write.isPending ? "Escrevendo…" : "Escrever e-mail"}
           </Button>
         )}
         <Button
           variant="ghost"
-          className="ml-auto"
+          className="ml-auto hover:bg-red/15 hover:text-red"
           disabled={busy}
           onClick={() => onUpdate({ status: "discarded" })}
         >
@@ -554,7 +595,7 @@ function ConversationStep({ lead }: StepProps) {
           ? "Conversa encerrada."
           : "Aguardando resposta.";
   return (
-    <Card>
+    <Card className={STEP_CARD}>
       <CardHeader>
         <CardTitle>Conversa por e-mail</CardTitle>
         <CardDescription>{label}</CardDescription>
@@ -625,8 +666,8 @@ function AnalysisSection({ lead, analysis }: { lead: Lead; analysis: Analysis | 
   const { data: status } = useQuery(providerStatusQuery);
   if (!analysis) {
     return (
-      <Section title="Análise">
-        <p className="text-sm text-muted-foreground">
+      <Section title="Análise" tone="purple">
+        <p className="text-sm font-light text-muted-foreground">
           {lead.analysisStatus === "error"
             ? `A análise falhou: ${lead.analysisError ?? "erro desconhecido"}. Tente reanalisar.`
             : "Lendo o site e avaliando. Esta tela atualiza sozinha."}
@@ -636,32 +677,37 @@ function AnalysisSection({ lead, analysis }: { lead: Lead; analysis: Analysis | 
   }
   const hasLists = analysis.signals.length > 0 || analysis.painPoints.length > 0;
   return (
-    <Section title="Análise">
-      <p className="text-sm leading-relaxed">{analysis.summary}</p>
-      {hasLists ? (
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <PlainList title="Oportunidades" items={analysis.signals} />
-          <PlainList title="Dores prováveis" items={analysis.painPoints} />
-        </div>
-      ) : status && !status.offerConfigured ? (
-        <p className="mt-4 text-sm text-muted-foreground">
-          Para ver oportunidades,{" "}
-          <Link to="/settings" className="text-foreground underline underline-offset-4">
-            descreva o que você vende
-          </Link>{" "}
-          e reanalise.
-        </p>
-      ) : (
-        <p className="mt-4 text-sm text-muted-foreground">
-          Nenhuma oportunidade clara para a sua oferta.
-        </p>
-      )}
-      <details className="mt-4 text-sm">
-        <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
-          Como a nota foi calculada
-        </summary>
-        <p className="mt-2 leading-relaxed text-muted-foreground">{analysis.scoreReasoning}</p>
-      </details>
+    <Section title="Análise" tone="purple">
+      <div className="grouped grid gap-4 px-4 py-3.5">
+        <p className="text-base leading-relaxed">{analysis.summary}</p>
+        {hasLists ? (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <PlainList title="Oportunidades" tone="green" items={analysis.signals} />
+            <PlainList title="Dores prováveis" tone="orange" items={analysis.painPoints} />
+          </div>
+        ) : status && !status.offerConfigured ? (
+          <p className="text-sm font-light text-muted-foreground">
+            Para ver oportunidades,{" "}
+            <Link to="/settings" className="text-foreground underline underline-offset-4">
+              descreva o que você vende
+            </Link>{" "}
+            e reanalise.
+          </p>
+        ) : (
+          <p className="text-sm font-light text-muted-foreground">
+            Nenhuma oportunidade clara para a sua oferta.
+          </p>
+        )}
+        <details className="group/details text-sm">
+          <summary className="flex cursor-pointer list-none items-center gap-1.5 font-medium text-muted-foreground hover:text-foreground [&::-webkit-details-marker]:hidden">
+            <ChevronRightIcon className="size-3.5 transition-transform duration-300 ease-spring group-open/details:rotate-90" />
+            Como a nota foi calculada
+          </summary>
+          <p className="mt-2 leading-relaxed font-light text-muted-foreground">
+            {analysis.scoreReasoning}
+          </p>
+        </details>
+      </div>
     </Section>
   );
 }
@@ -670,20 +716,24 @@ function ContactSection({ lead }: { lead: Lead }) {
   const site = lead.siteData;
   return (
     <Section title="Contato">
-      <dl className="grid gap-3 text-sm">
+      <dl className="grouped grid text-sm">
         <Term label="Telefone">
           <span className="tabular-nums">{lead.phone ?? "Sem telefone"}</span>
         </Term>
         <Term label="Site">
-          {lead.website ? (
+          {/* A website that isn't http(s) is shown as text, never as a link. */}
+          {lead.website && !safeHttpUrl(lead.website) ? (
+            <span className="break-all">{lead.website}</span>
+          ) : lead.website ? (
             <>
               <a
-                href={lead.website}
+                href={safeHttpUrl(lead.website) ?? undefined}
                 target="_blank"
                 rel="noreferrer"
-                className="break-all underline-offset-4 hover:underline"
+                className="inline-flex items-center gap-1 break-all text-blue hover:underline"
               >
                 {lead.website.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")}
+                <ArrowUpRightIcon className="size-3 shrink-0" />
               </a>
               {SITE_STATUS_LABELS[lead.siteStatus] ? (
                 <span className="text-muted-foreground">
@@ -704,10 +754,10 @@ function ContactSection({ lead }: { lead: Lead }) {
             {site.socialLinks.map((link) => (
               <a
                 key={link}
-                href={link}
+                href={safeHttpUrl(link) ?? undefined}
                 target="_blank"
                 rel="noreferrer"
-                className="block truncate underline-offset-4 hover:underline"
+                className="block truncate text-blue hover:underline"
               >
                 {link.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")}
               </a>
@@ -732,6 +782,7 @@ function NotesSection({ lead, onSave }: { lead: Lead; onSave: (notes: string) =>
         onChange={(event) => setNotes(event.target.value)}
         onBlur={() => notes !== lead.notes && onSave(notes)}
         placeholder="Salvas ao sair do campo."
+        className="min-h-28 bg-card! shadow-[inset_0_1px_0_rgb(255_255_255/0.045)] hover:shadow-[inset_0_0_0_1px_var(--input)]"
       />
     </Section>
   );
@@ -758,7 +809,7 @@ function Footer({
   });
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-4 text-sm text-muted-foreground">
+    <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border/70 pt-4 text-sm text-muted-foreground">
       <div className="flex items-center gap-2">
         Status
         <Select
@@ -783,7 +834,7 @@ function Footer({
       </div>
       <div className="flex flex-wrap items-center gap-3">
         {analysis ? (
-          <span className="text-xs">
+          <span className="text-[11.5px] font-light text-tertiary">
             {analysis.model} · US$ {analysis.costEstimate.toFixed(4)} ·{" "}
             {formatDate(analysis.createdAt, true)}
           </span>
@@ -794,6 +845,7 @@ function Footer({
           onClick={() => reanalyze.mutate()}
           disabled={reanalyze.isPending || analyzing}
         >
+          <RefreshCwIcon className={cn(analyzing && "animate-spin")} />
           {analyzing ? "Analisando…" : "Reanalisar"}
         </Button>
       </div>
@@ -801,27 +853,44 @@ function Footer({
   );
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+function Section({ title, tone, children }: { title: string; tone?: Tone; children: ReactNode }) {
   return (
     <section>
-      <h3 className="mb-2 text-sm font-semibold">{title}</h3>
+      <h3
+        className={cn(
+          "mb-2 flex items-center gap-1.5 px-1 text-lg font-medium tracking-[-0.015em]",
+          tone && TONE_TEXT[tone],
+        )}
+      >
+        {tone === "purple" ? <SparklesIcon className="size-4" /> : null}
+        {title}
+      </h3>
       {children}
     </section>
   );
 }
 
-function PlainList({ title, items }: { title: string; items: string[] }) {
+function PlainList({ title, tone, items }: { title: string; tone: Tone; items: string[] }) {
   return (
     <div>
-      <h4 className="mb-1.5 text-xs font-medium text-muted-foreground">{title}</h4>
+      <h4 className={cn("mb-1.5 text-xs font-medium", TONE_TEXT[tone])}>{title}</h4>
       {items.length > 0 ? (
-        <ul className="grid list-disc gap-1 pl-4 text-sm leading-relaxed">
+        <ul className="grid gap-1.5 text-sm leading-relaxed font-light text-muted-foreground">
           {items.map((item) => (
-            <li key={item}>{item}</li>
+            <li key={item} className="relative pl-3.5">
+              <span
+                aria-hidden
+                className={cn(
+                  "absolute top-[7px] left-0 size-1.5 rounded-full bg-current",
+                  TONE_TEXT[tone],
+                )}
+              />
+              {item}
+            </li>
           ))}
         </ul>
       ) : (
-        <p className="text-sm text-muted-foreground">Nenhuma.</p>
+        <p className="text-sm font-light text-muted-foreground">Nenhuma.</p>
       )}
     </div>
   );
@@ -829,10 +898,67 @@ function PlainList({ title, items }: { title: string; items: string[] }) {
 
 function Term({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="grid gap-0.5">
-      <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="min-w-0 break-words">{children}</dd>
+    <div className="grouped-row grid grid-cols-[84px_minmax(0,1fr)] items-baseline gap-3 px-4 py-2.5 [--inset:16px]">
+      <dt className="font-light text-muted-foreground">{label}</dt>
+      <dd className="min-w-0 font-medium break-words">{children}</dd>
     </div>
+  );
+}
+
+/** Contacts-style action: a round colored tile with the label under it. */
+function QuickAction(
+  props: { icon: typeof PhoneIcon; tone: Tone; children: ReactNode } & (
+    | ({ as?: undefined } & React.ComponentProps<"a">)
+    | ({ as: "button" } & React.ComponentProps<"button">)
+  ),
+) {
+  const className = cn(
+    "press grid min-w-[84px] flex-1 justify-items-center gap-1.5 rounded-[14px] bg-fill-3 px-2 py-2.5 text-[11.5px] font-medium whitespace-nowrap transition-colors hover:bg-fill-2",
+    TONE_TEXT[props.tone],
+  );
+  const body = (
+    <>
+      <IconTile icon={props.icon} tone={props.tone} size={34} round />
+      {props.children}
+    </>
+  );
+  if (props.as === "button") {
+    const { icon: _icon, tone: _tone, children: _children, as: _as, ...rest } = props;
+    return (
+      <button type="button" className={className} {...rest}>
+        {body}
+      </button>
+    );
+  }
+  const { icon: _icon, tone: _tone, children: _children, as: _as, ...rest } = props;
+  return (
+    <a className={className} {...rest}>
+      {body}
+    </a>
+  );
+}
+
+/** Score inside a large ring, colored by tier. */
+function ScoreRingLarge({ score, pending }: { score: number | null; pending: boolean }) {
+  if (score === null) {
+    return pending ? (
+      <Badge variant="purple">
+        <SparklesIcon />
+        analisando
+      </Badge>
+    ) : (
+      <Badge variant="gray">sem nota</Badge>
+    );
+  }
+  const tier = scoreTier(score);
+  const tone = TIER_TONE[tier];
+  return (
+    <ProgressRing value={score} tone={tone} size={60} thickness={5} track="var(--popover)">
+      <span className={cn("grid justify-items-center leading-none", TONE_TEXT[tone])}>
+        <b className="text-lg font-medium tabular-nums">{score}</b>
+        <small className="text-[10px] font-medium">{SCORE_TIERS[tier].label}</small>
+      </span>
+    </ProgressRing>
   );
 }
 

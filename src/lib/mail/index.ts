@@ -25,6 +25,22 @@ type MailEnv = {
   IMAP_PORT: string;
 };
 
+/**
+ * Parses one message at a time. One that fails to parse is logged and skipped:
+ * the cursor still moves past it, so it can never block the inbox.
+ */
+export async function parseAll(raws: { uid: number; raw: Uint8Array }[]): Promise<IncomingEmail[]> {
+  const messages: IncomingEmail[] = [];
+  for (const { uid, raw } of raws) {
+    try {
+      messages.push(await parseEmail(raw));
+    } catch (error) {
+      console.warn(`mail: skipping unparsable message uid ${uid}`, error);
+    }
+  }
+  return messages;
+}
+
 export function mailConfigured(env: MailEnv): boolean {
   return Boolean(env.MAIL_ADDRESS && env.MAIL_PASSWORD);
 }
@@ -50,8 +66,7 @@ export function getMailer(env: MailEnv): Mailer {
     },
     async fetchNew(cursor) {
       const result = await fetchNewMessages(await imap(), credentials, cursor);
-      const messages = await Promise.all(result.messages.map(({ raw }) => parseEmail(raw)));
-      return { cursor: result.cursor, messages };
+      return { cursor: result.cursor, messages: await parseAll(result.messages) };
     },
     async verify() {
       await smtpVerify(await smtp(), credentials);

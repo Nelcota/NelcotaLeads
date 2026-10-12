@@ -1,5 +1,5 @@
 import { parseHTML } from "linkedom";
-import type { SiteData } from "@/lib/schemas";
+import { SITE_LIMITS, type SiteData } from "@/lib/schemas";
 
 export const MAX_TEXT_CHARS = 8_000;
 
@@ -17,6 +17,8 @@ const EMAIL_PATTERN = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
 const COPYRIGHT_PATTERN = /(?:©|&copy;|copyright)\s*(?:\d{4}\s*[-–]\s*)?(\d{4})/i;
 
 export type ExtractedSite = { data: SiteData; text: string };
+
+const fits = (max: number) => (value: string) => value.length > 0 && value.length <= max;
 
 export function extractSite(html: string, finalUrl: string): ExtractedSite {
   // linkedom only builds a body for full documents, so wrap bare fragments.
@@ -59,18 +61,25 @@ export function extractSite(html: string, finalUrl: string): ExtractedSite {
   const text = clean(document.body?.textContent ?? document.documentElement?.textContent) ?? "";
   for (const email of text.match(EMAIL_PATTERN) ?? []) emails.add(email.toLowerCase());
 
-  const year = COPYRIGHT_PATTERN.exec(text)?.[1];
+  const year = Number(COPYRIGHT_PATTERN.exec(text)?.[1]);
 
+  // Bounded to SITE_LIMITS so the result always passes siteDataSchema.
   return {
     data: {
-      finalUrl,
+      finalUrl: finalUrl.slice(0, SITE_LIMITS.url),
       https: finalUrl.startsWith("https://"),
-      title,
-      description,
-      socialLinks: [...socialLinks].slice(0, 10),
-      emails: [...emails].filter((email) => !/\.(png|jpe?g|gif|webp|svg)$/.test(email)).slice(0, 5),
-      phones: [...phones].slice(0, 5),
-      copyrightYear: year ? Number(year) : null,
+      title: title && truncate(title, SITE_LIMITS.title),
+      description: description && truncate(description, SITE_LIMITS.description),
+      socialLinks: [...socialLinks]
+        .filter(fits(SITE_LIMITS.link))
+        .slice(0, SITE_LIMITS.socialLinks),
+      emails: [...emails]
+        .filter(
+          (email) => fits(SITE_LIMITS.email)(email) && !/\.(png|jpe?g|gif|webp|svg)$/.test(email),
+        )
+        .slice(0, SITE_LIMITS.emails),
+      phones: [...phones].filter(fits(SITE_LIMITS.phone)).slice(0, SITE_LIMITS.phones),
+      copyrightYear: year >= 1900 && year <= 2200 ? year : null,
     },
     text: truncate(text, MAX_TEXT_CHARS),
   };

@@ -32,10 +32,12 @@ Requisitos: Node 22+ e pnpm.
 
 ```bash
 pnpm install
-cp .dev.vars.example .dev.vars     # preencha as duas chaves
+cp .dev.vars.example .dev.vars     # preencha as chaves e a APP_PASSWORD
 pnpm db:migrate:local              # cria o banco D1 local
 pnpm dev                           # http://localhost:3000
 ```
+
+O app inteiro fica atrás de uma tela de login. Defina `APP_PASSWORD` (8+ caracteres) no `.dev.vars` e, em produção, com `wrangler secret put APP_PASSWORD`. A sessão dura 30 dias, trocar a senha desconecta todos os navegadores, e cada IP tem até 10 tentativas erradas por dia.
 
 As chaves `GOOGLE_PLACES_API_KEY` e `DEEPSEEK_API_KEY` são obrigatórias: o app não usa dados simulados. `MAIL_ADDRESS` e `MAIL_PASSWORD` são necessárias para disparar e-mails; teste a conexão em Configurações. Enquanto alguma faltar, a tela de nova busca mostra qual é e bloqueia a busca.
 
@@ -60,18 +62,21 @@ Os nomes `deepseek-chat` e `deepseek-reasoner` foram aposentados pela DeepSeek. 
 
 ### Scripts
 
-| Script                                        | O que faz                                                               |
-| --------------------------------------------- | ----------------------------------------------------------------------- |
-| `pnpm dev`                                    | servidor de desenvolvimento (Worker + D1 + Queues locais via Miniflare) |
-| `pnpm build` / `pnpm deploy`                  | build e deploy na Cloudflare                                            |
-| `pnpm lint`                                   | `oxlint --type-aware --type-check` (também checa os tipos)              |
-| `pnpm fmt`                                    | `oxfmt`                                                                 |
-| `pnpm test`                                   | testes unitários (Node) e de integração (runtime Workers com D1)        |
-| `pnpm db:generate`                            | gera uma migration a partir de `src/db/schema.ts`                       |
-| `pnpm db:migrate:local` / `db:migrate:remote` | aplica as migrations no D1 local / remoto                               |
-| `pnpm cf-typegen`                             | regenera `worker-configuration.d.ts` após mudar o `wrangler.jsonc`      |
+| Script                                        | O que faz                                                                 |
+| --------------------------------------------- | ------------------------------------------------------------------------- |
+| `pnpm dev`                                    | servidor de desenvolvimento (Worker + D1 + Queues locais via Miniflare)   |
+| `pnpm build` / `pnpm deploy`                  | build e deploy na Cloudflare                                              |
+| `pnpm lint`                                   | `oxlint --type-aware --type-check` (também checa os tipos)                |
+| `pnpm fmt`                                    | `oxfmt`                                                                   |
+| `pnpm test`                                   | testes unitários (Node) e de integração (runtime Workers com D1)          |
+| `pnpm test:e2e`                               | testes ponta a ponta (Playwright) com Google, DeepSeek e e-mail simulados |
+| `pnpm db:generate`                            | gera uma migration a partir de `src/db/schema.ts`                         |
+| `pnpm db:migrate:local` / `db:migrate:remote` | aplica as migrations no D1 local / remoto                                 |
+| `pnpm cf-typegen`                             | regenera `worker-configuration.d.ts` após mudar o `wrangler.jsonc`        |
 
 O `lefthook` roda formatação e lint em cada commit (é instalado pelo `pnpm install`).
+
+Os testes E2E sobem o app com `E2E=1 vite dev` na porta 3100. Nesse modo, Google Places, DeepSeek e a caixa de e-mail são trocados por versões em memória, e o banco D1 fica separado em `.wrangler/e2e`. O seu `.dev.vars` não é usado (a senha de teste é `e2e-password`). Esse modo só existe no servidor de desenvolvimento: o build de produção não inclui os simuladores nem a rota `/api/e2e`.
 
 ## Deploy na Cloudflare
 

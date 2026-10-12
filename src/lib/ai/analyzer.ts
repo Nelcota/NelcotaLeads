@@ -29,7 +29,26 @@ import {
   type ThreadMessage,
 } from "./prompts";
 
-export type CallUsage = { model: string; tokensIn: number; tokensOut: number; cost: number };
+export type CallUsage = {
+  model: string;
+  tokensIn: number;
+  tokensOut: number;
+  cost: number;
+  /** Model calls behind this result (a rewrite makes 2); absent means 1. */
+  calls?: number;
+};
+
+/** The text still has forbidden phrases after the one rewrite; it must go to review. */
+export class ForbiddenPhrasesError extends Error {
+  constructor(
+    readonly tells: string[],
+    readonly usage: CallUsage,
+    readonly text: string,
+  ) {
+    super(`Texto com frases proibidas: ${tells.join("; ")}`);
+    this.name = "ForbiddenPhrasesError";
+  }
+}
 
 export interface LeadAnalyzer {
   readonly name: string;
@@ -112,65 +131,74 @@ export function createDeepSeekAnalyzer(options: {
       };
     },
     async writeFollowUp(settings, lead, sent) {
-      const result = await generateText({
-        model: deepseek(options.messageModel),
-        system: followUpSystemPrompt(),
-        prompt: followUpUserPrompt(settings, lead, sent),
-        output: Output.object({ schema: followUpSchema, name: "follow_up" }),
-        providerOptions,
-        temperature: 0.6,
-        abortSignal: AbortSignal.timeout(CALL_TIMEOUT_MS),
-      });
-      return {
-        message: cleanText(followUpSchema.parse(result.output).message),
-        usage: toUsage(options.messageModel, result.usage),
-      };
+      const { value, usage } = await withoutTells(
+        async (extra) => {
+          const result = await generateText({
+            model: deepseek(options.messageModel),
+            system: followUpSystemPrompt(),
+            prompt: followUpUserPrompt(settings, lead, sent) + extra,
+            output: Output.object({ schema: followUpSchema, name: "follow_up" }),
+            providerOptions,
+            temperature: 0.6,
+            abortSignal: AbortSignal.timeout(CALL_TIMEOUT_MS),
+          });
+          return {
+            value: cleanText(followUpSchema.parse(result.output).message),
+            usage: toUsage(options.messageModel, result.usage),
+          };
+        },
+        (message) => message,
+      );
+      return { message: value, usage };
     },
     async writeEmail(settings, lead, analysis) {
-      const write = async (extra: string) => {
-        const result = await generateText({
-          model: deepseek(options.messageModel),
-          system: emailSystemPrompt(),
-          prompt: emailUserPrompt(settings, lead, analysis) + extra,
-          output: Output.object({ schema: outreachEmailSchema, name: "outreach_email" }),
-          providerOptions,
-          temperature: 0.6,
-          abortSignal: AbortSignal.timeout(CALL_TIMEOUT_MS),
-        });
-        const email = outreachEmailSchema.parse(result.output);
-        return {
-          email: { subject: cleanText(email.subject), body: cleanText(email.body) },
-          usage: toUsage(options.messageModel, result.usage),
-        };
-      };
-      // The prompt forbids these, but the model still slips; one rewrite fixes most cases.
-      const first = await write("");
-      const tells = findTells(`${first.email.subject}\n${first.email.body}`);
-      if (tells.length === 0) return first;
-      const second = await write(
-        `\n\n## Reescreva sem\n${tells.map((tell) => `- ${tell}`).join("\n")}`,
+      const { value, usage } = await withoutTells(
+        async (extra) => {
+          const result = await generateText({
+            model: deepseek(options.messageModel),
+            system: emailSystemPrompt(),
+            prompt: emailUserPrompt(settings, lead, analysis) + extra,
+            output: Output.object({ schema: outreachEmailSchema, name: "outreach_email" }),
+            providerOptions,
+            temperature: 0.6,
+            abortSignal: AbortSignal.timeout(CALL_TIMEOUT_MS),
+          });
+          const email = outreachEmailSchema.parse(result.output);
+          return {
+            value: { subject: cleanText(email.subject), body: cleanText(email.body) },
+            usage: toUsage(options.messageModel, result.usage),
+          };
+        },
+        (email) => `${email.subject}\n${email.body}`,
       );
-      return { email: second.email, usage: addUsage(first.usage, second.usage) };
+      return { email: value, usage };
     },
     async replyEmail(settings, lead, thread) {
-      const result = await generateText({
-        model: deepseek(options.messageModel),
-        system: replySystemPrompt(),
-        prompt: replyUserPrompt(settings, lead, thread),
-        output: Output.object({ schema: emailReplySchema, name: "email_reply" }),
-        providerOptions,
-        temperature: 0.3,
-        abortSignal: AbortSignal.timeout(CALL_TIMEOUT_MS),
-      });
-      const decision = emailReplySchema.parse(result.output);
-      return {
-        decision: {
-          ...decision,
-          reply: cleanText(decision.reply),
-          draft: cleanText(decision.draft),
+      const { value, usage } = await withoutTells(
+        async (extra) => {
+          const result = await generateText({
+            model: deepseek(options.messageModel),
+            system: replySystemPrompt(),
+            prompt: replyUserPrompt(settings, lead, thread) + extra,
+            output: Output.object({ schema: emailReplySchema, name: "email_reply" }),
+            providerOptions,
+            temperature: 0.3,
+            abortSignal: AbortSignal.timeout(CALL_TIMEOUT_MS),
+          });
+          const decision = emailReplySchema.parse(result.output);
+          return {
+            value: {
+              ...decision,
+              reply: cleanText(decision.reply),
+              draft: cleanText(decision.draft),
+            },
+            usage: toUsage(options.messageModel, result.usage),
+          };
         },
-        usage: toUsage(options.messageModel, result.usage),
-      };
+        // Only text that goes out on its own is checked; drafts are reviewed by a person.
+        (decision) => (decision.action === "reply" ? decision.reply : ""),
+      );
+      return { decision: value, usage };
     },
     async listAreas(city) {
       const result = await generateText({
@@ -216,12 +244,36 @@ export function findTells(text: string): string[] {
   return TELLS.filter(([pattern]) => pattern.test(text)).map(([, label]) => label);
 }
 
+/**
+ * Runs a generation, asks for one rewrite when it has forbidden phrases (the prompt forbids
+ * them but the model still slips) and throws ForbiddenPhrasesError if the rewrite still has
+ * them, so the caller leaves the text for review instead of sending it.
+ */
+export async function withoutTells<T>(
+  write: (extra: string) => Promise<{ value: T; usage: CallUsage }>,
+  textOf: (value: T) => string,
+): Promise<{ value: T; usage: CallUsage }> {
+  const first = await write("");
+  const tells = findTells(textOf(first.value));
+  if (tells.length === 0) return first;
+  const second = await write(
+    `\n\n## Reescreva sem\n${tells.map((tell) => `- ${tell}`).join("\n")}`,
+  );
+  const usage = addUsage(first.usage, second.usage);
+  const remaining = findTells(textOf(second.value));
+  if (remaining.length > 0) {
+    throw new ForbiddenPhrasesError(remaining, usage, textOf(second.value));
+  }
+  return { value: second.value, usage };
+}
+
 function addUsage(a: CallUsage, b: CallUsage): CallUsage {
   return {
     model: a.model,
     tokensIn: a.tokensIn + b.tokensIn,
     tokensOut: a.tokensOut + b.tokensOut,
     cost: a.cost + b.cost,
+    calls: (a.calls ?? 1) + (b.calls ?? 1),
   };
 }
 

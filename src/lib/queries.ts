@@ -54,14 +54,10 @@ export const leadCountsQuery = (filters: LeadFilters) =>
 export const dashboardQuery = queryOptions({
   queryKey: ["dashboard"],
   queryFn: () => getDashboard(),
-  // Fast while something is moving (a search running or e-mails queued), else every minute.
-  refetchInterval: (query) => {
-    const data = query.state.data;
-    const busy =
-      (data?.mail.queued ?? 0) > 0 ||
-      data?.activity.searches.some((search) => isRunning(search.status));
-    return busy ? 5000 : 60_000;
-  },
+  // Fast only while a search is collecting or analyzing. Queued e-mails go out a few per
+  // minute (and some are always queued), so they only need the regular minute refresh.
+  refetchInterval: (query) =>
+    query.state.data?.activity.searches.some((search) => isRunning(search.status)) ? 5000 : 60_000,
 });
 
 export const attentionQuery = queryOptions({

@@ -6,7 +6,15 @@ import { getDb } from "@/db/client";
 import { analyses, apiUsage, leads, searches } from "@/db/schema";
 import { createFakeAnalyzer } from "../../test/fake-analyzer";
 import type { SiteResult } from "@/lib/scrape";
-import { failLead, processLead, writeMessageForLead, type ProcessDeps } from "./process-lead";
+import type { SiteData } from "@/lib/schemas";
+import {
+  CLAIM_TIMEOUT_MS,
+  failLead,
+  LEAD_BUSY_MESSAGE,
+  processLead,
+  writeMessageForLead,
+  type ProcessDeps,
+} from "./process-lead";
 import { DEFAULT_SETTINGS, storeSettings } from "./settings-store";
 
 const db = getDb(env.DB);
@@ -146,5 +154,99 @@ describe("processLead", () => {
     expect(await writeMessageForLead(deps(), "b")).toBe("Olá, B");
     const analysis = await db.query.analyses.findFirst({ where: eq(analyses.leadId, "b") });
     expect(analysis).toMatchObject({ firstMessage: "Olá, B", tokensIn: 200, model: "test-model" });
+  });
+
+  it("analyzes and pays for a lead once when two deliveries run at the same time", async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const fake = createFakeAnalyzer();
+    const analyzer = createFakeAnalyzer();
+    analyzer.analyze = async (...args) => {
+      await gate;
+      return fake.analyze(...args);
+    };
+    const first = processLead(deps({ analyzer }), { leadId: "b" });
+    await vi.waitFor(async () => {
+      const lead = await db.query.leads.findFirst({ where: eq(leads.id, "b") });
+      expect(lead?.analysisStartedAt).not.toBeNull();
+    });
+    // The duplicate is retried by the queue instead of calling the model again.
+    await expect(processLead(deps({ analyzer }), { leadId: "b" })).rejects.toThrow(
+      LEAD_BUSY_MESSAGE,
+    );
+    release();
+    expect(await first).toBe("done");
+    expect(await processLead(deps({ analyzer }), { leadId: "b" })).toBe("skipped");
+
+    expect(await db.$count(analyses, eq(analyses.leadId, "b"))).toBe(1);
+    const usage = await db.query.apiUsage.findFirst({ where: eq(apiUsage.provider, "deepseek") });
+    expect(usage).toMatchObject({ requests: 1 });
+    expect(await getSearch()).toMatchObject({ analyzedCount: 1 });
+    expect(await db.query.leads.findFirst({ where: eq(leads.id, "b") })).toMatchObject({
+      analysisStatus: "done",
+      analysisStartedAt: null,
+    });
+  });
+
+  it("takes over a claim abandoned for too long", async () => {
+    await db
+      .update(leads)
+      .set({ analysisStartedAt: new Date(Date.now() - CLAIM_TIMEOUT_MS - 60_000) })
+      .where(eq(leads.id, "b"));
+    expect(await processLead(deps(), { leadId: "b" })).toBe("done");
+  });
+
+  it("releases the claim when the analysis fails, so the retry can run", async () => {
+    const analyzer = createFakeAnalyzer();
+    analyzer.analyze = () => Promise.reject(new Error("rate limited"));
+    await expect(processLead(deps({ analyzer }), { leadId: "b" })).rejects.toThrow("rate limited");
+    expect(
+      (await db.query.leads.findFirst({ where: eq(leads.id, "b") }))?.analysisStartedAt,
+    ).toBeNull();
+    expect(await processLead(deps(), { leadId: "b" })).toBe("done");
+    expect(await getSearch()).toMatchObject({ analyzedCount: 1, errorCount: 0 });
+  });
+
+  it("never revives leads discarded for reasons other than their score", async () => {
+    await db
+      .update(leads)
+      .set({ status: "discarded", discardReason: "Teste: close" })
+      .where(eq(leads.id, "a"));
+    await db
+      .update(leads)
+      .set({
+        status: "discarded",
+        discardReason: "Nota 10, abaixo do mínimo de 30",
+        unsubscribedAt: new Date(),
+      })
+      .where(eq(leads.id, "b"));
+    const high = deps({ analyzer: createFakeAnalyzer(90) });
+    await processLead(high, { leadId: "a", force: true });
+    await processLead(high, { leadId: "b", force: true });
+    expect(await db.query.leads.findFirst({ where: eq(leads.id, "a") })).toMatchObject({
+      status: "discarded",
+      discardReason: "Teste: close",
+    });
+    expect(await db.query.leads.findFirst({ where: eq(leads.id, "b") })).toMatchObject({
+      status: "discarded",
+    });
+  });
+
+  it("does not store scraped site data with an unexpected shape", async () => {
+    const fetchSite = vi.fn<(url: string) => Promise<SiteResult>>().mockResolvedValue({
+      status: "ok",
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- malformed on purpose
+      data: { finalUrl: "https://a.com.br", emails: "not-a-list" } as unknown as SiteData,
+      text: "Clínica",
+    });
+    await processLead(deps({ fetchSite }), { leadId: "a" });
+    expect(await db.query.leads.findFirst({ where: eq(leads.id, "a") })).toMatchObject({
+      siteStatus: "ok",
+      siteData: null,
+      siteTextExcerpt: "Clínica",
+      analysisStatus: "done",
+    });
   });
 });

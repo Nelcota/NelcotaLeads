@@ -1,5 +1,13 @@
 import { sql } from "drizzle-orm";
-import { index, integer, primaryKey, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import {
+  index,
+  integer,
+  primaryKey,
+  real,
+  sqliteTable,
+  text,
+  uniqueIndex,
+} from "drizzle-orm/sqlite-core";
 import {
   LEAD_STATUS_VALUES,
   type AutopilotTarget,
@@ -49,24 +57,28 @@ export const settings = sqliteTable("settings", {
 export const SEARCH_STATUSES = ["collecting", "analyzing", "done", "error"] as const;
 export type SearchStatus = (typeof SEARCH_STATUSES)[number];
 
-export const searches = sqliteTable("searches", {
-  id: text("id").primaryKey(),
-  niche: text("niche").notNull(),
-  city: text("city").notNull(),
-  maxResults: integer("max_results").notNull(),
-  status: text("status", { enum: SEARCH_STATUSES }).notNull().default("collecting"),
-  foundCount: integer("found_count").notNull().default(0),
-  analyzedCount: integer("analyzed_count").notNull().default(0),
-  errorCount: integer("error_count").notNull().default(0),
-  // Places already stored by a previous search (unique place_id), so not re-collected.
-  duplicateCount: integer("duplicate_count").notNull().default(0),
-  placesRequests: integer("places_requests").notNull().default(0),
-  errorMessage: text("error_message"),
-  origin: text("origin", { enum: ["manual", "autopilot"] })
-    .notNull()
-    .default("manual"),
-  ...timestamps,
-});
+export const searches = sqliteTable(
+  "searches",
+  {
+    id: text("id").primaryKey(),
+    niche: text("niche").notNull(),
+    city: text("city").notNull(),
+    maxResults: integer("max_results").notNull(),
+    status: text("status", { enum: SEARCH_STATUSES }).notNull().default("collecting"),
+    foundCount: integer("found_count").notNull().default(0),
+    analyzedCount: integer("analyzed_count").notNull().default(0),
+    errorCount: integer("error_count").notNull().default(0),
+    // Places already stored by a previous search (unique place_id), so not re-collected.
+    duplicateCount: integer("duplicate_count").notNull().default(0),
+    placesRequests: integer("places_requests").notNull().default(0),
+    errorMessage: text("error_message"),
+    origin: text("origin", { enum: ["manual", "autopilot"] })
+      .notNull()
+      .default("manual"),
+    ...timestamps,
+  },
+  (t) => [index("searches_created_idx").on(t.createdAt)],
+);
 
 export const LEAD_STATUSES = LEAD_STATUS_VALUES;
 export type LeadStatus = (typeof LEAD_STATUSES)[number];
@@ -102,6 +114,10 @@ export const leads = sqliteTable(
       .notNull()
       .default("pending"),
     analysisError: text("analysis_error"),
+    // When a queue job claimed the analysis; a stale claim may be taken over after a crash.
+    analysisStartedAt: integer("analysis_started_at", { mode: "timestamp" }),
+    // When a re-analysis was last queued; a pending lead older than this may be queued again.
+    analysisQueuedAt: integer("analysis_queued_at", { mode: "timestamp" }),
     // Denormalized from the latest analysis so the list can sort/filter without a join.
     score: integer("score"),
     status: text("status", { enum: LEAD_STATUSES }).notNull().default("new"),
@@ -126,7 +142,9 @@ export const leads = sqliteTable(
   (t) => [
     index("leads_search_idx").on(t.searchId),
     index("leads_score_idx").on(t.score),
-    index("leads_status_idx").on(t.status),
+    index("leads_status_idx").on(t.status, t.followUpOn),
+    index("leads_email_idx").on(t.email),
+    index("leads_last_email_idx").on(t.lastEmailAt),
   ],
 );
 
@@ -149,7 +167,7 @@ export const analyses = sqliteTable(
     costEstimate: real("cost_estimate").notNull().default(0),
     ...timestamps,
   },
-  (t) => [index("analyses_lead_idx").on(t.leadId)],
+  (t) => [index("analyses_lead_idx").on(t.leadId, t.createdAt)],
 );
 
 export const EMAIL_STATUSES = ["draft", "queued", "sent", "failed", "received"] as const;
@@ -182,7 +200,11 @@ export const emails = sqliteTable(
   (t) => [
     index("emails_lead_idx").on(t.leadId),
     index("emails_status_idx").on(t.status, t.sendAfter),
-    index("emails_message_idx").on(t.messageId),
+    // One row per Message-ID, so a reply read twice (overlapping polls) is stored once.
+    uniqueIndex("emails_message_idx")
+      .on(t.messageId)
+      .where(sql`${t.messageId} is not null`),
+    index("emails_sent_idx").on(t.sentAt),
   ],
 );
 
