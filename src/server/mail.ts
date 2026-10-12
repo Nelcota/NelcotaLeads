@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { env } from "cloudflare:workers";
-import { and, asc, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { getDb } from "@/db/client";
 import { emails, leads } from "@/db/schema";
@@ -9,6 +9,8 @@ import { getMailer, mailConfigured } from "@/lib/mail";
 import {
   closeConversation as closeLeadConversation,
   closeSnapshotSchema,
+  conversationDraft,
+  saveReplyDraft as saveLeadReplyDraft,
   undoCloseConversation as undoCloseLeadConversation,
 } from "./conversation";
 import {
@@ -215,9 +217,14 @@ export const getConversation = createServerFn({ method: "GET" })
       state: stateOf(lead),
       summary: analysis?.summary ?? null,
       messages: thread.filter((item) => item.status !== "draft"),
-      draft: thread.filter((item) => item.status === "draft").at(-1) ?? null,
+      draft: conversationDraft(thread.filter((item) => item.status === "draft")),
     };
   });
+
+/** Keeps the reply being typed, so it survives leaving the page; empty removes it. */
+export const saveReplyDraft = createServerFn({ method: "POST" })
+  .validator(z.object({ leadId: id, body: z.string().max(5000) }))
+  .handler(({ data }) => saveLeadReplyDraft(getDb(), { ...data, fromAddress: fromAddress() }));
 
 /** Sends a reply written (or approved) by the user right away. */
 export const sendReply = createServerFn({ method: "POST" })
@@ -238,11 +245,15 @@ export const sendReply = createServerFn({ method: "POST" })
     });
     const subject = lastAny?.subject ?? "Olá";
     const settings = await loadSettings(db);
-    // A pending AI draft is replaced by what the user actually sends.
+    // A pending reply draft (the AI's or the user's own) is replaced by what is sent.
     await db
       .delete(emails)
       .where(
-        and(eq(emails.leadId, lead.id), eq(emails.status, "draft"), isNotNull(emails.inReplyTo)),
+        and(
+          eq(emails.leadId, lead.id),
+          eq(emails.status, "draft"),
+          or(isNotNull(emails.inReplyTo), eq(emails.author, "user")),
+        ),
       );
     // The user answered, so a queued AI reply or follow-up would answer twice.
     await cancelQueuedAi(db, lead.id, "Cancelado: você respondeu");

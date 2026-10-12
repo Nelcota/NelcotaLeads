@@ -1,23 +1,29 @@
 import type { Page } from "@playwright/test";
-import { expect, test, tickTimes, visit, type Backend } from "./fixtures";
+import { expect, reload, test, tickTimes, visit, type Backend } from "./fixtures";
 
 const LEAD = { name: "Clínica Sorriso", email: "contato@sorriso.test" };
+const OTHER = { name: "Clínica Aurora", email: "contato@aurora.test" };
 
-/** Writes and sends the first e-mail from the lead panel; returns its Message-ID. */
-async function startConversation(page: Page, backend: Backend) {
-  const { id } = await backend.lead(LEAD);
+/**
+ * Writes and sends the first e-mail from the lead panel; returns its Message-ID. A second
+ * conversation waits for the gap between first e-mails, so it needs a cron tick (`sendAt`).
+ */
+async function startConversation(page: Page, backend: Backend, lead = LEAD, sendAt?: Date) {
+  const before = (await backend.sent()).length;
+  const { id } = await backend.lead(lead);
   await visit(page, `/leads?lead=${id}`);
-  const panel = page.getByRole("dialog", { name: LEAD.name });
+  const panel = page.getByRole("dialog", { name: lead.name });
   await panel.getByRole("button", { name: "Escrever e-mail" }).click();
-  await expect(panel.getByLabel("Assunto")).toHaveValue(`Assunto para ${LEAD.name}`);
+  await expect(panel.getByLabel("Assunto")).toHaveValue(`Assunto para ${lead.name}`);
   await panel.getByRole("button", { name: "Enviar e-mail" }).click();
   await expect(page.getByText("E-mail enviado")).toBeVisible();
+  if (sendAt) await backend.tick(sendAt);
 
   const sent = await backend.sent();
-  expect(sent).toHaveLength(1);
-  const first = sent[0];
+  expect(sent).toHaveLength(before + 1);
+  const first = sent.at(-1);
   if (!first) throw new Error("first e-mail not sent");
-  expect(first.to).toBe(LEAD.email);
+  expect(first.to).toBe(lead.email);
   return { id, messageId: first.messageId, subject: first.subject };
 }
 
@@ -125,6 +131,39 @@ test.describe("e-mail conversations", () => {
     await page.getByRole("button", { name: "Reabrir conversa" }).click();
     await expect(row).toContainText("Precisa de você");
     await expect(page.getByLabel("Sua resposta")).toBeVisible();
+  });
+
+  test("a reply being typed survives switching conversations and reloading", async ({
+    page,
+    backend,
+  }) => {
+    const [second] = tickTimes(1);
+    const other = await startConversation(page, backend, OTHER);
+    const { id } = await startConversation(page, backend, LEAD, second);
+    await visit(page, `/conversas?lead=${id}`);
+    const reply = page.getByLabel("Sua resposta");
+
+    // Switching right away: the pending text is saved on the way out.
+    await reply.fill("Oi! Posso te ligar amanhã às 10h?");
+    await page.getByRole("button", { name: new RegExp(OTHER.name) }).click();
+    await expect(page).toHaveURL(new RegExp(`lead=${other.id}`));
+    await expect(reply).toHaveValue("");
+    await page.getByRole("button", { name: new RegExp(LEAD.name) }).click();
+    await expect(reply).toHaveValue("Oi! Posso te ligar amanhã às 10h?");
+
+    await reply.fill("Oi! Posso te ligar amanhã às 11h?");
+    await expect(page.getByText("Rascunho salvo")).toBeVisible();
+    await reload(page);
+    await expect(page.getByLabel("Sua resposta")).toHaveValue("Oi! Posso te ligar amanhã às 11h?");
+
+    // Sending clears the draft for good.
+    await page.getByRole("button", { name: "Enviar", exact: true }).click();
+    await expect(page.getByText("Enviado", { exact: true })).toBeVisible();
+    await expect(page.getByLabel("Sua resposta")).toHaveValue("");
+    await reload(page);
+    await expect(page.getByLabel("Sua resposta")).toHaveValue("");
+    const sent = await backend.sent();
+    expect(sent.at(-1)?.text).toContain("Oi! Posso te ligar amanhã às 11h?");
   });
 
   test("an opt-out unsubscribes the lead and blocks new e-mails", async ({ page, backend }) => {

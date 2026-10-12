@@ -17,9 +17,12 @@ export function friendlyMessage(error: unknown): string | null {
   return /^[A-ZÀ-Ý]/.test(message) ? message : null;
 }
 
-/** `onError` for a mutation: a toast with the server's message, or the given fallback. */
-export function errorToast(fallback = DEFAULT_ERROR) {
+/**
+ * `onError` for a mutation: a toast with the server's message, or the given fallback. An `id`
+ * makes repeated failures (e.g. autosave) replace one toast instead of stacking.
+ */
+export function errorToast(fallback = DEFAULT_ERROR, options: { id?: string } = {}) {
   return (error: unknown) => {
-    toast.error(friendlyMessage(error) ?? fallback);
+    toast.error(friendlyMessage(error) ?? fallback, options);
   };
 }

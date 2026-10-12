@@ -1,11 +1,11 @@
-import { and, eq, inArray, isNull, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Db } from "@/db/client";
-import { emails, leads } from "@/db/schema";
+import { emails, leads, type Email } from "@/db/schema";
 import { localDay } from "@/lib/format";
 import { idSchema } from "@/lib/schemas";
 import { leadPatch, UNSUBSCRIBED_MESSAGE } from "./lead-status";
-import { CLOSED_REASON } from "./mail-flow";
+import { CLOSED_REASON, replySubject, userDraftOf } from "./mail-flow";
 
 /**
  * Actions a person takes on one e-mail conversation. Nothing here deletes what was written:
@@ -148,4 +148,53 @@ export async function undoCloseConversation(
       .where(and(idIn(cancelledIds.draft), ours)),
   ]);
   return { ok: true as const };
+}
+
+/** The draft the composer shows: the user's own reply wins over anything the AI wrote. */
+export function conversationDraft(drafts: Email[]): Email | null {
+  return drafts.find((draft) => draft.author === "user") ?? drafts.at(-1) ?? null;
+}
+
+/**
+ * Stores the reply the user is typing as their one draft for the lead (an empty body removes
+ * it). Saved as typed, without the signature, which is added when it is sent.
+ */
+export async function saveReplyDraft(
+  db: Db,
+  { leadId, body, fromAddress }: { leadId: string; body: string; fromAddress: string },
+): Promise<Email | null> {
+  const lead = await db.query.leads.findFirst({ where: eq(leads.id, leadId) });
+  if (!lead) throw new Error("Lead não encontrado");
+  if (lead.unsubscribedAt || lead.status === "closed" || lead.status === "discarded") {
+    throw new Error("Esta conversa está encerrada.");
+  }
+  if (!lead.email) throw new Error("Este lead não tem e-mail.");
+  const mine = userDraftOf(lead.id);
+  if (!body.trim()) {
+    await db.delete(emails).where(mine);
+    return null;
+  }
+
+  const [lastIn, lastAny] = await Promise.all([
+    db.query.emails.findFirst({
+      where: and(eq(emails.leadId, lead.id), eq(emails.direction, "in")),
+      orderBy: [desc(emails.createdAt)],
+    }),
+    db.query.emails.findFirst({
+      where: and(eq(emails.leadId, lead.id), inArray(emails.status, ["sent", "received"])),
+      orderBy: [desc(emails.createdAt)],
+    }),
+  ]);
+  const inReplyTo = lastIn?.messageId ?? null;
+  const write = () => db.update(emails).set({ body, inReplyTo }).where(mine).returning();
+  const [updated] = await write();
+  if (updated) return updated;
+  // Insert-if-absent keeps it at one draft per lead even if two saves race.
+  await db.run(sql`
+    insert into emails (id, lead_id, direction, status, author, from_address, to_address, subject, body, in_reply_to)
+    select ${crypto.randomUUID()}, ${lead.id}, 'out', 'draft', 'user', ${fromAddress}, ${lead.email},
+      ${replySubject(lastAny?.subject ?? "Olá")}, ${body}, ${inReplyTo}
+    where not exists (select 1 from emails where lead_id = ${lead.id} and status = 'draft' and author = 'user')`);
+  const [saved] = await write();
+  return saved ?? null;
 }

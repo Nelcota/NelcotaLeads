@@ -23,6 +23,7 @@ import {
   queueFollowUps,
   sendDue,
 } from "./mail-flow";
+import { saveReplyDraft } from "./conversation";
 import { DEFAULT_SETTINGS, storeSettings } from "./settings-store";
 import { requestsToday } from "./usage";
 
@@ -502,6 +503,52 @@ describe("e-mail outreach", () => {
     inbox.push(broken, incoming({ inReplyTo: messageId, text: "Pode explicar melhor?" }));
     expect(await pollInbox({ db, mailer, analyzer })).toBe(1);
     expect((await db.query.settings.findFirst())?.mailLastUid).toBe(2);
+  });
+
+  it("never drafts or answers over the user's reply in progress", async () => {
+    const { mailer, messageId } = await sentFirstEmail();
+    await handleInbound(
+      { db, mailer, analyzer },
+      incoming({ inReplyTo: messageId, text: "Quanto custa?" }),
+    );
+    await db.delete(emails).where(eq(emails.status, "draft"));
+    await saveReplyDraft(db, { leadId: "a", body: "Minha resposta", fromAddress: FROM });
+
+    // With the AI back in charge, a new message is handed over instead of answered.
+    await db.update(leads).set({ aiMode: true }).where(eq(leads.id, "a"));
+    await handleInbound(
+      { db, mailer, analyzer },
+      incoming({ inReplyTo: messageId, text: "Pode explicar melhor?" }),
+    );
+    expect(await lead("a")).toMatchObject({
+      aiMode: false,
+      handoffReason: "Você já começou uma resposta",
+    });
+    const rows = await leadEmails("a");
+    expect(rows.filter((e) => e.status === "draft")).toEqual([
+      expect.objectContaining({ author: "user", body: "Minha resposta" }),
+    ]);
+    expect(rows.some((e) => e.author === "ai" && e.status === "queued")).toBe(false);
+  });
+
+  it("never sends a reply draft as a first e-mail", async () => {
+    await db.insert(emails).values({
+      id: "reply-draft",
+      leadId: "a",
+      direction: "out",
+      status: "draft",
+      author: "user",
+      fromAddress: FROM,
+      toAddress: "contato@clinica.com.br",
+      subject: "Re: x",
+      body: "Oi",
+      inReplyTo: "<lead@clinica.com.br>",
+    });
+    const { drafts, skipped } = await prepareDrafts({ db, analyzer, fromAddress: FROM }, ["a"]);
+    expect(drafts).toEqual([]);
+    expect(skipped[0]?.reason).toBe("já está em conversa");
+    expect(await queueDrafts(db, ["reply-draft"])).toBe(0);
+    expect((await leadEmails("a"))[0]?.status).toBe("draft");
   });
 
   it("auto-dispatch leaves drafts with risky content for review", async () => {

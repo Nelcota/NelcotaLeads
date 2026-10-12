@@ -37,6 +37,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import type { Email } from "@/db/schema";
+import { useAutosave } from "@/lib/autosave";
 import { shortTime } from "@/lib/format";
 import { conversationQuery, conversationsQuery } from "@/lib/queries";
 import { cn, safeHttpUrl } from "@/lib/utils";
@@ -46,6 +47,7 @@ import { updateLead } from "@/server/leads";
 import {
   checkMailNow,
   closeConversation,
+  saveReplyDraft,
   sendReply,
   setConversationAi,
   undoCloseConversation,
@@ -273,11 +275,30 @@ function ConversationsPage() {
 function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
   const { data } = useQuery(conversationQuery(leadId));
   const refresh = useRefresh();
+  const queryClient = useQueryClient();
   const [text, setText] = useState<string | null>(null);
+  const setDraft = (draft: Email | null) =>
+    queryClient.setQueryData(conversationQuery(leadId).queryKey, (old) =>
+      old ? { ...old, draft } : old,
+    );
+  // The reply is saved as it is typed, so it survives switching conversations or reloading.
+  const autosave = useAutosave(
+    async (_key, body: string) => {
+      const draft = await saveReplyDraft({ data: { leadId, body } });
+      // Cleared: whatever the AI had drafted shows again.
+      if (draft) setDraft(draft);
+      else await queryClient.invalidateQueries({ queryKey: conversationQuery(leadId).queryKey });
+    },
+    errorToast("Não foi possível salvar o rascunho", { id: "reply-draft" }),
+  );
 
   const send = useMutation({
-    mutationFn: (body: string) => sendReply({ data: { leadId, body } }),
+    mutationFn: async (body: string) => {
+      await autosave.flush();
+      return sendReply({ data: { leadId, body } });
+    },
     onSuccess: async () => {
+      setDraft(null);
       setText(null);
       await refresh();
       toast.success("Enviado");
@@ -299,8 +320,11 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
     }
   };
   const close = useMutation({
-    mutationFn: (outcome: "closed" | "discarded") =>
-      closeConversation({ data: { leadId, outcome } }),
+    mutationFn: async (outcome: "closed" | "discarded") => {
+      // Saved first, so the reply in progress is part of what the close keeps (and undo restores).
+      await autosave.flush();
+      return closeConversation({ data: { leadId, outcome } });
+    },
     onSuccess: async (snapshot, outcome) => {
       await refresh();
       toast(outcome === "closed" ? "Conversa encerrada" : "Encerrada sem negócio", {
@@ -326,6 +350,8 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
   }
   const { lead, state, messages, draft, summary } = data;
   const value = text ?? draft?.body ?? "";
+  const savedDraft =
+    text === null ? draft?.author === "user" : autosave.state === "saved" && text.trim() !== "";
   const closed = state === "closed";
   const blocker = closed ? reopenBlocker(lead) : null;
   const firstOut = messages.find((message) => message.direction === "out" && !message.inReplyTo);
@@ -460,7 +486,7 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
                 <span className="min-w-0 truncate rounded-full bg-fill-2 px-2.5 py-0.5 text-[11.5px] font-medium text-foreground">
                   {lead.email}
                 </span>
-                {draft && text === null ? (
+                {draft?.author === "ai" && text === null ? (
                   <Badge variant="purple" className="ml-auto shrink-0">
                     <SparklesIcon />
                     <span className="max-sm:hidden">Rascunho da IA para você revisar</span>
@@ -473,12 +499,29 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
                 rows={4}
                 placeholder="Escreva sua resposta."
                 value={value}
+                readOnly={send.isPending}
                 className="bg-transparent! px-4 text-base leading-[1.7] shadow-none! focus-visible:ring-0"
-                onChange={(event) => setText(event.target.value)}
+                onChange={(event) => {
+                  setText(event.target.value);
+                  autosave.schedule(leadId, event.target.value);
+                }}
               />
               <div className="flex flex-wrap items-center justify-end gap-2 px-2 pt-1 pb-2 pl-4">
-                <span className="mr-auto text-xs font-light text-tertiary max-sm:hidden">
-                  A assinatura é adicionada no envio.
+                <span
+                  aria-live="polite"
+                  className={cn(
+                    "mr-auto text-xs font-light",
+                    autosave.state === "error" ? "text-red" : "text-tertiary",
+                    autosave.state === "idle" && !savedDraft && "max-sm:hidden",
+                  )}
+                >
+                  {autosave.state === "saving"
+                    ? "Salvando…"
+                    : autosave.state === "error"
+                      ? "Rascunho não salvo"
+                      : savedDraft
+                        ? "Rascunho salvo"
+                        : "A assinatura é adicionada no envio."}
                 </span>
                 {state === "needsYou" ? (
                   <Button

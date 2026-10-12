@@ -42,6 +42,18 @@ const MAX_AUTO_LENGTH = 1200;
 export const EMAIL_OPT_OUT = 'Para não receber mais e-mails, responda com "sair".';
 const OPTED_OUT = "Pediu para não receber e-mails";
 const BLOCKED = "O lead pediu para não receber e-mails";
+/** The user's own reply in progress: at most one per lead, and the AI never writes over it. */
+export function userDraftOf(leadId: string) {
+  return and(eq(emails.leadId, leadId), eq(emails.status, "draft"), eq(emails.author, "user"));
+}
+
+async function hasUserDraft(db: Db, leadId: string) {
+  const rows = await db.select({ id: emails.id }).from(emails).where(userDraftOf(leadId)).limit(1);
+  return rows.length > 0;
+}
+
+const USER_DRAFT_REASON = "Você já começou uma resposta";
+
 /** Reason kept on the e-mails a closed conversation cancelled; undoing the close looks for it. */
 export const CLOSED_REASON = "Cancelado: conversa encerrada";
 
@@ -67,7 +79,7 @@ export function composeBody(text: string, settings: SettingsInput, optOut: boole
   return [cleanText(text), signature, optOut ? EMAIL_OPT_OUT : ""].filter(Boolean).join("\n\n");
 }
 
-function replySubject(subject: string) {
+export function replySubject(subject: string) {
   return /^(re|res|resp):/i.test(subject.trim()) ? subject : `Re: ${subject}`;
 }
 
@@ -260,6 +272,9 @@ export async function prepareDrafts(
     if (!lead.email) skip("sem e-mail no site");
     else if (lead.unsubscribedAt || blocked.has(lead.id)) skip("pediu para não receber");
     else if (existing && existing.status !== "draft") skip("já recebeu e-mail");
+    // A reply in progress is never sent as a first e-mail.
+    else if (existing && (existing.inReplyTo || existing.author === "user"))
+      skip("já está em conversa");
     else if (lead.status !== "new") skip("não está mais como novo");
     else if (existing) drafts.push(existing);
     else if (!analysis) skip("ainda em análise");
@@ -366,7 +381,15 @@ export async function queueDrafts(db: Db, emailIds: string[], now = new Date()) 
   const drafts = await db
     .select({ id: emails.id })
     .from(emails)
-    .where(and(inArray(emails.id, emailIds), eq(emails.status, "draft")));
+    .where(
+      and(
+        inArray(emails.id, emailIds),
+        eq(emails.status, "draft"),
+        // Only first e-mails: replies go out through the conversation, never this queue.
+        eq(emails.author, "ai"),
+        isNull(emails.inReplyTo),
+      ),
+    );
   const [first, ...rest] = drafts.map((draft, index) =>
     db
       .update(emails)
@@ -671,6 +694,11 @@ export async function handleInbound(
     await handOff(db, lead.id, lead.handoffReason ?? "Respondeu");
     return true;
   }
+  // The user's reply in progress wins: the AI neither answers nor drafts over it.
+  if (await hasUserDraft(db, lead.id)) {
+    await handOff(db, lead.id, USER_DRAFT_REASON);
+    return true;
+  }
 
   const history = await thread(db, lead.id);
   const aiReplies = history.filter(
@@ -694,9 +722,14 @@ export async function handleInbound(
     subject: replySubject(message.subject),
     inReplyTo: message.messageId,
   };
-  // Kept without signature: it is added when the person sends it.
+  // Kept without signature: it is added when the person sends it. Skipped when the user
+  // started a reply of their own in the meantime.
   const leaveDraft = (text: string) =>
-    db.insert(emails).values({ ...base, id: crypto.randomUUID(), status: "draft", body: text });
+    db.run(sql`
+      insert into emails (id, lead_id, direction, status, author, from_address, to_address, subject, body, in_reply_to)
+      select ${crypto.randomUUID()}, ${base.leadId}, 'out', 'draft', 'ai', ${base.fromAddress},
+        ${base.toAddress}, ${base.subject}, ${text}, ${base.inReplyTo}
+      where not exists (select 1 from emails where lead_id = ${base.leadId} and status = 'draft' and author = 'user')`);
   try {
     const { decision, usage } = await analyzer.replyEmail(
       settings,
@@ -709,6 +742,9 @@ export async function handleInbound(
       if (issues.length > 0) {
         await handOff(db, lead.id, `Resposta da IA para revisar: ${issues.join(", ")}`);
         await leaveDraft(cleanText(decision.reply));
+      } else if (await hasUserDraft(db, lead.id)) {
+        // The user started an answer while the AI was writing; theirs goes instead.
+        await handOff(db, lead.id, USER_DRAFT_REASON);
       } else {
         await db.insert(emails).values({
           ...base,

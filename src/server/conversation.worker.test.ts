@@ -4,7 +4,12 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { getDb } from "@/db/client";
 import { emails, leads, searches, type Email } from "@/db/schema";
 import { resetDb } from "../../test/reset-db";
-import { closeConversation, undoCloseConversation } from "./conversation";
+import {
+  closeConversation,
+  conversationDraft,
+  saveReplyDraft,
+  undoCloseConversation,
+} from "./conversation";
 import { CLOSED_REASON } from "./mail-flow";
 
 const db = getDb(env.DB);
@@ -48,6 +53,10 @@ function email(id: string, leadId: string, overrides: Partial<Email> = {}) {
 
 const lead = (id: string) => db.query.leads.findFirst({ where: eq(leads.id, id) });
 const row = (id: string) => db.query.emails.findFirst({ where: eq(emails.id, id) });
+const userDrafts = async () =>
+  (await db.select().from(emails).where(eq(emails.leadId, "a"))).filter(
+    (item) => item.status === "draft" && item.author === "user",
+  );
 
 describe("closeConversation", () => {
   beforeEach(async () => {
@@ -131,5 +140,66 @@ describe("closeConversation", () => {
     await expect(closeConversation(db, "a", "discarded", now)).rejects.toThrow("já está encerrada");
     await undoCloseConversation(db, "a", snapshot);
     await expect(undoCloseConversation(db, "a", snapshot)).rejects.toThrow("já foi reaberta");
+  });
+});
+
+describe("saveReplyDraft", () => {
+  beforeEach(async () => {
+    await resetDb();
+    await seed();
+    await db.insert(emails).values([
+      email("sent", "a", { status: "sent", sentAt: now, subject: "Proposta" }),
+      email("in", "a", {
+        direction: "in",
+        status: "received",
+        author: "lead",
+        messageId: "<lead@a.com.br>",
+        subject: "Re: Proposta",
+      }),
+      email("ai-draft", "a", { status: "draft", inReplyTo: "<lead@a.com.br>" }),
+    ]);
+  });
+
+  it("keeps one draft per lead, answering the last message, as typed", async () => {
+    await saveReplyDraft(db, { leadId: "a", body: "Olá, ", fromAddress: FROM });
+    const saved = await saveReplyDraft(db, {
+      leadId: "a",
+      body: "Olá, tudo bem?\n",
+      fromAddress: FROM,
+    });
+    const drafts = await userDrafts();
+    expect(drafts).toHaveLength(1);
+    expect(drafts[0]).toMatchObject({
+      id: saved?.id,
+      body: "Olá, tudo bem?\n",
+      inReplyTo: "<lead@a.com.br>",
+      subject: "Re: Proposta",
+      toAddress: "contato@a.com.br",
+    });
+    // The AI's draft stays, but the user's own reply is the one shown.
+    const all = await db.select().from(emails).where(eq(emails.leadId, "a"));
+    expect(conversationDraft(all.filter((item) => item.status === "draft"))?.id).toBe(saved?.id);
+  });
+
+  it("writes one draft when two saves race", async () => {
+    await Promise.all([
+      saveReplyDraft(db, { leadId: "a", body: "Primeira", fromAddress: FROM }),
+      saveReplyDraft(db, { leadId: "a", body: "Segunda", fromAddress: FROM }),
+    ]);
+    expect(await userDrafts()).toHaveLength(1);
+  });
+
+  it("removes the draft when the text is cleared", async () => {
+    await saveReplyDraft(db, { leadId: "a", body: "Rascunho", fromAddress: FROM });
+    expect(await saveReplyDraft(db, { leadId: "a", body: "  ", fromAddress: FROM })).toBeNull();
+    expect(await userDrafts()).toHaveLength(0);
+    expect(await row("ai-draft")).toMatchObject({ status: "draft" });
+  });
+
+  it("refuses closed conversations", async () => {
+    await db.update(leads).set({ status: "closed" }).where(eq(leads.id, "a"));
+    await expect(
+      saveReplyDraft(db, { leadId: "a", body: "Oi", fromAddress: FROM }),
+    ).rejects.toThrow("encerrada");
   });
 });
