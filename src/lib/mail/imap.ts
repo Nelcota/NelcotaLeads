@@ -2,7 +2,17 @@ import type { Wire } from "./wire";
 
 export type MailboxCursor = { uidValidity: number; lastUid: number };
 
+export type FetchedMessage = { uid: number; raw: Uint8Array; truncated: boolean };
+
 type Response = { untagged: string[]; literals: Uint8Array[] };
+
+/** Bytes fetched per message: enough for the text of a reply, never a whole attachment. */
+export const MAX_MESSAGE_BYTES = 524_288;
+// No answer we ask for carries a literal larger than the partial fetch above.
+const MAX_LITERAL_BYTES = 2 * MAX_MESSAGE_BYTES;
+
+/** A tagged NO/BAD: the server refused this command, but the session is still usable. */
+class ImapCommandError extends Error {}
 
 /** The handful of IMAP4rev1 commands needed to read new messages from INBOX. */
 class ImapSession {
@@ -23,13 +33,15 @@ class ImapSession {
       let line = await this.wire.readLine();
       // A line ending in {n} is followed by n raw bytes, then the rest of the line.
       for (let match = /\{(\d+)\}$/.exec(line); match; match = /\{(\d+)\}$/.exec(line)) {
-        literals.push(await this.wire.readBytes(Number(match[1])));
+        const length = Number(match[1]);
+        if (length > MAX_LITERAL_BYTES) throw new Error("IMAP: resposta grande demais");
+        literals.push(await this.wire.readBytes(length));
         line = `${line} ${await this.wire.readLine()}`;
       }
       if (line.startsWith(`${tag} `)) {
         if (!line.startsWith(`${tag} OK`)) {
           // Never echo the command: LOGIN carries the password.
-          throw new Error(`IMAP: ${line.slice(tag.length + 1, 200)}`);
+          throw new ImapCommandError(`IMAP: ${line.slice(tag.length + 1, 200)}`);
         }
         return { untagged, literals };
       }
@@ -53,14 +65,16 @@ function code(lines: string[], name: string): number | undefined {
 /**
  * Raw messages that arrived after the cursor. The first run (or a mailbox whose
  * UIDVALIDITY changed) starts from now instead of importing the whole inbox.
- * BODY.PEEK keeps the messages unread in the mail app.
+ * BODY.PEEK keeps the messages unread in the mail app; the partial fetch
+ * (<0.MAX_MESSAGE_BYTES>) caps what a huge message can cost, and `truncated`
+ * says when RFC822.SIZE was larger than what came back.
  */
 export async function fetchNewMessages(
   wire: Wire,
   credentials: { user: string; password: string },
   cursor: MailboxCursor,
   limit = 20,
-): Promise<{ cursor: MailboxCursor; messages: { uid: number; raw: Uint8Array }[] }> {
+): Promise<{ cursor: MailboxCursor; messages: FetchedMessage[] }> {
   const session = new ImapSession(wire);
   try {
     await session.greeting();
@@ -84,11 +98,22 @@ export async function fetchNewMessages(
       .sort((a, b) => a - b)
       .slice(0, limit);
 
-    const messages: { uid: number; raw: Uint8Array }[] = [];
+    const messages: FetchedMessage[] = [];
     for (const uid of uids) {
-      const fetched = await session.run(`UID FETCH ${uid} (BODY.PEEK[])`);
+      let fetched: Response;
+      try {
+        fetched = await session.run(
+          `UID FETCH ${uid} (RFC822.SIZE BODY.PEEK[]<0.${MAX_MESSAGE_BYTES}>)`,
+        );
+      } catch (error) {
+        // A message the server refuses to hand over is skipped, not retried forever.
+        if (error instanceof ImapCommandError) continue;
+        throw error;
+      }
       const raw = fetched.literals[0];
-      if (raw) messages.push({ uid, raw });
+      if (!raw) continue;
+      const size = Number(/RFC822\.SIZE (\d+)/.exec(fetched.untagged.join(" "))?.[1] ?? 0);
+      messages.push({ uid, raw, truncated: size > raw.length });
     }
     await session.run("LOGOUT").catch(() => undefined);
 

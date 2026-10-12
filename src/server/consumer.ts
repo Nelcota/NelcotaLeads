@@ -8,8 +8,13 @@ export async function handleLeadBatch(batch: MessageBatch<LeadJob>, deps: Proces
   // Safety net: messages that exhausted the queue's own retries still get their lead marked.
   if (batch.queue === DEAD_LETTER_QUEUE) {
     for (const message of batch.messages) {
-      await failLead(deps.db, message.body, new Error("Falha após todas as tentativas"));
-      message.ack();
+      try {
+        await failLead(deps.db, message.body, new Error("Falha após todas as tentativas"));
+        message.ack();
+      } catch (error) {
+        console.error("could not record the dead-lettered lead", message.body.leadId, error);
+        message.retry();
+      }
     }
     return;
   }
@@ -22,8 +27,14 @@ export async function handleLeadBatch(batch: MessageBatch<LeadJob>, deps: Proces
       } catch (error) {
         console.error("lead processing failed", message.body.leadId, message.attempts, error);
         if (message.attempts >= MAX_ATTEMPTS) {
-          await failLead(deps.db, message.body, error);
-          message.ack();
+          // A failure to record the failure must not reject the rest of the batch.
+          try {
+            await failLead(deps.db, message.body, error);
+            message.ack();
+          } catch (failError) {
+            console.error("could not record the lead failure", message.body.leadId, failError);
+            message.retry({ delaySeconds: retryDelaySeconds(message.attempts) });
+          }
         } else {
           message.retry({ delaySeconds: retryDelaySeconds(message.attempts) });
         }

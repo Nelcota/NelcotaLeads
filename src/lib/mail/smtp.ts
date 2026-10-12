@@ -1,3 +1,4 @@
+import { safeAddress } from "./mime";
 import type { Wire } from "./wire";
 
 export type SmtpCredentials = { user: string; password: string };
@@ -59,9 +60,12 @@ export async function smtpSend(
   message: string,
 ): Promise<void> {
   try {
+    // Checked before login: a CR/LF here would inject SMTP commands.
+    const from = safeAddress(envelope.from, "remetente");
+    const to = safeAddress(envelope.to, "destinatário");
     await login(wire, credentials);
-    await command(wire, `MAIL FROM:<${envelope.from}>`, [250], "remetente");
-    await command(wire, `RCPT TO:<${envelope.to}>`, [250, 251], "destinatário");
+    await command(wire, `MAIL FROM:<${from}>`, [250], "remetente");
+    await command(wire, `RCPT TO:<${to}>`, [250, 251], "destinatário");
     await command(wire, "DATA", [354], "DATA");
     // Dot-stuffing: a line that starts with "." gets another one.
     const data = message.replace(/\r\n\./g, "\r\n..");

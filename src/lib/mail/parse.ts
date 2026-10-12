@@ -45,25 +45,56 @@ function htmlToText(html: string): string {
     .replace(/&gt;/g, ">");
 }
 
+// Bounds on what a received message can put in the database.
+const MAX_SUBJECT = 300;
+const MAX_NAME = 200;
+const MAX_ID = 998;
+const MAX_REFERENCES = 50;
+// Body read before quote stripping, and what is kept after it.
+const MAX_BODY = 50_000;
+const MAX_TEXT = 8000;
+
+const ID_TOKEN = /<[^\s<>]+>/g;
+const MESSAGE_ID = /^<[^\s<>@]+@[^\s<>@]+>$/;
+// Senders that are machines, never people: noreply@, bounces+x@, mailer-daemon@...
+const MACHINE_SENDER = /^(no-?reply|do-?not-?reply|bounces?|mailer-daemon|postmaster)([+._-]|@)/i;
+
+/** The Message-IDs in a header value, keeping only well-formed ones. */
+function messageIds(value: string | undefined): string[] {
+  return (value?.match(ID_TOKEN) ?? []).filter((id) => id.length <= MAX_ID && MESSAGE_ID.test(id));
+}
+
+/** Out-of-office, bounces (DSN) and other machine mail that must never get an answer back. */
+export function isAutomatic(header: (name: string) => string, from: string): boolean {
+  const submitted = header("auto-submitted").trim();
+  return (
+    // RFC 3834: anything but "no" (auto-replied, auto-generated, auto-notified...).
+    (submitted !== "" && !/^no\b/i.test(submitted)) ||
+    /bulk|junk|list|auto_reply/i.test(header("precedence")) ||
+    // Not X-Auto-Response-Suppress: Outlook/Exchange put it on ordinary mail too.
+    Boolean(header("x-autoreply") || header("x-autorespond")) ||
+    /^multipart\/report\b/i.test(header("content-type").trim()) ||
+    MACHINE_SENDER.test(from)
+  );
+}
+
 export async function parseEmail(raw: Uint8Array): Promise<IncomingEmail> {
   const email = await PostalMime.parse(raw);
-  const body = email.text ?? (email.html ? htmlToText(email.html) : "");
+  const body = email.text ?? (email.html ? htmlToText(email.html.slice(0, 4 * MAX_BODY)) : "");
   const header = (name: string) =>
     email.headers.find((item) => item.key === name.toLowerCase())?.value ?? "";
+  const from = (email.from?.address ?? "").toLowerCase().slice(0, 254);
+  const date = email.date ? new Date(email.date) : null;
   return {
-    from: (email.from?.address ?? "").toLowerCase(),
-    fromName: email.from?.name || null,
-    subject: email.subject ?? "",
-    messageId: email.messageId ?? null,
-    inReplyTo: email.inReplyTo ?? null,
-    references: (email.references ?? "").split(/\s+/).filter(Boolean),
-    text: stripQuoted(body).slice(0, 8000),
-    date: email.date ? new Date(email.date) : null,
-    // Auto-replies (out of office, bounces) must never get an answer back.
-    automatic:
-      /^auto-(replied|generated)/i.test(header("auto-submitted")) ||
-      /bulk|junk|list|auto_reply/i.test(header("precedence")) ||
-      Boolean(header("x-autoreply")) ||
-      /mailer-daemon|postmaster/i.test(email.from?.address ?? ""),
+    from,
+    fromName: email.from?.name?.slice(0, MAX_NAME) || null,
+    subject: (email.subject ?? "").slice(0, MAX_SUBJECT),
+    messageId: messageIds(email.messageId)[0] ?? null,
+    inReplyTo: messageIds(email.inReplyTo)[0] ?? null,
+    // The newest ids are at the end, and they are the ones that match our sent mail.
+    references: messageIds(email.references).slice(-MAX_REFERENCES),
+    text: stripQuoted(body.slice(0, MAX_BODY)).slice(0, MAX_TEXT),
+    date: date && !Number.isNaN(date.getTime()) ? date : null,
+    automatic: isAutomatic(header, from),
   };
 }

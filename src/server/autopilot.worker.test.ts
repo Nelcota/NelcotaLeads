@@ -70,4 +70,51 @@ describe("runAutopilot", () => {
     expect((await runAutopilot(deps(), nineThirty)).searches).toBe(0);
     expect((await runAutopilot(deps(), nineThirty, { force: true })).searches).toBe(1);
   });
+
+  it("runs at most once a day, even when forced or when ticks overlap", async () => {
+    const [first, second] = await Promise.all([
+      runAutopilot(deps(), nineThirty),
+      runAutopilot(deps(), nineThirty),
+    ]);
+    expect(first.searches + second.searches).toBe(1);
+    expect(await runAutopilot(deps(), nineThirty, { force: true })).toEqual({
+      searches: 0,
+      alreadyRan: true,
+    });
+    expect(await db.$count(searches)).toBe(1);
+  });
+
+  it("keeps going when one target fails and saves each target's cursor", async () => {
+    await storeAutopilot(db, {
+      enabled: true,
+      aiAutoReply: true,
+      autoDispatch: false,
+      hour: 8,
+      results: 20,
+      targets: [
+        { niche: "Dentistas", city: "Belo Horizonte" },
+        { niche: "Bares", city: "Rio" },
+        { niche: "Padarias", city: "Recife" },
+      ],
+    });
+    // Second target already walks neighborhoods, and the AI fails to list them.
+    const config = await loadAutopilot(db);
+    await writeAutopilot(db, {
+      autopilotTargets: config.targets.map((t, i) => (i === 1 ? { ...t, cursor: 1 } : t)),
+    });
+    const d = deps();
+    d.analyzer.listAreas = () => Promise.reject(new Error("AI down"));
+    let calls = 0;
+    const places = d.places;
+    d.places = {
+      ...places,
+      search: (input) => {
+        calls += 1;
+        return places.search({ ...input, maxResults: 1 + calls });
+      },
+    };
+
+    expect((await runAutopilot(d, nineThirty)).searches).toBe(2);
+    expect((await loadAutopilot(db)).targets.map((t) => t.cursor)).toEqual([1, 1, 1]);
+  });
 });

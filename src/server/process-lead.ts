@@ -1,11 +1,13 @@
-import { and, desc, eq, gte, ne, sql } from "drizzle-orm";
+import { and, desc, eq, gte, isNull, lt, ne, or, sql, type SQL } from "drizzle-orm";
 import type { Db } from "@/db/client";
-import { analyses, leads, searches, type Lead, type Search } from "@/db/schema";
+import { analyses, apiUsage, leads, searches, type Lead, type Search } from "@/db/schema";
 import type { CallUsage, LeadAnalyzer, LeadContext } from "@/lib/ai";
+import { localDay } from "@/lib/format";
+import { siteDataSchema, type SiteData } from "@/lib/schemas";
 import type { SiteResult } from "@/lib/scrape";
 import { loadSettings } from "./settings-store";
 import type { LeadJob } from "./queue";
-import { recordAiCost } from "./usage";
+import { DEEPSEEK, recordAiCost } from "./usage";
 
 export type ProcessDeps = {
   db: Db;
@@ -16,17 +18,74 @@ export type ProcessDeps = {
 /** Attempts per message before the lead is marked as failed (keep below the queue max_retries). */
 export const MAX_ATTEMPTS = 3;
 
+/** A claim older than this is considered abandoned (e.g. the Worker died mid-analysis). */
+export const CLAIM_TIMEOUT_MS = 10 * 60_000;
+
+export const LEAD_BUSY_MESSAGE = "O lead já está sendo analisado";
+
 /**
  * Reads the lead's site, runs the AI analysis and stores the result.
- * Idempotent: an already analyzed lead is skipped unless the job asks to force it.
+ * Idempotent: an already analyzed lead is skipped unless the job asks to force it, and a
+ * lead another job is analyzing right now is never analyzed twice (this job is retried).
  * Throws on transient failures so the queue retries the message.
  */
 export async function processLead(deps: ProcessDeps, job: LeadJob): Promise<"done" | "skipped"> {
-  const { db, analyzer } = deps;
-  const lead = await db.query.leads.findFirst({ where: eq(leads.id, job.leadId) });
-  if (!lead) return "skipped";
-  if (lead.analysisStatus === "done" && !job.force) return "skipped";
+  const { db } = deps;
+  const lead = await claimLead(db, job);
+  if (!lead) {
+    const current = await db.query.leads.findFirst({
+      where: eq(leads.id, job.leadId),
+      columns: { analysisStatus: true },
+    });
+    if (!current || (current.analysisStatus === "done" && !job.force)) return "skipped";
+    throw new Error(LEAD_BUSY_MESSAGE);
+  }
+  try {
+    await analyzeClaimed(deps, job, lead);
+    return "done";
+  } catch (error) {
+    // Release the claim so the queue's retry can pick the lead up again.
+    await db
+      .update(leads)
+      .set({ analysisStartedAt: null })
+      .where(ownedBy(lead))
+      .catch((releaseError: unknown) => {
+        console.error("could not release the lead claim", lead.id, releaseError);
+      });
+    throw error;
+  }
+}
 
+/**
+ * Atomically marks the lead as being analyzed. Returns undefined when the lead is missing,
+ * already analyzed (unless forced) or claimed by another job.
+ */
+async function claimLead(db: Db, job: LeadJob, now = new Date()): Promise<Lead | undefined> {
+  const free = or(
+    isNull(leads.analysisStartedAt),
+    lt(leads.analysisStartedAt, new Date(now.getTime() - CLAIM_TIMEOUT_MS)),
+  );
+  const [lead] = await db
+    .update(leads)
+    .set({ analysisStartedAt: now })
+    .where(
+      job.force
+        ? and(eq(leads.id, job.leadId), free)
+        : and(eq(leads.id, job.leadId), free, ne(leads.analysisStatus, "done")),
+    )
+    .returning();
+  return lead;
+}
+
+/** The lead's row, as long as the claim taken by this job is still in place. */
+function ownedBy(lead: Lead) {
+  return lead.analysisStartedAt
+    ? and(eq(leads.id, lead.id), eq(leads.analysisStartedAt, lead.analysisStartedAt))
+    : and(eq(leads.id, lead.id), isNull(leads.analysisStartedAt));
+}
+
+async function analyzeClaimed(deps: ProcessDeps, job: LeadJob, lead: Lead) {
+  const { db, analyzer } = deps;
   const search = await db.query.searches.findFirst({ where: eq(searches.id, lead.searchId) });
   const settings = await loadSettings(db);
   const site = await readSite(deps, lead, job.force ?? false);
@@ -39,8 +98,11 @@ export async function processLead(deps: ProcessDeps, job: LeadJob): Promise<"don
   // Triage: below the minimum score the AI discards the lead. Outreach e-mails are
   // written when the lead is selected for a send, not here.
   const keep = settings.minScore <= 0 || analysis.score >= settings.minScore;
+  const owned = ownedBy(lead);
 
-  const [, updated] = await db.batch([
+  // One transaction: the analysis, its cost, the search counters and the lead all land
+  // together, so nothing after the AI call can leave the search stuck in "analyzing".
+  await db.batch([
     db.insert(analyses).values({
       id: crypto.randomUUID(),
       leadId: lead.id,
@@ -50,34 +112,55 @@ export async function processLead(deps: ProcessDeps, job: LeadJob): Promise<"don
       tokensOut: sum(usages, "tokensOut"),
       costEstimate: sum(usages, "cost"),
     }),
+    aiCostStatement(db, usages.length, sum(usages, "cost")),
+    // Forced re-analysis must not inflate the counters. Runs before the lead update, so it
+    // only counts when this job is the one completing the lead.
+    ...(job.force
+      ? []
+      : searchCounterStatements(
+          db,
+          lead.searchId,
+          "analyzedCount",
+          sql`exists (select 1 from ${leads} where ${and(owned, ne(leads.analysisStatus, "done"))})`,
+        )),
     db
       .update(leads)
       .set({
         analysisStatus: "done",
         analysisError: null,
+        analysisStartedAt: null,
         score: analysis.score,
         email: lead.email ?? site.siteData?.emails[0]?.toLowerCase() ?? null,
         ...triagePatch(lead, keep, analysis.score, settings.minScore),
       })
-      .where(
-        job.force
-          ? eq(leads.id, lead.id)
-          : and(eq(leads.id, lead.id), ne(leads.analysisStatus, "done")),
-      )
-      .returning({ id: leads.id }),
+      .where(owned),
   ]);
-
-  await recordAiCost(db, usages.length, sum(usages, "cost"));
-  if (updated.length > 0 && !job.force) await bumpSearch(db, lead.searchId, "analyzedCount");
-  return "done";
 }
+
+/** The same upsert as recordAiCost, as a statement that can join a batch. */
+function aiCostStatement(db: Db, calls: number, costUsd: number, now = new Date()) {
+  return db
+    .insert(apiUsage)
+    .values({ day: localDay(now), provider: DEEPSEEK, requests: calls, costUsd })
+    .onConflictDoUpdate({
+      target: [apiUsage.day, apiUsage.provider],
+      set: {
+        requests: sql`${apiUsage.requests} + ${calls}`,
+        costUsd: sql`${apiUsage.costUsd} + ${costUsd}`,
+      },
+    });
+}
+
+/** Prefix of the reason the AI writes when it discards a lead for its score. */
+const SCORE_DISCARD_PREFIX = "Nota ";
 
 /**
  * Only untouched leads are triaged: the AI never discards a lead you already contacted,
- * and a lead it discarded comes back if a new analysis scores it high enough.
+ * and a lead it discarded for its score comes back if a new analysis scores it high
+ * enough. Leads discarded for any other reason (unsubscribed, closed) stay discarded.
  */
 function triagePatch(
-  lead: Pick<Lead, "status" | "discardReason">,
+  lead: Pick<Lead, "status" | "discardReason" | "unsubscribedAt">,
   keep: boolean,
   score: number,
   minScore: number,
@@ -85,11 +168,16 @@ function triagePatch(
   if (!keep && lead.status === "new") {
     return {
       status: "discarded",
-      discardReason: `Nota ${score}, abaixo do mínimo de ${minScore}`,
+      discardReason: `${SCORE_DISCARD_PREFIX}${score}, abaixo do mínimo de ${minScore}`,
       discardedAt: new Date(),
     };
   }
-  if (keep && lead.status === "discarded" && lead.discardReason) {
+  if (
+    keep &&
+    lead.status === "discarded" &&
+    !lead.unsubscribedAt &&
+    lead.discardReason?.startsWith(SCORE_DISCARD_PREFIX)
+  ) {
     return { status: "new", discardReason: null, discardedAt: null };
   }
   return {};
@@ -158,13 +246,25 @@ export function buildContext(lead: Lead, search: Search | undefined): LeadContex
 /** Records a permanent failure for the lead; called once retries are exhausted. */
 export async function failLead(db: Db, job: LeadJob, error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
-  const updated = await db
+  const pending = and(eq(leads.id, job.leadId), eq(leads.analysisStatus, "pending"));
+  const lead = await db.query.leads.findFirst({ where: pending, columns: { searchId: true } });
+  if (!lead) return;
+  const markFailed = db
     .update(leads)
-    .set({ analysisStatus: "error", analysisError: message.slice(0, 500) })
-    .where(and(eq(leads.id, job.leadId), eq(leads.analysisStatus, "pending")))
-    .returning({ searchId: leads.searchId });
-  const searchId = updated[0]?.searchId;
-  if (searchId && !job.force) await bumpSearch(db, searchId, "errorCount");
+    .set({ analysisStatus: "error", analysisError: message.slice(0, 500), analysisStartedAt: null })
+    .where(pending);
+  if (job.force) {
+    await markFailed;
+    return;
+  }
+  // Counted before the lead update, so a duplicate delivery counts nothing.
+  const [bump, complete] = searchCounterStatements(
+    db,
+    lead.searchId,
+    "errorCount",
+    sql`exists (select 1 from ${leads} where ${pending})`,
+  );
+  await db.batch([bump, complete, markFailed]);
 }
 
 async function readSite(deps: ProcessDeps, lead: Lead, force: boolean) {
@@ -179,19 +279,38 @@ async function readSite(deps: ProcessDeps, lead: Lead, force: boolean) {
   const result = await deps.fetchSite(lead.website);
   const site =
     result.status === "ok"
-      ? { siteStatus: "ok" as const, siteData: result.data, siteTextExcerpt: result.text }
+      ? {
+          siteStatus: "ok" as const,
+          // Scraped from the open web: only stored when it has the expected shape.
+          siteData: parseSiteData(result.data),
+          siteTextExcerpt: result.text,
+        }
       : { siteStatus: result.status, siteData: null, siteTextExcerpt: null };
   await deps.db.update(leads).set(site).where(eq(leads.id, lead.id));
   return site;
 }
 
-async function bumpSearch(db: Db, searchId: string, counter: "analyzedCount" | "errorCount") {
+function parseSiteData(data: unknown): SiteData | null {
+  const parsed = siteDataSchema.safeParse(data);
+  return parsed.success ? parsed.data : null;
+}
+
+/**
+ * Bumps a search counter (only when `when` holds) and completes the search once every
+ * lead is analyzed or failed. Meant to run in the same batch that changes the lead.
+ */
+function searchCounterStatements(
+  db: Db,
+  searchId: string,
+  counter: "analyzedCount" | "errorCount",
+  when: SQL,
+) {
   const column = searches[counter];
-  await db.batch([
+  return [
     db
       .update(searches)
       .set({ [counter]: sql`${column} + 1` })
-      .where(eq(searches.id, searchId)),
+      .where(and(eq(searches.id, searchId), when)),
     db
       .update(searches)
       .set({ status: "done" })
@@ -202,7 +321,7 @@ async function bumpSearch(db: Db, searchId: string, counter: "analyzedCount" | "
           gte(sql`${searches.analyzedCount} + ${searches.errorCount}`, searches.foundCount),
         ),
       ),
-  ]);
+  ] as const;
 }
 
 function sum(usages: CallUsage[], key: "tokensIn" | "tokensOut" | "cost") {

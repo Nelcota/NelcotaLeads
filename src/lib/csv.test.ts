@@ -41,4 +41,28 @@ describe("leadsToCsv", () => {
   it("neutralizes spreadsheet formulas", () => {
     expect(leadsToCsv([lead])).toContain(`"'=HYPERLINK(""x"")"`);
   });
+
+  it.each([
+    "=1+1\nx",
+    ' =HYPERLINK("http://x")',
+    "\t=1",
+    "\r=1",
+    "\n=1",
+    "|cmd",
+    "+1",
+    "-1",
+    "@SUM(A1)",
+  ])("prefixes formula-like cell %j with a quote", (notes) => {
+    const csv = leadsToCsv([{ ...lead, notes }]);
+    const row = Papa.parse<Record<string, string>>(csv.slice(1), { header: true, delimiter: ";" })
+      .data[0];
+    expect(row?.notas).toBe(`'${notes}`);
+  });
+
+  it("leaves ordinary text alone, including formulas after the first line", () => {
+    const csv = leadsToCsv([{ ...lead, notes: "Ligar amanhã\n=1+1" }]);
+    const row = Papa.parse<Record<string, string>>(csv.slice(1), { header: true, delimiter: ";" })
+      .data[0];
+    expect(row?.notas).toBe("Ligar amanhã\n=1+1");
+  });
 });

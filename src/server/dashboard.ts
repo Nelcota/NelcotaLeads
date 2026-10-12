@@ -7,9 +7,9 @@ import { emails, leads, searches } from "@/db/schema";
 import { localDay } from "@/lib/format";
 import { mailConfigured } from "@/lib/mail";
 import { autopilotInputSchema } from "@/lib/schemas";
-import { autopilotDeps, runAutopilot } from "./autopilot";
+import { ALREADY_RAN_MESSAGE, autopilotDeps, runAutopilot } from "./autopilot";
 import { EMAIL_PROVIDER, mailDailyLimit } from "./mail-flow";
-import { loadAutopilot, loadSettings, storeAutopilot, writeAutopilot } from "./settings-store";
+import { loadAutopilot, loadConfig, storeAutopilot, writeAutopilot } from "./settings-store";
 import { GOOGLE_PLACES, placesDailyLimit, requestsToday, usageThisMonth } from "./usage";
 
 const count = sql<number>`count(*)`.mapWith(Number);
@@ -41,9 +41,7 @@ export const getDashboard = createServerFn({ method: "GET" }).handler(async () =
     queue,
     todaySearches,
     todayEmails,
-    autopilot,
-    settingsRow,
-    settings,
+    config,
     month,
     sentToday,
     googleToday,
@@ -131,15 +129,14 @@ export const getDashboard = createServerFn({ method: "GET" }).handler(async () =
       .where(and(inArray(emails.status, ["sent", "received"]), gte(emails.sentAt, since)))
       .orderBy(desc(emails.sentAt))
       .limit(30),
-    loadAutopilot(db),
-    db.query.settings.findFirst(),
-    loadSettings(db),
+    loadConfig(db),
     usageThisMonth(db, now),
     requestsToday(db, EMAIL_PROVIDER, now),
     requestsToday(db, GOOGLE_PLACES, now),
   ]);
 
   const total = totals[0];
+  const { autopilot, settings } = config;
   return {
     today,
     attention,
@@ -161,8 +158,8 @@ export const getDashboard = createServerFn({ method: "GET" }).handler(async () =
       limit: mailDailyLimit(env.MAIL_DAILY_LIMIT),
       queued: queue[0]?.value ?? 0,
       nextSendAt: queue[0]?.next ? new Date(queue[0].next * 1000) : null,
-      aiAutoReply: settingsRow?.aiAutoReply ?? true,
-      autoDispatch: settingsRow?.autoDispatch ?? false,
+      aiAutoReply: config.aiAutoReply,
+      autoDispatch: config.autoDispatch,
     },
     activity: { searches: todaySearches, emails: todayEmails },
     autopilot: {
@@ -192,15 +189,14 @@ export const getAttentionCount = createServerFn({ method: "GET" }).handler(async
 });
 
 export const getAutopilot = createServerFn({ method: "GET" }).handler(async () => {
-  const db = getDb();
-  const [autopilot, row] = await Promise.all([loadAutopilot(db), db.query.settings.findFirst()]);
+  const { autopilot, aiAutoReply, autoDispatch } = await loadConfig(getDb());
   return {
     enabled: autopilot.enabled,
     hour: autopilot.hour,
     results: autopilot.results,
     targets: autopilot.targets.map(({ niche, city }) => ({ niche, city })),
-    aiAutoReply: row?.aiAutoReply ?? true,
-    autoDispatch: row?.autoDispatch ?? false,
+    aiAutoReply,
+    autoDispatch,
   };
 });
 
@@ -228,11 +224,13 @@ export const setAutomation = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
-/** Runs today's searches right away, ignoring the hour and whether they already ran. */
+/** Runs today's searches right away, ignoring the hour; refuses when today already ran. */
 export const runAutopilotNow = createServerFn({ method: "POST" }).handler(async () => {
   const autopilot = await loadAutopilot(getDb());
   if (autopilot.targets.length === 0) {
     throw new Error("Cadastre ao menos um nicho e cidade no piloto automático.");
   }
-  return runAutopilot(autopilotDeps(env), new Date(), { force: true });
+  const result = await runAutopilot(autopilotDeps(env), new Date(), { force: true });
+  if (result.alreadyRan) throw new Error(ALREADY_RAN_MESSAGE);
+  return { searches: result.searches };
 });

@@ -6,7 +6,7 @@ import { leads } from "@/db/schema";
 import { createFakePlaces } from "../../test/fake-places";
 import { createFakeQueue } from "../../test/fake-queue";
 import type { PlacesProvider } from "@/lib/places";
-import { runSearch } from "./collect";
+import { ENQUEUE_FAILED_MESSAGE, runSearch } from "./collect";
 
 const fakeQueue = createFakeQueue;
 
@@ -59,5 +59,22 @@ describe("runSearch", () => {
     const { searchId } = await runSearch(db, fakeQueue().queue, failing, input);
     const search = await db.query.searches.findFirst({ where: (s, { eq }) => eq(s.id, searchId) });
     expect(search).toMatchObject({ status: "error", errorMessage: "quota exceeded" });
+  });
+
+  it("marks the new leads as failed when they cannot be enqueued", async () => {
+    const db = getDb(env.DB);
+    const { queue } = fakeQueue();
+    queue.sendBatch = () => Promise.reject(new Error("queue down"));
+    const { searchId } = await runSearch(db, queue, createFakePlaces(), input);
+    const search = await db.query.searches.findFirst({ where: (s, { eq }) => eq(s.id, searchId) });
+    expect(search).toMatchObject({
+      status: "error",
+      foundCount: 9,
+      errorCount: 9,
+      errorMessage: ENQUEUE_FAILED_MESSAGE,
+    });
+    const rows = await db.select().from(leads);
+    expect(rows).toHaveLength(9);
+    expect(rows.every((lead) => lead.analysisStatus === "error")).toBe(true);
   });
 });

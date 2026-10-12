@@ -1,6 +1,6 @@
-import type { Lead } from "@/db/schema";
+import type { Lead, LeadStatus } from "@/db/schema";
 import { addDays } from "@/lib/format";
-import type { UpdateLeadInput } from "@/lib/schemas";
+import { LEAD_STATUS_LABELS, type UpdateLeadInput } from "@/lib/schemas";
 
 export const DEFAULT_FOLLOW_UP_DAYS = 3;
 
@@ -9,15 +9,52 @@ type Patch = Partial<
 >;
 
 /**
+ * Status changes a person can make, mirroring the lead detail actions: contact a new lead,
+ * undo the contact, mark a reply, close or give up, reopen a closed conversation and send
+ * a discarded lead back to the queue.
+ */
+export const LEAD_TRANSITIONS: Record<LeadStatus, readonly LeadStatus[]> = {
+  new: ["contacted", "discarded"],
+  contacted: ["new", "replied", "closed", "discarded"],
+  replied: ["closed", "discarded"],
+  closed: ["replied"],
+  discarded: ["new"],
+};
+
+/** Statuses that lead to (more) outreach; never allowed once the lead unsubscribed. */
+const OUTREACH_STATUSES: readonly LeadStatus[] = ["new", "contacted", "replied"];
+
+export const UNSUBSCRIBED_MESSAGE =
+  "Este lead pediu para não receber contato e não pode voltar para a fila.";
+
+/** Throws a user-facing error when the status change is not allowed. */
+export function assertTransition(
+  current: Pick<Lead, "status" | "unsubscribedAt">,
+  next: LeadStatus | undefined,
+) {
+  if (next === undefined || next === current.status) return;
+  if (current.unsubscribedAt && OUTREACH_STATUSES.includes(next)) {
+    throw new Error(UNSUBSCRIBED_MESSAGE);
+  }
+  if (!LEAD_TRANSITIONS[current.status].includes(next)) {
+    throw new Error(
+      `Não é possível mudar o lead de "${LEAD_STATUS_LABELS[current.status]}" para "${LEAD_STATUS_LABELS[next]}".`,
+    );
+  }
+}
+
+/**
  * Turns a lead update into the columns to write. Marking a lead as contacted records
  * when it happened and schedules a follow-up; leaving the pipeline clears the follow-up.
+ * Throws when the status change is not allowed (see LEAD_TRANSITIONS).
  */
 export function leadPatch(
-  current: Pick<Lead, "contactedAt" | "followUpOn">,
+  current: Pick<Lead, "status" | "unsubscribedAt" | "contactedAt" | "followUpOn">,
   { id: _id, ...changes }: UpdateLeadInput,
   now: Date,
   today: string,
 ): Patch {
+  assertTransition(current, changes.status);
   const patch: Patch = { ...changes };
   if (changes.status === "contacted") {
     patch.contactedAt = current.contactedAt ?? now;

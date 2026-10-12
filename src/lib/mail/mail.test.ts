@@ -81,7 +81,7 @@ describe("smtpSend", () => {
       command.startsWith("EHLO") ? ["250 AUTH PLAIN"] : ["535 authentication failed"],
     );
     await expect(
-      smtpSend(wire, { user: "u", password: "p" }, { from: "u", to: "t" }, "x"),
+      smtpSend(wire, { user: "u", password: "p" }, { from: "u@x.com", to: "t@y.com" }, "x"),
     ).rejects.toThrow("SMTP login: 535 authentication failed");
   });
 });

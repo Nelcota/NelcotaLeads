@@ -5,7 +5,7 @@ import { z } from "zod";
 import { getDb } from "@/db/client";
 import { searches } from "@/db/schema";
 import { getPlacesProvider } from "@/lib/places";
-import { newSearchSchema } from "@/lib/schemas";
+import { idSchema, newSearchSchema } from "@/lib/schemas";
 import { mailConfigured } from "@/lib/mail";
 import { runSearch } from "./collect";
 import { EMAIL_PROVIDER, mailDailyLimit } from "./mail-flow";
@@ -29,7 +29,7 @@ export const listSearches = createServerFn({ method: "GET" }).handler(() =>
 );
 
 export const getSearch = createServerFn({ method: "GET" })
-  .validator(z.object({ id: z.string().min(1) }))
+  .validator(z.object({ id: idSchema }))
   .handler(async ({ data }) => {
     const search = await getDb().query.searches.findFirst({ where: eq(searches.id, data.id) });
     if (!search) throw new Error("Busca não encontrada");
@@ -38,19 +38,23 @@ export const getSearch = createServerFn({ method: "GET" })
 
 export const getProviderStatus = createServerFn({ method: "GET" }).handler(async () => {
   const db = getDb();
-  const settings = await loadSettings(db);
+  const [settings, placesUsed, mailSent] = await Promise.all([
+    loadSettings(db),
+    requestsToday(db, GOOGLE_PLACES),
+    requestsToday(db, EMAIL_PROVIDER),
+  ]);
   return {
     placesConfigured: Boolean(env.GOOGLE_PLACES_API_KEY),
     aiConfigured: Boolean(env.DEEPSEEK_API_KEY),
     offerConfigured: settings.offer.length > 0,
     placesUsage: {
-      used: await requestsToday(db, GOOGLE_PLACES),
+      used: placesUsed,
       limit: placesDailyLimit(env.PLACES_DAILY_REQUEST_LIMIT),
     },
     mail: {
       configured: mailConfigured(env),
       address: (env.MAIL_ADDRESS ?? "").toLowerCase(),
-      sentToday: await requestsToday(db, EMAIL_PROVIDER),
+      sentToday: mailSent,
       limit: mailDailyLimit(env.MAIL_DAILY_LIMIT),
     },
   };

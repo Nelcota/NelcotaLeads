@@ -37,6 +37,20 @@ export async function reserveRequest(
   return rows.length > 0;
 }
 
+/** Gives back one request reserved today (e.g. the call didn't happen); never below zero. */
+export async function releaseRequest(db: Db, provider: string, now = new Date()) {
+  await db
+    .update(apiUsage)
+    .set({ requests: sql`${apiUsage.requests} - 1` })
+    .where(
+      and(
+        eq(apiUsage.day, localDay(now)),
+        eq(apiUsage.provider, provider),
+        sql`${apiUsage.requests} > 0`,
+      ),
+    );
+}
+
 export async function requestsToday(db: Db, provider: string, now = new Date()) {
   const row = await db.query.apiUsage.findFirst({
     where: and(eq(apiUsage.day, localDay(now)), eq(apiUsage.provider, provider)),

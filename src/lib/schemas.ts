@@ -1,7 +1,13 @@
 import { z } from "zod";
 
+/** Row ids (UUIDs today); bounded so a request cannot carry an arbitrarily long key. */
+export const idSchema = z.string().min(1).max(64);
+
+/** User-typed text: NFC so "é" typed as e + combining accent matches the precomposed one. */
+const userText = () => z.string().normalize("NFC").trim();
+
 export const scoringCriterionSchema = z.object({
-  label: z.string().trim().min(1, "Descreva o sinal").max(200),
+  label: userText().min(1, "Descreva o sinal").max(200),
   weight: z.number().int().min(-100).max(100),
 });
 export type ScoringCriterion = z.infer<typeof scoringCriterionSchema>;
@@ -24,12 +30,12 @@ export const TONE_LABELS: Record<(typeof TONES)[number], string> = {
 };
 
 export const settingsInputSchema = z.object({
-  offer: z.string().trim().max(2000),
-  idealCustomer: z.string().trim().max(2000),
+  offer: userText().max(2000),
+  idealCustomer: userText().max(2000),
   criteria: z.array(scoringCriterionSchema).max(20),
   tone: z.enum(TONES),
-  senderName: z.string().trim().max(120),
-  senderCompany: z.string().trim().max(120),
+  senderName: userText().max(120),
+  senderCompany: userText().max(120),
   minScore: z.number().int().min(0).max(100),
 });
 export type SettingsInput = z.infer<typeof settingsInputSchema>;
@@ -54,8 +60,8 @@ export const autopilotInputSchema = z.object({
   targets: z
     .array(
       z.object({
-        niche: z.string().trim().min(2, "Informe o nicho").max(120),
-        city: z.string().trim().min(2, "Informe a cidade").max(120),
+        niche: userText().min(2, "Informe o nicho").max(120),
+        city: userText().min(2, "Informe a cidade").max(120),
       }),
     )
     .max(10),
@@ -65,35 +71,58 @@ export type AutopilotInput = z.infer<typeof autopilotInputSchema>;
 export const MAX_RESULTS_LIMIT = 60;
 
 export const newSearchSchema = z.object({
-  niche: z.string().trim().min(2, "Informe o nicho").max(120),
-  city: z.string().trim().min(2, "Informe a cidade").max(120),
+  niche: userText().min(2, "Informe o nicho").max(120),
+  city: userText().min(2, "Informe a cidade").max(120),
   maxResults: z.number().int().min(1).max(MAX_RESULTS_LIMIT),
 });
 export type NewSearchInput = z.infer<typeof newSearchSchema>;
 
+/** Bounds for data scraped from a website; extractSite trims to fit them. */
+export const SITE_LIMITS = {
+  url: 2048,
+  title: 300,
+  description: 500,
+  link: 500,
+  email: 254,
+  phone: 40,
+  socialLinks: 10,
+  emails: 5,
+  phones: 5,
+} as const;
+
 export const siteDataSchema = z.object({
-  finalUrl: z.string(),
+  finalUrl: z.string().max(SITE_LIMITS.url),
   https: z.boolean(),
-  title: z.string().nullable(),
-  description: z.string().nullable(),
-  socialLinks: z.array(z.string()),
-  emails: z.array(z.string()),
-  phones: z.array(z.string()),
-  copyrightYear: z.number().nullable(),
+  title: z.string().max(SITE_LIMITS.title).nullable(),
+  description: z.string().max(SITE_LIMITS.description).nullable(),
+  socialLinks: z.array(z.string().max(SITE_LIMITS.link)).max(SITE_LIMITS.socialLinks),
+  emails: z.array(z.string().max(SITE_LIMITS.email)).max(SITE_LIMITS.emails),
+  phones: z.array(z.string().max(SITE_LIMITS.phone)).max(SITE_LIMITS.phones),
+  copyrightYear: z.number().int().min(1900).max(2200).nullable(),
 });
 export type SiteData = z.infer<typeof siteDataSchema>;
 
 export const leadAnalysisSchema = z.object({
-  summary: z.string().describe("O que a empresa faz e para quem, em 1 ou 2 frases simples."),
+  summary: z
+    .string()
+    .min(1)
+    .max(1000)
+    .describe("O que a empresa faz e para quem, em 1 ou 2 frases simples."),
   signals: z
-    .array(z.string())
+    .array(z.string().min(1).max(300))
+    .max(10)
     .describe(
       "Sinais de oportunidade para a oferta (lacunas, problemas, ausências). Não liste pontos fortes do negócio.",
     ),
-  painPoints: z.array(z.string()).describe("Dores prováveis do negócio relacionadas à oferta."),
+  painPoints: z
+    .array(z.string().min(1).max(300))
+    .max(10)
+    .describe("Dores prováveis do negócio relacionadas à oferta."),
   score: z.number().int().min(0).max(100).describe("Nota de 0 a 100 segundo os critérios."),
   scoreReasoning: z
     .string()
+    .min(1)
+    .max(1000)
     .describe("Justificativa da nota, citando os critérios aplicados e as informações ausentes."),
 });
 export type LeadAnalysis = z.infer<typeof leadAnalysisSchema>;
@@ -101,20 +130,30 @@ export type LeadAnalysis = z.infer<typeof leadAnalysisSchema>;
 export const firstMessageSchema = z.object({
   firstMessage: z
     .string()
+    .min(1)
+    .max(2000)
     .describe("Mensagem de WhatsApp curta e natural, em português do Brasil, seguindo as regras."),
 });
 
 export const followUpSchema = z.object({
   message: z
     .string()
+    .min(1)
+    .max(2000)
     .describe("Lembrete curto de WhatsApp, em português do Brasil, seguindo as regras."),
 });
 
 export const outreachEmailSchema = z.object({
   subject: z
     .string()
+    .min(1)
+    .max(200)
     .describe("Assunto curto e específico, sem caixa alta nem ponto de exclamação."),
-  body: z.string().describe("Corpo do e-mail em texto simples, sem saudação final nem assinatura."),
+  body: z
+    .string()
+    .min(1)
+    .max(5000)
+    .describe("Corpo do e-mail em texto simples, sem saudação final nem assinatura."),
 });
 export type OutreachEmail = z.infer<typeof outreachEmailSchema>;
 
@@ -125,10 +164,19 @@ export const emailReplySchema = z.object({
     .describe(
       "reply: a IA responde. handoff: passar para a pessoa. close: a empresa não tem interesse ou pediu para não receber.",
     ),
-  reason: z.string().describe("Motivo da decisão em uma frase curta, para o painel."),
-  reply: z.string().describe("Texto da resposta quando action = reply; vazio nos outros casos."),
+  reason: z
+    .string()
+    .min(1)
+    .max(1000)
+    .describe("Motivo da decisão em uma frase curta, para o painel."),
+  // reply and draft may be empty depending on the action, so no minimum.
+  reply: z
+    .string()
+    .max(5000)
+    .describe("Texto da resposta quando action = reply; vazio nos outros casos."),
   draft: z
     .string()
+    .max(5000)
     .describe(
       "Quando action = handoff: sugestão de resposta para a pessoa revisar; vazio nos outros casos.",
     ),
@@ -136,7 +184,10 @@ export const emailReplySchema = z.object({
 export type EmailReplyDecision = z.infer<typeof emailReplySchema>;
 
 export const areasSchema = z.object({
-  areas: z.array(z.string()).max(40).describe("Bairros ou regiões comerciais da cidade."),
+  areas: z
+    .array(z.string().min(1).max(300))
+    .max(40)
+    .describe("Bairros ou regiões comerciais da cidade."),
 });
 
 export const LEAD_STATUS_VALUES = ["new", "contacted", "replied", "closed", "discarded"] as const;
@@ -173,7 +224,7 @@ export const LEAD_SORT_FIELDS = ["score", "name", "rating", "reviewCount", "crea
 
 /** Lead list filters; shared by the table, the URL and the CSV export. */
 export const leadFiltersSchema = z.object({
-  q: z.string().trim().max(120).optional(),
+  q: userText().max(120).optional(),
   searchId: z.string().max(64).optional(),
   view: z.enum(LEAD_VIEWS).optional(),
   minScore: z.coerce.number().int().min(0).max(100).optional(),
@@ -186,9 +237,9 @@ export const leadFiltersSchema = z.object({
 export type LeadFilters = z.infer<typeof leadFiltersSchema>;
 
 export const updateLeadSchema = z.object({
-  id: z.string().min(1),
+  id: idSchema,
   status: z.enum(LEAD_STATUS_VALUES).optional(),
-  notes: z.string().max(5000).optional(),
+  notes: userText().max(5000).optional(),
   followUpOn: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Data inválida")
@@ -198,8 +249,8 @@ export const updateLeadSchema = z.object({
 export type UpdateLeadInput = z.infer<typeof updateLeadSchema>;
 
 export const updateMessageSchema = z.object({
-  analysisId: z.string().min(1),
-  firstMessage: z.string().trim().max(2000),
+  analysisId: idSchema,
+  firstMessage: userText().max(2000),
 });
 
 /** Score bands used by filters, badges and counts. */

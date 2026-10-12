@@ -1,10 +1,13 @@
-import { eq } from "drizzle-orm";
+import { and, eq, gte, inArray, sql } from "drizzle-orm";
 import type { Db } from "@/db/client";
 import { leads, searches } from "@/db/schema";
 import type { PlacesProvider } from "@/lib/places";
 import { toE164 } from "@/lib/phone";
 import type { NewSearchInput } from "@/lib/schemas";
 import { enqueueLeads, type LeadJob } from "./queue";
+
+export const ENQUEUE_FAILED_MESSAGE =
+  "Não foi possível colocar o lead na fila de análise. Peça uma nova análise.";
 
 /**
  * Creates a search, collects places and enqueues one analysis job per new lead.
@@ -54,20 +57,49 @@ export async function runSearch(
     const results = first !== undefined ? await db.batch([first, ...rest]) : [];
     const newLeadIds = results.flat().map((row) => row.id);
 
-    await db
-      .update(searches)
-      .set({
-        status: newLeadIds.length > 0 ? "analyzing" : "done",
-        foundCount: newLeadIds.length,
-        duplicateCount: places.length - newLeadIds.length,
-        placesRequests: requests,
-        errorMessage: limitReached
-          ? `Limite diário de requisições ao Google atingido: coletadas ${places.length} de até ${input.maxResults} empresas.`
-          : null,
-      })
-      .where(eq(searches.id, searchId));
+    // Enqueue before the search counts as analyzing: if the queue is unavailable the new
+    // leads are marked as failed instead of waiting forever for an analysis.
+    let enqueueError: string | null = null;
+    try {
+      await enqueueLeads(queue, newLeadIds);
+    } catch (error) {
+      console.error("could not enqueue the search's leads", searchId, error);
+      enqueueError = ENQUEUE_FAILED_MESSAGE;
+      await db
+        .update(leads)
+        .set({ analysisStatus: "error", analysisError: ENQUEUE_FAILED_MESSAGE })
+        .where(and(inArray(leads.id, newLeadIds), eq(leads.analysisStatus, "pending")));
+    }
 
-    await enqueueLeads(queue, newLeadIds);
+    await db.batch([
+      db
+        .update(searches)
+        .set({
+          status: enqueueError ? "error" : newLeadIds.length > 0 ? "analyzing" : "done",
+          foundCount: newLeadIds.length,
+          duplicateCount: places.length - newLeadIds.length,
+          // Leave the counters alone otherwise: jobs may already be bumping them.
+          ...(enqueueError ? { errorCount: newLeadIds.length } : {}),
+          placesRequests: requests,
+          errorMessage:
+            enqueueError ??
+            (limitReached
+              ? `Limite diário de requisições ao Google atingido: coletadas ${places.length} de até ${input.maxResults} empresas.`
+              : null),
+        })
+        .where(eq(searches.id, searchId)),
+      // Jobs may finish before the search is marked as analyzing; complete it here then.
+      db
+        .update(searches)
+        .set({ status: "done" })
+        .where(
+          and(
+            eq(searches.id, searchId),
+            eq(searches.status, "analyzing"),
+            gte(sql`${searches.analyzedCount} + ${searches.errorCount}`, searches.foundCount),
+          ),
+        ),
+    ]);
   } catch (error) {
     await db
       .update(searches)
