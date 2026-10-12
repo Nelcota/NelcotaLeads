@@ -39,10 +39,15 @@ export function ExternalLink({
   return (
     <a {...props} target="_blank" rel="noopener noreferrer">
       {children}
-      {indicator ? <ArrowUpRightIcon aria-hidden className="size-3 shrink-0" /> : null}
+      {indicator ? <ExternalMark /> : null}
       <span className="sr-only"> (abre em nova aba)</span>
     </a>
   );
+}
+
+/** The ↗ of ExternalLink, for links that place it themselves (`indicator={false}`). */
+export function ExternalMark() {
+  return <ArrowUpRightIcon aria-hidden className="size-3 shrink-0" />;
 }
 
 /** The system colors; each one carries a status meaning across the app. */

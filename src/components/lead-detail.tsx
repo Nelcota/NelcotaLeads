@@ -16,6 +16,7 @@ import {
 import {
   Avatar,
   ExternalLink,
+  ExternalMark,
   IconTile,
   ProgressRing,
   SaveStatus,
@@ -186,14 +187,13 @@ function QuickActions({ lead }: { lead: Lead }) {
       toast.error("Não foi possível copiar");
     }
   };
-  const external = { target: "_blank", rel: "noreferrer" } as const;
   return (
     <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1">
       {lead.phoneE164 ? (
         <>
           <QuickAction
             href={whatsappLink(lead.phoneE164)}
-            {...external}
+            external
             icon={MessageCircleIcon}
             tone="green"
           >
@@ -212,7 +212,7 @@ function QuickActions({ lead }: { lead: Lead }) {
       {safeHttpUrl(lead.website) ? (
         <QuickAction
           href={safeHttpUrl(lead.website) ?? undefined}
-          {...external}
+          external
           icon={GlobeIcon}
           tone="blue"
         >
@@ -220,7 +220,7 @@ function QuickActions({ lead }: { lead: Lead }) {
         </QuickAction>
       ) : null}
       {lead.mapsUrl ? (
-        <QuickAction href={lead.mapsUrl} {...external} icon={MapPinIcon} tone="red">
+        <QuickAction href={lead.mapsUrl} external icon={MapPinIcon} tone="red">
           Google Maps
         </QuickAction>
       ) : null}
@@ -952,7 +952,7 @@ function Term({ label, children }: { label: string; children: ReactNode }) {
 /** Contacts-style action: a round colored tile with the label under it. */
 function QuickAction(
   props: { icon: typeof PhoneIcon; tone: Tone; children: ReactNode } & (
-    | ({ as?: undefined } & React.ComponentProps<"a">)
+    | ({ as?: undefined; external?: boolean } & React.ComponentProps<"a">)
     | ({ as: "button" } & React.ComponentProps<"button">)
   ),
 ) {
@@ -974,7 +974,18 @@ function QuickAction(
       </button>
     );
   }
-  const { icon: _icon, tone: _tone, children: _children, as: _as, ...rest } = props;
+  const { icon: _icon, tone: _tone, children, as: _as, external, ...rest } = props;
+  if (external) {
+    return (
+      <ExternalLink className={className} indicator={false} {...rest}>
+        <IconTile icon={props.icon} tone={props.tone} size={34} round />
+        <span className="inline-flex items-center gap-0.5">
+          {children}
+          <ExternalMark />
+        </span>
+      </ExternalLink>
+    );
+  }
   return (
     <a className={className} {...rest}>
       {body}
