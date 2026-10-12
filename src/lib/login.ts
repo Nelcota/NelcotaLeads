@@ -1,7 +1,8 @@
 import { z } from "zod";
+import { MAX_PASSWORD_LENGTH } from "./password";
 
+export { MAX_PASSWORD_LENGTH };
 export const MIN_PASSWORD_LENGTH = 8;
-export const MAX_PASSWORD_LENGTH = 512;
 
 /** Sign-in screens: shown without the app shell, reachable without a session. */
 export const AUTH_PAGES: ReadonlySet<string> = new Set([

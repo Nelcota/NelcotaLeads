@@ -4,14 +4,22 @@ import { users } from "@/db/schema";
 import {
   AUTH_PAGES,
   LOGIN_ERRORS,
-  MAX_PASSWORD_LENGTH,
   MIN_PASSWORD_LENGTH,
   type LoginErrorCode,
   type ResetPasswordInput,
   type SignInInput,
   type SignUpInput,
 } from "@/lib/login";
+import {
+  MAX_PASSWORD_LENGTH,
+  equalBytes,
+  hashPassword,
+  toBase64Url,
+  verifyPassword,
+} from "@/lib/password";
 import { releaseRequest, reserveRequest } from "./usage";
+
+export { hashPassword, verifyPassword };
 
 /**
  * Local accounts (the `users` table) with signed, stateless session cookies.
@@ -31,8 +39,6 @@ const DAY_SECONDS = 86_400;
 const SESSION_SECONDS = 30 * DAY_SECONDS;
 // Sessions with less than this left get a fresh cookie on the next page load.
 const RENEW_BELOW_SECONDS = 15 * DAY_SECONDS;
-// The Workers runtime caps PBKDF2 at 100k iterations.
-const PBKDF2_ITERATIONS = 100_000;
 
 const AUTH_ENDPOINTS = new Set(["/api/login", "/api/signup", "/api/reset-password"]);
 // Reachable without a session; everything else, server functions included, is gated.
@@ -55,27 +61,6 @@ async function sign(secret: string, message: string): Promise<Uint8Array> {
   return new Uint8Array(await crypto.subtle.sign("HMAC", key, encoder.encode(message)));
 }
 
-/** Constant-time comparison, so response timing does not leak how much matched. */
-function equalBytes(a: Uint8Array, b: Uint8Array): boolean {
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= (a[i] ?? 0) ^ (b[i] ?? 0);
-  return diff === 0;
-}
-
-function toBase64Url(bytes: Uint8Array): string {
-  let binary = "";
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
-}
-
-function fromBase64Url(value: string): Uint8Array<ArrayBuffer> {
-  const binary = atob(value.replaceAll("-", "+").replaceAll("_", "/"));
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes;
-}
-
 /** Whether the access code matches the server secret, compared as fixed-length MACs. */
 export async function accessCodeMatches(input: string, secret: string): Promise<boolean> {
   if (input.length > MAX_PASSWORD_LENGTH) return false;
@@ -84,33 +69,6 @@ export async function accessCodeMatches(input: string, secret: string): Promise<
     sign(secret, `password:${secret}`),
   ]);
   return equalBytes(given, expected);
-}
-
-async function pbkdf2(password: string, salt: BufferSource, iterations: number) {
-  const key = await crypto.subtle.importKey("raw", encoder.encode(password), "PBKDF2", false, [
-    "deriveBits",
-  ]);
-  const bits = await crypto.subtle.deriveBits(
-    { name: "PBKDF2", hash: "SHA-256", salt, iterations },
-    key,
-    256,
-  );
-  return new Uint8Array(bits);
-}
-
-/** `pbkdf2-sha256$<iterations>$<salt>$<hash>`, base64url parts. */
-export async function hashPassword(password: string): Promise<string> {
-  const salt = crypto.getRandomValues(new Uint8Array(16));
-  const hash = await pbkdf2(password, salt, PBKDF2_ITERATIONS);
-  return `pbkdf2-sha256$${PBKDF2_ITERATIONS}$${toBase64Url(salt)}$${toBase64Url(hash)}`;
-}
-
-export async function verifyPassword(password: string, stored: string): Promise<boolean> {
-  const [scheme, rounds, salt, hash] = stored.split("$");
-  const iterations = Number(rounds);
-  if (scheme !== "pbkdf2-sha256" || !salt || !hash || !Number.isInteger(iterations)) return false;
-  if (password.length > MAX_PASSWORD_LENGTH) return false;
-  return equalBytes(await pbkdf2(password, fromBase64Url(salt), iterations), fromBase64Url(hash));
 }
 
 // Compared against when the e-mail has no account, so both cases take the same time.
