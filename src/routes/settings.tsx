@@ -125,10 +125,7 @@ function MailCard() {
             <>
               <p className="font-medium text-orange">Caixa não conectada</p>
               <p className="font-light text-muted-foreground">
-                Coloque <code className={CODE}>MAIL_ADDRESS</code> e{" "}
-                <code className={CODE}>MAIL_PASSWORD</code> da sua caixa da Hostinger no arquivo{" "}
-                <code className={CODE}>.dev.vars</code> e reinicie o app. Em produção, use{" "}
-                <code className={CODE}>wrangler secret put</code>.
+                A caixa de e-mail ainda não foi configurada. Fale com quem administra o sistema.
               </p>
             </>
           )}
@@ -537,8 +534,6 @@ function SettingsForm({ defaults }: { defaults: SettingsInput }) {
     </form>
   );
 }
-
-const CODE = "rounded-[5px] bg-fill-2 px-1 py-px text-[12px] font-medium";
 
 /** Settings-style section: title above, grouped list, the description as a footnote below. */
 function SettingsSection({

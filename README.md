@@ -39,7 +39,7 @@ pnpm dev                           # http://localhost:3000
 
 O app inteiro fica atrás de uma tela de login. Defina `APP_PASSWORD` (8+ caracteres) no `.dev.vars` e, em produção, com `wrangler secret put APP_PASSWORD`. A sessão dura 30 dias, trocar a senha desconecta todos os navegadores, e cada IP tem até 10 tentativas erradas por dia.
 
-As chaves `GOOGLE_PLACES_API_KEY` e `DEEPSEEK_API_KEY` são obrigatórias: o app não usa dados simulados. `MAIL_ADDRESS` e `MAIL_PASSWORD` são necessárias para disparar e-mails; teste a conexão em Configurações. Enquanto alguma faltar, a tela de nova busca mostra qual é e bloqueia a busca.
+As chaves `GOOGLE_PLACES_API_KEY` e `DEEPSEEK_API_KEY` são obrigatórias: o app não usa dados simulados. `MAIL_ADDRESS` e `MAIL_PASSWORD` são necessárias para disparar e-mails; teste a conexão em Configurações. Enquanto alguma faltar, a tela de nova busca avisa e bloqueia a busca, e Configurações mostra "Caixa não conectada". Para resolver, coloque as variáveis no `.dev.vars` e reinicie o app; em produção, use `wrangler secret put <NOME>` (veja [Deploy](#deploy-na-cloudflare)). A tela de erro do app tem "Copiar detalhes", que copia o nome, a mensagem e a rota do erro para quem for investigar.
 
 Fluxo de uso: Configurações (oferta, critérios, e-mail e modo automático) → Buscar empresas (ou busca diária automática) → Leads: selecione e clique em Disparar e-mail → revise os e-mails escritos pela IA → Disparar → acompanhe em Conversas; quando a IA para, a conversa aparece em "Precisa de você".
 
