@@ -40,6 +40,22 @@ export const settingsInputSchema = z.object({
 });
 export type SettingsInput = z.infer<typeof settingsInputSchema>;
 
+/** Bounds of the "Respostas rápidas": how many, and how long each one may be. */
+export const QUICK_REPLY_LIMITS = { count: 10, title: 60, body: 1000 } as const;
+
+export const quickReplySchema = z.object({
+  title: userText().min(1, "Dê um nome ao modelo").max(QUICK_REPLY_LIMITS.title),
+  body: userText()
+    .min(1, "Escreva o texto do modelo")
+    .max(QUICK_REPLY_LIMITS.body, "Até 1.000 caracteres"),
+});
+export type QuickReplyInput = z.infer<typeof quickReplySchema>;
+
+export const quickRepliesInputSchema = z.object({
+  replies: z.array(quickReplySchema).max(QUICK_REPLY_LIMITS.count),
+});
+export type QuickRepliesInput = z.infer<typeof quickRepliesInputSchema>;
+
 export const AUTOPILOT_RESULTS = [20, 40, 60] as const;
 
 /** A niche + city the autopilot searches every day, rotating through the city's areas. */

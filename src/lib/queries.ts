@@ -5,6 +5,7 @@ import { getAttentionCount, getDashboard } from "@/server/dashboard";
 import { getConversation, listConversations } from "@/server/mail";
 import { getLead, getLeadCounts, listLeads } from "@/server/leads";
 import { getProviderStatus, getSearch, listSearches } from "@/server/searches";
+import { getQuickReplies } from "@/server/settings";
 
 const isRunning = (status: string) => status === "collecting" || status === "analyzing";
 
@@ -86,3 +87,9 @@ export const conversationQuery = (leadId: string) =>
     queryFn: () => getConversation({ data: { leadId } }),
     refetchInterval: 15_000,
   });
+
+/** "Respostas rápidas", edited in Configurações and inserted from the composer. */
+export const quickRepliesQuery = queryOptions({
+  queryKey: ["quick-replies"],
+  queryFn: () => getQuickReplies(),
+});

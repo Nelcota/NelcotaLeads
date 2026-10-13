@@ -403,4 +403,40 @@ test.describe("e-mail conversations", () => {
     await expect(page.getByLabel("Sua resposta")).toHaveValue("Resposta reescrita pela IA");
     expect(await backend.sent()).toHaveLength(1);
   });
+
+  test("a quick reply saved in Configurações goes in where the caret is", async ({
+    page,
+    backend,
+  }) => {
+    const { id } = await startConversation(page, backend);
+    await visit(page, "/settings");
+    await page.getByRole("button", { name: "Adicionar modelo" }).click();
+    await page.getByLabel("Nome do modelo 1").fill("Ligação");
+    await page.getByLabel("Texto do modelo 1").fill("Posso te ligar amanhã às 10h?");
+    await page.getByRole("button", { name: "Salvar respostas rápidas" }).click();
+    await expect(page.getByText("Respostas rápidas salvas")).toBeVisible();
+
+    await visit(page, `/conversas?lead=${id}`);
+    const reply = page.getByLabel("Sua resposta");
+    await reply.fill("Oi!  Abraço.");
+    await reply.press("Home");
+    await reply.press("ArrowRight");
+    await reply.press("ArrowRight");
+    await reply.press("ArrowRight");
+    await reply.press("ArrowRight");
+
+    await page.getByRole("button", { name: "Modelos" }).click();
+    await page.getByLabel("Filtrar modelos").fill("padaria");
+    await expect(page.getByText("Nenhum modelo com “padaria”.")).toBeVisible();
+    await page.getByLabel("Filtrar modelos").fill("LIGACAO");
+    await page.getByRole("button", { name: /Ligação/ }).click();
+    await expect(reply).toHaveValue("Oi! Posso te ligar amanhã às 10h? Abraço.");
+    await expect(reply).toBeFocused();
+
+    await expect(page.getByText("Rascunho salvo")).toBeVisible();
+    await reload(page);
+    await expect(page.getByLabel("Sua resposta")).toHaveValue(
+      "Oi! Posso te ligar amanhã às 10h? Abraço.",
+    );
+  });
 });

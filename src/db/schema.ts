@@ -243,9 +243,22 @@ export const users = sqliteTable(
   (t) => [uniqueIndex("users_email_idx").on(t.email)],
 );
 
+/**
+ * The user's canned answers ("Respostas rápidas"), inserted into a reply from the composer.
+ * Its own table, so the settings row (read by every tick) never depends on it.
+ */
+export const quickReplies = sqliteTable("quick_replies", {
+  id: text("id").primaryKey(),
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  position: integer("position").notNull(),
+  ...timestamps,
+});
+
 export type Settings = typeof settings.$inferSelect;
 export type Search = typeof searches.$inferSelect;
 export type Lead = typeof leads.$inferSelect;
 export type Analysis = typeof analyses.$inferSelect;
 export type Email = typeof emails.$inferSelect;
 export type User = typeof users.$inferSelect;
+export type QuickReply = typeof quickReplies.$inferSelect;

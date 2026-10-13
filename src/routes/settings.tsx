@@ -18,6 +18,7 @@ import {
   SparklesIcon,
 } from "lucide-react";
 import { FloatingBar, IconTile, toneVar, type Tone } from "@/components/apple-ui";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { ReactNode } from "react";
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
@@ -40,6 +41,9 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   AUTOPILOT_RESULTS,
   autopilotInputSchema,
+  QUICK_REPLY_LIMITS,
+  quickRepliesInputSchema,
+  type QuickRepliesInput,
   settingsInputSchema,
   TONE_LABELS,
   TONES,
@@ -47,10 +51,10 @@ import {
   type SettingsInput,
 } from "@/lib/schemas";
 import { cn } from "@/lib/utils";
-import { providerStatusQuery } from "@/lib/queries";
+import { providerStatusQuery, quickRepliesQuery } from "@/lib/queries";
 import { getAutopilot, saveAutopilot } from "@/server/dashboard";
 import { testMailConnection } from "@/server/mail";
-import { getSettings, saveSettings } from "@/server/settings";
+import { getSettings, saveQuickReplies, saveSettings } from "@/server/settings";
 import { pageTitle } from "@/lib/page-title";
 
 const settingsQuery = queryOptions({ queryKey: ["settings"], queryFn: () => getSettings() });
@@ -69,6 +73,8 @@ export const Route = createFileRoute("/settings")({
       context.queryClient.ensureQueryData(autopilotQuery),
       // The e-mail card renders from it; prefetching keeps SSR and hydration in agreement.
       context.queryClient.ensureQueryData(providerStatusQuery),
+      // Never fails the page: the section shows its own error.
+      context.queryClient.prefetchQuery(quickRepliesQuery),
     ]),
   component: SettingsPage,
 });
@@ -96,6 +102,7 @@ function SettingsPage() {
         <MailCard />
         <AutopilotForm />
         <SettingsForm defaults={data} />
+        <QuickReplies />
       </div>
     </Page>
   );
@@ -545,6 +552,127 @@ function SettingsForm({ defaults }: { defaults: SettingsInput }) {
           </Button>
         </FloatingBar>
       ) : null}
+    </form>
+  );
+}
+
+const QUICK_REPLIES_DESCRIPTION = `Textos prontos que você insere numa resposta pelo botão Modelos, em Conversas. Até ${QUICK_REPLY_LIMITS.count} modelos de até 1.000 caracteres.`;
+
+function QuickReplies() {
+  const { data, isError } = useQuery(quickRepliesQuery);
+  if (!data) {
+    return (
+      <SettingsSection
+        id="respostas"
+        title="Respostas rápidas"
+        description={QUICK_REPLIES_DESCRIPTION}
+      >
+        {isError ? (
+          <p className="text-sm font-light text-red">
+            Não foi possível carregar os modelos. Atualize a página.
+          </p>
+        ) : (
+          <Skeleton className="h-24 w-full" />
+        )}
+      </SettingsSection>
+    );
+  }
+  return (
+    <QuickRepliesForm defaults={{ replies: data.map(({ title, body }) => ({ title, body })) }} />
+  );
+}
+
+function QuickRepliesForm({ defaults }: { defaults: QuickRepliesInput }) {
+  const queryClient = useQueryClient();
+  const form = useForm<QuickRepliesInput>({
+    resolver: zodResolver(quickRepliesInputSchema),
+    defaultValues: defaults,
+  });
+  const replies = useFieldArray({ control: form.control, name: "replies" });
+  const { errors, isDirty } = form.formState;
+  const full = replies.fields.length >= QUICK_REPLY_LIMITS.count;
+
+  const mutation = useMutation({
+    mutationFn: (data: QuickRepliesInput) => saveQuickReplies({ data }),
+    onSuccess: async (_result, data) => {
+      form.reset(data);
+      await queryClient.invalidateQueries({ queryKey: quickRepliesQuery.queryKey });
+      toast.success("Respostas rápidas salvas");
+    },
+    onError: errorToast("Não foi possível salvar as respostas rápidas"),
+  });
+
+  return (
+    <form
+      noValidate
+      onSubmit={(event) => void form.handleSubmit((data) => mutation.mutate(data))(event)}
+    >
+      <SettingsSection
+        id="respostas"
+        title="Respostas rápidas"
+        description={QUICK_REPLIES_DESCRIPTION}
+        contentClassName="grid gap-0 p-0"
+        footer={
+          <Button type="submit" disabled={!isDirty || mutation.isPending}>
+            {mutation.isPending ? "Salvando…" : "Salvar respostas rápidas"}
+          </Button>
+        }
+      >
+        {replies.fields.length === 0 ? (
+          <p className="px-4 pt-3.5 text-sm font-light text-muted-foreground">
+            Nenhum modelo ainda. Crie um para responder mais rápido.
+          </p>
+        ) : null}
+        {replies.fields.map((field, index) => {
+          const error = errors.replies?.[index];
+          return (
+            <div key={field.id} className="grouped-row grid gap-2 px-4 py-3 [--inset:16px]">
+              <div className="flex items-center gap-2">
+                <Input
+                  aria-label={`Nome do modelo ${index + 1}`}
+                  placeholder="Nome, ex.: Agendar uma ligação"
+                  maxLength={QUICK_REPLY_LIMITS.title}
+                  defaultValue={field.title}
+                  {...form.register(`replies.${index}.title`)}
+                  aria-invalid={Boolean(error?.title)}
+                />
+                <button
+                  type="button"
+                  aria-label={`Remover modelo ${index + 1}`}
+                  className="press relative grid size-[22px] shrink-0 place-items-center rounded-full bg-red text-white after:absolute after:-inset-2.5 after:content-['']"
+                  onClick={() => replies.remove(index)}
+                >
+                  <MinusIcon className="size-3" strokeWidth={3} />
+                </button>
+              </div>
+              <Textarea
+                aria-label={`Texto do modelo ${index + 1}`}
+                placeholder="O texto que entra na resposta."
+                rows={3}
+                maxLength={QUICK_REPLY_LIMITS.body}
+                defaultValue={field.body}
+                {...form.register(`replies.${index}.body`)}
+                aria-invalid={Boolean(error?.body)}
+              />
+              {error?.title?.message || error?.body?.message ? (
+                <p className="text-xs text-destructive">
+                  {error.title?.message ?? error.body?.message}
+                </p>
+              ) : null}
+            </div>
+          );
+        })}
+        <div className="flex flex-wrap items-center gap-3 px-4 pt-2.5 pb-3.5">
+          <AddRow disabled={full} onClick={() => replies.append({ title: "", body: "" })}>
+            Adicionar modelo
+          </AddRow>
+          {full ? (
+            <p className="text-xs font-light text-muted-foreground">
+              Chegou ao limite de {QUICK_REPLY_LIMITS.count} modelos.
+            </p>
+          ) : null}
+        </div>
+      </SettingsSection>
     </form>
   );
 }

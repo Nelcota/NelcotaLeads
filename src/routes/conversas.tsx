@@ -68,6 +68,7 @@ import { isSendChord, sendShortcut } from "@/lib/shortcuts";
 import { matchesQuery } from "@/lib/text-search";
 import { whatsappLink } from "@/lib/phone";
 import { splitQuoted } from "@/lib/mail/quoted";
+import { QuickReplyPicker } from "@/components/quick-reply-picker";
 import { useListHotkeys } from "@/hooks/use-list-hotkeys";
 
 const FILTERS = ["all", "needsYou", "aiTalking", "waiting", "closed"] as const;
@@ -390,6 +391,9 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
   const queryClient = useQueryClient();
   const today = useToday();
   const [text, setText] = useState<string | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // Where the caret was in the reply; null until the user puts it somewhere.
+  const caret = useRef<number | null>(null);
   const setDraft = (draft: Email | null) =>
     queryClient.setQueryData(conversationQuery(leadId).queryKey, (old) =>
       old ? { ...old, draft } : old,
@@ -453,6 +457,22 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
     },
     onError: errorToast("A IA não conseguiu escrever agora. Tente de novo."),
   });
+  // A quick reply goes where the caret was (at the end, on its own paragraph, otherwise)
+  // and is saved like anything typed.
+  const insertQuickReply = (snippet: string) => {
+    const current = text ?? data?.draft?.body ?? "";
+    const at = Math.min(caret.current ?? current.length, current.length);
+    const gap = caret.current === null && current.trim() && !/\s$/.test(current) ? "\n\n" : "";
+    const next = current.slice(0, at) + gap + snippet + current.slice(at);
+    const end = at + gap.length + snippet.length;
+    setText(next);
+    autosave.schedule(leadId, next);
+    caret.current = end;
+    requestAnimationFrame(() => {
+      textareaRef.current?.focus();
+      textareaRef.current?.setSelectionRange(end, end);
+    });
+  };
   const ai = useMutation({
     mutationFn: (aiMode: boolean) => setConversationAi({ data: { leadId, aiMode } }),
     onSuccess: refresh,
@@ -694,6 +714,7 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
                 ) : null}
               </div>
               <Textarea
+                ref={textareaRef}
                 aria-label="Sua resposta"
                 rows={4}
                 placeholder="Escreva sua resposta."
@@ -709,24 +730,33 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
                   event.preventDefault();
                   if (canSend) send.mutate(value);
                 }}
+                onSelect={(event) => {
+                  caret.current = event.currentTarget.selectionEnd;
+                }}
               />
-              <div className="flex flex-wrap items-center justify-end gap-2 px-2 pt-1 pb-2 pl-4">
-                <span
-                  aria-live="polite"
-                  className={cn(
-                    "mr-auto text-xs font-light",
-                    autosave.state === "error" ? "text-red" : "text-tertiary",
-                    autosave.state === "idle" && !savedDraft && "max-sm:hidden",
-                  )}
-                >
-                  {autosave.state === "saving"
-                    ? "Salvando…"
-                    : autosave.state === "error"
-                      ? "Rascunho não salvo"
-                      : savedDraft
-                        ? "Rascunho salvo"
-                        : "A assinatura é adicionada no envio."}
-                </span>
+              <div className="flex flex-wrap items-center justify-end gap-2 px-2 pt-1 pb-2">
+                <div className="mr-auto flex min-w-0 items-center gap-1.5">
+                  <QuickReplyPicker
+                    disabled={send.isPending || write.isPending}
+                    onPick={insertQuickReply}
+                  />
+                  <span
+                    aria-live="polite"
+                    className={cn(
+                      "text-xs font-light",
+                      autosave.state === "error" ? "text-red" : "text-tertiary",
+                      autosave.state === "idle" && !savedDraft && "max-sm:hidden",
+                    )}
+                  >
+                    {autosave.state === "saving"
+                      ? "Salvando…"
+                      : autosave.state === "error"
+                        ? "Rascunho não salvo"
+                        : savedDraft
+                          ? "Rascunho salvo"
+                          : "A assinatura é adicionada no envio."}
+                  </span>
+                </div>
                 <Button
                   variant="secondary"
                   size="sm"

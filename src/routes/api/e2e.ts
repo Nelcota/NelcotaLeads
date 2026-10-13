@@ -9,7 +9,15 @@ import { runTick } from "@/server/tick";
 import type { E2eFault } from "../../../e2e/fakes/faults";
 import type { E2eMailbox } from "../../../e2e/fakes/mail";
 
-const TABLES = ["emails", "analyses", "leads", "searches", "settings", "api_usage"];
+const TABLES = [
+  "emails",
+  "analyses",
+  "leads",
+  "searches",
+  "settings",
+  "api_usage",
+  "quick_replies",
+];
 
 // Listed here rather than imported, so no fake module code reaches this route's bundle.
 const FAULTS = ["places", "writeEmail", "mailSend"] as const satisfies readonly E2eFault[];
