@@ -1,5 +1,6 @@
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import type { NewSearchInput } from "@/lib/schemas";
+import { MANUAL_SEARCH_ID } from "@/lib/searches";
 import type { Db } from "@/db/client";
 import { leads, searches } from "@/db/schema";
 import { SEARCH_CANCELLED_MESSAGE } from "./process-lead";
@@ -39,6 +40,7 @@ export async function searchInputOf(db: Db, id: string): Promise<NewSearchInput>
     columns: { niche: true, city: true, maxResults: true },
   });
   if (!search) throw new Error("Busca não encontrada");
+  if (id === MANUAL_SEARCH_ID) throw new Error("Leads adicionados à mão não são uma busca.");
   return search;
 }
 

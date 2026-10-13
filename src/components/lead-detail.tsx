@@ -53,6 +53,7 @@ import type { Analysis, Lead, LeadStatus, SiteStatus } from "@/db/schema";
 import { useAutosave } from "@/lib/autosave";
 import { addDays, formatDate, localDay, relativeDay } from "@/lib/format";
 import { CONTACT_LIMITS, type ContactField } from "@/lib/lead-contact";
+import { MANUAL_SEARCH_ID } from "@/lib/searches";
 import { whatsappLink } from "@/lib/phone";
 import { conversationQuery, leadQuery, providerStatusQuery } from "@/lib/queries";
 import {
@@ -130,7 +131,11 @@ export function LeadDetail({
   if (!data) return <DetailSkeleton toolbar={toolbar} />;
   const { lead, analysis, search } = data;
   const facts = [
-    search ? `${search.niche}, ${search.city}` : lead.city,
+    search?.id === MANUAL_SEARCH_ID
+      ? "Adicionado manualmente"
+      : search
+        ? `${search.niche}, ${search.city}`
+        : lead.city,
     lead.rating !== null
       ? `${lead.rating.toFixed(1).replace(".", ",")} no Google (${lead.reviewCount ?? 0})`
       : null,

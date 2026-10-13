@@ -1,11 +1,23 @@
 import { createServerFn } from "@tanstack/react-start";
 import { env } from "cloudflare:workers";
-import { and, countDistinct, desc, eq, gte, inArray, isNotNull, isNull, sql } from "drizzle-orm";
+import {
+  and,
+  countDistinct,
+  desc,
+  eq,
+  gte,
+  inArray,
+  isNotNull,
+  isNull,
+  ne,
+  sql,
+} from "drizzle-orm";
 import { z } from "zod";
 import { getDb } from "@/db/client";
 import { emails, leads, searches } from "@/db/schema";
 import { localDay } from "@/lib/format";
 import { mailConfigured } from "@/lib/mail";
+import { MANUAL_SEARCH_ID } from "@/lib/searches";
 import { autopilotInputSchema } from "@/lib/schemas";
 import { ALREADY_RAN_MESSAGE, autopilotDeps, runAutopilot } from "./autopilot";
 import { recordJobRun } from "./job-runs";
@@ -114,7 +126,7 @@ export const getDashboard = createServerFn({ method: "GET" }).handler(async () =
         createdAt: searches.createdAt,
       })
       .from(searches)
-      .where(gte(searches.createdAt, since))
+      .where(and(gte(searches.createdAt, since), ne(searches.id, MANUAL_SEARCH_ID)))
       .orderBy(desc(searches.createdAt)),
     db
       .select({

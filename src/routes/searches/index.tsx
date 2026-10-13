@@ -28,6 +28,7 @@ import type { Search } from "@/db/schema";
 import { formatDate } from "@/lib/format";
 import { searchesQuery } from "@/lib/queries";
 import { errorToast } from "@/lib/mutation-toasts";
+import { MANUAL_SEARCH_ID } from "@/lib/searches";
 import { cn } from "@/lib/utils";
 import { cancelSearch, hideSearch, repeatSearch } from "@/server/searches";
 import { pageTitle } from "@/lib/page-title";
@@ -39,7 +40,9 @@ export const Route = createFileRoute("/searches/")({
 });
 
 function SearchesPage() {
-  const { data } = useSuspenseQuery(searchesQuery);
+  const { data: all } = useSuspenseQuery(searchesQuery);
+  // Leads added by hand are filed under a fixed "search" that is not one (see Leads).
+  const data = all.filter((search) => search.id !== MANUAL_SEARCH_ID);
   const openNewSearch = useOpenNewSearch();
   const found = data.reduce((sum, search) => sum + search.foundCount, 0);
   const running = data.filter(

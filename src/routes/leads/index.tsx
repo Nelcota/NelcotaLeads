@@ -16,6 +16,7 @@ import {
   SendIcon,
   StarIcon,
   Trash2Icon,
+  UserPlusIcon,
   XIcon,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -33,6 +34,7 @@ import {
 import { GLOSSARY } from "@/lib/help";
 import { Page, Stat, useOpenNewSearch } from "@/components/app-shell";
 import { followUpTone, ScoreBadge, StatusBadge, TIER_TONE } from "@/components/lead-badges";
+import { AddLeadSheet } from "@/components/add-lead-sheet";
 import { DispatchSheet } from "@/components/dispatch-sheet";
 import { LeadSheet } from "@/components/lead-sheet";
 import { Badge } from "@/components/ui/badge";
@@ -85,6 +87,7 @@ import {
   type ScoreTier,
 } from "@/lib/schemas";
 import { errorToast } from "@/lib/mutation-toasts";
+import { searchLabel } from "@/lib/searches";
 import { useToday } from "@/lib/today";
 import { cn } from "@/lib/utils";
 import { bulkUpdateLeads, undoBulkUpdateLeads } from "@/server/leads";
@@ -192,6 +195,7 @@ function LeadsPage() {
     }));
   const clearSelection = () => setSelected(() => NO_SELECTION);
   const [dispatching, setDispatching] = useState(false);
+  const [adding, setAdding] = useState(false);
   const selectedRows = (data ?? []).filter((lead) => selected.has(lead.id));
   const sendable = selectedRows
     .filter((lead) => lead.email && !lead.unsubscribedAt)
@@ -234,7 +238,25 @@ function LeadsPage() {
         <PlusIcon />
         <span className="max-sm:hidden">Busca manual</span>
       </Button>
+      <DropdownMenu>
+        <Hint label="Mais ações">
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="icon" aria-label="Mais ações">
+              <EllipsisIcon />
+            </Button>
+          </DropdownMenuTrigger>
+        </Hint>
+        <DropdownMenuContent align="end" className="w-auto min-w-44">
+          <DropdownMenuItem onSelect={() => setAdding(true)}>
+            <UserPlusIcon />
+            Adicionar lead
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </>
+  );
+  const addLead = (
+    <AddLeadSheet open={adding} onOpenChange={setAdding} onOpenLead={(id) => selectLead(id)} />
   );
 
   if (counts?.byView.all === 0 && !hasFilters(filters)) {
@@ -256,6 +278,8 @@ function LeadsPage() {
             Busca manual
           </Button>
         </EmptyState>
+        {addLead}
+        <LeadSheet leadId={openLeadId} ids={[]} onSelect={selectLead} keepsLead={() => true} />
       </Page>
     );
   }
@@ -425,6 +449,8 @@ function LeadsPage() {
         onOpenChange={setDispatching}
         onDispatched={clearSelection}
       />
+
+      {addLead}
 
       <LeadSheet
         leadId={openLeadId}
@@ -664,7 +690,7 @@ function Toolbar({
           <DropdownMenuTrigger className={cn(POPUP, "max-w-full")}>
             Busca
             <span className="truncate font-normal text-muted-foreground">
-              {activeSearch ? `${activeSearch.niche} em ${activeSearch.city}` : "todas"}
+              {activeSearch ? searchLabel(activeSearch) : filters.searchId ? "oculta" : "todas"}
             </span>
             <ChevronsUpDownIcon className="text-tertiary" />
           </DropdownMenuTrigger>
@@ -676,7 +702,7 @@ function Toolbar({
               <DropdownMenuRadioItem value="all">Todas</DropdownMenuRadioItem>
               {searches?.map((item) => (
                 <DropdownMenuRadioItem key={item.id} value={item.id}>
-                  {item.niche} em {item.city}
+                  {searchLabel(item)}
                 </DropdownMenuRadioItem>
               ))}
             </DropdownMenuRadioGroup>

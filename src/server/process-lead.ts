@@ -3,6 +3,7 @@ import type { Db } from "@/db/client";
 import { analyses, apiUsage, leads, searches, type Lead, type Search } from "@/db/schema";
 import type { CallUsage, LeadAnalyzer, LeadContext } from "@/lib/ai";
 import { localDay } from "@/lib/format";
+import { MANUAL_SEARCH_ID } from "@/lib/searches";
 import { siteDataSchema, type SiteData } from "@/lib/schemas";
 import type { SiteResult } from "@/lib/scrape";
 import { loadSettings } from "./settings-store";
@@ -127,7 +128,11 @@ async function analyzeClaimed(deps: ProcessDeps, job: LeadJob, lead: Lead) {
 
   // Triage: below the minimum score the AI discards the lead. Outreach e-mails are
   // written when the lead is selected for a send, not here.
-  const keep = settings.minScore <= 0 || analysis.score >= settings.minScore;
+  // A lead the user added by hand is never discarded by the AI.
+  const keep =
+    settings.minScore <= 0 ||
+    analysis.score >= settings.minScore ||
+    lead.searchId === MANUAL_SEARCH_ID;
   const owned = ownedBy(lead);
 
   // One transaction: the analysis, its cost, the search counters and the lead all land
@@ -259,7 +264,7 @@ export function hasOffer(settings: { offer: string }) {
 
 export function buildContext(lead: Lead, search: Search | undefined): LeadContext {
   return {
-    niche: search?.niche ?? "",
+    niche: search?.id === MANUAL_SEARCH_ID ? "desconhecido" : (search?.niche ?? ""),
     name: lead.name,
     address: lead.address,
     city: lead.city,

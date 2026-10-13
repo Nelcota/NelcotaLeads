@@ -18,6 +18,7 @@ import { CONTACT_FIELDS, CONTACT_LIMITS } from "@/lib/lead-contact";
 import { localDay } from "@/lib/format";
 import { bulkUpdateLeads as bulkUpdate, undoBulkUpdate } from "./lead-bulk";
 import { editLeadContact } from "./lead-edit";
+import { createManualLead } from "./manual-lead";
 import { leadPatch } from "./lead-status";
 import { countLeads, LIST_LIMIT, queryLeadsCapped } from "./leads-query";
 import { writeMessageForLead } from "./process-lead";
@@ -80,6 +81,18 @@ export const updateLeadContact = createServerFn({ method: "POST" })
     }),
   )
   .handler(({ data }) => editLeadContact(getDb(), data));
+
+/** "Adicionar lead": a lead typed in by hand (see createManualLead). */
+export const createLead = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      name: z.string().max(CONTACT_LIMITS.name),
+      email: z.string().max(CONTACT_LIMITS.email).optional(),
+      phone: z.string().max(CONTACT_LIMITS.phone).optional(),
+      website: z.string().max(CONTACT_LIMITS.website).optional(),
+    }),
+  )
+  .handler(({ data }) => createManualLead(getDb(), env.LEAD_QUEUE, data));
 
 /** "Mudar status" and "Descartar" on the selection bar. */
 export const bulkUpdateLeads = createServerFn({ method: "POST" })

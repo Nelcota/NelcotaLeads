@@ -29,7 +29,9 @@ export function useReportUnsavedEdits(dirty: boolean) {
  * right away, or first asks "Descartar alterações?" when something inside reported unsaved
  * edits. Keeping on editing is the default answer.
  */
-export function useUnsavedEditsGuard() {
+export function useUnsavedEditsGuard(
+  description = "A mensagem que você editou ainda não foi salva.",
+) {
   const dirty = useRef(false);
   const [pending, setPending] = useState<{ action: () => void } | null>(null);
   const report = useCallback((value: boolean) => {
@@ -45,9 +47,7 @@ export function useUnsavedEditsGuard() {
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Descartar alterações?</AlertDialogTitle>
-          <AlertDialogDescription>
-            A mensagem que você editou ainda não foi salva.
-          </AlertDialogDescription>
+          <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Continuar editando</AlertDialogCancel>
