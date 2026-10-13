@@ -1,18 +1,22 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
+  ArrowRightLeftIcon,
   ArrowUpDownIcon,
   CheckIcon,
   ChevronsUpDownIcon,
   DownloadIcon,
+  EllipsisIcon,
   FilterXIcon,
   InboxIcon,
   PlusIcon,
   SearchIcon,
   SendIcon,
   StarIcon,
+  Trash2Icon,
   XIcon,
 } from "lucide-react";
+import { toast } from "sonner";
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import {
@@ -35,8 +39,13 @@ import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
@@ -61,6 +70,10 @@ import type { LeadStatus } from "@/db/schema";
 import { relativeDay } from "@/lib/format";
 import { leadCountsQuery, leadsQuery, searchesQuery } from "@/lib/queries";
 import {
+  BULK_LIMIT,
+  type BulkSnapshot,
+  LEAD_STATUS_LABELS,
+  LEAD_STATUS_VALUES,
   LEAD_VIEW_LABELS,
   LEAD_VIEWS,
   leadFiltersSchema,
@@ -69,8 +82,10 @@ import {
   type LeadView,
   type ScoreTier,
 } from "@/lib/schemas";
+import { errorToast } from "@/lib/mutation-toasts";
 import { useToday } from "@/lib/today";
 import { cn } from "@/lib/utils";
+import { bulkUpdateLeads, undoBulkUpdateLeads } from "@/server/leads";
 import type { LeadRow } from "@/server/leads-query";
 import { pageTitle } from "@/lib/page-title";
 
@@ -78,6 +93,7 @@ import { pageTitle } from "@/lib/page-title";
 const searchSchema = leadFiltersSchema.extend({ lead: z.string().max(64).optional() });
 
 const DEFAULT_VIEW: LeadView = "todo";
+const NO_SELECTION: ReadonlySet<string> = new Set();
 
 export const Route = createFileRoute("/leads/")({
   head: () => ({ meta: [{ title: pageTitle("Leads") }] }),
@@ -162,7 +178,16 @@ function LeadsPage() {
   const { data } = useQuery(leadsQuery(filters));
   const { data: counts } = useQuery(leadCountsQuery(filters));
   const openNewSearch = useOpenNewSearch();
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  // The selection belongs to one list: another tab, filter, search or sort starts it over.
+  const listKey = JSON.stringify(clean(filters));
+  const [selection, setSelection] = useState({ key: listKey, ids: NO_SELECTION });
+  const selected = selection.key === listKey ? selection.ids : NO_SELECTION;
+  const setSelected = (update: (current: ReadonlySet<string>) => ReadonlySet<string>) =>
+    setSelection((current) => ({
+      key: listKey,
+      ids: update(current.key === listKey ? current.ids : NO_SELECTION),
+    }));
+  const clearSelection = () => setSelected(() => NO_SELECTION);
   const [dispatching, setDispatching] = useState(false);
   const selectedRows = (data ?? []).filter((lead) => selected.has(lead.id));
   const sendable = selectedRows
@@ -310,7 +335,7 @@ function LeadsPage() {
               (com e-mail e já analisados)
             </span>
           </p>
-          <Button size="sm" onClick={() => setSelected(new Set(readyIds))}>
+          <Button size="sm" onClick={() => setSelected(() => new Set(readyIds))}>
             Selecionar {readyIds.length === 1 ? "" : "todos"}
           </Button>
         </div>
@@ -369,11 +394,12 @@ function LeadsPage() {
             size="sm"
             className="max-sm:ml-auto"
             aria-label="Limpar seleção"
-            onClick={() => setSelected(new Set())}
+            onClick={clearSelection}
           >
             <XIcon className="sm:hidden" />
             <span className="max-sm:hidden">Limpar</span>
           </Button>
+          <SelectionMenu ids={[...selected]} onDone={clearSelection} />
           <Button size="sm" disabled={sendable.length === 0} onClick={() => setDispatching(true)}>
             <SendIcon />
             Disparar e-mail
@@ -385,7 +411,7 @@ function LeadsPage() {
         leadIds={sendable}
         open={dispatching}
         onOpenChange={setDispatching}
-        onDispatched={() => setSelected(new Set())}
+        onDispatched={clearSelection}
       />
 
       <LeadSheet
@@ -395,6 +421,107 @@ function LeadsPage() {
         keepsLead={(status) => VIEW_STATUSES[view]?.includes(status) ?? true}
       />
     </Page>
+  );
+}
+
+/** Same bound as the CSV route's selection export. */
+const EXPORT_SELECTION_LIMIT = 1000;
+
+/**
+ * The selection bar's "…": change the status, discard (with undo) or export the selected
+ * leads. "Disparar e-mail" stays the one primary action next to it.
+ */
+function SelectionMenu({ ids, onDone }: { ids: string[]; onDone: () => void }) {
+  const queryClient = useQueryClient();
+  const exportForm = useRef<HTMLFormElement>(null);
+  const refresh = () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["leads"] }),
+      queryClient.invalidateQueries({ queryKey: ["lead"] }),
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
+    ]);
+  const undo = async (status: LeadStatus, previous: BulkSnapshot[]) => {
+    try {
+      await undoBulkUpdateLeads({ data: { status, previous } });
+      await refresh();
+    } catch (error) {
+      errorToast("Não foi possível desfazer")(error);
+    }
+  };
+  const update = useMutation({
+    mutationFn: (status: LeadStatus) =>
+      bulkUpdateLeads({ data: { ids: ids.slice(0, BULK_LIMIT), status } }),
+    onSuccess: async (result, status) => {
+      await refresh();
+      onDone();
+      const skipped =
+        result.skipped > 0
+          ? `${result.skipped} não ${result.skipped === 1 ? "mudou" : "mudaram"}: o status atual não permite.`
+          : undefined;
+      if (result.changed === 0) {
+        toast.error("Nenhum lead mudou", { description: skipped });
+        return;
+      }
+      const count = `${result.changed} ${result.changed === 1 ? "lead" : "leads"}`;
+      toast(
+        status === "discarded"
+          ? `${count} ${result.changed === 1 ? "descartado" : "descartados"}`
+          : `${count} em ${LEAD_STATUS_LABELS[status]}`,
+        {
+          description: skipped,
+          duration: 8000,
+          action: { label: "Desfazer", onClick: () => void undo(status, result.previous) },
+        },
+      );
+    },
+    onError: errorToast("Não foi possível mudar os leads"),
+  });
+
+  return (
+    <>
+      <DropdownMenu>
+        <Hint label="Mais ações">
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="secondary"
+              size="icon-sm"
+              aria-label="Mais ações para a seleção"
+              disabled={update.isPending}
+            >
+              <EllipsisIcon />
+            </Button>
+          </DropdownMenuTrigger>
+        </Hint>
+        <DropdownMenuContent align="end" side="top" className="w-auto min-w-48">
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              <ArrowRightLeftIcon />
+              Mudar status
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              {LEAD_STATUS_VALUES.filter((status) => status !== "discarded").map((status) => (
+                <DropdownMenuItem key={status} onSelect={() => update.mutate(status)}>
+                  {LEAD_STATUS_LABELS[status]}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+          <DropdownMenuItem onSelect={() => exportForm.current?.requestSubmit()}>
+            <DownloadIcon />
+            Exportar seleção
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem variant="destructive" onSelect={() => update.mutate("discarded")}>
+            <Trash2Icon />
+            Descartar
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      {/* Posted, not a link: a long selection does not fit in a URL. */}
+      <form ref={exportForm} method="post" action="/api/leads.csv" hidden>
+        <input type="hidden" name="ids" value={ids.slice(0, EXPORT_SELECTION_LIMIT).join(",")} />
+      </form>
+    </>
   );
 }
 
@@ -619,7 +746,7 @@ function LeadsTable({
   data: LeadRow[] | undefined;
   view: LeadView;
   filtered: boolean;
-  selected: Set<string>;
+  selected: ReadonlySet<string>;
   onToggle: (ids: string[], on: boolean) => void;
   onOpen: (id: string) => void;
   onReset: () => void;
@@ -785,7 +912,7 @@ function LeadsList({
   data: LeadRow[] | undefined;
   view: LeadView;
   filtered: boolean;
-  selected: Set<string>;
+  selected: ReadonlySet<string>;
   onToggle: (ids: string[], on: boolean) => void;
   onOpen: (id: string) => void;
   onReset: () => void;

@@ -264,6 +264,23 @@ export const updateLeadSchema = z.object({
 });
 export type UpdateLeadInput = z.infer<typeof updateLeadSchema>;
 
+/** Most leads one bulk action may touch (the selection bar works on the visible list). */
+export const BULK_LIMIT = 500;
+
+/** What a bulk status change replaced on one lead, so "Desfazer" can put it back. */
+export const bulkSnapshotSchema = z.object({
+  id: idSchema,
+  status: z.enum(LEAD_STATUS_VALUES),
+  followUpOn: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullable(),
+  discardReason: z.string().max(500).nullable(),
+  // Unix seconds.
+  discardedAt: z.number().int().nullable(),
+});
+export type BulkSnapshot = z.infer<typeof bulkSnapshotSchema>;
+
 export const updateMessageSchema = z.object({
   analysisId: idSchema,
   firstMessage: userText().max(2000),

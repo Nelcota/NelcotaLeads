@@ -59,8 +59,17 @@ export function escapeLike(value: string): string {
   return value.replace(/[\\%_]/g, (char) => `\\${char}`);
 }
 
-function whereClause(filters: LeadFilters, today: string): SQL | undefined {
+/** Matches the listed lead ids with a single bound parameter (D1 caps them at 100). */
+export function leadIdIn(ids: readonly string[]) {
+  return sql`${leads.id} in (select value from json_each(${JSON.stringify(ids)}))`;
+}
+
+/** The list filters, or (for "Exportar seleção") the selected leads. */
+export type LeadQuery = LeadFilters & { ids?: readonly string[] };
+
+function whereClause(filters: LeadQuery, today: string): SQL | undefined {
   const conditions: (SQL | undefined)[] = [
+    filters.ids ? leadIdIn(filters.ids) : undefined,
     filters.q ? sql`${leads.name} like ${`%${escapeLike(filters.q)}%`} escape '\\'` : undefined,
     filters.searchId ? eq(leads.searchId, filters.searchId) : undefined,
     viewCondition(filters.view, today),
@@ -89,7 +98,7 @@ function orderBy(filters: LeadFilters) {
  */
 export function queryLeads(
   db: Db,
-  filters: LeadFilters,
+  filters: LeadQuery,
   today = localDay(new Date()),
   limit = LIST_LIMIT,
 ) {
@@ -132,7 +141,7 @@ export type LeadRow = Awaited<ReturnType<typeof queryLeads>>[number];
 /** Like queryLeads, but reports whether rows past `limit` were left out. */
 export async function queryLeadsCapped(
   db: Db,
-  filters: LeadFilters,
+  filters: LeadQuery,
   limit: number,
   today = localDay(new Date()),
 ): Promise<{ rows: LeadRow[]; truncated: boolean }> {

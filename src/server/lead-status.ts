@@ -22,7 +22,7 @@ export const LEAD_TRANSITIONS: Record<LeadStatus, readonly LeadStatus[]> = {
 };
 
 /** Statuses that lead to (more) outreach; never allowed once the lead unsubscribed. */
-const OUTREACH_STATUSES: readonly LeadStatus[] = ["new", "contacted", "replied"];
+export const OUTREACH_STATUSES: readonly LeadStatus[] = ["new", "contacted", "replied"];
 
 export const UNSUBSCRIBED_MESSAGE =
   "Este lead pediu para não receber contato e não pode voltar para a fila.";

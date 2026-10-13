@@ -4,9 +4,18 @@ import { and, desc, eq, isNull, ne } from "drizzle-orm";
 import { z } from "zod";
 import { getDb, type Db } from "@/db/client";
 import { analyses, leads, searches } from "@/db/schema";
-import { idSchema, leadFiltersSchema, updateLeadSchema, updateMessageSchema } from "@/lib/schemas";
+import {
+  BULK_LIMIT,
+  bulkSnapshotSchema,
+  idSchema,
+  LEAD_STATUS_VALUES,
+  leadFiltersSchema,
+  updateLeadSchema,
+  updateMessageSchema,
+} from "@/lib/schemas";
 import { getAnalyzer } from "@/lib/ai";
 import { localDay } from "@/lib/format";
+import { bulkUpdateLeads as bulkUpdate, undoBulkUpdate } from "./lead-bulk";
 import { leadPatch } from "./lead-status";
 import { countLeads, queryLeads } from "./leads-query";
 import { writeMessageForLead } from "./process-lead";
@@ -57,6 +66,23 @@ export const updateLead = createServerFn({ method: "POST" })
       throw new Error("O lead mudou enquanto isso. Atualize e tente de novo.");
     return { ok: true as const };
   });
+
+/** "Mudar status" and "Descartar" on the selection bar. */
+export const bulkUpdateLeads = createServerFn({ method: "POST" })
+  .validator(
+    z.object({ ids: z.array(idSchema).min(1).max(BULK_LIMIT), status: z.enum(LEAD_STATUS_VALUES) }),
+  )
+  .handler(({ data }) => bulkUpdate(getDb(), data.ids, data.status));
+
+/** "Desfazer" of a bulk change: the leads it changed go back as they were. */
+export const undoBulkUpdateLeads = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      status: z.enum(LEAD_STATUS_VALUES),
+      previous: z.array(bulkSnapshotSchema).max(BULK_LIMIT),
+    }),
+  )
+  .handler(({ data }) => undoBulkUpdate(getDb(), data.status, data.previous));
 
 export const updateFirstMessage = createServerFn({ method: "POST" })
   .validator(updateMessageSchema)

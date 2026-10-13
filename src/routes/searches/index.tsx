@@ -189,7 +189,7 @@ function SearchCard({ search, index }: { search: Search; index: number }) {
                   </Button>
                 </DropdownMenuTrigger>
               </Hint>
-              <DropdownMenuContent align="end">
+              <DropdownMenuContent align="end" className="w-auto min-w-40">
                 <DropdownMenuItem
                   disabled={repeat.isPending}
                   onSelect={() => repeat.mutate(search.id)}

@@ -103,4 +103,9 @@ describe("queryLeads search", () => {
     expect(capped.rows).toHaveLength(3);
     expect(capped.truncated).toBe(true);
   });
+
+  it("exports only the selected leads, whatever else is filtered", async () => {
+    const rows = await queryLeads(db, { ids: ["2", "4", "nope"], sort: "name", dir: "asc" });
+    expect(rows.map((lead) => lead.id)).toEqual(["4", "2"]);
+  });
 });
