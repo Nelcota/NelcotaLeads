@@ -34,6 +34,7 @@ import {
   SidebarRail,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
+import { Skeleton } from "@/components/ui/skeleton";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { GLOSSARY, isHelpKey } from "@/lib/help";
 import { withAttentionCount } from "@/lib/page-title";
@@ -337,25 +338,39 @@ function AccountRow() {
   const dark = theme === "dark";
   const address = data?.mail.configured ? data.mail.address : null;
   const name = account?.name ?? "Sua conta";
+  // Until both answer, a neutral placeholder: never "Caixa não conectada" for a connected box.
+  const loading = !data || !account;
   return (
     <div className="flex items-center gap-2.5 px-1 pt-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
       <Link
         to="/conta"
         className="press flex min-w-0 flex-1 items-center gap-2.5 rounded-[9px] group-data-[collapsible=icon]:hidden"
       >
-        <Avatar name={name} size={28} />
-        <div className="min-w-0 flex-1 leading-tight group-data-[collapsible=icon]:hidden">
-          <p className="truncate text-[12.5px] font-medium">{name}</p>
-          <p
-            className={cn(
-              "flex min-w-0 items-center gap-1.5 text-[11.5px]",
-              address ? "text-green" : "text-orange",
-            )}
-          >
-            <span className="size-1.5 shrink-0 rounded-full bg-current" />
-            <span className="truncate">{address ?? "Caixa não conectada"}</span>
-          </p>
-        </div>
+        {loading ? (
+          <div className="flex min-w-0 flex-1 items-center gap-2.5" aria-hidden>
+            <Skeleton className="size-7 shrink-0 rounded-full" />
+            <div className="grid min-w-0 flex-1 gap-1.5">
+              <Skeleton className="h-3 w-20" />
+              <Skeleton className="h-2.5 w-28" />
+            </div>
+          </div>
+        ) : (
+          <>
+            <Avatar name={name} size={28} />
+            <div className="min-w-0 flex-1 leading-tight group-data-[collapsible=icon]:hidden">
+              <p className="truncate text-[12.5px] font-medium">{name}</p>
+              <p
+                className={cn(
+                  "flex min-w-0 items-center gap-1.5 text-[11.5px]",
+                  address ? "text-green" : "text-orange",
+                )}
+              >
+                <span className="size-1.5 shrink-0 rounded-full bg-current" />
+                <span className="truncate">{address ?? "Caixa não conectada"}</span>
+              </p>
+            </div>
+          </>
+        )}
       </Link>
       <div className="flex shrink-0 items-center group-data-[collapsible=icon]:flex-col">
         <Hint label="Ajuda" side="top">
