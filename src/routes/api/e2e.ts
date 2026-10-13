@@ -46,6 +46,13 @@ const actionSchema = z.discriminatedUnion("action", [
     email: z.string().nullable(),
     phone: z.string().nullable().optional(),
   }),
+  // A search still analyzing, with leads waiting in a queue that never runs them.
+  z.object({
+    action: z.literal("runningSearch"),
+    niche: z.string(),
+    city: z.string(),
+    leads: z.number().int().min(1).max(20),
+  }),
   // Arms a one-shot failure in a fake: the next Places search, AI e-mail draft or send throws.
   z.object({ action: z.literal("fault"), fault: z.enum(FAULTS) }),
   // Disarms a fault that lasts (`mailbox`): the fake works again.
@@ -136,6 +143,29 @@ export const Route = createFileRoute("/api/e2e")({
               model: "test-model",
             });
             return Response.json({ id });
+          }
+          case "runningSearch": {
+            const db = getDb();
+            const searchId = crypto.randomUUID();
+            await db.insert(searches).values({
+              id: searchId,
+              niche: input.niche,
+              city: input.city,
+              maxResults: input.leads,
+              status: "analyzing",
+              foundCount: input.leads,
+              placesRequests: 1,
+            });
+            await db.insert(leads).values(
+              Array.from({ length: input.leads }, (_, i) => ({
+                id: crypto.randomUUID(),
+                searchId,
+                placeId: `e2e-running-${searchId}-${i}`,
+                name: `${input.niche} ${i + 1}`,
+                siteStatus: "none" as const,
+              })),
+            );
+            return Response.json({ id: searchId });
           }
           case "fault":
             globalThis.nelcotaE2eFaults ??= new Set<E2eFault>();

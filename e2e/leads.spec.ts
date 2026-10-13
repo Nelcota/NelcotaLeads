@@ -84,3 +84,105 @@ test.describe("leads inbox", () => {
     await expect(panel).toBeHidden();
   });
 });
+
+test.describe("leads actions", () => {
+  test("discards three selected leads and undoes it", async ({ page, backend }) => {
+    for (const name of ["Padaria Sol", "Padaria Lua", "Padaria Mar", "Padaria Céu"]) {
+      await backend.lead({ name });
+    }
+    await visit(page, "/leads");
+    for (const name of ["Padaria Sol", "Padaria Lua", "Padaria Mar"]) {
+      await page.getByRole("checkbox", { name: `Selecionar ${name}` }).check();
+    }
+    await expect(page.getByText("3 selecionados")).toBeVisible();
+    // Nobody selected has an e-mail: the primary action says why it is off.
+    await expect(page.getByRole("button", { name: "Disparar e-mail" })).toBeDisabled();
+
+    await page.getByRole("button", { name: "Mais ações para a seleção" }).click();
+    await page.getByRole("menuitem", { name: "Descartar" }).click();
+    await expect(page.getByText("3 leads descartados")).toBeVisible();
+    await expect(rowOf(page, "Padaria Sol")).toHaveCount(0);
+    await expect(rowOf(page, "Padaria Céu")).toBeVisible();
+    await expect(page.getByText("3 selecionados")).toHaveCount(0);
+
+    await page.getByRole("button", { name: "Desfazer" }).click();
+    for (const name of ["Padaria Sol", "Padaria Lua", "Padaria Mar"]) {
+      await expect(rowOf(page, name)).toBeVisible();
+    }
+  });
+
+  test("clears the selection when the tab changes", async ({ page, backend }) => {
+    await backend.lead({ name: "Padaria Sol" });
+    await visit(page, "/leads");
+    await page.getByRole("checkbox", { name: "Selecionar Padaria Sol" }).check();
+    await expect(page.getByText("1 selecionado")).toBeVisible();
+    await page.getByRole("tab", { name: /Todos/ }).click();
+    await expect(page.getByText("1 selecionado")).toHaveCount(0);
+  });
+
+  test("adds an e-mail in place, and it survives a reload", async ({ page, backend }) => {
+    const { id } = await backend.lead({ name: "Padaria Sol" });
+    await visit(page, `/leads?view=all&lead=${id}`);
+    const panel = page.getByRole("dialog", { name: "Padaria Sol" });
+    await panel.getByRole("button", { name: "Adicionar e-mail" }).click();
+    const field = panel.getByLabel("Editar e-mail");
+    await field.fill("Contato@PadariaSol.com.br");
+    await field.press("Enter");
+    await expect(panel.getByRole("button", { name: "contato@padariasol.com.br" })).toBeVisible();
+
+    await reload(page);
+    const reopened = page.getByRole("dialog", { name: "Padaria Sol" });
+    await expect(reopened.getByRole("button", { name: "contato@padariasol.com.br" })).toBeVisible();
+
+    // Esc cancels the edit without closing the panel.
+    await reopened.getByRole("button", { name: "contato@padariasol.com.br" }).click();
+    await reopened.getByLabel("Editar e-mail").fill("errado");
+    await page.keyboard.press("Escape");
+    await expect(reopened).toBeVisible();
+    await expect(reopened.getByRole("button", { name: "contato@padariasol.com.br" })).toBeVisible();
+  });
+
+  test("adds a lead by hand and finds the existing one", async ({ page, backend }) => {
+    await backend.lead({ name: "Padaria Sol", email: "oi@padariasol.com.br" });
+    await visit(page, "/leads");
+    await page.getByRole("button", { name: "Mais ações" }).click();
+    await page.getByRole("menuitem", { name: "Adicionar lead" }).click();
+    const sheet = page.getByRole("dialog", { name: "Adicionar lead" });
+    await sheet.getByLabel("Nome").fill("Café Lua");
+    await sheet.getByRole("button", { name: "Adicionar lead" }).click();
+    await expect(sheet.getByText("Informe um e-mail ou um telefone.")).toBeVisible();
+
+    await sheet.getByLabel("E-mail").fill("OI@padariasol.com.br");
+    await sheet.getByRole("button", { name: "Adicionar lead" }).click();
+    await expect(sheet.getByText(/Já existe um lead/)).toContainText("Padaria Sol");
+    await sheet.getByRole("button", { name: "Abrir o existente" }).click();
+    await expect(page.getByRole("dialog", { name: "Padaria Sol" })).toBeVisible();
+    await page.keyboard.press("Escape");
+
+    await page.getByRole("button", { name: "Mais ações" }).click();
+    await page.getByRole("menuitem", { name: "Adicionar lead" }).click();
+    await sheet.getByLabel("Nome").fill("Café Lua");
+    await sheet.getByLabel("Telefone").fill("(31) 99876-5432");
+    await sheet.getByRole("button", { name: "Adicionar lead" }).click();
+    const panel = page.getByRole("dialog", { name: "Café Lua" });
+    await expect(panel).toBeVisible();
+    await expect(panel.getByText("Adicionado manualmente")).toBeVisible();
+    await expect(panel.getByText(/Adicionado à mão, sem site/)).toBeVisible();
+  });
+
+  test("a funnel step opens the leads it counts", async ({ page, backend }) => {
+    await backend.lead({ name: "Padaria Sol", email: "oi@padariasol.com.br" });
+    await backend.lead({ name: "Padaria Lua" });
+    await visit(page, "/");
+    await page.getByRole("link", { name: "Com e-mail: 1" }).click();
+    await expect(page).toHaveURL(/\/leads\?.*hasEmail=true/);
+    await expect(rowOf(page, "Padaria Sol")).toBeVisible();
+    await expect(rowOf(page, "Padaria Lua")).toHaveCount(0);
+  });
+
+  test("a link to a lead that is gone says so", async ({ page }) => {
+    await visit(page, "/leads/00000000-0000-0000-0000-000000000000");
+    await expect(page.getByText("Lead não encontrado")).toBeVisible();
+    await expect(page).not.toHaveURL(/missing/);
+  });
+});

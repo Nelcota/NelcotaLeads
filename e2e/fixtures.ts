@@ -94,6 +94,11 @@ export class Backend {
     });
   }
 
+  /** A search stuck analyzing (its leads never reach the queue), to cancel it. */
+  runningSearch(search: { niche: string; city: string; leads: number }) {
+    return this.call<{ id: string }>({ action: "runningSearch", ...search });
+  }
+
   /** The next call of that fake throws once (`mailbox`: every call, until recovered). */
   fault(fault: Fault) {
     return this.call({ action: "fault", fault });

@@ -31,7 +31,6 @@ test.describe("settings", () => {
     await openSettings(page);
     await page.getByLabel("O que você oferece").fill("Landing pages para dentistas");
     await page.getByLabel("Descartar leads com nota abaixo de").fill("45");
-    await page.getByLabel("Seu nome").fill("Bruno Teste");
     await page.getByRole("button", { name: "Salvar", exact: true }).click();
     await expect(page.getByText("Configurações salvas")).toBeVisible();
     await expect(page.getByText("Alterações não salvas")).toBeHidden();
@@ -39,8 +38,46 @@ test.describe("settings", () => {
     await openSettings(page);
     await expect(page.getByLabel("O que você oferece")).toHaveValue("Landing pages para dentistas");
     await expect(page.getByLabel("Descartar leads com nota abaixo de")).toHaveValue("45");
-    await expect(page.getByLabel("Seu nome")).toHaveValue("Bruno Teste");
-    await expect(page.getByLabel("Sua empresa")).toHaveValue("Nelcota");
+    // The sender profile is shown here and edited in Conta only.
+    await expect(page.getByText("Ana Teste · Nelcota")).toBeVisible();
+    await expect(page.getByLabel("Seu nome")).toHaveCount(0);
+  });
+
+  test("asks before leaving with unsaved changes, and keeps them", async ({ page }) => {
+    await openSettings(page);
+    await page.getByLabel("O que você oferece").fill("Lojas virtuais");
+    await page.getByRole("link", { name: "Leads", exact: true }).click();
+
+    const ask = page.getByRole("alertdialog", { name: "Descartar alterações?" });
+    await expect(ask).toBeVisible();
+    await expect(ask.getByRole("button", { name: "Continuar editando" })).toBeFocused();
+    await ask.getByRole("button", { name: "Continuar editando" }).click();
+    await expect(ask).toBeHidden();
+    await expect(page.getByRole("heading", { name: "Configurações", level: 1 })).toBeVisible();
+    await expect(page.getByLabel("O que você oferece")).toHaveValue("Lojas virtuais");
+
+    // "Descartar" on the bar asks too, then puts the saved text back.
+    await page.getByRole("button", { name: "Descartar", exact: true }).click();
+    await ask.getByRole("button", { name: "Descartar" }).click();
+    await expect(page.getByLabel("O que você oferece")).toHaveValue(
+      "Sites e anúncios para clínicas",
+    );
+
+    // Nothing left to lose: leaving no longer asks.
+    await page.getByRole("link", { name: "Leads", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Leads", level: 1 })).toBeVisible();
+  });
+
+  test("removing a niche can be undone", async ({ page }) => {
+    await openSettings(page);
+    await page.getByRole("button", { name: "Adicionar nicho e cidade" }).click();
+    await page.getByLabel("Nicho 1").fill("dentistas");
+    await page.getByLabel("Cidade 1").fill("Belo Horizonte");
+    await page.getByRole("button", { name: "Remover busca 1" }).click();
+    await expect(page.getByLabel("Nicho 1")).toHaveCount(0);
+    await page.getByRole("button", { name: "Desfazer" }).click();
+    await expect(page.getByLabel("Nicho 1")).toHaveValue("dentistas");
+    await expect(page.getByLabel("Cidade 1")).toHaveValue("Belo Horizonte");
   });
 
   test("tests the mail connection without leaking secrets", async ({ page }) => {
