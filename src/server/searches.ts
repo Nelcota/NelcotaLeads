@@ -12,7 +12,7 @@ import { runSearch } from "./collect";
 import { cancelSearch as stopSearch, searchInputOf, setSearchHidden } from "./search-actions";
 import { loadSystemStatus } from "./job-runs";
 import { EMAIL_PROVIDER, mailDailyLimit } from "./mail-flow";
-import { loadSettings } from "./settings-store";
+import { loadConfig } from "./settings-store";
 import { GOOGLE_PLACES, placesDailyLimit, requestsToday, reserveRequest } from "./usage";
 
 // Google returns up to 20 places per request.
@@ -86,11 +86,13 @@ export const searchExists = createServerFn({ method: "GET" })
 export const getProviderStatus = createServerFn({ method: "GET" }).handler(async () => {
   const db = getDb();
   const now = new Date();
-  const [settings, placesUsed, mailSent, jobs] = await Promise.all([
-    loadSettings(db),
+  // One read of the settings row, shared with the system status.
+  const config = loadConfig(db);
+  const [{ settings }, placesUsed, mailSent, jobs] = await Promise.all([
+    config,
     requestsToday(db, GOOGLE_PLACES),
     requestsToday(db, EMAIL_PROVIDER),
-    loadSystemStatus(db, { mailConfigured: mailConfigured(env), now }),
+    loadSystemStatus(db, { mailConfigured: mailConfigured(env), now, config }),
   ]);
   return {
     placesConfigured: Boolean(env.GOOGLE_PLACES_API_KEY),
