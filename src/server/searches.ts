@@ -7,7 +7,9 @@ import { searches } from "@/db/schema";
 import { getPlacesProvider } from "@/lib/places";
 import { idSchema, newSearchSchema } from "@/lib/schemas";
 import { mailConfigured } from "@/lib/mail";
+import { needsAttention } from "@/lib/system-status";
 import { runSearch } from "./collect";
+import { loadSystemStatus } from "./job-runs";
 import { EMAIL_PROVIDER, mailDailyLimit } from "./mail-flow";
 import { loadSettings } from "./settings-store";
 import { GOOGLE_PLACES, placesDailyLimit, requestsToday, reserveRequest } from "./usage";
@@ -38,10 +40,12 @@ export const getSearch = createServerFn({ method: "GET" })
 
 export const getProviderStatus = createServerFn({ method: "GET" }).handler(async () => {
   const db = getDb();
-  const [settings, placesUsed, mailSent] = await Promise.all([
+  const now = new Date();
+  const [settings, placesUsed, mailSent, jobs] = await Promise.all([
     loadSettings(db),
     requestsToday(db, GOOGLE_PLACES),
     requestsToday(db, EMAIL_PROVIDER),
+    loadSystemStatus(db, { mailConfigured: mailConfigured(env), now }),
   ]);
   return {
     placesConfigured: Boolean(env.GOOGLE_PLACES_API_KEY),
@@ -57,5 +61,7 @@ export const getProviderStatus = createServerFn({ method: "GET" }).handler(async
       sentToday: mailSent,
       limit: mailDailyLimit(env.MAIL_DAILY_LIMIT),
     },
+    // The orange dot on Conta in the sidebar: a background task keeps failing.
+    systemAttention: needsAttention(jobs, now),
   };
 });

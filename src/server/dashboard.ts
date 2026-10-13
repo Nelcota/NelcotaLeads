@@ -8,6 +8,7 @@ import { localDay } from "@/lib/format";
 import { mailConfigured } from "@/lib/mail";
 import { autopilotInputSchema } from "@/lib/schemas";
 import { ALREADY_RAN_MESSAGE, autopilotDeps, runAutopilot } from "./autopilot";
+import { recordJobRun } from "./job-runs";
 import { EMAIL_PROVIDER, mailDailyLimit } from "./mail-flow";
 import { loadAutopilot, loadConfig, storeAutopilot, writeAutopilot } from "./settings-store";
 import { GOOGLE_PLACES, placesDailyLimit, requestsToday, usageThisMonth } from "./usage";
@@ -227,11 +228,25 @@ export const setAutomation = createServerFn({ method: "POST" })
 
 /** Runs today's searches right away, ignoring the hour; refuses when today already ran. */
 export const runAutopilotNow = createServerFn({ method: "POST" }).handler(async () => {
-  const autopilot = await loadAutopilot(getDb());
+  const db = getDb();
+  const autopilot = await loadAutopilot(db);
   if (autopilot.targets.length === 0) {
     throw new Error("Cadastre ao menos um nicho e cidade no piloto automático.");
   }
-  const result = await runAutopilot(autopilotDeps(env), new Date(), { force: true });
+  const now = new Date();
+  let result;
+  try {
+    result = await runAutopilot(autopilotDeps(env), now, { force: true });
+  } catch (error) {
+    await recordJobRun(db, "autopilot", { status: "failed", error }, now);
+    throw error;
+  }
   if (result.alreadyRan) throw new Error(ALREADY_RAN_MESSAGE);
+  await recordJobRun(
+    db,
+    "autopilot",
+    result.failure === undefined ? { status: "ok" } : { status: "failed", error: result.failure },
+    now,
+  );
   return { searches: result.searches };
 });

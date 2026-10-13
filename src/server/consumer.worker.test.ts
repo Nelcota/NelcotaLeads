@@ -2,7 +2,7 @@ import { env } from "cloudflare:test";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getDb } from "@/db/client";
-import { leads, searches } from "@/db/schema";
+import { jobRuns, leads, searches } from "@/db/schema";
 import { createFakeAnalyzer } from "../../test/fake-analyzer";
 import { resetDb } from "../../test/reset-db";
 import { DEAD_LETTER_QUEUE, handleLeadBatch, retryDelaySeconds } from "./consumer";
@@ -123,6 +123,24 @@ describe("handleLeadBatch", () => {
     expect(await db.query.leads.findFirst({ where: eq(leads.id, "a") })).toMatchObject({
       analysisStatus: "error",
     });
+    // Conta → Status shows the analysis task failing, with a friendly message.
+    expect(
+      await db.query.jobRuns.findFirst({ where: eq(jobRuns.job, "analysis-queue") }),
+    ).toMatchObject({
+      consecutiveFailures: 1,
+      lastError: "A análise de algumas empresas falhou. Peça uma nova análise no lead.",
+    });
+  });
+
+  it("records the analysis task as working when a lead is analyzed", async () => {
+    await handleLeadBatch(batch(DEAD_LETTER_QUEUE, [message("b", 6)]), failingDeps());
+    await handleLeadBatch(batch("main", [message("a", 1)]), {
+      ...failingDeps(),
+      analyzer: createFakeAnalyzer(),
+    });
+    expect(
+      await db.query.jobRuns.findFirst({ where: eq(jobRuns.job, "analysis-queue") }),
+    ).toMatchObject({ consecutiveFailures: 0 });
   });
 });
 

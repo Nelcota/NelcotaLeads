@@ -31,8 +31,10 @@ import {
   sendDue,
   sendEmail,
 } from "./mail-flow";
+import { runSendJob, trackJob } from "./job-runs";
 import { loadSettings } from "./settings-store";
 import { DAILY_LIMIT_ERROR } from "@/lib/email-errors";
+import { friendlyJobError } from "@/lib/system-status";
 import { idSchema } from "@/lib/schemas";
 
 const id = idSchema;
@@ -114,14 +116,27 @@ export const dispatchEmails = createServerFn({ method: "POST" })
     return { queued };
   });
 
-/** Sends the queue's next e-mail and reads replies now, without waiting for the cron. */
+/**
+ * Sends the queue's next e-mail and reads replies now, without waiting for the cron (also the
+ * "Tentar agora" of both mail tasks in Conta → Status). A refused send is shown on the e-mail
+ * and in Status, so only a failed inbox read is thrown, with a friendly message.
+ */
 export const checkMailNow = createServerFn({ method: "POST" }).handler(async () => {
   if (!mailConfigured(env)) throw new Error("Conecte a sua caixa de e-mail nas Configurações.");
   const db = getDb();
   const mailer = getMailer(env);
-  const sent = await sendDue({ db, mailer, limit: limit() });
-  const received = await pollInbox({ db, mailer, analyzer: getAnalyzer(env) });
-  return { sent, received };
+  const sent = await runSendJob({ db, mailer, limit: limit() }, new Date(), {
+    verifyWhenIdle: true,
+  }).catch(() => 0);
+  try {
+    const received = await trackJob(db, "inbox", () =>
+      pollInbox({ db, mailer, analyzer: getAnalyzer(env) }),
+    );
+    return { sent, received };
+  } catch (error) {
+    // oxlint-disable-next-line eslint/preserve-caught-error -- the raw text stays in the log
+    throw new Error(friendlyJobError("inbox", error));
+  }
 });
 
 export const testMailConnection = createServerFn({ method: "POST" }).handler(async () => {

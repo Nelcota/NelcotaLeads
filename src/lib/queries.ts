@@ -6,6 +6,7 @@ import { getConversation, listConversations } from "@/server/mail";
 import { getLead, getLeadCounts, listLeads } from "@/server/leads";
 import { getProviderStatus, getSearch, listSearches } from "@/server/searches";
 import { getQuickReplies } from "@/server/settings";
+import { getSystemStatus } from "@/server/system-status";
 
 const isRunning = (status: string) => status === "collecting" || status === "analyzing";
 
@@ -92,4 +93,11 @@ export const conversationQuery = (leadId: string) =>
 export const quickRepliesQuery = queryOptions({
   queryKey: ["quick-replies"],
   queryFn: () => getQuickReplies(),
+});
+
+/** Conta → Status. Refreshed every minute, only while a screen that shows it is open. */
+export const systemStatusQuery = queryOptions({
+  queryKey: ["system-status"],
+  queryFn: () => getSystemStatus(),
+  refetchInterval: 60_000,
 });

@@ -12,6 +12,7 @@ export async function resetDb() {
       "api_usage",
       "users",
       "quick_replies",
+      "job_runs",
     ].map((table) => env.DB.prepare(`DELETE FROM ${table}`)),
   );
 }

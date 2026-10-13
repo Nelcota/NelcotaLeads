@@ -66,7 +66,7 @@ export async function runAutopilot(
   deps: AutopilotDeps,
   now = new Date(),
   { force = false } = {},
-): Promise<{ searches: number; alreadyRan: boolean }> {
+): Promise<{ searches: number; alreadyRan: boolean; failure?: unknown }> {
   const { db } = deps;
   const config = await loadAutopilot(db);
   const today = localDay(now);
@@ -78,6 +78,8 @@ export async function runAutopilot(
   if (!(await claimAutopilotDay(db, today))) return { searches: 0, alreadyRan: true };
 
   let searched = 0;
+  // The first problem of the run (a target that broke, a search that failed), for Conta → Status.
+  let failure: unknown;
   const targets = [...config.targets];
   for (const [index, target] of targets.entries()) {
     try {
@@ -94,12 +96,18 @@ export async function runAutopilot(
       targets[index] = next;
       await writeAutopilot(db, { autopilotTargets: targets });
       const search = await db.query.searches.findFirst({ where: eq(searches.id, searchId) });
-      if (search?.status === "error" || search?.errorMessage) break;
+      if (search?.status === "error" || search?.errorMessage) {
+        failure ??= new Error(search.errorMessage ?? "search failed");
+        break;
+      }
     } catch (error) {
       // One broken target must not keep the others from running.
       console.error("autopilot target failed", target.niche, target.city, error);
+      failure ??= error;
     }
   }
 
-  return { searches: searched, alreadyRan: false };
+  return failure === undefined
+    ? { searches: searched, alreadyRan: false }
+    : { searches: searched, alreadyRan: false, failure };
 }

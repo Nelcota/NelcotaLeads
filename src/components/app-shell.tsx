@@ -56,6 +56,8 @@ const SYSTEM_NAV: NavItem[] = [
   { to: "/settings", label: "Configurações", icon: SettingsIcon, tone: "gray" },
 ];
 
+const SYSTEM_ATTENTION = "Algo precisa de atenção";
+
 const NewSearchContext = createContext<() => void>(() => {});
 
 /** Opens the "Busca manual" dialog from anywhere in the app. */
@@ -105,30 +107,47 @@ export function AppShell({ children }: { children: ReactNode }) {
 function AppSidebar() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const { data: attention = 0 } = useQuery(attentionQuery);
+  const { data: provider } = useQuery(providerStatusQuery);
+  const systemAttention = provider?.systemAttention ?? false;
   const openNewSearch = useOpenNewSearch();
   const isActive = (to: NavItem["to"]) => (to === "/" ? pathname === "/" : pathname.startsWith(to));
 
-  const renderItem = (item: NavItem) => (
-    <SidebarMenuItem key={item.to}>
-      <SidebarMenuButton
-        asChild
-        isActive={isActive(item.to)}
-        tooltip={item.label}
-        className="press h-8 gap-2.5 text-muted-foreground data-active:text-foreground hover:text-foreground"
-      >
-        <Link to={item.to}>
-          <NavTile icon={item.icon} tone={item.tone} />
-          <span>{item.label}</span>
-        </Link>
-      </SidebarMenuButton>
-      {item.to === "/conversas" && attention > 0 ? (
-        <SidebarMenuBadge className="top-1.5! h-[18px] min-w-0 rounded-full bg-orange px-1.5 text-[11px] text-[#1b1000] tabular-nums">
-          {attention}
-          <span className="sr-only"> precisam de você</span>
-        </SidebarMenuBadge>
-      ) : null}
-    </SidebarMenuItem>
-  );
+  const renderItem = (item: NavItem) => {
+    const warn = item.to === "/conta" && systemAttention;
+    return (
+      <SidebarMenuItem key={item.to}>
+        <SidebarMenuButton
+          asChild
+          isActive={isActive(item.to)}
+          tooltip={warn ? `${item.label} · ${SYSTEM_ATTENTION}` : item.label}
+          className="press h-8 gap-2.5 text-muted-foreground data-active:text-foreground hover:text-foreground"
+        >
+          <Link to={item.to}>
+            <NavTile icon={item.icon} tone={item.tone} />
+            <span>{item.label}</span>
+            {warn ? <span className="sr-only"> · {SYSTEM_ATTENTION}</span> : null}
+          </Link>
+        </SidebarMenuButton>
+        {item.to === "/conversas" && attention > 0 ? (
+          <SidebarMenuBadge className="top-1.5! h-[18px] min-w-0 rounded-full bg-orange px-1.5 text-[11px] text-[#1b1000] tabular-nums">
+            {attention}
+            <span className="sr-only"> precisam de você</span>
+          </SidebarMenuBadge>
+        ) : null}
+        {warn ? (
+          <Hint label={SYSTEM_ATTENTION} side="right">
+            <SidebarMenuBadge
+              data-testid="system-attention"
+              className="pointer-events-auto top-1.5!"
+              aria-hidden
+            >
+              <span className="size-2 rounded-full bg-orange" />
+            </SidebarMenuBadge>
+          </Hint>
+        ) : null}
+      </SidebarMenuItem>
+    );
+  };
 
   return (
     <Sidebar collapsible="icon" variant="floating">

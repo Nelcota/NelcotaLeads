@@ -255,6 +255,20 @@ export const quickReplies = sqliteTable("quick_replies", {
   ...timestamps,
 });
 
+/**
+ * One row per background task (the cron steps and the analysis queue): when it last ran,
+ * worked and failed, so Conta → Status can tell the user without opening the logs.
+ * `lastError` is the friendly text; the raw error only goes to the log.
+ */
+export const jobRuns = sqliteTable("job_runs", {
+  job: text("job").primaryKey(),
+  lastRunAt: integer("last_run_at", { mode: "timestamp" }).notNull(),
+  lastOkAt: integer("last_ok_at", { mode: "timestamp" }),
+  lastErrorAt: integer("last_error_at", { mode: "timestamp" }),
+  lastError: text("last_error"),
+  consecutiveFailures: integer("consecutive_failures").notNull().default(0),
+});
+
 export type Settings = typeof settings.$inferSelect;
 export type Search = typeof searches.$inferSelect;
 export type Lead = typeof leads.$inferSelect;
@@ -262,3 +276,4 @@ export type Analysis = typeof analyses.$inferSelect;
 export type Email = typeof emails.$inferSelect;
 export type User = typeof users.$inferSelect;
 export type QuickReply = typeof quickReplies.$inferSelect;
+export type JobRun = typeof jobRuns.$inferSelect;

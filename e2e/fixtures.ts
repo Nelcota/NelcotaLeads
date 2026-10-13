@@ -50,7 +50,7 @@ export type SentEmail = {
   inReplyTo?: string | null;
 };
 
-export type Fault = "places" | "writeEmail" | "mailSend";
+export type Fault = "places" | "writeEmail" | "mailSend" | "mailbox";
 
 /** Drives the test-only `/api/e2e` route: data reset, cron ticks and the fake mailbox. */
 export class Backend {
@@ -94,9 +94,13 @@ export class Backend {
     });
   }
 
-  /** The next call of that fake throws once. */
+  /** The next call of that fake throws once (`mailbox`: every call, until recovered). */
   fault(fault: Fault) {
     return this.call({ action: "fault", fault });
+  }
+
+  recover(fault: Fault) {
+    return this.call({ action: "recover", fault });
   }
 }
 

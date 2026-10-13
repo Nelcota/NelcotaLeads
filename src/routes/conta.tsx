@@ -16,7 +16,8 @@ import { Avatar, GroupedRow, IconTile, PropertyRow, SectionHeader } from "@/comp
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { accountQuery, providerStatusQuery } from "@/lib/queries";
+import { SystemStatusSection } from "@/components/system-status";
+import { accountQuery, providerStatusQuery, systemStatusQuery } from "@/lib/queries";
 import type { SettingsInput } from "@/lib/schemas";
 import { useTheme } from "@/lib/theme";
 import { getSettings, saveSettings } from "@/server/settings";
@@ -31,6 +32,7 @@ export const Route = createFileRoute("/conta")({
       context.queryClient.ensureQueryData(settingsQuery),
       context.queryClient.ensureQueryData(providerStatusQuery),
       context.queryClient.ensureQueryData(accountQuery),
+      context.queryClient.ensureQueryData(systemStatusQuery),
     ]),
   component: AccountPage,
 });
@@ -79,6 +81,8 @@ function AccountPage() {
             />
           </div>
         </section>
+
+        <SystemStatusSection />
 
         {status ? (
           <section className="enter min-w-0">

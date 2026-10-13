@@ -17,10 +17,16 @@ const TABLES = [
   "settings",
   "api_usage",
   "quick_replies",
+  "job_runs",
 ];
 
 // Listed here rather than imported, so no fake module code reaches this route's bundle.
-const FAULTS = ["places", "writeEmail", "mailSend"] as const satisfies readonly E2eFault[];
+const FAULTS = [
+  "places",
+  "writeEmail",
+  "mailSend",
+  "mailbox",
+] as const satisfies readonly E2eFault[];
 
 const actionSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("reset") }),
@@ -42,6 +48,8 @@ const actionSchema = z.discriminatedUnion("action", [
   }),
   // Arms a one-shot failure in a fake: the next Places search, AI e-mail draft or send throws.
   z.object({ action: z.literal("fault"), fault: z.enum(FAULTS) }),
+  // Disarms a fault that lasts (`mailbox`): the fake works again.
+  z.object({ action: z.literal("recover"), fault: z.enum(FAULTS) }),
 ]);
 
 /**
@@ -132,6 +140,9 @@ export const Route = createFileRoute("/api/e2e")({
           case "fault":
             globalThis.nelcotaE2eFaults ??= new Set<E2eFault>();
             globalThis.nelcotaE2eFaults.add(input.fault);
+            return Response.json({ ok: true });
+          case "recover":
+            globalThis.nelcotaE2eFaults?.delete(input.fault);
             return Response.json({ ok: true });
         }
         return new Response("Bad request", { status: 400 });

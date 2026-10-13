@@ -1,3 +1,4 @@
+import { recordJobRun } from "./job-runs";
 import { failLead, MAX_ATTEMPTS, processLead, type ProcessDeps } from "./process-lead";
 import type { LeadJob } from "./queue";
 
@@ -16,17 +17,27 @@ export async function handleLeadBatch(batch: MessageBatch<LeadJob>, deps: Proces
         message.retry();
       }
     }
+    if (batch.messages.length > 0) {
+      await recordJobRun(deps.db, "analysis-queue", {
+        status: "failed",
+        error: new Error("dead-lettered"),
+      });
+    }
     return;
   }
 
+  let worked = 0;
+  let gaveUp = 0;
   await Promise.all(
     batch.messages.map(async (message) => {
       try {
         await processLead(deps, message.body);
         message.ack();
+        worked += 1;
       } catch (error) {
         console.error("lead processing failed", message.body.leadId, message.attempts, error);
         if (message.attempts >= MAX_ATTEMPTS) {
+          gaveUp += 1;
           // A failure to record the failure must not reject the rest of the batch.
           try {
             await failLead(deps.db, message.body, error);
@@ -41,6 +52,16 @@ export async function handleLeadBatch(batch: MessageBatch<LeadJob>, deps: Proces
       }
     }),
   );
+  // One lead whose site breaks the analysis is shown on that lead; only a batch where nothing
+  // worked and some lead was given up on (e.g. the AI is down) marks the task as failing.
+  if (worked > 0) {
+    await recordJobRun(deps.db, "analysis-queue", { status: "ok" });
+  } else if (gaveUp > 0) {
+    await recordJobRun(deps.db, "analysis-queue", {
+      status: "failed",
+      error: new Error("analysis gave up"),
+    });
+  }
 }
 
 /** Exponential backoff: 30s, 60s, 120s… */
