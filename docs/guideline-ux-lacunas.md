@@ -95,13 +95,13 @@ Não há moldura falsa de navegador (bolinhas do macOS, barra de endereço desen
 
 | ✓   | ID  | Item                                                                 | Hoje                     | Como implementar                                                                                                             | Esforço |
 | --- | --- | -------------------------------------------------------------------- | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------- | ------- |
-| [ ] | C1  | Enviar com **⌘/Ctrl + Enter**                                        | Não tem.                 | `onKeyDown` no `Textarea`, com o atalho no tooltip de "Enviar".                                                              | P       |
-| [ ] | C2  | **Buscar conversa** por nome ou e-mail                               | Só as abas.              | Campo compacto acima das abas, filtrando no cliente.                                                                         | P       |
-| [ ] | C3  | **Escrever com IA** quando não há rascunho, e **reescrever** o atual | A IA só escreve sozinha. | Botão roxo no composer. Gera um rascunho do usuário (respeita T3) e tem Desfazer (T5).                                       | M       |
-| [ ] | C4  | **WhatsApp** na conversa                                             | Só existe no lead.       | Ícone ao lado de Ligar e Site, e no carrossel mobile. Reaproveite o helper do `wa.me`.                                       | P       |
-| [ ] | C5  | **Teclado**: J/K entre conversas, Esc volta                          | Só o sheet de lead tem.  | Reaproveite a lógica de `lead-sheet.tsx:40-85`. Desligado enquanto o foco está no composer.                                  | P       |
-| [ ] | C6  | **Texto citado recolhido** ("Em … escreveu:")                        | Mostra tudo.             | Uma função pura `splitQuoted()` com testes de tabela (Gmail, Outlook, Apple Mail, `>`) e o link "Mostrar mensagem anterior". | M       |
-| [ ] | C7  | **Respostas rápidas**                                                | Não tem.                 | **Opcional, depende de você.** Lista curta em Configurações e um Popover "Modelos" no composer.                              | M       |
+| [x] | C1  | Enviar com **⌘/Ctrl + Enter**                                        | Não tem.                 | `onKeyDown` no `Textarea`, com o atalho no tooltip de "Enviar".                                                              | P       |
+| [x] | C2  | **Buscar conversa** por nome ou e-mail                               | Só as abas.              | Campo compacto acima das abas, filtrando no cliente.                                                                         | P       |
+| [x] | C3  | **Escrever com IA** quando não há rascunho, e **reescrever** o atual | A IA só escreve sozinha. | Botão roxo no composer. Gera um rascunho do usuário (respeita T3) e tem Desfazer (T5).                                       | M       |
+| [x] | C4  | **WhatsApp** na conversa                                             | Só existe no lead.       | Ícone ao lado de Ligar e Site, e no carrossel mobile. Reaproveite o helper do `wa.me`.                                       | P       |
+| [x] | C5  | **Teclado**: J/K entre conversas, Esc volta                          | Só o sheet de lead tem.  | Reaproveite a lógica de `lead-sheet.tsx:40-85`. Desligado enquanto o foco está no composer.                                  | P       |
+| [x] | C6  | **Texto citado recolhido** ("Em … escreveu:")                        | Mostra tudo.             | Uma função pura `splitQuoted()` com testes de tabela (Gmail, Outlook, Apple Mail, `>`) e o link "Mostrar mensagem anterior". | M       |
+| [x] | C7  | **Respostas rápidas**                                                | Não tem.                 | **Opcional, depende de você.** Lista curta em Configurações e um Popover "Modelos" no composer.                              | M       |
 
 ## Sprint 4: suporte
 
