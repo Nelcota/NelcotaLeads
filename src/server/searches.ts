@@ -1,35 +1,69 @@
 import { createServerFn } from "@tanstack/react-start";
 import { env } from "cloudflare:workers";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
-import { getDb } from "@/db/client";
+import { getDb, type Db } from "@/db/client";
 import { searches } from "@/db/schema";
 import { getPlacesProvider } from "@/lib/places";
-import { idSchema, newSearchSchema } from "@/lib/schemas";
+import { idSchema, newSearchSchema, type NewSearchInput } from "@/lib/schemas";
 import { mailConfigured } from "@/lib/mail";
 import { needsAttention } from "@/lib/system-status";
 import { runSearch } from "./collect";
-import { cancelSearch as stopSearch } from "./search-actions";
+import { cancelSearch as stopSearch, searchInputOf, setSearchHidden } from "./search-actions";
 import { loadSystemStatus } from "./job-runs";
 import { EMAIL_PROVIDER, mailDailyLimit } from "./mail-flow";
 import { loadSettings } from "./settings-store";
 import { GOOGLE_PLACES, placesDailyLimit, requestsToday, reserveRequest } from "./usage";
 
+// Google returns up to 20 places per request.
+const PLACES_PAGE_SIZE = 20;
+
 export const createSearch = createServerFn({ method: "POST" })
   .validator(newSearchSchema)
-  .handler(({ data }) => {
-    if (!env.DEEPSEEK_API_KEY) throw new Error("Configure a DEEPSEEK_API_KEY antes de buscar.");
+  .handler(({ data }) => startSearch(getDb(), data));
+
+/** "Tentar de novo" and "Repetir": a new search with the same niche, city and size. */
+export const repeatSearch = createServerFn({ method: "POST" })
+  .validator(z.object({ id: idSchema }))
+  .handler(async ({ data }) => {
     const db = getDb();
-    const limit = placesDailyLimit(env.PLACES_DAILY_REQUEST_LIMIT);
-    const provider = getPlacesProvider(env.GOOGLE_PLACES_API_KEY, () =>
-      reserveRequest(db, GOOGLE_PLACES, limit),
-    );
-    return runSearch(db, env.LEAD_QUEUE, provider, data);
+    return startSearch(db, await searchInputOf(db, data.id));
   });
 
+/** Same checks as the Busca manual dialog: the keys, then today's Google requests. */
+async function startSearch(db: Db, input: NewSearchInput) {
+  if (!env.DEEPSEEK_API_KEY || !env.GOOGLE_PLACES_API_KEY) {
+    throw new Error(
+      "As chaves do Google e da IA não estão configuradas. Fale com quem administra o sistema.",
+    );
+  }
+  const limit = placesDailyLimit(env.PLACES_DAILY_REQUEST_LIMIT);
+  const remaining = limit - (await requestsToday(db, GOOGLE_PLACES));
+  if (remaining < Math.ceil(input.maxResults / PLACES_PAGE_SIZE)) {
+    throw new Error(
+      remaining <= 0
+        ? `O limite de ${limit} requisições ao Google por dia foi atingido. Volte amanhã.`
+        : `Restam só ${remaining} ${remaining === 1 ? "requisição" : "requisições"} ao Google hoje.`,
+    );
+  }
+  const provider = getPlacesProvider(env.GOOGLE_PLACES_API_KEY, () =>
+    reserveRequest(db, GOOGLE_PLACES, limit),
+  );
+  return runSearch(db, env.LEAD_QUEUE, provider, input);
+}
+
 export const listSearches = createServerFn({ method: "GET" }).handler(() =>
-  getDb().query.searches.findMany({ orderBy: desc(searches.createdAt), limit: 100 }),
+  getDb().query.searches.findMany({
+    where: isNull(searches.hiddenAt),
+    orderBy: desc(searches.createdAt),
+    limit: 100,
+  }),
 );
+
+/** "Ocultar" in the card's menu, and its "Desfazer". */
+export const hideSearch = createServerFn({ method: "POST" })
+  .validator(z.object({ id: idSchema, hidden: z.boolean() }))
+  .handler(({ data }) => setSearchHidden(getDb(), data.id, data.hidden));
 
 export const getSearch = createServerFn({ method: "GET" })
   .validator(z.object({ id: idSchema }))

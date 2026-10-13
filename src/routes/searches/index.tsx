@@ -1,19 +1,35 @@
 import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRightIcon, BotIcon, CheckIcon, PlusIcon, SearchIcon, XIcon } from "lucide-react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import {
+  ArrowRightIcon,
+  BotIcon,
+  CheckIcon,
+  EllipsisIcon,
+  EyeOffIcon,
+  PlusIcon,
+  RotateCwIcon,
+  SearchIcon,
+  XIcon,
+} from "lucide-react";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
-import { EmptyState, IconTile, Lift, ProgressRing } from "@/components/apple-ui";
+import { EmptyState, Hint, IconTile, Lift, ProgressRing } from "@/components/apple-ui";
 import { Page, Stat, useOpenNewSearch } from "@/components/app-shell";
 import { SearchStatusBadge } from "@/components/lead-badges";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Progress } from "@/components/ui/progress";
 import type { Search } from "@/db/schema";
 import { formatDate } from "@/lib/format";
 import { searchesQuery } from "@/lib/queries";
 import { errorToast } from "@/lib/mutation-toasts";
 import { cn } from "@/lib/utils";
-import { cancelSearch } from "@/server/searches";
+import { cancelSearch, hideSearch, repeatSearch } from "@/server/searches";
 import { pageTitle } from "@/lib/page-title";
 
 export const Route = createFileRoute("/searches/")({
@@ -101,6 +117,8 @@ function SearchCard({ search, index }: { search: Search; index: number }) {
     },
     onError: errorToast("Não foi possível cancelar a busca"),
   });
+  const repeat = useRepeatSearch();
+  const hide = useHideSearch();
   return (
     <Lift
       className="grouped enter cursor-default"
@@ -140,7 +158,12 @@ function SearchCard({ search, index }: { search: Search; index: number }) {
             </Button>
           ) : null}
           <SearchStatusBadge status={search.status} />
-          {search.foundCount > 0 ? (
+          {search.status === "error" ? (
+            <Button size="sm" disabled={repeat.isPending} onClick={() => repeat.mutate(search.id)}>
+              <RotateCwIcon />
+              {repeat.isPending ? "Buscando…" : "Tentar de novo"}
+            </Button>
+          ) : search.foundCount > 0 ? (
             <Button asChild variant="outline" size="sm">
               <Link to="/leads" search={{ view: "all", searchId: search.id }}>
                 Ver leads
@@ -148,6 +171,30 @@ function SearchCard({ search, index }: { search: Search; index: number }) {
               </Link>
             </Button>
           ) : null}
+          {running ? null : (
+            <DropdownMenu>
+              <Hint label="Mais ações">
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon-sm" aria-label="Mais ações">
+                    <EllipsisIcon />
+                  </Button>
+                </DropdownMenuTrigger>
+              </Hint>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  disabled={repeat.isPending}
+                  onSelect={() => repeat.mutate(search.id)}
+                >
+                  <RotateCwIcon />
+                  Repetir busca
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => hide.mutate(search.id)}>
+                  <EyeOffIcon />
+                  Ocultar
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       </div>
 
@@ -229,6 +276,58 @@ function SearchCard({ search, index }: { search: Search; index: number }) {
       )}
     </Lift>
   );
+}
+
+/** "Tentar de novo" and "Repetir busca": a new search with the same niche, city and size. */
+function useRepeatSearch() {
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  return useMutation({
+    mutationFn: (id: string) => repeatSearch({ data: { id } }),
+    onSuccess: async ({ searchId }) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["searches"] }),
+        queryClient.invalidateQueries({ queryKey: ["leads"] }),
+        queryClient.invalidateQueries({ queryKey: ["provider-status"] }),
+      ]);
+      toast.success("Busca feita de novo", {
+        description: "Os leads aparecem conforme a análise termina.",
+        action: {
+          label: "Ver leads",
+          onClick: () => void navigate({ to: "/leads", search: { view: "all", searchId } }),
+        },
+      });
+    },
+    onError: errorToast("Não foi possível repetir a busca"),
+  });
+}
+
+/** Hides the search from this list right away; its leads stay. Undo brings it back. */
+function useHideSearch() {
+  const queryClient = useQueryClient();
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ["searches"] });
+  const undo = async (id: string) => {
+    try {
+      await hideSearch({ data: { id, hidden: false } });
+      await refresh();
+    } catch (error) {
+      errorToast("Não foi possível desfazer")(error);
+    }
+  };
+  return useMutation({
+    mutationFn: (id: string) => hideSearch({ data: { id, hidden: true } }),
+    onSuccess: async (result, id) => {
+      await refresh();
+      toast("Busca ocultada", {
+        description:
+          result.leads === 0
+            ? undefined
+            : `${result.leads === 1 ? "O lead continua" : `Os ${result.leads} leads continuam`} em Leads.`,
+        action: { label: "Desfazer", onClick: () => void undo(id) },
+      });
+    },
+    onError: errorToast("Não foi possível ocultar a busca"),
+  });
 }
 
 type StepState = "pending" | "running" | "done" | "error";

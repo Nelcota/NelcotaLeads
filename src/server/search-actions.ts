@@ -1,4 +1,5 @@
 import { and, eq, inArray, isNull } from "drizzle-orm";
+import type { NewSearchInput } from "@/lib/schemas";
 import type { Db } from "@/db/client";
 import { leads, searches } from "@/db/schema";
 import { SEARCH_CANCELLED_MESSAGE } from "./process-lead";
@@ -29,4 +30,34 @@ export async function cancelSearch(db: Db, id: string) {
       ),
     );
   return { ok: true as const };
+}
+
+/** Niche, city and size of an earlier search, to run it again ("Tentar de novo", "Repetir"). */
+export async function searchInputOf(db: Db, id: string): Promise<NewSearchInput> {
+  const search = await db.query.searches.findFirst({
+    where: eq(searches.id, id),
+    columns: { niche: true, city: true, maxResults: true },
+  });
+  if (!search) throw new Error("Busca não encontrada");
+  return search;
+}
+
+/**
+ * Hides a search from the Buscas list, or shows it again (the undo). Its leads stay where
+ * they are; returns how many, for the toast. A running search must be cancelled first.
+ */
+export async function setSearchHidden(db: Db, id: string, hidden: boolean, now = new Date()) {
+  const search = await db.query.searches.findFirst({
+    where: eq(searches.id, id),
+    columns: { status: true },
+  });
+  if (!search) throw new Error("Busca não encontrada");
+  if (hidden && (search.status === "collecting" || search.status === "analyzing")) {
+    throw new Error("Cancele a busca antes de ocultar.");
+  }
+  await db
+    .update(searches)
+    .set({ hiddenAt: hidden ? now : null })
+    .where(eq(searches.id, id));
+  return { leads: await db.$count(leads, eq(leads.searchId, id)) };
 }

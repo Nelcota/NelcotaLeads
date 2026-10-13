@@ -6,7 +6,7 @@ import { leads, searches } from "@/db/schema";
 import { createFakeAnalyzer } from "../../test/fake-analyzer";
 import { resetDb } from "../../test/reset-db";
 import { processLead, SEARCH_CANCELLED_MESSAGE, type ProcessDeps } from "./process-lead";
-import { cancelSearch } from "./search-actions";
+import { cancelSearch, searchInputOf, setSearchHidden } from "./search-actions";
 
 const db = getDb(env.DB);
 
@@ -82,5 +82,44 @@ describe("cancelSearch", () => {
     expect(await processLead(deps, { leadId: "waiting", force: true })).toBe("done");
     expect(await lead("waiting")).toMatchObject({ analysisStatus: "done", score: 80 });
     expect(await search()).toMatchObject({ status: "cancelled" });
+  });
+});
+
+describe("setSearchHidden", () => {
+  beforeEach(async () => {
+    await resetDb();
+    await db.insert(searches).values([
+      { id: "s", niche: "Dentistas", city: "BH", maxResults: 40, status: "done" },
+      { id: "r", niche: "x", city: "y", maxResults: 1, status: "analyzing" },
+    ]);
+    await db.insert(leads).values([
+      { id: "a", searchId: "s", placeId: "p1", name: "A", status: "contacted" },
+      { id: "b", searchId: "s", placeId: "p2", name: "B" },
+    ]);
+  });
+
+  it("hides a search and brings it back, keeping its leads", async () => {
+    const now = new Date("2026-10-12T12:00:00Z");
+    expect(await setSearchHidden(db, "s", true, now)).toEqual({ leads: 2 });
+    expect(await search()).toMatchObject({ hiddenAt: now });
+    expect(await db.$count(leads, eq(leads.searchId, "s"))).toBe(2);
+    expect(await lead("a")).toMatchObject({ status: "contacted" });
+
+    await setSearchHidden(db, "s", false);
+    expect(await search()).toMatchObject({ hiddenAt: null });
+  });
+
+  it("refuses to hide a running search", async () => {
+    await expect(setSearchHidden(db, "r", true)).rejects.toThrow("Cancele a busca");
+    await expect(setSearchHidden(db, "nope", true)).rejects.toThrow("Busca não encontrada");
+  });
+
+  it("reads the input to run a search again", async () => {
+    expect(await searchInputOf(db, "s")).toEqual({
+      niche: "Dentistas",
+      city: "BH",
+      maxResults: 40,
+    });
+    await expect(searchInputOf(db, "nope")).rejects.toThrow("Busca não encontrada");
   });
 });

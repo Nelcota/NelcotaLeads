@@ -76,6 +76,8 @@ export const searches = sqliteTable(
     origin: text("origin", { enum: ["manual", "autopilot"] })
       .notNull()
       .default("manual"),
+    // Hidden from the Buscas list by the user; its leads stay (and keep pointing here).
+    hiddenAt: integer("hidden_at", { mode: "timestamp" }),
     ...timestamps,
   },
   (t) => [index("searches_created_idx").on(t.createdAt)],
