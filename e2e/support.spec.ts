@@ -82,3 +82,20 @@ test.describe("help", () => {
     await expect(page.getByRole("heading", { name: "Status" })).toBeVisible();
   });
 });
+
+test.describe("concept tips", () => {
+  test("the InfoTip explains its concept on keyboard focus and on tap", async ({ page }) => {
+    await visit(page, "/settings");
+    const tip = page
+      .getByRole("heading", { name: /^Modo automático/ })
+      .getByRole("button", { name: "Mais informações" });
+    await tip.focus();
+    await expect(page.getByRole("tooltip")).toContainText("O que o app faz sozinho");
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("tooltip")).toHaveCount(0);
+
+    // Touch screens have no hover: a tap opens it too.
+    await tip.click();
+    await expect(page.getByRole("tooltip")).toContainText("O que o app faz sozinho");
+  });
+});

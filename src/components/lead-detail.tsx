@@ -18,12 +18,14 @@ import {
   ExternalLink,
   ExternalMark,
   IconTile,
+  InfoTip,
   ProgressRing,
   SaveStatus,
   TONE_TEXT,
   type Tone,
 } from "@/components/apple-ui";
 import { useReportUnsavedEdits } from "@/components/unsaved-edits";
+import { GLOSSARY } from "@/lib/help";
 import { followUpTone, StatusBadge, TIER_TONE } from "@/components/lead-badges";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -144,7 +146,10 @@ export function LeadDetail({
               ) : null}
             </div>
           </div>
-          <ScoreRingLarge score={lead.score} pending={lead.analysisStatus === "pending"} />
+          <div className="flex shrink-0 flex-col items-center gap-1.5">
+            <ScoreRingLarge score={lead.score} pending={lead.analysisStatus === "pending"} />
+            <InfoTip side="bottom">{GLOSSARY.score.text}</InfoTip>
+          </div>
         </div>
         {lead.discardReason ? (
           <p className="text-[12.5px] text-red">Descartado pela IA: {lead.discardReason}</p>

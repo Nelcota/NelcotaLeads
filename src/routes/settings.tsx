@@ -17,7 +17,8 @@ import {
   SettingsIcon,
   SparklesIcon,
 } from "lucide-react";
-import { FloatingBar, IconTile, toneVar, type Tone } from "@/components/apple-ui";
+import { FloatingBar, IconTile, InfoTip, toneVar, type Tone } from "@/components/apple-ui";
+import { GLOSSARY } from "@/lib/help";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { ReactNode } from "react";
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
@@ -192,6 +193,7 @@ function AutopilotForm() {
           </Button>
         }
         title="Modo automático"
+        info={<InfoTip>{GLOSSARY.autopilot.text}</InfoTip>}
         description="O que a IA faz sozinha: responder e-mails, disparar para leads novos e buscar empresas todo dia, cada dia num bairro diferente da cidade."
         contentClassName="grid gap-0 p-0"
       >
@@ -503,6 +505,7 @@ function SettingsForm({ defaults }: { defaults: SettingsInput }) {
           htmlFor="minScore"
           hint="A IA descarta sozinha e não escreve para eles. Use 0 para manter todos."
           error={errors.minScore?.message}
+          info={<InfoTip>{GLOSSARY.minScore.text}</InfoTip>}
         >
           <NumberStepper
             {...form.register("minScore", { valueAsNumber: true })}
@@ -681,6 +684,7 @@ function QuickRepliesForm({ defaults }: { defaults: QuickRepliesInput }) {
 function SettingsSection({
   id,
   title,
+  info,
   description,
   contentClassName,
   footer,
@@ -688,6 +692,7 @@ function SettingsSection({
 }: {
   id?: string;
   title: string;
+  info?: ReactNode;
   description: string;
   contentClassName?: string;
   footer?: ReactNode;
@@ -695,7 +700,10 @@ function SettingsSection({
 }) {
   return (
     <section id={id} className="enter scroll-mt-20">
-      <h2 className="px-1.5 pb-2 text-lg font-medium tracking-[-0.015em]">{title}</h2>
+      <h2 className="flex items-center gap-1.5 px-1.5 pb-2 text-lg font-medium tracking-[-0.015em]">
+        {title}
+        {info}
+      </h2>
       <div className="grouped">
         <div className={cn("px-4 py-4", contentClassName)}>{children}</div>
         {footer ? (

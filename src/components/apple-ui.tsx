@@ -1,6 +1,6 @@
 import type { LucideIcon } from "lucide-react";
-import { ArrowUpRightIcon, ChevronRightIcon } from "lucide-react";
-import type { ComponentProps, ReactElement, ReactNode } from "react";
+import { ArrowUpRightIcon, ChevronRightIcon, InfoIcon } from "lucide-react";
+import { useState, type ComponentProps, type ReactElement, type ReactNode } from "react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
@@ -387,5 +387,46 @@ export function Kbd({ className, ...props }: ComponentProps<"kbd">) {
       )}
       {...props}
     />
+  );
+}
+
+/**
+ * A small ⓘ next to a concept (nota, nota mínima, modo automático…) with its explanation in a
+ * tooltip: on hover, keyboard focus, and on tap (touch screens have no hover).
+ */
+export function InfoTip({
+  children,
+  side,
+  className,
+}: {
+  children: ReactNode;
+  side?: ComponentProps<typeof TooltipContent>["side"];
+  className?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Tooltip open={open} onOpenChange={setOpen}>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          aria-label="Mais informações"
+          onClick={(event) => {
+            // Radix closes a tooltip on click; a tap opens it instead (it closes on blur, Esc or
+            // a tap elsewhere). Not a toggle: a hover may already have opened it.
+            event.preventDefault();
+            setOpen(true);
+          }}
+          className={cn(
+            "-m-[9px] inline-grid size-8 shrink-0 place-items-center rounded-full align-middle text-tertiary transition-colors outline-none hover:text-muted-foreground focus-visible:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring/40",
+            className,
+          )}
+        >
+          <InfoIcon aria-hidden className="size-3.5" />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side={side} sideOffset={6} className="max-w-64 font-normal leading-snug">
+        {children}
+      </TooltipContent>
+    </Tooltip>
   );
 }

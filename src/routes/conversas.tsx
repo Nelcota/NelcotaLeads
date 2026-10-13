@@ -6,6 +6,7 @@ import {
   CircleCheckIcon,
   GlobeIcon,
   HandIcon,
+  InfoIcon,
   MessageCircleIcon,
   MessagesSquareIcon,
   PhoneIcon,
@@ -32,6 +33,7 @@ import {
   type Tone,
 } from "@/components/apple-ui";
 import { Page } from "@/components/app-shell";
+import { GLOSSARY } from "@/lib/help";
 import { ScoreBadge } from "@/components/lead-badges";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -274,7 +276,7 @@ function ConversationsPage() {
                   {FILTERS.map((item) => {
                     const count = countOf(item);
                     const tone = FILTER_TONE[item];
-                    return (
+                    const trigger = (
                       <TabsTrigger key={item} value={item} className="gap-1.5 px-2.5">
                         {FILTER_LABELS[item]}
                         <span
@@ -285,7 +287,18 @@ function ConversationsPage() {
                         >
                           {count}
                         </span>
+                        {item === "needsYou" ? (
+                          <InfoIcon aria-hidden className="size-3.5 text-tertiary" />
+                        ) : null}
                       </TabsTrigger>
+                    );
+                    // A tab cannot hold another button, so the tab itself carries the tip.
+                    return item === "needsYou" ? (
+                      <Hint key={item} label={GLOSSARY.needsYou.text}>
+                        {trigger}
+                      </Hint>
+                    ) : (
+                      trigger
                     );
                   })}
                 </TabsList>

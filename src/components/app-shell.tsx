@@ -14,7 +14,15 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
-import { Avatar, Hint, ProgressRing, TONE_TEXT, toneVar, type Tone } from "@/components/apple-ui";
+import {
+  Avatar,
+  Hint,
+  InfoTip,
+  ProgressRing,
+  TONE_TEXT,
+  toneVar,
+  type Tone,
+} from "@/components/apple-ui";
 import { HelpSheet } from "@/components/help-sheet";
 import { NewSearchDialog } from "@/components/new-search-dialog";
 import {
@@ -35,7 +43,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { isHelpKey } from "@/lib/help";
+import { GLOSSARY, isHelpKey } from "@/lib/help";
 import { withAttentionCount } from "@/lib/page-title";
 import { accountQuery, attentionQuery, providerStatusQuery } from "@/lib/queries";
 import { isTypingTarget } from "@/lib/shortcuts";
@@ -260,6 +268,7 @@ function UsageMeter() {
           used={mail.sentToday}
           limit={mail.limit}
           label="e-mails hoje"
+          info={GLOSSARY.dailyLimit.text}
         />
       ) : (
         <Link
@@ -288,12 +297,14 @@ function MeterRow({
   used,
   limit,
   label,
+  info,
 }: {
   value: number;
   tone: Tone;
   used: number;
   limit: number;
   label: string;
+  info?: string;
 }) {
   return (
     <div className="flex items-center gap-2.5">
@@ -302,7 +313,10 @@ function MeterRow({
         <p className="font-medium tabular-nums">
           {used} <span className="font-normal text-tertiary">de {limit}</span>
         </p>
-        <p className="text-xs font-light text-muted-foreground">{label}</p>
+        <p className="flex items-center gap-1 text-xs font-light text-muted-foreground">
+          {label}
+          {info ? <InfoTip side="right">{info}</InfoTip> : null}
+        </p>
       </div>
     </div>
   );

@@ -23,6 +23,7 @@ import {
   Avatar,
   GroupedRow,
   IconTile,
+  InfoTip,
   Lift,
   PropertyRow,
   SectionHeader,
@@ -30,6 +31,7 @@ import {
   type Tone,
 } from "@/components/apple-ui";
 import { Page, Stat, useOpenNewSearch } from "@/components/app-shell";
+import { GLOSSARY } from "@/lib/help";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
@@ -638,7 +640,12 @@ function Automation({ data }: { data: Dashboard }) {
   return (
     <section className="enter min-w-0">
       <SectionHeader
-        title="Modo automático"
+        title={
+          <span className="inline-flex items-center gap-1.5">
+            Modo automático
+            <InfoTip>{GLOSSARY.autopilot.text}</InfoTip>
+          </span>
+        }
         action={
           <Link
             to="/settings"

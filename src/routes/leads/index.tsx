@@ -15,7 +15,16 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
-import { Avatar, EmptyState, FloatingBar, Hint, TONE_TEXT, type Tone } from "@/components/apple-ui";
+import {
+  Avatar,
+  EmptyState,
+  FloatingBar,
+  Hint,
+  InfoTip,
+  TONE_TEXT,
+  type Tone,
+} from "@/components/apple-ui";
+import { GLOSSARY } from "@/lib/help";
 import { Page, Stat, useOpenNewSearch } from "@/components/app-shell";
 import { followUpTone, ScoreBadge, StatusBadge, TIER_TONE } from "@/components/lead-badges";
 import { DispatchSheet } from "@/components/dispatch-sheet";
@@ -635,7 +644,12 @@ function LeadsTable({
             />
           </TableHead>
           <TableHead>Empresa</TableHead>
-          <TableHead className="w-24">Nota</TableHead>
+          <TableHead className="w-24">
+            <span className="inline-flex items-center gap-1.5">
+              Nota
+              <InfoTip>{GLOSSARY.score.text}</InfoTip>
+            </span>
+          </TableHead>
           {showStatus ? <TableHead className="hidden sm:table-cell">Status</TableHead> : null}
           {showFollowUp ? <TableHead>Retorno</TableHead> : null}
           <TableHead className="hidden md:table-cell">E-mail</TableHead>
