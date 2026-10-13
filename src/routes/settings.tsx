@@ -20,12 +20,12 @@ import {
 import { FloatingBar, IconTile, InfoTip, toneVar, type Tone } from "@/components/apple-ui";
 import { GLOSSARY } from "@/lib/help";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { errorToast } from "@/lib/mutation-toasts";
 import { Page } from "@/components/app-shell";
-import { LeaveGuard, useReportDirtyForm } from "@/components/leave-guard";
+import { DiscardChangesDialog, LeaveGuard, useReportDirtyForm } from "@/components/leave-guard";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Field } from "@/components/field";
@@ -66,6 +66,9 @@ const autopilotQuery = queryOptions({ queryKey: ["autopilot"], queryFn: () => ge
 const WEIGHT_RANGE = { min: -100, max: 100 };
 
 const HOURS = Array.from({ length: 24 }, (_, hour) => hour);
+
+// Same bound as the autopilot schema (src/lib/schemas.ts).
+const MAX_TARGETS = 10;
 
 export const Route = createFileRoute("/settings")({
   head: () => ({ meta: [{ title: pageTitle("Configurações") }] }),
@@ -171,6 +174,27 @@ function AutopilotForm() {
   const targets = useFieldArray({ control: form.control, name: "targets" });
   const { errors, isDirty } = form.formState;
   useReportDirtyForm("autopilot", isDirty);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+
+  // Removed at once; "Desfazer" puts it back in the same place.
+  const removeTarget = (index: number) => {
+    const removed = form.getValues(`targets.${index}`);
+    targets.remove(index);
+    toast("Nicho removido", {
+      description:
+        removed.niche || removed.city ? `${removed.niche} em ${removed.city}` : undefined,
+      action: {
+        label: "Desfazer",
+        onClick: () => {
+          if (form.getValues("targets").length >= MAX_TARGETS) {
+            toast.error(`Máximo de ${MAX_TARGETS} nichos`);
+            return;
+          }
+          targets.insert(index, removed, { shouldFocus: false });
+        },
+      },
+    });
+  };
 
   const mutation = useMutation({
     mutationFn: (data: AutopilotInput) => saveAutopilot({ data }),
@@ -192,9 +216,21 @@ function AutopilotForm() {
     >
       <SettingsSection
         footer={
-          <Button type="submit" disabled={!isDirty || mutation.isPending}>
-            {mutation.isPending ? "Salvando…" : "Salvar modo automático"}
-          </Button>
+          <>
+            {isDirty ? (
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={mutation.isPending}
+                onClick={() => setConfirmDiscard(true)}
+              >
+                Descartar
+              </Button>
+            ) : null}
+            <Button type="submit" disabled={!isDirty || mutation.isPending}>
+              {mutation.isPending ? "Salvando…" : "Salvar modo automático"}
+            </Button>
+          </>
         }
         title="Modo automático"
         info={<InfoTip>{GLOSSARY.autopilot.text}</InfoTip>}
@@ -277,14 +313,14 @@ function AutopilotForm() {
                 type="button"
                 aria-label={`Remover busca ${index + 1}`}
                 className="press grid size-[22px] shrink-0 place-items-center rounded-full bg-red text-white"
-                onClick={() => targets.remove(index)}
+                onClick={() => removeTarget(index)}
               >
                 <MinusIcon className="size-3" strokeWidth={3} />
               </button>
             </div>
           ))}
           <AddRow
-            disabled={targets.fields.length >= 10}
+            disabled={targets.fields.length >= MAX_TARGETS}
             onClick={() => targets.append({ niche: "", city: "" })}
           >
             Adicionar nicho e cidade
@@ -346,6 +382,15 @@ function AutopilotForm() {
           </Field>
         </div>
       </SettingsSection>
+      <DiscardChangesDialog
+        open={confirmDiscard}
+        description="O modo automático volta a ser como está salvo."
+        onCancel={() => setConfirmDiscard(false)}
+        onDiscard={() => {
+          setConfirmDiscard(false);
+          form.reset(defaults);
+        }}
+      />
     </form>
   );
 }
@@ -362,6 +407,20 @@ function SettingsForm({ defaults }: { defaults: SettingsInput }) {
   const minScore = useWatch({ control: form.control, name: "minScore" });
   const { errors, isDirty, isSubmitted } = form.formState;
   useReportDirtyForm("settings", isDirty);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+
+  // Removed at once; "Desfazer" puts it back in the same place.
+  const removeCriterion = (index: number) => {
+    const removed = form.getValues(`criteria.${index}`);
+    criteria.remove(index);
+    toast("Critério removido", {
+      description: removed.label || undefined,
+      action: {
+        label: "Desfazer",
+        onClick: () => criteria.insert(index, removed, { shouldFocus: false }),
+      },
+    });
+  };
   const setNumber = (name: "minScore" | `criteria.${number}.weight`, value: number) =>
     form.setValue(name, value, { shouldDirty: true, shouldValidate: isSubmitted });
   const maxScore = (watchedCriteria ?? []).reduce(
@@ -454,7 +513,7 @@ function SettingsForm({ defaults }: { defaults: SettingsInput }) {
                 type="button"
                 aria-label={`Remover critério ${index + 1}`}
                 className="press relative grid size-[22px] shrink-0 place-items-center rounded-full bg-red text-white after:absolute after:-inset-2.5 after:content-['']"
-                onClick={() => criteria.remove(index)}
+                onClick={() => removeCriterion(index)}
               >
                 <MinusIcon className="size-3" strokeWidth={3} />
               </button>
@@ -550,7 +609,7 @@ function SettingsForm({ defaults }: { defaults: SettingsInput }) {
             type="button"
             variant="secondary"
             size="sm"
-            onClick={() => form.reset(defaults)}
+            onClick={() => setConfirmDiscard(true)}
             disabled={mutation.isPending}
           >
             Descartar
@@ -560,6 +619,14 @@ function SettingsForm({ defaults }: { defaults: SettingsInput }) {
           </Button>
         </FloatingBar>
       ) : null}
+      <DiscardChangesDialog
+        open={confirmDiscard}
+        onCancel={() => setConfirmDiscard(false)}
+        onDiscard={() => {
+          setConfirmDiscard(false);
+          form.reset(defaults);
+        }}
+      />
     </form>
   );
 }
@@ -713,7 +780,7 @@ function SettingsSection({
       <div className="grouped">
         <div className={cn("px-4 py-4", contentClassName)}>{children}</div>
         {footer ? (
-          <div className="flex justify-end border-t border-border/70 px-4 py-3">{footer}</div>
+          <div className="flex justify-end gap-2 border-t border-border/70 px-4 py-3">{footer}</div>
         ) : null}
       </div>
       <p className="px-4 pt-2 text-xs leading-relaxed font-light text-tertiary">{description}</p>

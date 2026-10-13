@@ -43,33 +43,47 @@ export function LeaveGuard({ children }: { children: ReactNode }) {
   return (
     <ReportContext value={report}>
       {children}
-      <AlertDialog
+      <DiscardChangesDialog
         open={blocker.status === "blocked"}
-        onOpenChange={(open) => {
-          if (!open) blocker.reset?.();
+        onCancel={() => blocker.reset?.()}
+        onDiscard={() => {
+          dirty.current.clear();
+          blocker.proceed?.();
         }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Descartar alterações?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Você mudou campos nesta tela e ainda não salvou.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Continuar editando</AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              onClick={() => {
-                dirty.current.clear();
-                blocker.proceed?.();
-              }}
-            >
-              Descartar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      />
     </ReportContext>
+  );
+}
+
+/**
+ * "Descartar alterações?" for edits that were never saved: leaving the screen, or the
+ * "Descartar" of a form. Keeping on editing is the default answer.
+ */
+export function DiscardChangesDialog({
+  open,
+  description = "Você mudou campos nesta tela e ainda não salvou.",
+  onCancel,
+  onDiscard,
+}: {
+  open: boolean;
+  description?: string;
+  onCancel: () => void;
+  onDiscard: () => void;
+}) {
+  return (
+    <AlertDialog open={open} onOpenChange={(value) => !value && onCancel()}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Descartar alterações?</AlertDialogTitle>
+          <AlertDialogDescription>{description}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Continuar editando</AlertDialogCancel>
+          <AlertDialogAction variant="destructive" onClick={onDiscard}>
+            Descartar
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
