@@ -487,15 +487,40 @@ function Stats({ data }: { data: Dashboard }) {
   );
 }
 
+type FunnelStep = {
+  label: string;
+  value: number;
+  /** Where the step opens: Leads with the matching filter, or Conversas. */
+  link:
+    | { to: "/leads"; search: LeadFilters }
+    | { to: "/conversas"; search: { filter: "needsYou" } };
+};
+
 function Funnel({ data }: { data: Dashboard }) {
   const { stats } = data;
-  const steps = [
-    { label: "Na base", value: stats.leads },
-    { label: "Com e-mail", value: stats.withEmail },
-    { label: "Contatados", value: stats.contacted },
-    { label: "Responderam", value: stats.replied },
-    { label: "Interessados", value: stats.interested },
-    { label: "Fechados", value: stats.closed },
+  const steps: FunnelStep[] = [
+    { label: "Na base", value: stats.leads, link: { to: "/leads", search: { view: "all" } } },
+    {
+      label: "Com e-mail",
+      value: stats.withEmail,
+      link: { to: "/leads", search: { view: "all", hasEmail: true } },
+    },
+    {
+      label: "Contatados",
+      value: stats.contacted,
+      link: { to: "/leads", search: { view: "waiting" } },
+    },
+    {
+      label: "Responderam",
+      value: stats.replied,
+      link: { to: "/leads", search: { view: "talking" } },
+    },
+    {
+      label: "Interessados",
+      value: stats.interested,
+      link: { to: "/conversas", search: { filter: "needsYou" } },
+    },
+    { label: "Fechados", value: stats.closed, link: { to: "/leads", search: { view: "closed" } } },
   ];
   const max = Math.max(1, stats.leads);
   return (
@@ -516,9 +541,11 @@ function Funnel({ data }: { data: Dashboard }) {
               ? Math.round((step.value / previous) * 100)
               : null;
           return (
-            <div
+            <Link
               key={step.label}
-              className="grid grid-cols-[96px_minmax(0,1fr)_52px] items-center gap-3 px-4 py-2.5 sm:grid-cols-[130px_minmax(0,1fr)_64px] sm:gap-3.5"
+              {...step.link}
+              aria-label={`${step.label}: ${step.value}`}
+              className="row-hover grid grid-cols-[96px_minmax(0,1fr)_52px] items-center gap-3 px-4 py-2.5 transition-colors outline-none hover:bg-fill-3 focus-visible:bg-fill-2 sm:grid-cols-[130px_minmax(0,1fr)_64px] sm:gap-3.5"
             >
               <span className="truncate text-muted-foreground">{step.label}</span>
               <span className="h-2 overflow-hidden rounded-full bg-fill-2">
@@ -537,7 +564,7 @@ function Funnel({ data }: { data: Dashboard }) {
                   <span className="block text-[11px] font-normal text-tertiary">{percent}%</span>
                 ) : null}
               </span>
-            </div>
+            </Link>
           );
         })}
       </div>
@@ -545,10 +572,19 @@ function Funnel({ data }: { data: Dashboard }) {
   );
 }
 
+type ActivityLink =
+  | { to: "/leads"; search: LeadFilters }
+  | { to: "/conversas"; search: { lead: string } };
+
 function Activity({ data }: { data: Dashboard }) {
+  const navigate = useNavigate();
   const events = [
     ...data.activity.searches.map((search) => ({
       key: `search:${search.id}`,
+      link: {
+        to: "/leads",
+        search: { view: "all", searchId: search.id },
+      } satisfies ActivityLink as ActivityLink,
       at: search.createdAt,
       tone: (search.origin === "autopilot" ? "purple" : "blue") as Tone,
       icon: search.origin === "autopilot" ? BotIcon : SearchIcon,
@@ -564,7 +600,16 @@ function Activity({ data }: { data: Dashboard }) {
               ? ({ tone: "purple", icon: SparklesIcon, verb: "a IA respondeu" } as const)
               : ({ tone: "blue", icon: SendIcon, verb: "e-mail enviado" } as const)
             : ({ tone: "gray", icon: UserIcon, verb: "você respondeu" } as const);
-      return { key: `email:${email.id}`, at: email.at ?? new Date(0), title: email.name, ...kind };
+      return {
+        key: `email:${email.id}`,
+        at: email.at ?? new Date(0),
+        title: email.name,
+        link: {
+          to: "/conversas",
+          search: { lead: email.leadId },
+        } satisfies ActivityLink as ActivityLink,
+        ...kind,
+      };
     }),
   ]
     // oxlint-disable-next-line unicorn/no-array-sort -- sorts the fresh array built above
@@ -573,7 +618,18 @@ function Activity({ data }: { data: Dashboard }) {
 
   return (
     <section className="enter">
-      <SectionHeader title="Atividade de hoje" />
+      <SectionHeader
+        title="Atividade de hoje"
+        action={
+          <Link
+            to="/leads"
+            search={{ view: "all", sort: "createdAt", dir: "desc" }}
+            className="text-[12.5px] font-medium text-blue hover:underline"
+          >
+            Ver tudo
+          </Link>
+        }
+      />
       <div className="grouped">
         {events.length === 0 ? (
           <p className="px-4 py-5 text-sm font-light text-muted-foreground">Nada ainda hoje.</p>
@@ -581,6 +637,14 @@ function Activity({ data }: { data: Dashboard }) {
           events.map((event) => (
             <GroupedRow
               key={event.key}
+              role="link"
+              tabIndex={0}
+              className="cursor-pointer outline-none focus-visible:bg-fill-2"
+              onClick={() => void navigate(event.link)}
+              onKeyDown={(keyEvent) => {
+                if (keyEvent.key === "Enter") void navigate(event.link);
+              }}
+              chevron
               lead={<IconTile icon={event.icon} tone={event.tone} size={30} />}
               title={event.title}
               subtitle={event.verb}
