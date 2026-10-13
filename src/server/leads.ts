@@ -14,8 +14,10 @@ import {
   updateMessageSchema,
 } from "@/lib/schemas";
 import { getAnalyzer } from "@/lib/ai";
+import { CONTACT_FIELDS, CONTACT_LIMITS } from "@/lib/lead-contact";
 import { localDay } from "@/lib/format";
 import { bulkUpdateLeads as bulkUpdate, undoBulkUpdate } from "./lead-bulk";
+import { editLeadContact } from "./lead-edit";
 import { leadPatch } from "./lead-status";
 import { countLeads, LIST_LIMIT, queryLeadsCapped } from "./leads-query";
 import { writeMessageForLead } from "./process-lead";
@@ -67,6 +69,17 @@ export const updateLead = createServerFn({ method: "POST" })
       throw new Error("O lead mudou enquanto isso. Atualize e tente de novo.");
     return { ok: true as const };
   });
+
+/** One contact field (nome, e-mail, telefone, site) edited in the lead panel. */
+export const updateLeadContact = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      id: idSchema,
+      field: z.enum(CONTACT_FIELDS),
+      value: z.string().max(CONTACT_LIMITS.website),
+    }),
+  )
+  .handler(({ data }) => editLeadContact(getDb(), data));
 
 /** "Mudar status" and "Descartar" on the selection bar. */
 export const bulkUpdateLeads = createServerFn({ method: "POST" })

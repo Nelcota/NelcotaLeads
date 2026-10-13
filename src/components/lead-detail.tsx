@@ -24,6 +24,7 @@ import {
   TONE_TEXT,
   type Tone,
 } from "@/components/apple-ui";
+import { InlineEdit } from "@/components/inline-edit";
 import { useReportUnsavedEdits } from "@/components/unsaved-edits";
 import { GLOSSARY } from "@/lib/help";
 import { followUpTone, StatusBadge, TIER_TONE } from "@/components/lead-badges";
@@ -51,6 +52,7 @@ import { Textarea } from "@/components/ui/textarea";
 import type { Analysis, Lead, LeadStatus, SiteStatus } from "@/db/schema";
 import { useAutosave } from "@/lib/autosave";
 import { addDays, formatDate, localDay, relativeDay } from "@/lib/format";
+import { CONTACT_LIMITS, type ContactField } from "@/lib/lead-contact";
 import { whatsappLink } from "@/lib/phone";
 import { conversationQuery, leadQuery, providerStatusQuery } from "@/lib/queries";
 import {
@@ -62,7 +64,13 @@ import {
 } from "@/lib/schemas";
 import { cn, safeHttpUrl } from "@/lib/utils";
 import { useToday } from "@/lib/today";
-import { generateMessage, reanalyzeLead, updateFirstMessage, updateLead } from "@/server/leads";
+import {
+  generateMessage,
+  reanalyzeLead,
+  updateFirstMessage,
+  updateLead,
+  updateLeadContact,
+} from "@/server/leads";
 import { dispatchEmails, prepareEmails, rewriteDraft, updateDraft } from "@/server/mail";
 
 const SITE_STATUS_LABELS: Record<SiteStatus, string> = {
@@ -168,7 +176,7 @@ export function LeadDetail({
         />
         <AnalysisSection lead={lead} analysis={analysis} />
         <div className="grid gap-6 sm:grid-cols-[1.2fr_1fr]">
-          <ContactSection lead={lead} />
+          <ContactSection lead={lead} onChanged={refreshAll} />
           <NotesSection key={lead.id} lead={lead} onSave={(notes) => update.mutate({ notes })} />
         </div>
         <Footer
@@ -766,40 +774,91 @@ function AnalysisSection({ lead, analysis }: { lead: Lead; analysis: Analysis | 
   );
 }
 
-function ContactSection({ lead }: { lead: Lead }) {
+function ContactSection({ lead, onChanged }: { lead: Lead; onChanged: () => Promise<unknown> }) {
   const site = lead.siteData;
+  const siteEmails = (site?.emails ?? []).filter(
+    (email) => email.toLowerCase() !== lead.email?.toLowerCase(),
+  );
+  const save = (field: ContactField) => async (value: string) => {
+    try {
+      await updateLeadContact({ data: { id: lead.id, field, value } });
+    } catch (error) {
+      errorToast("Não foi possível salvar")(error);
+      throw error;
+    }
+    await onChanged();
+  };
+  const website = safeHttpUrl(lead.website);
   return (
     <Section title="Contato">
       <dl className="grouped grid text-sm">
+        <Term label="Nome">
+          <InlineEdit
+            label="nome"
+            value={lead.name}
+            placeholder="Adicionar nome"
+            maxLength={CONTACT_LIMITS.name}
+            onSave={save("name")}
+          />
+        </Term>
+        <Term label="E-mail">
+          <InlineEdit
+            label="e-mail"
+            value={lead.email}
+            placeholder="Adicionar e-mail"
+            inputType="email"
+            maxLength={CONTACT_LIMITS.email}
+            onSave={save("email")}
+          />
+          {siteEmails.length > 0 ? (
+            <span className="block text-xs font-light text-muted-foreground">
+              No site: {siteEmails.join(", ")}
+            </span>
+          ) : null}
+        </Term>
         <Term label="Telefone">
-          <span className="tabular-nums">{lead.phone ?? "Sem telefone"}</span>
+          <InlineEdit
+            label="telefone"
+            value={lead.phone}
+            placeholder="Adicionar telefone"
+            display={<span className="tabular-nums">{lead.phone}</span>}
+            inputType="tel"
+            maxLength={CONTACT_LIMITS.phone}
+            onSave={save("phone")}
+          />
         </Term>
         <Term label="Site">
-          {/* A website that isn't http(s) is shown as text, never as a link. */}
-          {lead.website && !safeHttpUrl(lead.website) ? (
-            <span className="break-all">{lead.website}</span>
-          ) : lead.website ? (
-            <>
-              <ExternalLink
-                href={safeHttpUrl(lead.website) ?? undefined}
-                className="inline-flex items-center gap-1 break-all text-blue hover:underline"
-              >
-                {lead.website.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")}
-              </ExternalLink>
-              {SITE_STATUS_LABELS[lead.siteStatus] ? (
-                <span className="text-muted-foreground">
-                  {" "}
-                  · {SITE_STATUS_LABELS[lead.siteStatus]}
-                </span>
-              ) : null}
-            </>
-          ) : (
-            "Sem site"
-          )}
+          <InlineEdit
+            label="site"
+            value={lead.website}
+            placeholder="Adicionar site"
+            inputType="url"
+            maxLength={CONTACT_LIMITS.website}
+            editOnValueClick={!website}
+            onSave={save("website")}
+            display={
+              // A website that isn't http(s) is shown as text, never as a link.
+              website ? (
+                <>
+                  <ExternalLink
+                    href={website}
+                    className="inline-flex items-center gap-1 break-all text-blue hover:underline"
+                  >
+                    {lead.website?.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")}
+                  </ExternalLink>
+                  {SITE_STATUS_LABELS[lead.siteStatus] ? (
+                    <span className="font-normal text-muted-foreground">
+                      {" "}
+                      · {SITE_STATUS_LABELS[lead.siteStatus]}
+                    </span>
+                  ) : null}
+                </>
+              ) : (
+                <span className="break-all">{lead.website}</span>
+              )
+            }
+          />
         </Term>
-        {site && site.emails.length > 0 ? (
-          <Term label="E-mail">{site.emails.join(", ")}</Term>
-        ) : null}
         {site && site.socialLinks.length > 0 ? (
           <Term label="Redes">
             {site.socialLinks.map((link) => (

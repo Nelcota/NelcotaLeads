@@ -45,7 +45,15 @@ export function LeadSheet({
 
   return (
     <Sheet open={open} onOpenChange={(value) => !value && go(undefined)}>
-      <SheetContent className="w-full gap-0 overflow-y-auto data-[side=right]:sm:max-w-[640px]">
+      <SheetContent
+        className="w-full gap-0 overflow-y-auto data-[side=right]:sm:max-w-[640px]"
+        onEscapeKeyDown={(event) => {
+          // Esc in a field being edited in place cancels that edit, not the whole panel.
+          if (event.target instanceof Element && event.target.closest("[data-inline-edit]")) {
+            event.preventDefault();
+          }
+        }}
+      >
         {dialog}
         {leadId ? (
           <UnsavedEditsScope value={report}>
