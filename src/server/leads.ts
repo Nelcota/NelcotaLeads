@@ -17,13 +17,14 @@ import { getAnalyzer } from "@/lib/ai";
 import { localDay } from "@/lib/format";
 import { bulkUpdateLeads as bulkUpdate, undoBulkUpdate } from "./lead-bulk";
 import { leadPatch } from "./lead-status";
-import { countLeads, queryLeads } from "./leads-query";
+import { countLeads, LIST_LIMIT, queryLeadsCapped } from "./leads-query";
 import { writeMessageForLead } from "./process-lead";
 import { enqueueLeads, type LeadJob } from "./queue";
 
+/** The table's rows, and whether more leads matched than it shows (LIST_LIMIT). */
 export const listLeads = createServerFn({ method: "GET" })
   .validator(leadFiltersSchema)
-  .handler(({ data }) => queryLeads(getDb(), data));
+  .handler(({ data }) => queryLeadsCapped(getDb(), data, LIST_LIMIT));
 
 export const getLeadCounts = createServerFn({ method: "GET" })
   .validator(leadFiltersSchema)

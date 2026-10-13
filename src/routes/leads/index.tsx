@@ -175,7 +175,8 @@ function LeadsPage() {
   const filters = withView(search);
   const view = filters.view ?? DEFAULT_VIEW;
   const navigate = useNavigate({ from: "/leads/" });
-  const { data } = useQuery(leadsQuery(filters));
+  const { data: list } = useQuery(leadsQuery(filters));
+  const data = list?.rows;
   const { data: counts } = useQuery(leadCountsQuery(filters));
   const openNewSearch = useOpenNewSearch();
   // The selection belongs to one list: another tab, filter, search or sort starts it over.
@@ -365,7 +366,16 @@ function LeadsPage() {
           aria-live="polite"
         >
           <span>
-            {data ? (
+            {data && list?.truncated ? (
+              <>
+                Mostrando{" "}
+                <b className="font-medium text-muted-foreground tabular-nums">
+                  {formatCount(data.length)}
+                </b>
+                {counts ? ` de ${formatCount(counts.byView[view])}` : null}. Refine os filtros para
+                ver o resto.
+              </>
+            ) : data ? (
               <>
                 <b className="font-medium text-muted-foreground tabular-nums">{data.length}</b>{" "}
                 {data.length === 1 ? "lead" : "leads"}
@@ -998,6 +1008,12 @@ function hint(lead: LeadRow): { text: string; tone?: Tone } {
   const signal = lead.signals?.[0];
   if (signal) return { text: signal };
   return lead.website ? { text: hostOf(lead.website) } : { text: "Sem site", tone: "orange" };
+}
+
+const COUNT_FORMAT = new Intl.NumberFormat("pt-BR");
+
+function formatCount(value: number) {
+  return COUNT_FORMAT.format(value);
 }
 
 function hasFilters(filters: LeadFilters) {

@@ -43,7 +43,7 @@ export const leadsQuery = (filters: LeadFilters) =>
     queryFn: () => listLeads({ data: filters }),
     // Keep refreshing while the queue is still analyzing some of the visible leads.
     refetchInterval: (query) =>
-      query.state.data?.some((lead) => lead.analysisStatus === "pending") ? 3000 : false,
+      query.state.data?.rows.some((lead) => lead.analysisStatus === "pending") ? 3000 : false,
   });
 
 export const leadQuery = (id: string) =>
