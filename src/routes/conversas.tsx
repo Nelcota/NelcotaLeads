@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
+  BotIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   CircleCheckIcon,
@@ -68,6 +69,7 @@ import {
 import { pageTitle } from "@/lib/page-title";
 import { isSendChord, sendShortcut } from "@/lib/shortcuts";
 import { matchesQuery } from "@/lib/text-search";
+import { useUrlSearchBox } from "@/hooks/use-url-search-box";
 import { whatsappLink } from "@/lib/phone";
 import { splitQuoted } from "@/lib/mail/quoted";
 import { QuickReplyPicker } from "@/components/quick-reply-picker";
@@ -134,29 +136,14 @@ function StateBadge({ state }: { state: ConversationState }) {
 function ConversationsPage() {
   const { lead: openId, filter = "all", q: urlQuery = "" } = Route.useSearch();
   const navigate = useNavigate({ from: "/conversas" });
-  const [query, setQuery] = useState(urlQuery);
   const searchRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
-  // Follows the URL when it changes elsewhere (back, a link); state adjusted during render.
-  const [syncedQuery, setSyncedQuery] = useState(urlQuery);
-  if (urlQuery !== syncedQuery) {
-    setSyncedQuery(urlQuery);
-    setQuery(urlQuery);
-  }
   // The list filters at once; the URL catches up when the typing pauses.
-  useEffect(() => {
-    if (query === urlQuery) return undefined;
-    const timer = setTimeout(
-      () =>
-        void navigate({ search: (prev) => ({ ...prev, q: query || undefined }), replace: true }),
-      300,
-    );
-    return () => clearTimeout(timer);
-  }, [query, urlQuery, navigate]);
-  const clearSearch = () => {
-    setQuery("");
-    void navigate({ search: (prev) => ({ ...prev, q: undefined }), replace: true });
-  };
+  const searchBox = useUrlSearchBox(urlQuery, (next) => {
+    void navigate({ search: (prev) => ({ ...prev, q: next || undefined }), replace: true });
+  });
+  const query = searchBox.value;
+  const clearSearch = searchBox.clear;
 
   const { data } = useQuery(conversationsQuery);
   const refresh = useRefresh();
@@ -236,8 +223,7 @@ function ConversationsPage() {
                 aria-label="Buscar conversa"
                 placeholder="Buscar por nome ou e-mail"
                 className={cn("h-10 rounded-full pl-8 sm:h-[30px]", query && "pr-9")}
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
+                {...searchBox.inputProps}
                 onKeyDown={(event) => {
                   if (event.key !== "Escape" || !query) return;
                   // Only the search: Esc doesn't also close the conversation.
@@ -555,6 +541,11 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
   const { lead, state, messages, draft, summary } = data;
   const value = text ?? draft?.body ?? "";
   const canSend = value.trim() !== "" && !send.isPending;
+  const writeLabel = write.isPending
+    ? "Escrevendo…"
+    : value.trim()
+      ? "Reescrever"
+      : "Escrever com IA";
   const savedDraft =
     text === null ? draft?.author === "user" : autosave.state === "saved" && text.trim() !== "";
   const closed = state === "closed";
@@ -712,7 +703,7 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
 
         {!closed && lead.email ? (
           <div className="px-4 pb-4 sm:px-5">
-            <div className="rounded-[18px] bg-card shadow-[inset_0_1px_0_rgb(255_255_255/0.1),inset_0_0_0_1px_rgb(255_255_255/0.06),0_16px_36px_rgb(0_0_0/0.4)] [:root:not(.dark)_&]:shadow-[0_0_0_1px_rgb(0_0_0/0.06),0_8px_24px_rgb(0_0_0/0.08)]">
+            <div className="@container rounded-[18px] bg-card shadow-[inset_0_1px_0_rgb(255_255_255/0.1),inset_0_0_0_1px_rgb(255_255_255/0.06),0_16px_36px_rgb(0_0_0/0.4)] [:root:not(.dark)_&]:shadow-[0_0_0_1px_rgb(0_0_0/0.06),0_8px_24px_rgb(0_0_0/0.08)]">
               <div className="flex min-w-0 items-center gap-2 px-4 pt-3 text-[12.5px] text-muted-foreground">
                 Para
                 <span className="min-w-0 truncate rounded-full bg-fill-2 px-2.5 py-0.5 text-[11.5px] font-medium text-foreground">
@@ -747,7 +738,8 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
                   caret.current = event.currentTarget.selectionEnd;
                 }}
               />
-              <div className="flex flex-wrap items-center justify-end gap-2 px-2 pt-1 pb-2">
+              {/* One row at any width: the AI buttons drop their labels when the composer is narrow. */}
+              <div className="flex items-center justify-end gap-1.5 px-2 pt-1 pb-2 @lg:gap-2">
                 <div className="mr-auto flex min-w-0 items-center gap-1.5">
                   <QuickReplyPicker
                     disabled={send.isPending || write.isPending}
@@ -756,7 +748,7 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
                   <span
                     aria-live="polite"
                     className={cn(
-                      "text-xs font-light",
+                      "min-w-0 truncate text-xs font-light",
                       autosave.state === "error" ? "text-red" : "text-tertiary",
                       autosave.state === "idle" && !savedDraft && "max-sm:hidden",
                     )}
@@ -770,36 +762,43 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
                           : "A assinatura é adicionada no envio."}
                   </span>
                 </div>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  className="text-purple"
-                  disabled={write.isPending || send.isPending}
-                  onClick={() =>
-                    write.mutate({ body: value, mine: text !== null || draft?.author === "user" })
-                  }
-                >
-                  <SparklesIcon />
-                  {write.isPending
-                    ? "Escrevendo…"
-                    : value.trim()
-                      ? "Reescrever"
-                      : "Escrever com IA"}
-                </Button>
-                {state === "needsYou" ? (
+                <Hint label={writeLabel}>
                   <Button
                     variant="secondary"
                     size="sm"
-                    className="text-purple"
-                    disabled={ai.isPending}
-                    onClick={() => ai.mutate(true)}
+                    aria-label={writeLabel}
+                    className="shrink-0 text-purple @max-lg:w-7 @max-lg:px-0"
+                    disabled={write.isPending || send.isPending}
+                    onClick={() =>
+                      write.mutate({ body: value, mine: text !== null || draft?.author === "user" })
+                    }
                   >
                     <SparklesIcon />
-                    Devolver para a IA
+                    <span className="@max-lg:sr-only">{writeLabel}</span>
                   </Button>
+                </Hint>
+                {state === "needsYou" ? (
+                  <Hint label="Devolver para a IA">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      aria-label="Devolver para a IA"
+                      className="shrink-0 text-purple @max-2xl:w-7 @max-2xl:px-0"
+                      disabled={ai.isPending}
+                      onClick={() => ai.mutate(true)}
+                    >
+                      <BotIcon />
+                      <span className="@max-2xl:sr-only">Devolver para a IA</span>
+                    </Button>
+                  </Hint>
                 ) : null}
                 <Hint label={`Enviar ${sendShortcut()}`}>
-                  <Button size="sm" disabled={!canSend} onClick={() => send.mutate(value)}>
+                  <Button
+                    size="sm"
+                    className="shrink-0"
+                    disabled={!canSend}
+                    onClick={() => send.mutate(value)}
+                  >
                     <SendIcon />
                     {send.isPending ? "Enviando…" : "Enviar"}
                   </Button>
