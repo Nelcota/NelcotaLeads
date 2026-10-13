@@ -14,15 +14,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
-import {
-  Avatar,
-  Hint,
-  InfoTip,
-  ProgressRing,
-  TONE_TEXT,
-  toneVar,
-  type Tone,
-} from "@/components/apple-ui";
+import { Avatar, Hint, ProgressRing, TONE_TEXT, toneVar, type Tone } from "@/components/apple-ui";
 import { HelpSheet } from "@/components/help-sheet";
 import { NewSearchDialog } from "@/components/new-search-dialog";
 import {
@@ -304,21 +296,35 @@ function MeterRow({
   used: number;
   limit: number;
   label: string;
+  /** Explains the limit in a tooltip on the meter itself (hover or keyboard focus). */
   info?: string;
 }) {
-  return (
-    <div className="flex items-center gap-2.5">
+  const row = (
+    <div
+      className="flex items-center gap-2.5 rounded-[9px] outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+      {...(info
+        ? { tabIndex: 0, role: "group", "aria-label": `${used} de ${limit} ${label}` }
+        : {})}
+    >
       <ProgressRing value={value} tone={tone} size={32} thickness={4} track="var(--card-2)" />
       <div className="leading-tight">
         <p className="font-medium tabular-nums">
           {used} <span className="font-normal text-tertiary">de {limit}</span>
         </p>
-        <p className="flex items-center gap-1 text-xs font-light text-muted-foreground">
-          {label}
-          {info ? <InfoTip side="right">{info}</InfoTip> : null}
-        </p>
+        <p className="text-xs font-light text-muted-foreground">{label}</p>
       </div>
     </div>
+  );
+  // No extra icon here: without failures the sidebar keeps only what it had (plus "?").
+  return info ? (
+    <Hint
+      label={<span className="block max-w-64 font-normal leading-snug">{info}</span>}
+      side="right"
+    >
+      {row}
+    </Hint>
+  ) : (
+    row
   );
 }
 

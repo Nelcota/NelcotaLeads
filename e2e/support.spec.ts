@@ -97,5 +97,11 @@ test.describe("concept tips", () => {
     // Touch screens have no hover: a tap opens it too.
     await tip.click();
     await expect(page.getByRole("tooltip")).toContainText("O que o app faz sozinho");
+
+    // The sidebar meter explains the daily limit on itself, without an extra icon.
+    await page.getByRole("group", { name: "0 de 30 e-mails hoje" }).focus();
+    await expect(
+      page.getByRole("tooltip", { name: /^Quantos e-mails saem por dia/ }),
+    ).toBeVisible();
   });
 });
