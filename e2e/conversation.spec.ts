@@ -364,6 +364,9 @@ test.describe("e-mail conversations", () => {
     await visit(page, `/conversas?lead=${id}`);
     const reply = page.getByRole("article").filter({ hasText: "Pode me contar mais" });
     await expect(reply).not.toContainText("escreveu:");
+    await expect(page.getByRole("button", { name: new RegExp(LEAD.name) })).not.toContainText(
+      "escreveu:",
+    );
     const toggle = reply.getByRole("button", { name: "Mostrar mensagem anterior" });
     await expect(toggle).toHaveAttribute("aria-expanded", "false");
     await toggle.click();

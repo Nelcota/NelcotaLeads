@@ -6,6 +6,7 @@ import { getDb } from "@/db/client";
 import { emails, leads } from "@/db/schema";
 import { getAnalyzer } from "@/lib/ai";
 import { getMailer, mailConfigured } from "@/lib/mail";
+import { splitQuoted } from "@/lib/mail/quoted";
 import {
   closeConversation as closeLeadConversation,
   cancelQueuedEmail as cancelQueued,
@@ -191,11 +192,13 @@ export const listConversations = createServerFn({ method: "GET" }).handler(async
 
   return rows.map((row) => {
     const last = lastOf.get(row.id);
+    // A reply previews what the lead wrote, not the original it quotes.
+    const text = last?.direction === "in" ? splitQuoted(last.body).visible : last?.body;
     return {
       ...row,
       state: stateOf(row),
       preview: last
-        ? `${last.direction === "out" ? (last.author === "ai" ? "IA: " : "Você: ") : ""}${last.body.replace(/\s+/g, " ").slice(0, 140)}`
+        ? `${last.direction === "out" ? (last.author === "ai" ? "IA: " : "Você: ") : ""}${(text ?? "").replace(/\s+/g, " ").slice(0, 140)}`
         : "",
     };
   });
