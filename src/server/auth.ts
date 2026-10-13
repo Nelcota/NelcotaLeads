@@ -30,10 +30,19 @@ export { hashPassword, verifyPassword };
  */
 
 export const SESSION_COOKIE = "__Host-nelcota_session";
-// Failed attempts allowed per day (Brazil time), counted in api_usage: per IP (IPv6 per /64) as
-// `login:<ip>`, and across all IPs as `login:*`, so rotating addresses doesn't buy more guesses.
-export const LOGIN_DAILY_FAILURES = 10;
-export const LOGIN_DAILY_FAILURES_TOTAL = 100;
+/*
+ * Failed attempts are counted in api_usage, in 15-minute windows so a lockout lasts minutes
+ * instead of the rest of the day:
+ * - per address (IPv6 per /64), for every form;
+ * - per account, for sign-in, so many addresses can't guess one password. It is not global:
+ *   an attack on one account never locks the others out;
+ * - across all addresses, per day, for the access code (sign-up and reset). That is the one
+ *   shared secret, and a lockout there blocks new accounts, never signing in.
+ */
+export const LOCKOUT_MINUTES = 15;
+export const FAILURES_PER_ADDRESS = 10;
+export const FAILURES_PER_ACCOUNT = 30;
+export const ACCESS_CODE_FAILURES_PER_DAY = 100;
 
 const DAY_SECONDS = 86_400;
 const SESSION_SECONDS = 30 * DAY_SECONDS;
@@ -258,12 +267,22 @@ export type AuthResult =
   | { ok: true; cookie: string }
   | { ok: false; status: 401 | 409 | 404 | 429 | 503; code: LoginErrorCode; error: string };
 
-const failure = (status: 401 | 409 | 404 | 429 | 503, code: LoginErrorCode): AuthResult => ({
-  ok: false,
-  status,
-  code,
-  error: LOGIN_ERRORS[code],
-});
+const failure = (
+  status: 401 | 409 | 404 | 429 | 503,
+  code: LoginErrorCode,
+  error: string = LOGIN_ERRORS[code],
+): AuthResult => ({ ok: false, status, code, error });
+
+const tooMany = (until: Date | null, now: Date) => {
+  if (!until)
+    return failure(429, "limite", "Muitas tentativas erradas hoje. Tente de novo amanhã.");
+  const minutes = Math.max(1, Math.ceil((until.getTime() - now.getTime()) / 60_000));
+  return failure(
+    429,
+    "limite",
+    `Muitas tentativas erradas. Tente de novo em ${minutes} ${minutes === 1 ? "minuto" : "minutos"}.`,
+  );
+};
 
 /** Throttle key for an address: IPv4 as is, IPv6 by its /64 (one subscriber's block). */
 export function ipBucket(ip: string): string {
@@ -282,25 +301,50 @@ export function ipBucket(ip: string): string {
 
 export type AuthDeps = { db: Db; secret: string | undefined; ip: string };
 
+/** One failure counter: its api_usage key, its limit, and when it resets (null: tomorrow). */
+type Counter = { key: string; limit: number; resetsAt: Date | null };
+
+const WINDOW_MS = LOCKOUT_MINUTES * 60_000;
+
+/** A counter for the current 15-minute window; the window number keeps old ones apart. */
+function windowCounter(name: string, limit: number, now: Date): Counter {
+  const window = Math.floor(now.getTime() / WINDOW_MS);
+  return { key: `${name}@${window}`, limit, resetsAt: new Date((window + 1) * WINDOW_MS) };
+}
+
+const addressCounter = (ip: string, now: Date) =>
+  windowCounter(`login:${ipBucket(ip)}`, FAILURES_PER_ADDRESS, now);
+
 /**
- * Runs `check` as one counted attempt. The attempt is reserved before checking, so parallel
- * requests can't all slip under the limit; a passing check gives it back.
+ * Runs `check` as one counted attempt on every counter. The attempt is reserved before
+ * checking, so parallel requests can't all slip under a limit; a passing check gives it back.
  */
 async function throttled(
-  { db, ip }: AuthDeps,
+  db: Db,
+  counters: Counter[],
   now: Date,
   check: () => Promise<boolean>,
-): Promise<"ok" | "failed" | "limited"> {
-  const perIp = `login:${ipBucket(ip)}`;
-  const total = "login:*";
-  if (!(await reserveRequest(db, perIp, LOGIN_DAILY_FAILURES, now))) return "limited";
-  if (!(await reserveRequest(db, total, LOGIN_DAILY_FAILURES_TOTAL, now))) {
-    await releaseRequest(db, perIp, now);
-    return "limited";
+): Promise<{ outcome: "ok" | "failed" } | { outcome: "limited"; resetsAt: Date | null }> {
+  const reserved: Counter[] = [];
+  const releaseAll = () => Promise.all(reserved.map((c) => releaseRequest(db, c.key, now)));
+  for (const counter of counters) {
+    if (!(await reserveRequest(db, counter.key, counter.limit, now))) {
+      await releaseAll();
+      return { outcome: "limited", resetsAt: counter.resetsAt };
+    }
+    reserved.push(counter);
   }
-  if (!(await check())) return "failed";
-  await Promise.all([releaseRequest(db, perIp, now), releaseRequest(db, total, now)]);
-  return "ok";
+  if (!(await check())) return { outcome: "failed" };
+  await releaseAll();
+  return { outcome: "ok" };
+}
+
+/** Counters for a form that checks the shared access code. */
+function accessCodeCounters(ip: string, now: Date): Counter[] {
+  return [
+    addressCounter(ip, now),
+    { key: "access-code:*", limit: ACCESS_CODE_FAILURES_PER_DAY, resetsAt: null },
+  ];
 }
 
 async function signedIn(secret: string, user: { id: string; sessionVersion: number }, now: Date) {
@@ -315,12 +359,16 @@ export async function attemptLogin(
   const { secret } = deps;
   if (!isSecretConfigured(secret)) return failure(503, "config");
   const user = await deps.db.query.users.findFirst({ where: eq(users.email, input.email) });
-  const outcome = await throttled(deps, now, async () => {
+  const counters = [
+    addressCounter(deps.ip, now),
+    windowCounter(`login-account:${input.email}`, FAILURES_PER_ACCOUNT, now),
+  ];
+  const result = await throttled(deps.db, counters, now, async () => {
     const valid = await verifyPassword(input.password, user?.passwordHash ?? (await timingDecoy()));
     return valid && user !== undefined;
   });
-  if (outcome === "limited") return failure(429, "limite");
-  if (outcome === "failed" || !user) return failure(401, "senha");
+  if (result.outcome === "limited") return tooMany(result.resetsAt, now);
+  if (result.outcome === "failed" || !user) return failure(401, "senha");
   return signedIn(secret, user, now);
 }
 
@@ -331,9 +379,11 @@ export async function attemptSignUp(
 ): Promise<AuthResult> {
   const { secret } = deps;
   if (!isSecretConfigured(secret)) return failure(503, "config");
-  const outcome = await throttled(deps, now, () => accessCodeMatches(input.accessCode, secret));
-  if (outcome === "limited") return failure(429, "limite");
-  if (outcome === "failed") return failure(401, "codigo");
+  const result = await throttled(deps.db, accessCodeCounters(deps.ip, now), now, () =>
+    accessCodeMatches(input.accessCode, secret),
+  );
+  if (result.outcome === "limited") return tooMany(result.resetsAt, now);
+  if (result.outcome === "failed") return failure(401, "codigo");
 
   const [user] = await deps.db
     .insert(users)
@@ -357,9 +407,11 @@ export async function attemptPasswordReset(
 ): Promise<AuthResult> {
   const { secret } = deps;
   if (!isSecretConfigured(secret)) return failure(503, "config");
-  const outcome = await throttled(deps, now, () => accessCodeMatches(input.accessCode, secret));
-  if (outcome === "limited") return failure(429, "limite");
-  if (outcome === "failed") return failure(401, "codigo");
+  const result = await throttled(deps.db, accessCodeCounters(deps.ip, now), now, () =>
+    accessCodeMatches(input.accessCode, secret),
+  );
+  if (result.outcome === "limited") return tooMany(result.resetsAt, now);
+  if (result.outcome === "failed") return failure(401, "codigo");
 
   const [user] = await deps.db
     .update(users)

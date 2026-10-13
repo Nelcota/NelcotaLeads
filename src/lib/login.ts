@@ -26,7 +26,7 @@ export type LoginErrorCode = (typeof LOGIN_ERROR_CODES)[number];
 /** Failures shown on the sign-in screens; the code travels in `?error=` when JS is off. */
 export const LOGIN_ERRORS: Record<LoginErrorCode, string> = {
   senha: "E-mail ou senha incorretos.",
-  limite: "Muitas tentativas erradas. Tente de novo amanhã.",
+  limite: "Muitas tentativas erradas. Aguarde alguns minutos e tente de novo.",
   config: "O acesso ainda não foi configurado. Fale com quem administra o sistema.",
   codigo: "Código de acesso incorreto.",
   "email-em-uso": "Já existe uma conta com esse e-mail.",

@@ -5,8 +5,9 @@ import { getDb } from "@/db/client";
 import { users } from "@/db/schema";
 import { resetDb } from "../../test/reset-db";
 import {
-  LOGIN_DAILY_FAILURES,
-  LOGIN_DAILY_FAILURES_TOTAL,
+  ACCESS_CODE_FAILURES_PER_DAY,
+  FAILURES_PER_ACCOUNT,
+  FAILURES_PER_ADDRESS,
   SESSION_COOKIE,
   attemptLogin,
   attemptPasswordReset,
@@ -19,6 +20,8 @@ const db = getDb(env.DB);
 const SECRET = "correct horse battery";
 const now = new Date("2026-10-11T12:00:00Z");
 const tomorrow = new Date("2026-10-12T12:00:00Z");
+// `now` starts a 15-minute window; this is the start of the next one.
+const nextWindow = new Date("2026-10-11T12:15:00Z");
 const ACCOUNT = { name: "Ana", email: "ana@nelcota.test", password: "senha-da-ana" };
 
 const deps = (ip = "203.0.113.7") => ({ db, secret: SECRET, ip });
@@ -64,9 +67,26 @@ describe("attemptSignUp", () => {
     expect(await signUp({ name: "Outra" })).toMatchObject({ status: 409, code: "email-em-uso" });
   });
 
-  it("counts wrong access codes toward the daily limit", SLOW, async () => {
-    for (let i = 0; i < LOGIN_DAILY_FAILURES; i++) await signUp({ accessCode: "nope" });
+  it("counts wrong access codes toward the address limit", SLOW, async () => {
+    for (let i = 0; i < FAILURES_PER_ADDRESS; i++) await signUp({ accessCode: "nope" });
     expect(await signUp()).toMatchObject({ status: 429, code: "limite" });
+  });
+
+  it("closes sign-up for the day after too many wrong codes from anywhere", SLOW, async () => {
+    for (let i = 0; i < ACCESS_CODE_FAILURES_PER_DAY; i++) {
+      await signUp({ accessCode: "nope" }, `198.51.100.${i}`);
+    }
+    expect(await signUp({}, "192.0.2.1")).toMatchObject({
+      status: 429,
+      error: "Muitas tentativas erradas hoje. Tente de novo amanhã.",
+    });
+    // It opens again the next day.
+    const reopened = await attemptSignUp(
+      deps("192.0.2.1"),
+      { ...ACCOUNT, accessCode: SECRET },
+      tomorrow,
+    );
+    expect(reopened.ok).toBe(true);
   });
 
   it("fails closed without a configured secret", async () => {
@@ -96,47 +116,55 @@ describe("attemptLogin", () => {
     expect(unknown).toEqual(wrong);
   });
 
-  it(
-    "locks an IP out for the day after too many failures, even with the right password",
-    SLOW,
-    async () => {
-      for (let i = 0; i < LOGIN_DAILY_FAILURES; i++) await login("nope");
-      expect(await login(ACCOUNT.password)).toMatchObject({
-        ok: false,
-        status: 429,
-        code: "limite",
-      });
-      expect((await login(ACCOUNT.password, "198.51.100.1")).ok).toBe(true);
-      expect((await login(ACCOUNT.password, "203.0.113.7", tomorrow)).ok).toBe(true);
-    },
-  );
+  it("locks an address out for 15 minutes, saying how long is left", SLOW, async () => {
+    for (let i = 0; i < FAILURES_PER_ADDRESS; i++) await login("nope");
+    expect(await login(ACCOUNT.password)).toMatchObject({
+      ok: false,
+      status: 429,
+      code: "limite",
+      error: "Muitas tentativas erradas. Tente de novo em 15 minutos.",
+    });
+    expect((await login(ACCOUNT.password, "198.51.100.1")).ok).toBe(true);
+    expect((await login(ACCOUNT.password, "203.0.113.7", nextWindow)).ok).toBe(true);
+  });
 
   it("counts every address of one IPv6 /64 together", SLOW, async () => {
-    for (let i = 0; i < LOGIN_DAILY_FAILURES; i++) await login("nope", `2001:db8:1:2::${i + 1}`);
+    for (let i = 0; i < FAILURES_PER_ADDRESS; i++) {
+      await login("nope", `2001:db8:1:2::${i + 1}`);
+    }
     expect(await login(ACCOUNT.password, "2001:db8:1:2:ffff::1")).toMatchObject({ status: 429 });
     expect((await login(ACCOUNT.password, "2001:db8:1:3::1")).ok).toBe(true);
   });
 
-  it("stops everyone after too many failures in total", SLOW, async () => {
-    for (let i = 0; i < LOGIN_DAILY_FAILURES_TOTAL; i++) await login("nope", `198.51.100.${i}`);
-    expect(await login(ACCOUNT.password, "192.0.2.1")).toMatchObject({ status: 429 });
-  });
+  it(
+    "an attack from many addresses locks only that account, and only for the window",
+    SLOW,
+    async () => {
+      await signUp({ name: "Bia", email: "bia@nelcota.test", password: "senha-da-bia" });
+      for (let i = 0; i < FAILURES_PER_ACCOUNT; i++) await login("nope", `198.51.100.${i}`);
+      // The attacked account waits out the window, from any address...
+      expect(await login(ACCOUNT.password, "192.0.2.1")).toMatchObject({ status: 429 });
+      // ...while everyone else signs in as usual, and the owner gets back in 15 minutes later.
+      expect((await login("senha-da-bia", "192.0.2.1", now, "bia@nelcota.test")).ok).toBe(true);
+      expect((await login(ACCOUNT.password, "192.0.2.1", nextWindow)).ok).toBe(true);
+    },
+  );
 
   it(
     "counts parallel attempts before comparing, so bursts can't exceed the limit",
     SLOW,
     async () => {
       const results = await Promise.all(
-        Array.from({ length: LOGIN_DAILY_FAILURES + 5 }, () => login("nope")),
+        Array.from({ length: FAILURES_PER_ADDRESS + 5 }, () => login("nope")),
       );
       expect(results.filter((result) => !result.ok && result.status === 401)).toHaveLength(
-        LOGIN_DAILY_FAILURES,
+        FAILURES_PER_ADDRESS,
       );
     },
   );
 
   it("does not count successful logins as failures", SLOW, async () => {
-    for (let i = 0; i < LOGIN_DAILY_FAILURES + 2; i++) {
+    for (let i = 0; i < FAILURES_PER_ADDRESS + 2; i++) {
       expect((await login(ACCOUNT.password)).ok).toBe(true);
     }
   });
