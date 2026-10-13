@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import { errorToast } from "@/lib/mutation-toasts";
 import {
   Avatar,
+  DisabledReason,
   GroupedRow,
   IconTile,
   InfoTip,
@@ -729,15 +730,20 @@ function Automation({ data }: { data: Dashboard }) {
             title={<label htmlFor={row.key}>{row.label}</label>}
             subtitle={row.hint}
             trailing={
-              <Switch
-                id={row.key}
-                checked={row.checked}
-                style={{ "--switch-on": toneVar(row.tone) }}
-                disabled={
-                  toggle.isPending || (row.key === "autopilot" && autopilot.targets.length === 0)
-                }
-                onCheckedChange={(value) => toggle.mutate({ [row.key]: value })}
-              />
+              <DisabledReason
+                reason={row.key === "autopilot" && autopilot.targets.length === 0 && row.hint}
+                side="left"
+              >
+                <Switch
+                  id={row.key}
+                  checked={row.checked}
+                  style={{ "--switch-on": toneVar(row.tone) }}
+                  disabled={
+                    toggle.isPending || (row.key === "autopilot" && autopilot.targets.length === 0)
+                  }
+                  onCheckedChange={(value) => toggle.mutate({ [row.key]: value })}
+                />
+              </DisabledReason>
             }
           />
         ))}

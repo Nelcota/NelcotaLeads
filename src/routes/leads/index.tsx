@@ -24,6 +24,7 @@ import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import {
   Avatar,
+  DisabledReason,
   EmptyState,
   FloatingBar,
   Hint,
@@ -436,10 +437,15 @@ function LeadsPage() {
             <span className="max-sm:hidden">Limpar</span>
           </Button>
           <SelectionMenu ids={[...selected]} onDone={clearSelection} />
-          <Button size="sm" disabled={sendable.length === 0} onClick={() => setDispatching(true)}>
-            <SendIcon />
-            Disparar e-mail
-          </Button>
+          <DisabledReason
+            reason={sendable.length === 0 && "Nenhum lead selecionado tem e-mail"}
+            side="top"
+          >
+            <Button size="sm" disabled={sendable.length === 0} onClick={() => setDispatching(true)}>
+              <SendIcon />
+              Disparar e-mail
+            </Button>
+          </DisabledReason>
         </FloatingBar>
       ) : null}
 

@@ -17,7 +17,14 @@ import {
   SettingsIcon,
   SparklesIcon,
 } from "lucide-react";
-import { FloatingBar, IconTile, InfoTip, toneVar, type Tone } from "@/components/apple-ui";
+import {
+  DisabledReason,
+  FloatingBar,
+  IconTile,
+  InfoTip,
+  toneVar,
+  type Tone,
+} from "@/components/apple-ui";
 import { GLOSSARY } from "@/lib/help";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useState, type ReactNode } from "react";
@@ -66,6 +73,8 @@ const autopilotQuery = queryOptions({ queryKey: ["autopilot"], queryFn: () => ge
 const WEIGHT_RANGE = { min: -100, max: 100 };
 
 const HOURS = Array.from({ length: 24 }, (_, hour) => hour);
+
+const NOTHING_TO_SAVE = "Nenhuma alteração para salvar";
 
 // Same bound as the autopilot schema (src/lib/schemas.ts).
 const MAX_TARGETS = 10;
@@ -150,15 +159,17 @@ function MailCard() {
             </>
           )}
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={!mail?.configured || test.isPending}
-          onClick={() => test.mutate()}
-        >
-          <PlugZapIcon />
-          {test.isPending ? "Testando…" : "Testar conexão"}
-        </Button>
+        <DisabledReason reason={!mail?.configured && "Conecte a caixa de e-mail primeiro"}>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!mail?.configured || test.isPending}
+            onClick={() => test.mutate()}
+          >
+            <PlugZapIcon />
+            {test.isPending ? "Testando…" : "Testar conexão"}
+          </Button>
+        </DisabledReason>
       </div>
     </SettingsSection>
   );
@@ -227,9 +238,11 @@ function AutopilotForm() {
                 Descartar
               </Button>
             ) : null}
-            <Button type="submit" disabled={!isDirty || mutation.isPending}>
-              {mutation.isPending ? "Salvando…" : "Salvar modo automático"}
-            </Button>
+            <DisabledReason reason={!isDirty && NOTHING_TO_SAVE}>
+              <Button type="submit" disabled={!isDirty || mutation.isPending}>
+                {mutation.isPending ? "Salvando…" : "Salvar modo automático"}
+              </Button>
+            </DisabledReason>
           </>
         }
         title="Modo automático"
@@ -320,7 +333,9 @@ function AutopilotForm() {
             </div>
           ))}
           <AddRow
-            disabled={targets.fields.length >= MAX_TARGETS}
+            disabledReason={
+              targets.fields.length >= MAX_TARGETS && `Máximo de ${MAX_TARGETS} nichos`
+            }
             onClick={() => targets.append({ niche: "", city: "" })}
           >
             Adicionar nicho e cidade
@@ -689,9 +704,11 @@ function QuickRepliesForm({ defaults }: { defaults: QuickRepliesInput }) {
         description={QUICK_REPLIES_DESCRIPTION}
         contentClassName="grid gap-0 p-0"
         footer={
-          <Button type="submit" disabled={!isDirty || mutation.isPending}>
-            {mutation.isPending ? "Salvando…" : "Salvar respostas rápidas"}
-          </Button>
+          <DisabledReason reason={!isDirty && NOTHING_TO_SAVE}>
+            <Button type="submit" disabled={!isDirty || mutation.isPending}>
+              {mutation.isPending ? "Salvando…" : "Salvar respostas rápidas"}
+            </Button>
+          </DisabledReason>
         }
       >
         {replies.fields.length === 0 ? (
@@ -739,7 +756,10 @@ function QuickRepliesForm({ defaults }: { defaults: QuickRepliesInput }) {
           );
         })}
         <div className="flex flex-wrap items-center gap-3 px-4 pt-2.5 pb-3.5">
-          <AddRow disabled={full} onClick={() => replies.append({ title: "", body: "" })}>
+          <AddRow
+            disabledReason={full && `Máximo de ${QUICK_REPLY_LIMITS.count} modelos`}
+            onClick={() => replies.append({ title: "", body: "" })}
+          >
             Adicionar modelo
           </AddRow>
           {full ? (
@@ -791,24 +811,27 @@ function SettingsSection({
 /** "+ Add …" row: green round plus and a blue label, like the Settings app. */
 function AddRow({
   children,
-  disabled,
+  disabledReason,
   onClick,
 }: {
   children: ReactNode;
-  disabled?: boolean;
+  /** Disables the row and says why in a tooltip. */
+  disabledReason?: string | false;
   onClick: () => void;
 }) {
   return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={onClick}
-      className="press inline-flex items-center gap-2.5 py-1 text-sm font-medium text-blue disabled:opacity-50"
-    >
-      <span className="grid size-[22px] place-items-center rounded-full bg-green text-primary-foreground">
-        <PlusIcon className="size-3" strokeWidth={3} />
-      </span>
-      {children}
-    </button>
+    <DisabledReason reason={disabledReason}>
+      <button
+        type="button"
+        disabled={Boolean(disabledReason)}
+        onClick={onClick}
+        className="press inline-flex items-center gap-2.5 py-1 text-sm font-medium text-blue disabled:pointer-events-none disabled:opacity-50"
+      >
+        <span className="grid size-[22px] place-items-center rounded-full bg-green text-primary-foreground">
+          <PlusIcon className="size-3" strokeWidth={3} />
+        </span>
+        {children}
+      </button>
+    </DisabledReason>
   );
 }

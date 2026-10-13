@@ -28,6 +28,40 @@ export function Hint({
 }
 
 /**
+ * Why a control is disabled, as a tooltip. A disabled button gets no pointer or focus events,
+ * so it is wrapped in a focusable span that carries the tooltip. Without a reason, the child
+ * is rendered as is.
+ */
+export function DisabledReason({
+  reason,
+  side,
+  className,
+  children,
+}: {
+  reason: string | null | undefined | false;
+  side?: ComponentProps<typeof TooltipContent>["side"];
+  className?: string;
+  children: ReactElement;
+}) {
+  if (!reason) return children;
+  return (
+    <Hint label={reason} side={side}>
+      <span
+        // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- reaches the tooltip by keyboard
+        tabIndex={0}
+        className={cn(
+          // The disabled control lets the pointer through, so hovering it shows the reason.
+          "inline-flex rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/40 [&>:disabled]:pointer-events-none",
+          className,
+        )}
+      >
+        {children}
+      </span>
+    </Hint>
+  );
+}
+
+/**
  * A link that opens in a new tab: ↗ after the text, "abre em nova aba" for screen readers and
  * `rel="noopener noreferrer"`. `indicator={false}` drops the arrow where the link is an icon.
  */
