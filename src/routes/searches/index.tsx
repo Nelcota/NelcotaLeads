@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
+import { z } from "zod";
 import { EmptyState, Hint, IconTile, Lift, ProgressRing } from "@/components/apple-ui";
 import { Page, Stat, useOpenNewSearch } from "@/components/app-shell";
 import { SearchStatusBadge } from "@/components/lead-badges";
@@ -28,6 +29,7 @@ import type { Search } from "@/db/schema";
 import { formatDate } from "@/lib/format";
 import { searchesQuery } from "@/lib/queries";
 import { errorToast } from "@/lib/mutation-toasts";
+import { useNotFoundToast } from "@/lib/not-found-toast";
 import { MANUAL_SEARCH_ID } from "@/lib/searches";
 import { cn } from "@/lib/utils";
 import { cancelSearch, hideSearch, repeatSearch } from "@/server/searches";
@@ -35,12 +37,21 @@ import { pageTitle } from "@/lib/page-title";
 
 export const Route = createFileRoute("/searches/")({
   head: () => ({ meta: [{ title: pageTitle("Buscas") }] }),
+  // `missing`: arrived from a link to a search that no longer exists.
+  validateSearch: z.object({ missing: z.boolean().optional() }),
   loader: ({ context }) => context.queryClient.ensureQueryData(searchesQuery),
   component: SearchesPage,
 });
 
 function SearchesPage() {
   const { data: all } = useSuspenseQuery(searchesQuery);
+  const { missing } = Route.useSearch();
+  const navigate = useNavigate({ from: "/searches/" });
+  useNotFoundToast(
+    missing,
+    "Busca não encontrada",
+    () => void navigate({ search: {}, replace: true }),
+  );
   // Leads added by hand are filed under a fixed "search" that is not one (see Leads).
   const data = all.filter((search) => search.id !== MANUAL_SEARCH_ID);
   const openNewSearch = useOpenNewSearch();

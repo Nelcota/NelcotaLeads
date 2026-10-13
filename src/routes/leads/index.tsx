@@ -88,6 +88,7 @@ import {
   type ScoreTier,
 } from "@/lib/schemas";
 import { errorToast } from "@/lib/mutation-toasts";
+import { useNotFoundToast } from "@/lib/not-found-toast";
 import { searchLabel } from "@/lib/searches";
 import { useToday } from "@/lib/today";
 import { cn } from "@/lib/utils";
@@ -95,8 +96,12 @@ import { bulkUpdateLeads, undoBulkUpdateLeads } from "@/server/leads";
 import type { LeadRow } from "@/server/leads-query";
 import { pageTitle } from "@/lib/page-title";
 
-// `lead` is UI state (the open side sheet), kept out of the data filters.
-const searchSchema = leadFiltersSchema.extend({ lead: z.string().max(64).optional() });
+// `lead` (the open side sheet) and `missing` (a link to a lead that is gone) are UI state,
+// kept out of the data filters.
+const searchSchema = leadFiltersSchema.extend({
+  lead: z.string().max(64).optional(),
+  missing: z.boolean().optional(),
+});
 
 const DEFAULT_VIEW: LeadView = "todo";
 const NO_SELECTION: ReadonlySet<string> = new Set();
@@ -104,7 +109,7 @@ const NO_SELECTION: ReadonlySet<string> = new Set();
 export const Route = createFileRoute("/leads/")({
   head: () => ({ meta: [{ title: pageTitle("Leads") }] }),
   validateSearch: searchSchema,
-  loaderDeps: ({ search: { lead: _lead, ...filters } }) => withView(filters),
+  loaderDeps: ({ search: { lead: _lead, missing: _missing, ...filters } }) => withView(filters),
   loader: ({ context, deps }) =>
     Promise.all([
       context.queryClient.ensureQueryData(leadsQuery(deps)),
@@ -177,10 +182,15 @@ function activeTier(filters: LeadFilters): ScoreTier | undefined {
 }
 
 function LeadsPage() {
-  const { lead: openLeadId, ...search } = Route.useSearch();
+  const { lead: openLeadId, missing, ...search } = Route.useSearch();
   const filters = withView(search);
   const view = filters.view ?? DEFAULT_VIEW;
   const navigate = useNavigate({ from: "/leads/" });
+  useNotFoundToast(
+    missing,
+    "Lead não encontrado",
+    () => void navigate({ search: (prev) => ({ ...prev, missing: undefined }), replace: true }),
+  );
   const { data: list } = useQuery(leadsQuery(filters));
   const data = list?.rows;
   const { data: counts } = useQuery(leadCountsQuery(filters));

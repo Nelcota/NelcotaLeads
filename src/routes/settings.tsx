@@ -6,7 +6,7 @@ import {
   useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   ClockIcon,
   MailIcon,
@@ -599,22 +599,19 @@ function SettingsForm({ defaults }: { defaults: SettingsInput }) {
             aria-invalid={Boolean(errors.minScore)}
           />
         </Field>
-        <Field label="Seu nome" htmlFor="senderName" error={errors.senderName?.message}>
-          <Input
-            id="senderName"
-            autoComplete="name"
-            defaultValue={defaults.senderName}
-            {...form.register("senderName")}
-          />
-        </Field>
-        <Field label="Sua empresa" htmlFor="senderCompany" error={errors.senderCompany?.message}>
-          <Input
-            id="senderCompany"
-            autoComplete="organization"
-            defaultValue={defaults.senderCompany}
-            {...form.register("senderCompany")}
-          />
-        </Field>
+        {/* The profile is edited in one place only (Conta); it signs the e-mails. */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl bg-fill-3 px-3.5 py-2.5 text-sm sm:col-span-2">
+          <div className="min-w-0 flex-1">
+            <p className="font-medium">Nome e empresa do remetente</p>
+            <p className="truncate font-light text-muted-foreground">
+              {[defaults.senderName, defaults.senderCompany].filter(Boolean).join(" · ") ||
+                "Ainda não informados"}
+            </p>
+          </div>
+          <Link to="/conta" className="text-[12.5px] font-medium text-blue hover:underline">
+            Editar em Conta
+          </Link>
+        </div>
       </SettingsSection>
 
       {isDirty || mutation.isPending ? (

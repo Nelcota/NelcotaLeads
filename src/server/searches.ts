@@ -78,6 +78,11 @@ export const cancelSearch = createServerFn({ method: "POST" })
   .validator(z.object({ id: idSchema }))
   .handler(({ data }) => stopSearch(getDb(), data.id));
 
+/** For /searches/<id> links: whether that search still exists. */
+export const searchExists = createServerFn({ method: "GET" })
+  .validator(z.object({ id: idSchema }))
+  .handler(async ({ data }) => (await getDb().$count(searches, eq(searches.id, data.id))) > 0);
+
 export const getProviderStatus = createServerFn({ method: "GET" }).handler(async () => {
   const db = getDb();
   const now = new Date();

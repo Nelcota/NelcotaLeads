@@ -49,6 +49,11 @@ export const getLead = createServerFn({ method: "GET" })
     return { lead, analysis: analysis ?? null, search: search ?? null };
   });
 
+/** For old /leads/<id> links: whether that lead still exists. */
+export const leadExists = createServerFn({ method: "GET" })
+  .validator(z.object({ id: idSchema }))
+  .handler(async ({ data }) => (await getDb().$count(leads, eq(leads.id, data.id))) > 0);
+
 export const updateLead = createServerFn({ method: "POST" })
   .validator(updateLeadSchema)
   .handler(async ({ data }) => {
