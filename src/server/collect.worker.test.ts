@@ -2,7 +2,7 @@ import { env } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
 import { resetDb } from "../../test/reset-db";
 import { getDb } from "@/db/client";
-import { leads } from "@/db/schema";
+import { leads, searches } from "@/db/schema";
 import { createFakePlaces } from "../../test/fake-places";
 import { createFakeQueue } from "../../test/fake-queue";
 import type { PlacesProvider } from "@/lib/places";
@@ -35,6 +35,24 @@ describe("runSearch", () => {
     expect(again).toMatchObject({ status: "analyzing", foundCount: 3, duplicateCount: 9 });
     expect(await db.$count(leads)).toBe(12);
     expect(sent).toHaveLength(12);
+  });
+
+  it("keeps a search cancelled while it was collecting", async () => {
+    const db = getDb(env.DB);
+    const places = createFakePlaces();
+    // The user cancels while Google is still answering.
+    const cancelling: PlacesProvider = {
+      name: "test",
+      search: async (query) => {
+        await db.update(searches).set({ status: "cancelled" });
+        return places.search(query);
+      },
+    };
+    const { searchId } = await runSearch(db, fakeQueue().queue, cancelling, input);
+    const search = await db.query.searches.findFirst({
+      where: (s, { eq }) => eq(s.id, searchId),
+    });
+    expect(search).toMatchObject({ status: "cancelled", foundCount: 9 });
   });
 
   it("fails with a clear message when the daily limit blocks the whole search", async () => {

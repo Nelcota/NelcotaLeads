@@ -9,6 +9,7 @@ import { idSchema, newSearchSchema } from "@/lib/schemas";
 import { mailConfigured } from "@/lib/mail";
 import { needsAttention } from "@/lib/system-status";
 import { runSearch } from "./collect";
+import { cancelSearch as stopSearch } from "./search-actions";
 import { loadSystemStatus } from "./job-runs";
 import { EMAIL_PROVIDER, mailDailyLimit } from "./mail-flow";
 import { loadSettings } from "./settings-store";
@@ -37,6 +38,11 @@ export const getSearch = createServerFn({ method: "GET" })
     if (!search) throw new Error("Busca não encontrada");
     return search;
   });
+
+/** Stops a running search; see cancelSearch for what is kept. */
+export const cancelSearch = createServerFn({ method: "POST" })
+  .validator(z.object({ id: idSchema }))
+  .handler(({ data }) => stopSearch(getDb(), data.id));
 
 export const getProviderStatus = createServerFn({ method: "GET" }).handler(async () => {
   const db = getDb();

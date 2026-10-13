@@ -1,6 +1,6 @@
 import { and, eq, gte, inArray, sql } from "drizzle-orm";
 import type { Db } from "@/db/client";
-import { leads, searches } from "@/db/schema";
+import { leads, searches, type SearchStatus } from "@/db/schema";
 import type { PlacesProvider } from "@/lib/places";
 import { toE164 } from "@/lib/phone";
 import type { NewSearchInput } from "@/lib/schemas";
@@ -75,7 +75,9 @@ export async function runSearch(
       db
         .update(searches)
         .set({
-          status: enqueueError ? "error" : newLeadIds.length > 0 ? "analyzing" : "done",
+          status: keepCancelled(
+            enqueueError ? "error" : newLeadIds.length > 0 ? "analyzing" : "done",
+          ),
           foundCount: newLeadIds.length,
           duplicateCount: places.length - newLeadIds.length,
           // Leave the counters alone otherwise: jobs may already be bumping them.
@@ -104,11 +106,16 @@ export async function runSearch(
     await db
       .update(searches)
       .set({
-        status: "error",
+        status: keepCancelled("error"),
         errorMessage: error instanceof Error ? error.message : String(error),
       })
       .where(eq(searches.id, searchId));
   }
 
   return { searchId };
+}
+
+/** The next status, unless the user cancelled the search while it was collecting. */
+function keepCancelled(next: SearchStatus) {
+  return sql<SearchStatus>`case when ${searches.status} = 'cancelled' then 'cancelled' else ${next} end`;
 }

@@ -722,7 +722,9 @@ function AnalysisSection({ lead, analysis }: { lead: Lead; analysis: Analysis | 
         <p className="text-sm font-light text-muted-foreground">
           {lead.analysisStatus === "error"
             ? `A análise falhou: ${lead.analysisError ?? "erro desconhecido"}. Tente reanalisar.`
-            : "Lendo o site e avaliando. Esta tela atualiza sozinha."}
+            : lead.analysisStatus === "skipped"
+              ? `${lead.analysisError ?? "Este lead ainda não foi analisado."} Use Reanalisar para analisar agora.`
+              : "Lendo o site e avaliando. Esta tela atualiza sozinha."}
         </p>
       </Section>
     );

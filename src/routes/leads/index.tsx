@@ -867,6 +867,7 @@ function LeadsList({
 function hint(lead: LeadRow): { text: string; tone?: Tone } {
   if (lead.analysisStatus === "pending") return { text: "Analisando…", tone: "purple" };
   if (lead.analysisStatus === "error") return { text: "Falha na análise", tone: "red" };
+  if (lead.analysisStatus === "skipped") return { text: "Não analisado" };
   const signal = lead.signals?.[0];
   if (signal) return { text: signal };
   return lead.website ? { text: hostOf(lead.website) } : { text: "Sem site", tone: "orange" };

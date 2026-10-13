@@ -31,13 +31,19 @@ export const LEAD_BUSY_MESSAGE = "O lead já está sendo analisado";
  */
 export async function processLead(deps: ProcessDeps, job: LeadJob): Promise<"done" | "skipped"> {
   const { db } = deps;
+  if (!job.force && (await skipIfSearchCancelled(db, job.leadId))) return "skipped";
   const lead = await claimLead(db, job);
   if (!lead) {
     const current = await db.query.leads.findFirst({
       where: eq(leads.id, job.leadId),
       columns: { analysisStatus: true },
     });
-    if (!current || (current.analysisStatus === "done" && !job.force)) return "skipped";
+    if (
+      !current ||
+      (!job.force && (current.analysisStatus === "done" || current.analysisStatus === "skipped"))
+    ) {
+      return "skipped";
+    }
     throw new Error(LEAD_BUSY_MESSAGE);
   }
   try {
@@ -56,6 +62,25 @@ export async function processLead(deps: ProcessDeps, job: LeadJob): Promise<"don
   }
 }
 
+export const SEARCH_CANCELLED_MESSAGE = "A busca foi cancelada antes da análise.";
+
+/** A lead still waiting in the queue whose search was cancelled is set aside, not analyzed. */
+async function skipIfSearchCancelled(db: Db, leadId: string) {
+  const skipped = await db
+    .update(leads)
+    .set({ analysisStatus: "skipped", analysisError: SEARCH_CANCELLED_MESSAGE })
+    .where(
+      and(
+        eq(leads.id, leadId),
+        eq(leads.analysisStatus, "pending"),
+        isNull(leads.analysisStartedAt),
+        sql`exists (select 1 from ${searches} where ${searches.id} = ${leads.searchId} and ${searches.status} = 'cancelled')`,
+      ),
+    )
+    .returning({ id: leads.id });
+  return skipped.length > 0;
+}
+
 /**
  * Atomically marks the lead as being analyzed. Returns undefined when the lead is missing,
  * already analyzed (unless forced) or claimed by another job.
@@ -71,7 +96,12 @@ async function claimLead(db: Db, job: LeadJob, now = new Date()): Promise<Lead |
     .where(
       job.force
         ? and(eq(leads.id, job.leadId), free)
-        : and(eq(leads.id, job.leadId), free, ne(leads.analysisStatus, "done")),
+        : and(
+            eq(leads.id, job.leadId),
+            free,
+            ne(leads.analysisStatus, "done"),
+            ne(leads.analysisStatus, "skipped"),
+          ),
     )
     .returning();
   return lead;
@@ -307,10 +337,11 @@ function searchCounterStatements(
 ) {
   const column = searches[counter];
   return [
+    // A cancelled search stops counting (a lead already in the model may still finish).
     db
       .update(searches)
       .set({ [counter]: sql`${column} + 1` })
-      .where(and(eq(searches.id, searchId), when)),
+      .where(and(eq(searches.id, searchId), ne(searches.status, "cancelled"), when)),
     db
       .update(searches)
       .set({ status: "done" })

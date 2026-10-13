@@ -54,7 +54,8 @@ export const settings = sqliteTable("settings", {
     .default(sql`(unixepoch())`),
 });
 
-export const SEARCH_STATUSES = ["collecting", "analyzing", "done", "error"] as const;
+// `cancelled`: stopped by the user; what was collected and analyzed so far stays.
+export const SEARCH_STATUSES = ["collecting", "analyzing", "done", "error", "cancelled"] as const;
 export type SearchStatus = (typeof SEARCH_STATUSES)[number];
 
 export const searches = sqliteTable(
@@ -86,7 +87,9 @@ export type LeadStatus = (typeof LEAD_STATUSES)[number];
 export const SITE_STATUSES = ["pending", "none", "ok", "unreachable", "blocked"] as const;
 export type SiteStatus = (typeof SITE_STATUSES)[number];
 
-export const ANALYSIS_STATUSES = ["pending", "done", "error"] as const;
+// `skipped`: not analyzed on purpose (its search was cancelled, or a manual lead without a
+// site); "Reanalisar" still works.
+export const ANALYSIS_STATUSES = ["pending", "done", "error", "skipped"] as const;
 export type AnalysisStatus = (typeof ANALYSIS_STATUSES)[number];
 
 export const leads = sqliteTable(
