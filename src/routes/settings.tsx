@@ -25,6 +25,7 @@ import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { errorToast } from "@/lib/mutation-toasts";
 import { Page } from "@/components/app-shell";
+import { LeaveGuard, useReportDirtyForm } from "@/components/leave-guard";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Field } from "@/components/field";
@@ -90,21 +91,23 @@ function SettingsPage() {
   const { data } = useSuspenseQuery(settingsQuery);
   return (
     <Page title="Configurações">
-      <div className="mx-auto grid w-full max-w-[720px] gap-8">
-        <div className="flex items-center gap-4 px-1">
-          <IconTile icon={SettingsIcon} tone="gray" size={60} className="rounded-[15px]!" />
-          <div>
-            <p className="text-lg font-medium tracking-[-0.02em]">Como a IA trabalha por você</p>
-            <p className="text-sm font-light text-muted-foreground">
-              Oferta, critérios de nota, tom das mensagens, caixa de e-mail e o que roda sozinho.
-            </p>
+      <LeaveGuard>
+        <div className="mx-auto grid w-full max-w-[720px] gap-8">
+          <div className="flex items-center gap-4 px-1">
+            <IconTile icon={SettingsIcon} tone="gray" size={60} className="rounded-[15px]!" />
+            <div>
+              <p className="text-lg font-medium tracking-[-0.02em]">Como a IA trabalha por você</p>
+              <p className="text-sm font-light text-muted-foreground">
+                Oferta, critérios de nota, tom das mensagens, caixa de e-mail e o que roda sozinho.
+              </p>
+            </div>
           </div>
+          <MailCard />
+          <AutopilotForm />
+          <SettingsForm defaults={data} />
+          <QuickReplies />
         </div>
-        <MailCard />
-        <AutopilotForm />
-        <SettingsForm defaults={data} />
-        <QuickReplies />
-      </div>
+      </LeaveGuard>
     </Page>
   );
 }
@@ -167,6 +170,7 @@ function AutopilotForm() {
   });
   const targets = useFieldArray({ control: form.control, name: "targets" });
   const { errors, isDirty } = form.formState;
+  useReportDirtyForm("autopilot", isDirty);
 
   const mutation = useMutation({
     mutationFn: (data: AutopilotInput) => saveAutopilot({ data }),
@@ -357,6 +361,7 @@ function SettingsForm({ defaults }: { defaults: SettingsInput }) {
   const tone = useWatch({ control: form.control, name: "tone" });
   const minScore = useWatch({ control: form.control, name: "minScore" });
   const { errors, isDirty, isSubmitted } = form.formState;
+  useReportDirtyForm("settings", isDirty);
   const setNumber = (name: "minScore" | `criteria.${number}.weight`, value: number) =>
     form.setValue(name, value, { shouldDirty: true, shouldValidate: isSubmitted });
   const maxScore = (watchedCriteria ?? []).reduce(
@@ -593,6 +598,7 @@ function QuickRepliesForm({ defaults }: { defaults: QuickRepliesInput }) {
   });
   const replies = useFieldArray({ control: form.control, name: "replies" });
   const { errors, isDirty } = form.formState;
+  useReportDirtyForm("quick-replies", isDirty);
   const full = replies.fields.length >= QUICK_REPLY_LIMITS.count;
 
   const mutation = useMutation({

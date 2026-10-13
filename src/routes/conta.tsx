@@ -12,6 +12,7 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { errorToast } from "@/lib/mutation-toasts";
 import { Page } from "@/components/app-shell";
+import { LeaveGuard, useReportDirtyForm } from "@/components/leave-guard";
 import { Avatar, GroupedRow, IconTile, PropertyRow, SectionHeader } from "@/components/apple-ui";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,80 +49,86 @@ function AccountPage() {
 
   return (
     <Page title="Conta">
-      <div className="mx-auto grid w-full max-w-2xl gap-8">
-        <section className="enter flex flex-col items-center gap-3 pt-2 text-center">
-          <Avatar name={name === "Sem nome" ? "?" : name} size={72} />
-          <div className="grid gap-0.5">
-            <p className="text-xl font-medium tracking-[-0.02em]">{name}</p>
-            <p className="font-light text-muted-foreground">
-              {account?.email ?? (settings.senderCompany || "Empresa não informada")}
-            </p>
-          </div>
-        </section>
-
-        <ProfileForm defaults={settings} />
-
-        <section className="enter min-w-0">
-          <SectionHeader title="Caixa de e-mail" />
-          <div className="grouped">
-            <GroupedRow
-              lead={
-                <IconTile icon={MailIcon} tone={mail?.configured ? "green" : "orange"} size={30} />
-              }
-              title={mail?.configured ? mail.address : "Nenhuma caixa conectada"}
-              subtitle={mail?.configured ? "Caixa conectada" : "Configure em Configurações"}
-              subtitleTone={mail?.configured ? "green" : "orange"}
-              trailing={
-                <Button asChild variant="outline" size="sm">
-                  <Link to="/settings" hash="email">
-                    Gerenciar
-                  </Link>
-                </Button>
-              }
-            />
-          </div>
-        </section>
-
-        <SystemStatusSection />
-
-        {status ? (
-          <section className="enter min-w-0">
-            <SectionHeader title="Uso de hoje" />
-            <div className="grouped">
-              <PropertyRow label="E-mails enviados">
-                {status.mail.sentToday}{" "}
-                <span className="font-light text-muted-foreground">de {status.mail.limit}</span>
-              </PropertyRow>
-              <PropertyRow label="Buscas no Google">
-                {status.placesUsage.used}{" "}
-                <span className="font-light text-muted-foreground">
-                  de {status.placesUsage.limit}
-                </span>
-              </PropertyRow>
+      <LeaveGuard>
+        <div className="mx-auto grid w-full max-w-2xl gap-8">
+          <section className="enter flex flex-col items-center gap-3 pt-2 text-center">
+            <Avatar name={name === "Sem nome" ? "?" : name} size={72} />
+            <div className="grid gap-0.5">
+              <p className="text-xl font-medium tracking-[-0.02em]">{name}</p>
+              <p className="font-light text-muted-foreground">
+                {account?.email ?? (settings.senderCompany || "Empresa não informada")}
+              </p>
             </div>
           </section>
-        ) : null}
 
-        <AppearanceSection />
+          <ProfileForm defaults={settings} />
 
-        <section className="enter min-w-0">
-          <SectionHeader title="Sessão" />
-          <div className="grouped">
-            <GroupedRow
-              lead={<IconTile icon={LogOutIcon} tone="red" size={30} />}
-              title="Sair deste navegador"
-              subtitle="O e-mail e a senha serão pedidos no próximo acesso."
-              trailing={
-                <form method="post" action="/api/logout">
-                  <Button type="submit" variant="outline" size="sm">
-                    Sair
+          <section className="enter min-w-0">
+            <SectionHeader title="Caixa de e-mail" />
+            <div className="grouped">
+              <GroupedRow
+                lead={
+                  <IconTile
+                    icon={MailIcon}
+                    tone={mail?.configured ? "green" : "orange"}
+                    size={30}
+                  />
+                }
+                title={mail?.configured ? mail.address : "Nenhuma caixa conectada"}
+                subtitle={mail?.configured ? "Caixa conectada" : "Configure em Configurações"}
+                subtitleTone={mail?.configured ? "green" : "orange"}
+                trailing={
+                  <Button asChild variant="outline" size="sm">
+                    <Link to="/settings" hash="email">
+                      Gerenciar
+                    </Link>
                   </Button>
-                </form>
-              }
-            />
-          </div>
-        </section>
-      </div>
+                }
+              />
+            </div>
+          </section>
+
+          <SystemStatusSection />
+
+          {status ? (
+            <section className="enter min-w-0">
+              <SectionHeader title="Uso de hoje" />
+              <div className="grouped">
+                <PropertyRow label="E-mails enviados">
+                  {status.mail.sentToday}{" "}
+                  <span className="font-light text-muted-foreground">de {status.mail.limit}</span>
+                </PropertyRow>
+                <PropertyRow label="Buscas no Google">
+                  {status.placesUsage.used}{" "}
+                  <span className="font-light text-muted-foreground">
+                    de {status.placesUsage.limit}
+                  </span>
+                </PropertyRow>
+              </div>
+            </section>
+          ) : null}
+
+          <AppearanceSection />
+
+          <section className="enter min-w-0">
+            <SectionHeader title="Sessão" />
+            <div className="grouped">
+              <GroupedRow
+                lead={<IconTile icon={LogOutIcon} tone="red" size={30} />}
+                title="Sair deste navegador"
+                subtitle="O e-mail e a senha serão pedidos no próximo acesso."
+                trailing={
+                  <form method="post" action="/api/logout">
+                    <Button type="submit" variant="outline" size="sm">
+                      Sair
+                    </Button>
+                  </form>
+                }
+              />
+            </div>
+          </section>
+        </div>
+      </LeaveGuard>
     </Page>
   );
 }
@@ -132,6 +139,7 @@ function ProfileForm({ defaults }: { defaults: SettingsInput }) {
     defaultValues: { senderName: defaults.senderName, senderCompany: defaults.senderCompany },
   });
   const { isDirty } = form.formState;
+  useReportDirtyForm("profile", isDirty);
 
   // The profile lives in the shared settings record, so the rest of it is sent back unchanged.
   const mutation = useMutation({
