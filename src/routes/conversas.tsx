@@ -17,7 +17,7 @@ import {
   StarIcon,
   XIcon,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import { errorToast } from "@/lib/mutation-toasts";
 import { z } from "zod";
@@ -66,6 +66,7 @@ import { pageTitle } from "@/lib/page-title";
 import { isSendChord, sendShortcut } from "@/lib/shortcuts";
 import { matchesQuery } from "@/lib/text-search";
 import { whatsappLink } from "@/lib/phone";
+import { splitQuoted } from "@/lib/mail/quoted";
 import { useListHotkeys } from "@/hooks/use-list-hotkeys";
 
 const FILTERS = ["all", "needsYou", "aiTalking", "waiting", "closed"] as const;
@@ -919,6 +920,12 @@ function Message({
             : "";
   const busy = actions.busyId === message.id;
   const pending = actions.busyId !== undefined;
+  // What we sent is shown whole; a reply hides the original it quotes until asked.
+  const { visible, quoted } = out
+    ? { visible: message.body, quoted: null }
+    : splitQuoted(message.body);
+  const [showQuoted, setShowQuoted] = useState(false);
+  const quotedId = useId();
   return (
     <article
       className={cn(
@@ -987,8 +994,29 @@ function Message({
           message.status === "cancelled" ? "text-muted-foreground" : "text-foreground/85",
         )}
       >
-        {message.body}
+        {visible}
       </p>
+      {quoted ? (
+        <div className="grid justify-items-start">
+          <button
+            type="button"
+            aria-expanded={showQuoted}
+            aria-controls={showQuoted ? quotedId : undefined}
+            onClick={() => setShowQuoted((value) => !value)}
+            className="-my-1 h-8 text-xs font-medium text-tertiary transition-colors hover:text-foreground"
+          >
+            {showQuoted ? "Ocultar" : "Mostrar mensagem anterior"}
+          </button>
+          {showQuoted ? (
+            <p
+              id={quotedId}
+              className="mt-1 border-l-2 border-border pl-3 text-sm leading-relaxed font-light whitespace-pre-line text-muted-foreground"
+            >
+              {quoted}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
     </article>
   );
 }

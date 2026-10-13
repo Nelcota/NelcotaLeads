@@ -346,4 +346,31 @@ test.describe("e-mail conversations", () => {
     await expect(page.getByLabel("Sua resposta")).toBeVisible();
     await expect(page.getByRole("link", { name: /WhatsApp/ })).toHaveCount(0);
   });
+
+  test("a reply shows only the new text until the quote is asked for", async ({
+    page,
+    backend,
+  }) => {
+    const [poll] = tickTimes(1);
+    const { id, messageId, subject } = await startConversation(page, backend);
+    await backend.inbound({
+      from: LEAD.email,
+      subject: `Re: ${subject}`,
+      text: `Oi! Pode me contar mais sobre isso?\n\nEm seg., 12 de out. de 2026 às 10:00, Ana Teste <eu@nelcota.test> escreveu:\n\n> Olá, tudo bem? Texto para ${LEAD.name}.`,
+      inReplyTo: messageId,
+    });
+    await backend.tick(poll);
+
+    await visit(page, `/conversas?lead=${id}`);
+    const reply = page.getByRole("article").filter({ hasText: "Pode me contar mais" });
+    await expect(reply).not.toContainText("escreveu:");
+    const toggle = reply.getByRole("button", { name: "Mostrar mensagem anterior" });
+    await expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await toggle.click();
+    await expect(reply).toContainText("Ana Teste <eu@nelcota.test> escreveu:");
+    await reply.getByRole("button", { name: "Ocultar" }).click();
+    await expect(reply).not.toContainText("escreveu:");
+    // What we sent is never cut.
+    await expect(page.getByRole("article").first()).toContainText("Para não receber mais e-mails");
+  });
 });
