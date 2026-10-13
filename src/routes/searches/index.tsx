@@ -119,11 +119,22 @@ function SearchCard({ search, index }: { search: Search; index: number }) {
   });
   const repeat = useRepeatSearch();
   const hide = useHideSearch();
+  // The whole card opens the search's leads; its buttons sit above that link.
+  const linked = search.foundCount > 0;
+  const Card = linked ? Lift : "div";
   return (
-    <Lift
-      className="grouped enter cursor-default"
+    <Card
+      className="grouped enter relative"
       style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
     >
+      {linked ? (
+        <Link
+          to="/leads"
+          search={{ view: "all", searchId: search.id }}
+          aria-label={`Ver leads: ${search.niche} em ${search.city}`}
+          className="absolute inset-0 rounded-[inherit] outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
+        />
+      ) : null}
       <div className="flex flex-wrap items-center gap-3 px-4 py-3.5">
         <IconTile icon={auto ? BotIcon : SearchIcon} tone={auto ? "purple" : "blue"} size={30} />
         <div className="min-w-0 flex-1">
@@ -145,7 +156,7 @@ function SearchCard({ search, index }: { search: Search; index: number }) {
             {search.placesRequests} {search.placesRequests === 1 ? "requisição" : "requisições"}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="relative flex items-center gap-2">
           {running ? (
             <Button
               variant="ghost"
@@ -163,13 +174,11 @@ function SearchCard({ search, index }: { search: Search; index: number }) {
               <RotateCwIcon />
               {repeat.isPending ? "Buscando…" : "Tentar de novo"}
             </Button>
-          ) : search.foundCount > 0 ? (
-            <Button asChild variant="outline" size="sm">
-              <Link to="/leads" search={{ view: "all", searchId: search.id }}>
-                Ver leads
-                <ArrowRightIcon />
-              </Link>
-            </Button>
+          ) : linked ? (
+            <ArrowRightIcon
+              aria-hidden
+              className="lift-go size-4 text-muted-foreground max-sm:hidden"
+            />
           ) : null}
           {running ? null : (
             <DropdownMenu>
@@ -274,7 +283,7 @@ function SearchCard({ search, index }: { search: Search; index: number }) {
           </span>
         </p>
       )}
-    </Lift>
+    </Card>
   );
 }
 
