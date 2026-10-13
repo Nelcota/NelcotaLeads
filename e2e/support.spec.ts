@@ -48,3 +48,37 @@ test.describe("system status", () => {
     await expect(page.getByTestId("system-attention")).toHaveCount(0);
   });
 });
+
+test.describe("help", () => {
+  test("? opens the help from any screen, except while typing, and Esc closes it", async ({
+    page,
+  }) => {
+    await visit(page, "/conta");
+    const help = page.getByRole("dialog", { name: "Ajuda" });
+
+    // Typing "?" in a field is just text.
+    const name = page.getByLabel("Seu nome");
+    await name.fill("Ana");
+    await name.press("Shift+Slash");
+    await expect(name).toHaveValue("Ana?");
+    await expect(help).toHaveCount(0);
+    await name.blur();
+
+    await page.keyboard.press("Shift+Slash");
+    await expect(help).toBeVisible();
+    await expect(help.getByRole("heading", { name: "Como funciona" })).toBeVisible();
+    await expect(help.getByText("Abrir esta ajuda")).toBeVisible();
+    await expect(help.getByText("Nota mínima", { exact: true })).toBeVisible();
+    await expect(help.getByText("Nenhuma tarefa automática falhando.")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(help).toBeHidden();
+
+    // The sidebar button opens it too, and its Status line leads to Conta → Status.
+    await page.getByRole("button", { name: "Ajuda" }).click();
+    await expect(help).toBeVisible();
+    await help.getByRole("link", { name: /Ver status/ }).click();
+    await expect(help).toBeHidden();
+    await expect(page).toHaveURL(/\/conta#status$/);
+    await expect(page.getByRole("heading", { name: "Status" })).toBeVisible();
+  });
+});

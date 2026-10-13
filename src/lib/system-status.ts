@@ -13,7 +13,7 @@ export const JOB_LABELS: Record<Job, string> = {
   send: "Envio de e-mails",
   inbox: "Leitura da caixa",
   "follow-ups": "Retornos automáticos",
-  "auto-dispatch": "Envio automático",
+  "auto-dispatch": "Disparo automático",
   autopilot: "Busca diária",
   "analysis-queue": "Análise das empresas",
 };
@@ -39,7 +39,7 @@ const JOB_FALLBACK: Record<Job, string> = {
   send: "Não foi possível enviar o último e-mail.",
   inbox: "Não foi possível ler a caixa de e-mail.",
   "follow-ups": "Não foi possível preparar os retornos.",
-  "auto-dispatch": "Não foi possível preparar o envio automático.",
+  "auto-dispatch": "Não foi possível preparar o disparo automático.",
   autopilot: "A busca diária não terminou.",
   "analysis-queue": "A análise de algumas empresas falhou. Peça uma nova análise no lead.",
 };

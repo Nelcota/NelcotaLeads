@@ -47,7 +47,7 @@ function detail(job: JobStatus): { text: string; tone?: Tone } | null {
 
 function offReason(job: Job) {
   if (job === "autopilot") return "Busca diária desligada.";
-  if (job === "auto-dispatch") return "Envio automático desligado.";
+  if (job === "auto-dispatch") return "Disparo automático desligado.";
   return "Caixa de e-mail não conectada.";
 }
 

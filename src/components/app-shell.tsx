@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
+  CircleHelpIcon,
   HistoryIcon,
   InboxIcon,
   LayoutGridIcon,
@@ -12,8 +13,9 @@ import {
   UserIcon,
   type LucideIcon,
 } from "lucide-react";
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { Avatar, Hint, ProgressRing, TONE_TEXT, toneVar, type Tone } from "@/components/apple-ui";
+import { HelpSheet } from "@/components/help-sheet";
 import { NewSearchDialog } from "@/components/new-search-dialog";
 import {
   Sidebar,
@@ -33,8 +35,10 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { isHelpKey } from "@/lib/help";
 import { withAttentionCount } from "@/lib/page-title";
 import { accountQuery, attentionQuery, providerStatusQuery } from "@/lib/queries";
+import { isTypingTarget } from "@/lib/shortcuts";
 import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
@@ -65,6 +69,21 @@ export function useOpenNewSearch() {
   return useContext(NewSearchContext);
 }
 
+const HelpContext = createContext<() => void>(() => {});
+
+/** "?" (Shift + /) opens the help from any screen, except while the user types. */
+function useHelpKey(open: () => void) {
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || !isHelpKey(event) || isTypingTarget(event.target)) return;
+      event.preventDefault();
+      open();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [open]);
+}
+
 /**
  * Keeps the "Precisa de você" count in front of the tab title on every page. The routes own
  * the title itself (their `head`), so the count is put back whenever a navigation rewrites it.
@@ -88,18 +107,24 @@ function useAttentionTitle() {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const [newSearchOpen, setNewSearchOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const openHelp = useCallback(() => setHelpOpen(true), []);
   useAttentionTitle();
+  useHelpKey(openHelp);
   return (
     <NewSearchContext value={() => setNewSearchOpen(true)}>
-      <TooltipProvider delayDuration={300}>
-        <SidebarProvider>
-          <AppSidebar />
-          <SidebarInset className="h-svh overflow-hidden md:m-2.5 md:h-[calc(100svh-20px)] md:rounded-[18px] md:shadow-[inset_0_0_0_1px_rgb(255_255_255/0.07),inset_0_1px_0_rgb(255_255_255/0.05),var(--shadow-panel)]">
-            {children}
-          </SidebarInset>
-        </SidebarProvider>
-      </TooltipProvider>
-      <NewSearchDialog open={newSearchOpen} onOpenChange={setNewSearchOpen} />
+      <HelpContext value={openHelp}>
+        <TooltipProvider delayDuration={300}>
+          <SidebarProvider>
+            <AppSidebar />
+            <SidebarInset className="h-svh overflow-hidden md:m-2.5 md:h-[calc(100svh-20px)] md:rounded-[18px] md:shadow-[inset_0_0_0_1px_rgb(255_255_255/0.07),inset_0_1px_0_rgb(255_255_255/0.05),var(--shadow-panel)]">
+              {children}
+            </SidebarInset>
+          </SidebarProvider>
+        </TooltipProvider>
+        <NewSearchDialog open={newSearchOpen} onOpenChange={setNewSearchOpen} />
+        <HelpSheet open={helpOpen} onOpenChange={setHelpOpen} />
+      </HelpContext>
     </NewSearchContext>
   );
 }
@@ -288,6 +313,7 @@ function AccountRow() {
   const { data } = useQuery(providerStatusQuery);
   const { data: account } = useQuery(accountQuery);
   const { theme, setTheme } = useTheme();
+  const openHelp = useContext(HelpContext);
   const dark = theme === "dark";
   const address = data?.mail.configured ? data.mail.address : null;
   const name = account?.name ?? "Sua conta";
@@ -311,16 +337,29 @@ function AccountRow() {
           </p>
         </div>
       </Link>
-      <Hint label={dark ? "Tema claro" : "Tema escuro"} side="top">
-        <button
-          type="button"
-          onClick={() => setTheme(dark ? "light" : "dark")}
-          aria-label={dark ? "Tema claro" : "Tema escuro"}
-          className="press grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-fill-2 hover:text-foreground"
-        >
-          {dark ? <SunIcon className="size-3.5" /> : <MoonIcon className="size-3.5" />}
-        </button>
-      </Hint>
+      <div className="flex shrink-0 items-center group-data-[collapsible=icon]:flex-col">
+        <Hint label="Ajuda" side="top">
+          <button
+            type="button"
+            onClick={openHelp}
+            aria-label="Ajuda"
+            aria-keyshortcuts="?"
+            className="press grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-fill-2 hover:text-foreground"
+          >
+            <CircleHelpIcon className="size-3.5" />
+          </button>
+        </Hint>
+        <Hint label={dark ? "Tema claro" : "Tema escuro"} side="top">
+          <button
+            type="button"
+            onClick={() => setTheme(dark ? "light" : "dark")}
+            aria-label={dark ? "Tema claro" : "Tema escuro"}
+            className="press grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-fill-2 hover:text-foreground"
+          >
+            {dark ? <SunIcon className="size-3.5" /> : <MoonIcon className="size-3.5" />}
+          </button>
+        </Hint>
+      </div>
     </div>
   );
 }
