@@ -11,6 +11,7 @@ import {
   cancelQueuedEmail as cancelQueued,
   closeSnapshotSchema,
   conversationDraft,
+  draftReplyWithAi as draftLeadReplyWithAi,
   editQueuedEmail as editQueued,
   retryEmail as retryFailedEmail,
   saveReplyDraft as saveLeadReplyDraft,
@@ -230,6 +231,21 @@ export const getConversation = createServerFn({ method: "GET" })
 export const saveReplyDraft = createServerFn({ method: "POST" })
   .validator(z.object({ leadId: id, body: z.string().max(5000) }))
   .handler(({ data }) => saveLeadReplyDraft(getDb(), { ...data, fromAddress: fromAddress() }));
+
+/** The AI writes (or rewrites) the reply in the composer, as the user's draft; sends nothing. */
+export const draftReplyWithAi = createServerFn({ method: "POST" })
+  .validator(z.object({ leadId: id, instruction: z.string().trim().max(300).optional() }))
+  .handler(async ({ data }) => {
+    let analyzer;
+    try {
+      analyzer = getAnalyzer(env);
+    } catch (error) {
+      console.error("analyzer unavailable", error);
+      // oxlint-disable-next-line eslint/preserve-caught-error
+      throw new Error("A IA não está configurada. Fale com quem administra o sistema.");
+    }
+    return draftLeadReplyWithAi({ db: getDb(), analyzer, fromAddress: fromAddress() }, data);
+  });
 
 /** Sends a reply written (or approved) by the user right away. */
 export const sendReply = createServerFn({ method: "POST" })

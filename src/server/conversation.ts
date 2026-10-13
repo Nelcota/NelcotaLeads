@@ -1,7 +1,10 @@
-import { and, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Db } from "@/db/client";
 import { emails, leads, type Email } from "@/db/schema";
+import type { LeadAnalyzer } from "@/lib/ai";
+import { cleanText, ForbiddenPhrasesError } from "@/lib/ai/analyzer";
+import type { ThreadMessage } from "@/lib/ai/prompts";
 import { localDay } from "@/lib/format";
 import { idSchema } from "@/lib/schemas";
 import { leadPatch, UNSUBSCRIBED_MESSAGE } from "./lead-status";
@@ -9,11 +12,16 @@ import { RETRIED_PREFIX } from "@/lib/email-errors";
 import {
   addressUnsubscribed,
   CLOSED_REASON,
+  leadContext,
+  outgoingIssues,
   replySubject,
   stripComposed,
+  thread,
   userDraftOf,
 } from "./mail-flow";
+import { hasOffer, NO_OFFER_MESSAGE } from "./process-lead";
 import { loadSettings } from "./settings-store";
+import { recordAiCost } from "./usage";
 
 /**
  * Actions a person takes on one e-mail conversation. Nothing here deletes what was written:
@@ -328,4 +336,73 @@ export async function editQueuedEmail(db: Db, emailId: string): Promise<Email> {
   if (mine)
     throw new Error("Você já tem uma resposta em rascunho. Envie ou apague antes de editar.");
   throw await whyNotWaiting(db, emailId, SENDING_NOW_EDIT);
+}
+
+export const UNSAFE_AI_REPLY = "A IA não conseguiu uma resposta segura. Escreva você mesmo.";
+const AI_UNAVAILABLE = "A IA não conseguiu escrever agora. Tente de novo.";
+
+/**
+ * Asks the AI for an answer to the conversation, or a rewrite of the reply in the composer,
+ * and keeps it as the user's draft (which wins over anything else). Nothing is sent. Text
+ * that fails the auto-responder's output checks (links, e-mails, phones, prices, length) is
+ * refused, so it never reaches the composer.
+ */
+export async function draftReplyWithAi(
+  deps: { db: Db; analyzer: LeadAnalyzer; fromAddress: string },
+  { leadId, instruction }: { leadId: string; instruction?: string },
+): Promise<Email> {
+  const { db, analyzer } = deps;
+  const lead = await db.query.leads.findFirst({ where: eq(leads.id, leadId) });
+  if (!lead) throw new Error("Lead não encontrado");
+  if (lead.unsubscribedAt || lead.status === "closed" || lead.status === "discarded") {
+    throw new Error("Esta conversa está encerrada.");
+  }
+  if (!lead.email) throw new Error("Este lead não tem e-mail.");
+  const settings = await loadSettings(db);
+  if (!hasOffer(settings)) throw new Error(NO_OFFER_MESSAGE);
+
+  const [history, drafts, context] = await Promise.all([
+    thread(db, lead.id),
+    db
+      .select()
+      .from(emails)
+      .where(and(eq(emails.leadId, lead.id), eq(emails.status, "draft")))
+      .orderBy(asc(emails.createdAt)),
+    leadContext(db, lead),
+  ]);
+  // The text the composer shows is what gets rewritten.
+  const current = conversationDraft(drafts)?.body;
+  const conversation: ThreadMessage[] = history.map((item) => ({
+    from: item.direction === "out" ? "eu" : "empresa",
+    text: item.body,
+  }));
+
+  let text: string;
+  try {
+    const { decision, usage } = await analyzer.replyEmail(settings, context, conversation, {
+      instruction,
+      draft: current,
+    });
+    await recordAiCost(db, usage.calls ?? 1, usage.cost);
+    text = cleanText(decision.reply || decision.draft);
+  } catch (error) {
+    if (!(error instanceof ForbiddenPhrasesError)) {
+      console.error("ai reply draft failed", lead.id, error);
+      // No `cause`: the provider's text must not reach the client (it is logged above).
+      // oxlint-disable-next-line eslint/preserve-caught-error
+      throw new Error(AI_UNAVAILABLE);
+    }
+    // Style tells only: a person reviews it, as with any draft the AI hands over.
+    await recordAiCost(db, error.usage.calls ?? 1, error.usage.cost);
+    text = cleanText(error.text);
+  }
+  if (!text || outgoingIssues(text).length > 0) throw new Error(UNSAFE_AI_REPLY);
+
+  const saved = await saveReplyDraft(db, {
+    leadId: lead.id,
+    body: text,
+    fromAddress: deps.fromAddress,
+  });
+  if (!saved) throw new Error(AI_UNAVAILABLE);
+  return saved;
 }

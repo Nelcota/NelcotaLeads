@@ -197,12 +197,13 @@ async function latestAnalysis(db: Db, leadId: string) {
   });
 }
 
-async function leadContext(db: Db, lead: Lead) {
+export async function leadContext(db: Db, lead: Lead) {
   const search = await db.query.searches.findFirst({ where: eq(searches.id, lead.searchId) });
   return buildContext(lead, search);
 }
 
-function thread(db: Db, leadId: string) {
+/** Sent and received e-mails of a lead, oldest first: what the AI reads as the conversation. */
+export function thread(db: Db, leadId: string) {
   return db
     .select()
     .from(emails)

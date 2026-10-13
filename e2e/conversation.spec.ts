@@ -373,4 +373,34 @@ test.describe("e-mail conversations", () => {
     // What we sent is never cut.
     await expect(page.getByRole("article").first()).toContainText("Para não receber mais e-mails");
   });
+
+  test("the AI writes or rewrites the reply, and Undo puts the text back", async ({
+    page,
+    backend,
+  }) => {
+    const { id } = await startConversation(page, backend);
+    await visit(page, `/conversas?lead=${id}`);
+    const reply = page.getByLabel("Sua resposta");
+
+    await page.getByRole("button", { name: "Escrever com IA" }).click();
+    await expect(reply).toHaveValue("Resposta da IA");
+    await page.getByRole("button", { name: "Desfazer" }).click();
+    await expect(reply).toHaveValue("");
+
+    await reply.fill("oi, posso te ligar?");
+    await expect(page.getByText("Rascunho salvo")).toBeVisible();
+    await page.getByRole("button", { name: "Reescrever" }).click();
+    await expect(reply).toHaveValue("Resposta reescrita pela IA");
+    await page.getByRole("button", { name: "Desfazer" }).click();
+    await expect(reply).toHaveValue("oi, posso te ligar?");
+    await reload(page);
+    await expect(page.getByLabel("Sua resposta")).toHaveValue("oi, posso te ligar?");
+
+    // The AI's text is kept as the user's own draft.
+    await page.getByRole("button", { name: "Reescrever" }).click();
+    await expect(page.getByLabel("Sua resposta")).toHaveValue("Resposta reescrita pela IA");
+    await reload(page);
+    await expect(page.getByLabel("Sua resposta")).toHaveValue("Resposta reescrita pela IA");
+    expect(await backend.sent()).toHaveLength(1);
+  });
 });

@@ -54,6 +54,7 @@ import {
   cancelQueuedEmail,
   checkMailNow,
   closeConversation,
+  draftReplyWithAi,
   editQueuedEmail,
   retryEmail,
   saveReplyDraft,
@@ -421,6 +422,37 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
       void refresh();
     },
   });
+  // Puts back what the composer had before the AI wrote. Runs from the toast, which may
+  // outlive this thread; a reply the AI only suggested comes back by removing the user's own.
+  const restoreReply = async (previous: PreviousReply) => {
+    try {
+      await autosave.discard(leadId);
+      const draft = await saveReplyDraft({
+        data: { leadId, body: previous.mine ? previous.body : "" },
+      });
+      setText(null);
+      if (draft) setDraft(draft);
+      else await queryClient.invalidateQueries({ queryKey: conversationQuery(leadId).queryKey });
+    } catch (error) {
+      errorToast("Não foi possível desfazer")(error);
+    }
+  };
+  const write = useMutation({
+    mutationFn: async (_previous: PreviousReply) => {
+      // Saved first: the server rewrites what the composer shows.
+      await autosave.flush();
+      return draftReplyWithAi({ data: { leadId } });
+    },
+    onSuccess: (draft, previous) => {
+      setDraft(draft);
+      setText(null);
+      toast(previous.body.trim() ? "Resposta reescrita pela IA" : "Resposta escrita pela IA", {
+        duration: 6000,
+        action: { label: "Desfazer", onClick: () => void restoreReply(previous) },
+      });
+    },
+    onError: errorToast("A IA não conseguiu escrever agora. Tente de novo."),
+  });
   const ai = useMutation({
     mutationFn: (aiMode: boolean) => setConversationAi({ data: { leadId, aiMode } }),
     onSuccess: refresh,
@@ -666,7 +698,7 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
                 rows={4}
                 placeholder="Escreva sua resposta."
                 value={value}
-                readOnly={send.isPending}
+                readOnly={send.isPending || write.isPending}
                 className="bg-transparent! px-4 text-base leading-[1.7] shadow-none! focus-visible:ring-0"
                 onChange={(event) => {
                   setText(event.target.value);
@@ -695,6 +727,22 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
                         ? "Rascunho salvo"
                         : "A assinatura é adicionada no envio."}
                 </span>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="text-purple"
+                  disabled={write.isPending || send.isPending}
+                  onClick={() =>
+                    write.mutate({ body: value, mine: text !== null || draft?.author === "user" })
+                  }
+                >
+                  <SparklesIcon />
+                  {write.isPending
+                    ? "Escrevendo…"
+                    : value.trim()
+                      ? "Reescrever"
+                      : "Escrever com IA"}
+                </Button>
                 {state === "needsYou" ? (
                   <Button
                     variant="secondary"
@@ -845,6 +893,9 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
     </>
   );
 }
+
+/** What the composer had before the AI wrote: the text, and whether it was the user's own. */
+type PreviousReply = { body: string; mine: boolean };
 
 type MessageActions = {
   today: string;

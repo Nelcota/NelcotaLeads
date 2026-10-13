@@ -26,6 +26,7 @@ import {
   replySystemPrompt,
   replyUserPrompt,
   type LeadContext,
+  type ReplyGuidance,
   type ThreadMessage,
 } from "./prompts";
 
@@ -71,11 +72,15 @@ export interface LeadAnalyzer {
     lead: LeadContext,
     analysis: LeadAnalysis,
   ): Promise<{ email: OutreachEmail; usage: CallUsage }>;
-  /** Decides how to answer the latest message of an e-mail conversation. */
+  /**
+   * Decides how to answer the latest message of an e-mail conversation. With `guidance`, a
+   * person asked for the answer (to review), with their direction and draft.
+   */
   replyEmail(
     settings: SettingsInput,
     lead: LeadContext,
     thread: ThreadMessage[],
+    guidance?: ReplyGuidance,
   ): Promise<{ decision: EmailReplyDecision; usage: CallUsage }>;
   /** Neighborhoods of a city, used to vary the daily searches. */
   listAreas(city: string): Promise<{ areas: string[]; usage: CallUsage }>;
@@ -173,13 +178,13 @@ export function createDeepSeekAnalyzer(options: {
       );
       return { email: value, usage };
     },
-    async replyEmail(settings, lead, thread) {
+    async replyEmail(settings, lead, thread, guidance) {
       const { value, usage } = await withoutTells(
         async (extra) => {
           const result = await generateText({
             model: deepseek(options.messageModel),
             system: replySystemPrompt(),
-            prompt: replyUserPrompt(settings, lead, thread) + extra,
+            prompt: replyUserPrompt(settings, lead, thread, guidance) + extra,
             output: Output.object({ schema: emailReplySchema, name: "email_reply" }),
             providerOptions,
             temperature: 0.3,
@@ -195,8 +200,9 @@ export function createDeepSeekAnalyzer(options: {
             usage: toUsage(options.messageModel, result.usage),
           };
         },
-        // Only text that goes out on its own is checked; drafts are reviewed by a person.
-        (decision) => (decision.action === "reply" ? decision.reply : ""),
+        // Text that goes out on its own is checked, and any text a person asked for.
+        (decision) =>
+          decision.action === "reply" ? decision.reply : guidance ? decision.draft : "",
       );
       return { decision: value, usage };
     },

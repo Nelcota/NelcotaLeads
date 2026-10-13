@@ -5,17 +5,23 @@ import { getDb } from "@/db/client";
 import { emails, leads, searches, type Email } from "@/db/schema";
 import { resetDb } from "../../test/reset-db";
 import { DAILY_LIMIT_ERROR, RETRIED_PREFIX } from "@/lib/email-errors";
+import { createFakeAnalyzer } from "../../test/fake-analyzer";
 import { createFakeMailer } from "../../test/fake-mailer";
+import type { LeadAnalyzer } from "@/lib/ai";
+import type { ReplyGuidance } from "@/lib/ai/prompts";
 import {
   cancelQueuedEmail,
   closeConversation,
   conversationDraft,
+  draftReplyWithAi,
   editQueuedEmail,
+  UNSAFE_AI_REPLY,
   retryEmail,
   saveReplyDraft,
   undoCloseConversation,
 } from "./conversation";
 import { CLOSED_REASON, EMAIL_OPT_OUT, EMAIL_PROVIDER, sendDue } from "./mail-flow";
+import { NO_OFFER_MESSAGE } from "./process-lead";
 import { DEFAULT_SETTINGS, storeSettings } from "./settings-store";
 import { reserveRequest } from "./usage";
 
@@ -330,5 +336,111 @@ describe("queued e-mails", () => {
     await expect(editQueuedEmail(db, "waiting")).rejects.toThrow("já tem uma resposta");
     expect(await row("waiting")).toMatchObject({ status: "queued" });
     expect((await userDrafts())[0]?.body).toBe("Meu texto");
+  });
+});
+
+const aiDeps = (analyzer: LeadAnalyzer) => ({ db, analyzer, fromAddress: FROM });
+const outgoing = async () =>
+  (await db.select().from(emails).where(eq(emails.leadId, "a"))).filter(
+    (item) => item.status === "queued" || item.status === "sent",
+  );
+
+describe("draftReplyWithAi", () => {
+  const usage = { model: "m", tokensIn: 1, tokensOut: 1, cost: 0 };
+  /** Answers with `reply` and records the guidance it was given. */
+  function replying(reply: string) {
+    const seen: (ReplyGuidance | undefined)[] = [];
+    const analyzer: LeadAnalyzer = {
+      ...createFakeAnalyzer(),
+      replyEmail: async (_settings, _lead, _thread, guidance) => {
+        seen.push(guidance);
+        return { decision: { action: "reply", reason: "ok", reply, draft: "" }, usage };
+      },
+    };
+    return { analyzer, seen };
+  }
+
+  beforeEach(async () => {
+    await resetDb();
+    await seed();
+    await storeSettings(db, { ...DEFAULT_SETTINGS, offer: "Sites para clínicas" });
+    await db.insert(emails).values([
+      email("sent", "a", { status: "sent", sentAt: now, subject: "Proposta" }),
+      email("in", "a", {
+        direction: "in",
+        status: "received",
+        author: "lead",
+        messageId: "<lead@a.com.br>",
+        subject: "Re: Proposta",
+        body: "Pode me contar mais?",
+      }),
+      email("ai-draft", "a", { status: "draft", inReplyTo: "<lead@a.com.br>", body: "Da IA" }),
+    ]);
+  });
+
+  it("keeps the AI's answer as the user's draft and sends nothing", async () => {
+    const { analyzer, seen } = replying("Claro, posso explicar em 15 minutos amanhã?");
+    const sentBefore = (await outgoing()).length;
+    const draft = await draftReplyWithAi(aiDeps(analyzer), { leadId: "a" });
+
+    expect(draft).toMatchObject({
+      author: "user",
+      status: "draft",
+      body: "Claro, posso explicar em 15 minutos amanhã?",
+      inReplyTo: "<lead@a.com.br>",
+    });
+    expect(await userDrafts()).toHaveLength(1);
+    expect(await outgoing()).toHaveLength(sentBefore);
+    // Without a reply of the user's, the AI's own draft is what it rewrites.
+    expect(seen).toEqual([{ instruction: undefined, draft: "Da IA" }]);
+  });
+
+  it("rewrites the reply the user is writing, with their direction", async () => {
+    await saveReplyDraft(db, { leadId: "a", body: "oi, da pra falar amanha?", fromAddress: FROM });
+    const { analyzer, seen } = replying("Oi! Podemos conversar amanhã?");
+    await draftReplyWithAi(aiDeps(analyzer), { leadId: "a", instruction: "mais formal" });
+
+    expect(seen).toEqual([{ instruction: "mais formal", draft: "oi, da pra falar amanha?" }]);
+    const drafts = await userDrafts();
+    expect(drafts).toHaveLength(1);
+    expect(drafts[0]?.body).toBe("Oi! Podemos conversar amanhã?");
+  });
+
+  it.each([
+    ["a link", "Veja em https://exemplo.com.br"],
+    ["an e-mail address", "Escreva para vendas@exemplo.com.br"],
+    ["a phone", "Me ligue no (31) 99999-0000"],
+    ["a price", "Custa R$ 500 por mês"],
+    ["nothing", ""],
+  ])("refuses an answer with %s and keeps the draft as it was", async (_name, reply) => {
+    await saveReplyDraft(db, { leadId: "a", body: "Meu texto", fromAddress: FROM });
+    await expect(
+      draftReplyWithAi(aiDeps(replying(reply).analyzer), { leadId: "a" }),
+    ).rejects.toThrow(UNSAFE_AI_REPLY);
+    const drafts = await userDrafts();
+    expect(drafts.map((item) => item.body)).toEqual(["Meu texto"]);
+  });
+
+  it("hides the provider's error and saves nothing", async () => {
+    const failing: LeadAnalyzer = {
+      ...createFakeAnalyzer(),
+      replyEmail: () => Promise.reject(new Error("DeepSeek 500: internal")),
+    };
+    await expect(draftReplyWithAi(aiDeps(failing), { leadId: "a" })).rejects.toThrow(
+      "A IA não conseguiu escrever agora. Tente de novo.",
+    );
+    expect(await userDrafts()).toHaveLength(0);
+  });
+
+  it("refuses closed conversations and leads without an offer set", async () => {
+    const { analyzer, seen } = replying("Oi");
+    await storeSettings(db, DEFAULT_SETTINGS);
+    await expect(draftReplyWithAi(aiDeps(analyzer), { leadId: "a" })).rejects.toThrow(
+      NO_OFFER_MESSAGE,
+    );
+    await storeSettings(db, { ...DEFAULT_SETTINGS, offer: "Sites" });
+    await db.update(leads).set({ status: "closed" }).where(eq(leads.id, "a"));
+    await expect(draftReplyWithAi(aiDeps(analyzer), { leadId: "a" })).rejects.toThrow("encerrada");
+    expect(seen).toHaveLength(0);
   });
 });
