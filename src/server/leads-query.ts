@@ -84,7 +84,8 @@ function whereClause(filters: LeadQuery, today: string): SQL | undefined {
 function orderBy(filters: LeadFilters) {
   // Follow-up queues default to the oldest due day first.
   if (!filters.sort && (filters.view === "followup" || filters.view === "waiting")) {
-    return [sql`${leads.followUpOn} is null`, asc(leads.followUpOn), desc(leads.score)];
+    const day = filters.dir === "desc" ? desc : asc;
+    return [sql`${leads.followUpOn} is null`, day(leads.followUpOn), desc(leads.score)];
   }
   const column = SORT_COLUMNS[filters.sort ?? "score"];
   const direction = (filters.dir ?? "desc") === "desc" ? desc : asc;

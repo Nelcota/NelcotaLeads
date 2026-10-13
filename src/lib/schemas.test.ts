@@ -3,6 +3,7 @@ import {
   emailReplySchema,
   idSchema,
   leadAnalysisSchema,
+  leadFiltersSchema,
   newSearchSchema,
   outreachEmailSchema,
   updateLeadSchema,
@@ -63,5 +64,11 @@ describe("user input", () => {
     expect(idSchema.safeParse("").success).toBe(false);
     expect(idSchema.safeParse("x".repeat(65)).success).toBe(false);
     expect(idSchema.safeParse(crypto.randomUUID()).success).toBe(true);
+  });
+
+  it("only takes known sort fields and directions from the URL", () => {
+    expect(leadFiltersSchema.parse({ sort: "name", dir: "asc" })).toMatchObject({ dir: "asc" });
+    expect(leadFiltersSchema.safeParse({ dir: "asc; drop table leads" }).success).toBe(false);
+    expect(leadFiltersSchema.safeParse({ sort: "email" }).success).toBe(false);
   });
 });

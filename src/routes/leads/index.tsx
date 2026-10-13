@@ -1,8 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
+  ArrowDownWideNarrowIcon,
   ArrowRightLeftIcon,
   ArrowUpDownIcon,
+  ArrowUpNarrowWideIcon,
   CheckIcon,
   ChevronsUpDownIcon,
   DownloadIcon,
@@ -583,6 +585,8 @@ function Toolbar({
       ? filters.sort
       : "auto";
   const datedView = view === "followup" || view === "waiting";
+  const direction = filters.dir ?? defaultDirection(sortValue, datedView);
+  const directionLabel = direction === "asc" ? "Crescente" : "Decrescente";
 
   return (
     <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
@@ -729,9 +733,26 @@ function Toolbar({
             ))}
           </SelectContent>
         </Select>
+        <Hint label={directionLabel}>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="shrink-0 max-sm:size-9"
+            aria-label={`Ordem ${directionLabel.toLowerCase()}`}
+            onClick={() => onChange({ dir: direction === "asc" ? "desc" : "asc" })}
+          >
+            {direction === "asc" ? <ArrowUpNarrowWideIcon /> : <ArrowDownWideNarrowIcon />}
+          </Button>
+        </Hint>
       </div>
     </div>
   );
+}
+
+/** The order a sort starts in: by name A→Z, return days soonest first, the rest highest first. */
+function defaultDirection(sort: SortValue, datedView: boolean): "asc" | "desc" {
+  if (sort === "auto") return datedView ? "asc" : "desc";
+  return SORT_PATCH[sort].dir ?? "desc";
 }
 
 const EMPTY_VIEW_TEXT: Record<LeadView, string> = {
