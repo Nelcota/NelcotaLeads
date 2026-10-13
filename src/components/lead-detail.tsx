@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { errorToast } from "@/lib/mutation-toasts";
 import {
@@ -182,7 +182,11 @@ export function LeadDetail({
         <AnalysisSection lead={lead} analysis={analysis} />
         <div className="grid gap-6 sm:grid-cols-[1.2fr_1fr]">
           <ContactSection lead={lead} onChanged={refreshAll} />
-          <NotesSection key={lead.id} lead={lead} onSave={(notes) => update.mutate({ notes })} />
+          <NotesSection
+            key={lead.id}
+            lead={lead}
+            onSave={(notes) => update.mutateAsync({ notes })}
+          />
         </div>
         <Footer
           lead={lead}
@@ -885,17 +889,43 @@ function ContactSection({ lead, onChanged }: { lead: Lead; onChanged: () => Prom
   );
 }
 
-/** Saves when the field loses focus, so there is no button to remember. */
-function NotesSection({ lead, onSave }: { lead: Lead; onSave: (notes: string) => void }) {
+/** Saves when the field loses focus, so there is no button to remember; "Salvo" confirms it. */
+function NotesSection({
+  lead,
+  onSave,
+}: {
+  lead: Lead;
+  onSave: (notes: string) => Promise<unknown>;
+}) {
   const [notes, setNotes] = useState(lead.notes);
+  // Bumped on each save, so the 2 s of "Salvo" start over.
+  const [savedAt, setSavedAt] = useState(0);
+  useEffect(() => {
+    const timer = savedAt ? setTimeout(() => setSavedAt(0), 2000) : undefined;
+    return () => clearTimeout(timer);
+  }, [savedAt]);
   return (
-    <Section title="Notas">
+    <Section
+      title="Notas"
+      status={
+        <span aria-live="polite" className="text-xs font-light text-tertiary">
+          {savedAt ? "Salvo" : ""}
+        </span>
+      }
+    >
       <Textarea
         aria-label="Notas"
         rows={5}
         value={notes}
         onChange={(event) => setNotes(event.target.value)}
-        onBlur={() => notes !== lead.notes && onSave(notes)}
+        onBlur={() => {
+          if (notes === lead.notes) return;
+          // On failure the toast explains and the text stays in the field.
+          onSave(notes).then(
+            () => setSavedAt(Date.now()),
+            () => {},
+          );
+        }}
         placeholder="Salvas ao sair do campo."
         className="min-h-28 bg-card! shadow-[inset_0_1px_0_rgb(255_255_255/0.045)] hover:shadow-[inset_0_0_0_1px_var(--input)]"
       />
@@ -968,7 +998,18 @@ function Footer({
   );
 }
 
-function Section({ title, tone, children }: { title: string; tone?: Tone; children: ReactNode }) {
+function Section({
+  title,
+  tone,
+  status,
+  children,
+}: {
+  title: string;
+  tone?: Tone;
+  /** Quiet feedback after the title, e.g. "Salvo". */
+  status?: ReactNode;
+  children: ReactNode;
+}) {
   return (
     <section>
       <h3
@@ -979,6 +1020,7 @@ function Section({ title, tone, children }: { title: string; tone?: Tone; childr
       >
         {tone === "purple" ? <SparklesIcon className="size-4" /> : null}
         {title}
+        {status}
       </h3>
       {children}
     </section>
