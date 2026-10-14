@@ -39,7 +39,12 @@ export async function reserveRequest(
 
 /** Gives back one request reserved today (e.g. the call didn't happen); never below zero. */
 export async function releaseRequest(db: Db, provider: string, now = new Date()) {
-  await db
+  await releaseRequestQuery(db, provider, now);
+}
+
+/** The statement behind releaseRequest, for use inside a db.batch. */
+export function releaseRequestQuery(db: Db, provider: string, now = new Date()) {
+  return db
     .update(apiUsage)
     .set({ requests: sql`${apiUsage.requests} - 1` })
     .where(

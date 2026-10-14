@@ -121,6 +121,8 @@ export const leads = sqliteTable(
     analysisError: text("analysis_error"),
     // When a queue job claimed the analysis; a stale claim may be taken over after a crash.
     analysisStartedAt: integer("analysis_started_at", { mode: "timestamp" }),
+    // When a re-analysis was last queued; a pending lead older than this may be queued again.
+    analysisQueuedAt: integer("analysis_queued_at", { mode: "timestamp" }),
     // Denormalized from the latest analysis so the list can sort/filter without a join.
     score: integer("score"),
     status: text("status", { enum: LEAD_STATUSES }).notNull().default("new"),

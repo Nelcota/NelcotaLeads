@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "2181ea74-8ed5-43ab-9bcf-d4618cc80b66",
-  "prevId": "b9251b45-a9f7-447e-8c49-a0ec46d38cb3",
+  "id": "9de4bee3-d724-4508-80b6-34c31ead92c4",
+  "prevId": "b6b509d1-a743-44b9-bab6-0b2e32bc5714",
   "tables": {
     "analyses": {
       "name": "analyses",
@@ -532,6 +532,13 @@
           "notNull": false,
           "autoincrement": false
         },
+        "analysis_queued_at": {
+          "name": "analysis_queued_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "score": {
           "name": "score",
           "type": "integer",
@@ -746,6 +753,30 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
+    "revoked_sessions": {
+      "name": "revoked_sessions",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
     "searches": {
       "name": "searches",
       "columns": {
@@ -839,6 +870,13 @@
           "notNull": true,
           "autoincrement": false,
           "default": "'manual'"
+        },
+        "hidden_at": {
+          "name": "hidden_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         },
         "created_at": {
           "name": "created_at",
