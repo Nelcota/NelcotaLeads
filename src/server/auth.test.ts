@@ -114,7 +114,7 @@ describe("authGate", () => {
   });
 
   it("answers 401 to server functions and api routes without a session", async () => {
-    for (const path of ["/_serverFn/abc", "/api/leads.csv", "/api/logout"]) {
+    for (const path of ["/_serverFn/abc", "/api/leads.csv"]) {
       const gate = await authGate(request(path, { method: "POST" }), deps, now);
       expect("response" in gate && gate.response.status).toBe(401);
     }
@@ -176,6 +176,7 @@ describe("authGate", () => {
         "/api/login",
         "/api/signup",
         "/api/reset-password",
+        "/api/logout",
         "/favicon.svg",
         "/robots.txt",
         "/manifest.webmanifest",

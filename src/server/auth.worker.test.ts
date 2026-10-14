@@ -13,6 +13,7 @@ import {
   attemptPasswordReset,
   attemptSignUp,
   readSession,
+  signOut,
   sessionVersionLookup,
 } from "./auth";
 
@@ -216,5 +217,26 @@ describe("attemptPasswordReset", () => {
       now,
     );
     expect(result).toMatchObject({ status: 404, code: "sem-conta" });
+  });
+});
+
+describe("signOut", () => {
+  beforeEach(resetDb);
+
+  it("voids the session on the server, so a copied cookie stops working", async () => {
+    const result = await signUp();
+    if (!result.ok) throw new Error("sign-up failed");
+    const token = result.cookie.split(";")[0] ?? "";
+    const request = new Request("https://app.test/api/logout", { headers: { Cookie: token } });
+
+    await signOut(db, request, SECRET, now);
+    expect(await sessionOf(result.cookie)).toBeNull();
+    expect((await login(ACCOUNT.password)).ok).toBe(true);
+  });
+
+  it("does nothing without a valid session", async () => {
+    await signUp();
+    const request = new Request("https://app.test/api/logout");
+    await expect(signOut(db, request, SECRET, now)).resolves.toBeUndefined();
   });
 });

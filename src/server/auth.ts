@@ -49,7 +49,9 @@ const SESSION_SECONDS = 30 * DAY_SECONDS;
 // Sessions with less than this left get a fresh cookie on the next page load.
 const RENEW_BELOW_SECONDS = 15 * DAY_SECONDS;
 
-const AUTH_ENDPOINTS = new Set(["/api/login", "/api/signup", "/api/reset-password"]);
+// Logout is open too: with an expired session it still clears the cookie and goes to /login
+// instead of answering a native form post with a JSON 401.
+const AUTH_ENDPOINTS = new Set(["/api/login", "/api/signup", "/api/reset-password", "/api/logout"]);
 // Fetched by the browser itself, which leaves the session cookie out of the manifest request,
 // so the sign-in screens and the installed app get their icons.
 const STATIC_FILES = [
@@ -208,6 +210,24 @@ export async function readSession(
   const session = await verifySessionToken(readCookie(request, SESSION_COOKIE), secret, now);
   if (!session) return null;
   return (await lookup(session.userId)) === session.version ? session : null;
+}
+
+/**
+ * Ends the request's session on the server: bumping the account's session version voids every
+ * cookie issued for it, so a copied cookie stops working once the user signs out.
+ */
+export async function signOut(
+  db: Db,
+  request: Request,
+  secret: string | undefined,
+  now = new Date(),
+): Promise<void> {
+  const session = await readSession(request, secret, sessionVersionLookup(db), now);
+  if (!session) return;
+  await db
+    .update(users)
+    .set({ sessionVersion: sql`${users.sessionVersion} + 1` })
+    .where(eq(users.id, session.userId));
 }
 
 export type GateResult =
