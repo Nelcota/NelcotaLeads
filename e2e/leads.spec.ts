@@ -185,4 +185,12 @@ test.describe("leads actions", () => {
     await expect(page.getByText("Lead não encontrado")).toBeVisible();
     await expect(page).not.toHaveURL(/missing/);
   });
+
+  test("the panel says so when its lead is gone, instead of loading forever", async ({ page }) => {
+    await visit(page, "/leads?lead=00000000-0000-0000-0000-000000000000");
+    const panel = page.getByRole("dialog", { name: "Lead não encontrado" });
+    await expect(panel.getByText("Ele pode ter sido removido")).toBeVisible();
+    await panel.getByRole("button", { name: "Fechar" }).click();
+    await expect(panel).toBeHidden();
+  });
 });

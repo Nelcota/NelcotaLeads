@@ -5,16 +5,19 @@ import { toast } from "sonner";
 import { errorToast } from "@/lib/mutation-toasts";
 import {
   ChevronRightIcon,
+  CircleAlertIcon,
   CopyIcon,
   GlobeIcon,
   MapPinIcon,
   MessageCircleIcon,
   PhoneIcon,
   RefreshCwIcon,
+  SearchXIcon,
   SparklesIcon,
 } from "lucide-react";
 import {
   Avatar,
+  EmptyState,
   ExternalLink,
   ExternalMark,
   IconTile,
@@ -57,6 +60,7 @@ import { MANUAL_SEARCH_ID } from "@/lib/searches";
 import { whatsappLink } from "@/lib/phone";
 import { conversationQuery, leadQuery, providerStatusQuery } from "@/lib/queries";
 import {
+  LEAD_NOT_FOUND,
   LEAD_STATUS_LABELS,
   LEAD_STATUS_VALUES,
   SCORE_TIERS,
@@ -108,7 +112,7 @@ export function LeadDetail({
   toolbar?: ReactNode;
   onStatusChanged?: (status: LeadStatus) => void;
 }) {
-  const { data } = useQuery(leadQuery(leadId));
+  const { data, error, refetch, isFetching } = useQuery(leadQuery(leadId));
   const queryClient = useQueryClient();
   const today = useToday();
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["lead", leadId] });
@@ -128,6 +132,16 @@ export function LeadDetail({
     onError: errorToast("Não foi possível atualizar o lead"),
   });
 
+  if (!data && error) {
+    return (
+      <DetailError
+        toolbar={toolbar}
+        missing={error.message === LEAD_NOT_FOUND}
+        retrying={isFetching}
+        onRetry={() => void refetch()}
+      />
+    );
+  }
   if (!data) return <DetailSkeleton toolbar={toolbar} />;
   const { lead, analysis, search } = data;
   const facts = [
@@ -1127,6 +1141,44 @@ function ScoreRingLarge({ score, pending }: { score: number | null; pending: boo
         <small className="text-[10px] font-medium">{SCORE_TIERS[tier].label}</small>
       </span>
     </ProgressRing>
+  );
+}
+
+/** A lead that couldn't load: gone (a removed lead, a stale link) or a failed request. */
+function DetailError({
+  toolbar,
+  missing,
+  retrying,
+  onRetry,
+}: {
+  toolbar?: ReactNode;
+  missing: boolean;
+  retrying: boolean;
+  onRetry: () => void;
+}) {
+  return (
+    <div className="flex flex-col gap-4 p-4 sm:p-6">
+      {toolbar}
+      <SheetTitle className="sr-only">
+        {missing ? "Lead não encontrado" : "Não foi possível abrir o lead"}
+      </SheetTitle>
+      <EmptyState
+        icon={missing ? SearchXIcon : CircleAlertIcon}
+        tone={missing ? "gray" : "orange"}
+        title={missing ? "Lead não encontrado" : "Não foi possível abrir este lead"}
+        description={
+          missing
+            ? "Ele pode ter sido removido, ou o link está desatualizado."
+            : "Confira a conexão e tente de novo."
+        }
+      >
+        {missing ? null : (
+          <Button variant="outline" size="sm" disabled={retrying} onClick={onRetry}>
+            {retrying ? "Tentando…" : "Tentar de novo"}
+          </Button>
+        )}
+      </EmptyState>
+    </div>
   );
 }
 

@@ -1,5 +1,5 @@
 import { queryOptions } from "@tanstack/react-query";
-import type { LeadFilters } from "@/lib/schemas";
+import { LEAD_NOT_FOUND, type LeadFilters } from "@/lib/schemas";
 import { getAccount } from "@/server/account";
 import { getAttentionCount, getDashboard } from "@/server/dashboard";
 import { getConversation, listConversations } from "@/server/mail";
@@ -58,6 +58,8 @@ export const leadQuery = (id: string) =>
   queryOptions({
     queryKey: ["lead", id],
     queryFn: () => getLead({ data: { id } }),
+    // A missing lead stays missing: show it at once instead of retrying three times.
+    retry: (failures, error) => error.message !== LEAD_NOT_FOUND && failures < 3,
     refetchInterval: (query) =>
       query.state.data?.lead.analysisStatus === "pending" ? 3000 : false,
   });

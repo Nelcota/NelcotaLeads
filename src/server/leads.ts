@@ -8,6 +8,7 @@ import {
   BULK_LIMIT,
   bulkSnapshotSchema,
   idSchema,
+  LEAD_NOT_FOUND,
   LEAD_STATUS_VALUES,
   leadFiltersSchema,
   updateLeadSchema,
@@ -38,7 +39,7 @@ export const getLead = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const db = getDb();
     const lead = await db.query.leads.findFirst({ where: eq(leads.id, data.id) });
-    if (!lead) throw new Error("Lead não encontrado");
+    if (!lead) throw new Error(LEAD_NOT_FOUND);
     const [analysis, search] = await Promise.all([
       db.query.analyses.findFirst({
         where: eq(analyses.leadId, lead.id),

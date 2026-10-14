@@ -303,3 +303,6 @@ export function scoreTier(score: number): ScoreTier {
       ? "medium"
       : "low";
 }
+
+/** The error a missing lead gives, so the screen can tell "gone" from "failed". */
+export const LEAD_NOT_FOUND = "Lead não encontrado";
