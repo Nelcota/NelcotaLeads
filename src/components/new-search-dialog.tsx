@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { SearchIcon } from "lucide-react";
 import { useForm, useWatch } from "react-hook-form";
-import { toast } from "sonner";
+import { errorToast } from "@/lib/mutation-toasts";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -65,12 +65,15 @@ function NewSearchForm({ onDone }: { onDone: () => void }) {
   const used = status?.placesUsage.used ?? 0;
   const limit = status?.placesUsage.limit ?? 0;
   const remaining = Math.max(0, limit - used);
-  const missingKeys = status
-    ? [
-        !status.placesConfigured && "GOOGLE_PLACES_API_KEY",
-        !status.aiConfigured && "DEEPSEEK_API_KEY",
-      ].filter((key): key is string => Boolean(key))
-    : [];
+  // Plain words here; how to set the keys up is in the README.
+  const missingKeysText =
+    status && !status.placesConfigured && !status.aiConfigured
+      ? "As chaves do Google e da IA não estão configuradas."
+      : status && !status.placesConfigured
+        ? "A chave do Google não está configurada."
+        : status && !status.aiConfigured
+          ? "A chave da IA não está configurada."
+          : null;
 
   const mutation = useMutation({
     mutationFn: (data: NewSearchInput) => createSearch({ data }),
@@ -84,17 +87,16 @@ function NewSearchForm({ onDone }: { onDone: () => void }) {
       // Straight to the new leads; they show up as the analysis finishes.
       await navigate({ to: "/leads", search: { searchId, view: "all" } });
     },
-    onError: (error) => toast.error(error.message || "Não foi possível iniciar a busca"),
+    onError: errorToast("Não foi possível iniciar a busca"),
   });
 
-  const blocker =
-    missingKeys.length > 0
-      ? `Falta configurar ${missingKeys.join(" e ")} no .dev.vars ou com wrangler secret put.`
-      : remaining === 0
-        ? `O limite de ${limit} requisições ao Google por dia foi atingido. Volte amanhã.`
-        : requests > remaining
-          ? `Restam só ${remaining} ${remaining === 1 ? "requisição" : "requisições"} hoje. Peça menos resultados.`
-          : null;
+  const blocker = missingKeysText
+    ? `${missingKeysText} Fale com quem administra o sistema.`
+    : remaining === 0
+      ? `O limite de ${limit} requisições ao Google por dia foi atingido. Volte amanhã.`
+      : requests > remaining
+        ? `Restam só ${remaining} ${remaining === 1 ? "requisição" : "requisições"} hoje. Peça menos resultados.`
+        : null;
 
   return (
     <form

@@ -62,6 +62,7 @@ const SEARCH_LABELS: Record<SearchStatus, string> = {
   analyzing: "Analisando",
   done: "Concluída",
   error: "Falhou",
+  cancelled: "Cancelada",
 };
 
 export function SearchStatusBadge({ status }: { status: SearchStatus }) {
@@ -73,6 +74,9 @@ export function SearchStatusBadge({ status }: { status: SearchStatus }) {
       </Badge>
     );
   }
+  if (status === "cancelled") {
+    return <Badge variant="gray">{SEARCH_LABELS[status]}</Badge>;
+  }
   if (status === "error") {
     return (
       <Badge variant="red">
@@ -82,7 +86,7 @@ export function SearchStatusBadge({ status }: { status: SearchStatus }) {
     );
   }
   return (
-    <Badge variant={status === "collecting" ? "blue" : "purple"} dot pulse>
+    <Badge variant={status === "collecting" ? "blue" : "purple"} dot>
       {SEARCH_LABELS[status]}
     </Badge>
   );

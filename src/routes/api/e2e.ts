@@ -3,15 +3,30 @@ import { env } from "cloudflare:workers";
 import { z } from "zod";
 import { getDb } from "@/db/client";
 import { analyses, leads, searches } from "@/db/schema";
+import { toE164 } from "@/lib/phone";
 import { DEFAULT_SETTINGS, storeSettings } from "@/server/settings-store";
 import { runTick } from "@/server/tick";
 import type { E2eFault } from "../../../e2e/fakes/faults";
 import type { E2eMailbox } from "../../../e2e/fakes/mail";
 
-const TABLES = ["emails", "analyses", "leads", "searches", "settings", "api_usage"];
+const TABLES = [
+  "emails",
+  "analyses",
+  "leads",
+  "searches",
+  "settings",
+  "api_usage",
+  "quick_replies",
+  "job_runs",
+];
 
 // Listed here rather than imported, so no fake module code reaches this route's bundle.
-const FAULTS = ["places", "writeEmail"] as const satisfies readonly E2eFault[];
+const FAULTS = [
+  "places",
+  "writeEmail",
+  "mailSend",
+  "mailbox",
+] as const satisfies readonly E2eFault[];
 
 const actionSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("reset") }),
@@ -29,9 +44,19 @@ const actionSchema = z.discriminatedUnion("action", [
     name: z.string(),
     website: z.string().nullable(),
     email: z.string().nullable(),
+    phone: z.string().nullable().optional(),
   }),
-  // Arms a one-shot failure in a fake: the next Places search or AI e-mail draft throws.
+  // A search still analyzing, with leads waiting in a queue that never runs them.
+  z.object({
+    action: z.literal("runningSearch"),
+    niche: z.string(),
+    city: z.string(),
+    leads: z.number().int().min(1).max(20),
+  }),
+  // Arms a one-shot failure in a fake: the next Places search, AI e-mail draft or send throws.
   z.object({ action: z.literal("fault"), fault: z.enum(FAULTS) }),
+  // Disarms a fault that lasts (`mailbox`): the fake works again.
+  z.object({ action: z.literal("recover"), fault: z.enum(FAULTS) }),
 ]);
 
 /**
@@ -100,6 +125,8 @@ export const Route = createFileRoute("/api/e2e")({
               name: input.name,
               website: input.website,
               email: input.email,
+              phone: input.phone ?? null,
+              phoneE164: toE164(input.phone),
               siteStatus: "none",
               analysisStatus: "done",
               score: 80,
@@ -117,9 +144,35 @@ export const Route = createFileRoute("/api/e2e")({
             });
             return Response.json({ id });
           }
+          case "runningSearch": {
+            const db = getDb();
+            const searchId = crypto.randomUUID();
+            await db.insert(searches).values({
+              id: searchId,
+              niche: input.niche,
+              city: input.city,
+              maxResults: input.leads,
+              status: "analyzing",
+              foundCount: input.leads,
+              placesRequests: 1,
+            });
+            await db.insert(leads).values(
+              Array.from({ length: input.leads }, (_, i) => ({
+                id: crypto.randomUUID(),
+                searchId,
+                placeId: `e2e-running-${searchId}-${i}`,
+                name: `${input.niche} ${i + 1}`,
+                siteStatus: "none" as const,
+              })),
+            );
+            return Response.json({ id: searchId });
+          }
           case "fault":
             globalThis.nelcotaE2eFaults ??= new Set<E2eFault>();
             globalThis.nelcotaE2eFaults.add(input.fault);
+            return Response.json({ ok: true });
+          case "recover":
+            globalThis.nelcotaE2eFaults?.delete(input.fault);
             return Response.json({ ok: true });
         }
         return new Response("Bad request", { status: 400 });

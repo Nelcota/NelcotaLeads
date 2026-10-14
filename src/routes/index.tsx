@@ -18,28 +18,35 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
+import { errorToast } from "@/lib/mutation-toasts";
 import {
   Avatar,
+  DisabledReason,
   GroupedRow,
   IconTile,
+  InfoTip,
   Lift,
   PropertyRow,
   SectionHeader,
+  TONE_TEXT,
   toneVar,
   type Tone,
 } from "@/components/apple-ui";
 import { Page, Stat, useOpenNewSearch } from "@/components/app-shell";
+import { GLOSSARY } from "@/lib/help";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { shortTime } from "@/lib/format";
-import { dashboardQuery, leadCountsQuery } from "@/lib/queries";
+import { dashboardQuery, leadCountsQuery, nichesQuery } from "@/lib/queries";
 import type { LeadFilters } from "@/lib/schemas";
 import { cn } from "@/lib/utils";
 import { runAutopilotNow, setAutomation, type Dashboard } from "@/server/dashboard";
 import { checkMailNow } from "@/server/mail";
+import { pageTitle } from "@/lib/page-title";
 
 export const Route = createFileRoute("/")({
+  head: () => ({ meta: [{ title: pageTitle("Visão geral") }] }),
   loader: ({ context }) => context.queryClient.ensureQueryData(dashboardQuery),
   component: OverviewPage,
 });
@@ -111,6 +118,7 @@ function OverviewPage() {
             <Funnel data={data} />
             <Automation data={data} />
           </div>
+          <Niches />
           <Activity data={data} />
         </>
       )}
@@ -220,7 +228,7 @@ function QuickActions({ data }: { data: Dashboard }) {
           : "Nenhuma resposta nova",
       );
     },
-    onError: (error) => toast.error(error.message || "Não foi possível verificar os e-mails"),
+    onError: errorToast("Não foi possível verificar os e-mails"),
   });
   const runNow = useMutation({
     mutationFn: () => runAutopilotNow(),
@@ -232,7 +240,7 @@ function QuickActions({ data }: { data: Dashboard }) {
           : "Nada para buscar agora",
       );
     },
-    onError: (error) => toast.error(error.message || "Não foi possível buscar agora"),
+    onError: errorToast("Não foi possível buscar agora"),
   });
 
   const ready = data.stats.readyToSend;
@@ -365,7 +373,7 @@ function Attention({ data }: { data: Dashboard }) {
             key={lead.id}
             role="link"
             tabIndex={0}
-            className="cursor-pointer outline-none focus-visible:bg-fill-2"
+            className="cursor-pointer outline-none focus-visible:bg-fill-2 focus-visible:shadow-[inset_0_0_0_2px_color-mix(in_srgb,var(--ring)_75%,transparent)]"
             onClick={() => void navigate({ to: "/conversas", search: { lead: lead.id } })}
             onKeyDown={(event) => {
               if (event.key === "Enter")
@@ -482,15 +490,40 @@ function Stats({ data }: { data: Dashboard }) {
   );
 }
 
+type FunnelStep = {
+  label: string;
+  value: number;
+  /** Where the step opens: Leads with the matching filter, or Conversas. */
+  link:
+    | { to: "/leads"; search: LeadFilters }
+    | { to: "/conversas"; search: { filter: "needsYou" } };
+};
+
 function Funnel({ data }: { data: Dashboard }) {
   const { stats } = data;
-  const steps = [
-    { label: "Na base", value: stats.leads },
-    { label: "Com e-mail", value: stats.withEmail },
-    { label: "Contatados", value: stats.contacted },
-    { label: "Responderam", value: stats.replied },
-    { label: "Interessados", value: stats.interested },
-    { label: "Fechados", value: stats.closed },
+  const steps: FunnelStep[] = [
+    { label: "Na base", value: stats.leads, link: { to: "/leads", search: { view: "all" } } },
+    {
+      label: "Com e-mail",
+      value: stats.withEmail,
+      link: { to: "/leads", search: { view: "all", hasEmail: true } },
+    },
+    {
+      label: "Contatados",
+      value: stats.contacted,
+      link: { to: "/leads", search: { view: "waiting" } },
+    },
+    {
+      label: "Responderam",
+      value: stats.replied,
+      link: { to: "/leads", search: { view: "talking" } },
+    },
+    {
+      label: "Interessados",
+      value: stats.interested,
+      link: { to: "/conversas", search: { filter: "needsYou" } },
+    },
+    { label: "Fechados", value: stats.closed, link: { to: "/leads", search: { view: "closed" } } },
   ];
   const max = Math.max(1, stats.leads);
   return (
@@ -511,9 +544,11 @@ function Funnel({ data }: { data: Dashboard }) {
               ? Math.round((step.value / previous) * 100)
               : null;
           return (
-            <div
+            <Link
               key={step.label}
-              className="grid grid-cols-[96px_minmax(0,1fr)_52px] items-center gap-3 px-4 py-2.5 sm:grid-cols-[130px_minmax(0,1fr)_64px] sm:gap-3.5"
+              {...step.link}
+              aria-label={`${step.label}: ${step.value}`}
+              className="row-hover grid grid-cols-[96px_minmax(0,1fr)_52px] items-center gap-3 px-4 py-2.5 transition-colors outline-none hover:bg-fill-3 focus-visible:bg-fill-2 focus-visible:shadow-[inset_0_0_0_2px_color-mix(in_srgb,var(--ring)_75%,transparent)] sm:grid-cols-[130px_minmax(0,1fr)_64px] sm:gap-3.5"
             >
               <span className="truncate text-muted-foreground">{step.label}</span>
               <span className="h-2 overflow-hidden rounded-full bg-fill-2">
@@ -532,7 +567,7 @@ function Funnel({ data }: { data: Dashboard }) {
                   <span className="block text-[11px] font-normal text-tertiary">{percent}%</span>
                 ) : null}
               </span>
-            </div>
+            </Link>
           );
         })}
       </div>
@@ -540,9 +575,91 @@ function Funnel({ data }: { data: Dashboard }) {
   );
 }
 
+const PERCENT = new Intl.NumberFormat("pt-BR", { style: "percent", maximumFractionDigits: 0 });
+
+/** "12 · 40%": a count and its share of the step before, when there is one. */
+function NicheCell({ value, of, tone }: { value: number; of?: number; tone?: Tone }) {
+  return (
+    <span className="text-right tabular-nums">
+      <span className={cn("font-medium", value === 0 ? "text-tertiary" : tone && TONE_TEXT[tone])}>
+        {value}
+      </span>
+      {of !== undefined ? (
+        <span className="block text-[11px] text-tertiary">
+          {of > 0 ? PERCENT.format(value / of) : "–"}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+const NICHE_GRID =
+  "grid grid-cols-[minmax(0,1fr)_repeat(3,52px)] items-center gap-2 px-4 sm:grid-cols-[minmax(0,1fr)_repeat(4,84px)] sm:gap-3";
+
+/** The funnel split by niche: which areas answer and buy the most. */
+function Niches() {
+  const { data: niches } = useQuery(nichesQuery);
+  if (!niches || niches.length === 0) return null;
+  const best = niches[0];
+  return (
+    <section className="enter min-w-0">
+      <SectionHeader
+        title="Por nicho"
+        hint={
+          best && best.closed > 0
+            ? `${best.label} é o que mais fecha.`
+            : "Quem responde e fecha mais, por área."
+        }
+      />
+      <div className="grouped py-1">
+        <div className={cn(NICHE_GRID, "py-2 text-[12px] font-medium text-tertiary")}>
+          <span>Nicho</span>
+          <span className="text-right max-sm:hidden">Leads</span>
+          <span className="text-right">Contatados</span>
+          <span className="text-right">Responderam</span>
+          <span className="text-right">Fechados</span>
+        </div>
+        {niches.map((niche) => (
+          <Link
+            key={niche.key}
+            to="/leads"
+            search={{ view: "all", niche: niche.key }}
+            aria-label={`${niche.label}: ${niche.leads} leads, ${niche.contacted} contatados, ${niche.replied} responderam, ${niche.closed} fechados`}
+            className={cn(
+              NICHE_GRID,
+              "grouped-row row-hover py-2.5 transition-colors outline-none [--inset:16px] hover:bg-fill-3 focus-visible:bg-fill-2 focus-visible:shadow-[inset_0_0_0_2px_color-mix(in_srgb,var(--ring)_75%,transparent)]",
+            )}
+          >
+            <span className="min-w-0">
+              <span className="block truncate font-medium">{niche.label}</span>
+              <span className="block text-[12px] font-light text-muted-foreground sm:hidden">
+                {niche.leads} {niche.leads === 1 ? "lead" : "leads"}
+              </span>
+            </span>
+            <span className="text-right font-medium tabular-nums max-sm:hidden">{niche.leads}</span>
+            <NicheCell value={niche.contacted} />
+            <NicheCell value={niche.replied} of={niche.contacted} tone="blue" />
+            <NicheCell value={niche.closed} of={niche.contacted} tone="green" />
+          </Link>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+type ActivityLink =
+  | { to: "/leads"; search: LeadFilters }
+  | { to: "/conversas"; search: { lead: string } };
+
 function Activity({ data }: { data: Dashboard }) {
+  const navigate = useNavigate();
   const events = [
     ...data.activity.searches.map((search) => ({
+      key: `search:${search.id}`,
+      link: {
+        to: "/leads",
+        search: { view: "all", searchId: search.id },
+      } satisfies ActivityLink as ActivityLink,
       at: search.createdAt,
       tone: (search.origin === "autopilot" ? "purple" : "blue") as Tone,
       icon: search.origin === "autopilot" ? BotIcon : SearchIcon,
@@ -558,7 +675,16 @@ function Activity({ data }: { data: Dashboard }) {
               ? ({ tone: "purple", icon: SparklesIcon, verb: "a IA respondeu" } as const)
               : ({ tone: "blue", icon: SendIcon, verb: "e-mail enviado" } as const)
             : ({ tone: "gray", icon: UserIcon, verb: "você respondeu" } as const);
-      return { at: email.at ?? new Date(0), title: email.name, ...kind };
+      return {
+        key: `email:${email.id}`,
+        at: email.at ?? new Date(0),
+        title: email.name,
+        link: {
+          to: "/conversas",
+          search: { lead: email.leadId },
+        } satisfies ActivityLink as ActivityLink,
+        ...kind,
+      };
     }),
   ]
     // oxlint-disable-next-line unicorn/no-array-sort -- sorts the fresh array built above
@@ -567,14 +693,33 @@ function Activity({ data }: { data: Dashboard }) {
 
   return (
     <section className="enter">
-      <SectionHeader title="Atividade de hoje" />
+      <SectionHeader
+        title="Atividade de hoje"
+        action={
+          <Link
+            to="/leads"
+            search={{ view: "all", sort: "createdAt", dir: "desc" }}
+            className="text-[12.5px] font-medium text-blue hover:underline"
+          >
+            Ver tudo
+          </Link>
+        }
+      />
       <div className="grouped">
         {events.length === 0 ? (
           <p className="px-4 py-5 text-sm font-light text-muted-foreground">Nada ainda hoje.</p>
         ) : (
           events.map((event) => (
             <GroupedRow
-              key={`${event.at.getTime()}${event.title}${event.verb}`}
+              key={event.key}
+              role="link"
+              tabIndex={0}
+              className="cursor-pointer outline-none focus-visible:bg-fill-2 focus-visible:shadow-[inset_0_0_0_2px_color-mix(in_srgb,var(--ring)_75%,transparent)]"
+              onClick={() => void navigate(event.link)}
+              onKeyDown={(keyEvent) => {
+                if (keyEvent.key === "Enter") void navigate(event.link);
+              }}
+              chevron
               lead={<IconTile icon={event.icon} tone={event.tone} size={30} />}
               title={event.title}
               subtitle={event.verb}
@@ -597,7 +742,7 @@ function Automation({ data }: { data: Dashboard }) {
     mutationFn: (changes: { autopilot?: boolean; aiAutoReply?: boolean; autoDispatch?: boolean }) =>
       setAutomation({ data: changes }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
-    onError: () => toast.error("Não foi possível mudar a automação"),
+    onError: errorToast("Não foi possível mudar a automação"),
   });
 
   const { mail, autopilot } = data;
@@ -634,7 +779,12 @@ function Automation({ data }: { data: Dashboard }) {
   return (
     <section className="enter min-w-0">
       <SectionHeader
-        title="Modo automático"
+        title={
+          <span className="inline-flex items-center gap-1.5">
+            Modo automático
+            <InfoTip>{GLOSSARY.autopilot.text}</InfoTip>
+          </span>
+        }
         action={
           <Link
             to="/settings"
@@ -654,15 +804,20 @@ function Automation({ data }: { data: Dashboard }) {
             title={<label htmlFor={row.key}>{row.label}</label>}
             subtitle={row.hint}
             trailing={
-              <Switch
-                id={row.key}
-                checked={row.checked}
-                style={{ "--switch-on": toneVar(row.tone) }}
-                disabled={
-                  toggle.isPending || (row.key === "autopilot" && autopilot.targets.length === 0)
-                }
-                onCheckedChange={(value) => toggle.mutate({ [row.key]: value })}
-              />
+              <DisabledReason
+                reason={row.key === "autopilot" && autopilot.targets.length === 0 && row.hint}
+                side="left"
+              >
+                <Switch
+                  id={row.key}
+                  checked={row.checked}
+                  style={{ "--switch-on": toneVar(row.tone) }}
+                  disabled={
+                    toggle.isPending || (row.key === "autopilot" && autopilot.targets.length === 0)
+                  }
+                  onCheckedChange={(value) => toggle.mutate({ [row.key]: value })}
+                />
+              </DisabledReason>
             }
           />
         ))}

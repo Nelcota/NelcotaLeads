@@ -10,6 +10,8 @@ import { createFakeMailer, incoming } from "../../test/fake-mailer";
 import { resetDb } from "../../test/reset-db";
 import {
   autoDispatch,
+  CLOSED_REASON,
+  DISCARDED_REASON,
   EMAIL_OPT_OUT,
   ensureOptOut,
   EMAIL_PROVIDER,
@@ -22,6 +24,7 @@ import {
   queueFollowUps,
   sendDue,
 } from "./mail-flow";
+import { saveReplyDraft } from "./conversation";
 import { DEFAULT_SETTINGS, storeSettings } from "./settings-store";
 import { requestsToday } from "./usage";
 
@@ -142,6 +145,54 @@ describe("e-mail outreach", () => {
     const after = await lead("a");
     expect(after?.unsubscribedAt).toBeInstanceOf(Date);
     expect(after).toMatchObject({ status: "discarded", aiMode: false });
+  });
+
+  it("marks e-mails stopped on purpose as cancelled, never as failed", async () => {
+    const { mailer, messageId } = await sentFirstEmail();
+    await queueFollowUps({ db, analyzer, fromAddress: FROM }, new Date("2026-10-14T12:00:00Z"));
+    await handleInbound(
+      { db, mailer, analyzer },
+      incoming({ inReplyTo: messageId, text: "Quanto custa?" }),
+    );
+    const draft = (await leadEmails("a")).find((e) => e.status === "draft");
+    // The AI closes the conversation: its pending draft is cancelled with the reason.
+    const closing: LeadAnalyzer = {
+      ...analyzer,
+      replyEmail: async () => ({
+        decision: { action: "close", reason: "Já tem fornecedor", reply: "", draft: "" },
+        usage: { model: "m", tokensIn: 1, tokensOut: 1, cost: 0 },
+      }),
+    };
+    await db.update(leads).set({ aiMode: true }).where(eq(leads.id, "a"));
+    await handleInbound(
+      { db, mailer, analyzer: closing },
+      incoming({ inReplyTo: messageId, text: "Já temos alguém, obrigado." }),
+    );
+    const rows = await leadEmails("a");
+    expect(rows.find((e) => e.id === draft?.id)).toMatchObject({
+      status: "cancelled",
+      error: CLOSED_REASON,
+    });
+    expect(rows.some((e) => e.status === "failed")).toBe(false);
+
+    // An opt-out cancels whatever is still queued for the lead.
+    await db.insert(emails).values({
+      id: "late",
+      leadId: "a",
+      direction: "out",
+      status: "queued",
+      author: "user",
+      fromAddress: FROM,
+      toAddress: "contato@clinica.com.br",
+      subject: "Re: x",
+      body: "Oi",
+      sendAfter: new Date(),
+    });
+    await handleInbound({ db, mailer, analyzer }, incoming({ inReplyTo: messageId, text: "sair" }));
+    expect((await leadEmails("a")).find((e) => e.id === "late")).toMatchObject({
+      status: "cancelled",
+      error: "Cancelado: o lead pediu para não receber",
+    });
   });
 
   it("does not act on an opt-out matched by the sender address alone", async () => {
@@ -309,7 +360,47 @@ describe("e-mail outreach", () => {
     });
     expect(await sendDue({ db, mailer, limit: 30 }, now)).toBe(0);
     expect(sent).toHaveLength(1);
-    expect((await leadEmails("a")).find((e) => e.id === "ai-row")?.status).toBe("failed");
+    expect((await leadEmails("a")).find((e) => e.id === "ai-row")).toMatchObject({
+      status: "cancelled",
+      error: "Cancelado: a conversa passou para você",
+    });
+  });
+
+  it("cancels a queued e-mail when the lead was discarded or closed after queuing", async () => {
+    const { drafts } = await prepareDrafts({ db, analyzer, fromAddress: FROM }, ["a"]);
+    const now = new Date("2026-10-11T12:00:00Z");
+    await queueDrafts(
+      db,
+      drafts.map((d) => d.id),
+      now,
+    );
+    // Discarded from the leads list (bulk change) before its send slot came.
+    await db.update(leads).set({ status: "discarded" }).where(eq(leads.id, "a"));
+
+    const { mailer, sent } = createFakeMailer();
+    expect(await sendDue({ db, mailer, limit: 30 }, now)).toBe(0);
+    expect(sent).toHaveLength(0);
+    expect(await leadEmails("a")).toEqual([
+      expect.objectContaining({ status: "cancelled", error: DISCARDED_REASON }),
+    ]);
+    expect(await requestsToday(db, EMAIL_PROVIDER, now)).toBe(0);
+  });
+
+  it("drafts again for a discarded lead moved back to new, whose e-mail never went out", async () => {
+    const { drafts } = await prepareDrafts({ db, analyzer, fromAddress: FROM }, ["a"]);
+    const now = new Date("2026-10-11T12:00:00Z");
+    await queueDrafts(
+      db,
+      drafts.map((d) => d.id),
+      now,
+    );
+    await db.update(leads).set({ status: "discarded" }).where(eq(leads.id, "a"));
+    await sendDue({ db, mailer: createFakeMailer().mailer, limit: 30 }, now);
+    await db.update(leads).set({ status: "new" }).where(eq(leads.id, "a"));
+
+    const again = await prepareDrafts({ db, analyzer, fromAddress: FROM }, ["a"]);
+    expect(again.skipped).toEqual([]);
+    expect(again.drafts).toHaveLength(1);
   });
 
   it("blocks drafts to an address that opted out on another lead", async () => {
@@ -386,7 +477,7 @@ describe("e-mail outreach", () => {
       incoming({ inReplyTo: messageId, text: "Quanto custa?" }),
     );
     const followUp = (await leadEmails("a")).find((e) => e.body.startsWith("Lembrete"));
-    expect(followUp).toMatchObject({ status: "failed", error: "Cancelado: o lead respondeu" });
+    expect(followUp).toMatchObject({ status: "cancelled", error: "Cancelado: o lead respondeu" });
   });
 
   it("hands off a reply matched only by the From address", async () => {
@@ -469,6 +560,52 @@ describe("e-mail outreach", () => {
     inbox.push(broken, incoming({ inReplyTo: messageId, text: "Pode explicar melhor?" }));
     expect(await pollInbox({ db, mailer, analyzer })).toBe(1);
     expect((await db.query.settings.findFirst())?.mailLastUid).toBe(2);
+  });
+
+  it("never drafts or answers over the user's reply in progress", async () => {
+    const { mailer, messageId } = await sentFirstEmail();
+    await handleInbound(
+      { db, mailer, analyzer },
+      incoming({ inReplyTo: messageId, text: "Quanto custa?" }),
+    );
+    await db.delete(emails).where(eq(emails.status, "draft"));
+    await saveReplyDraft(db, { leadId: "a", body: "Minha resposta", fromAddress: FROM });
+
+    // With the AI back in charge, a new message is handed over instead of answered.
+    await db.update(leads).set({ aiMode: true }).where(eq(leads.id, "a"));
+    await handleInbound(
+      { db, mailer, analyzer },
+      incoming({ inReplyTo: messageId, text: "Pode explicar melhor?" }),
+    );
+    expect(await lead("a")).toMatchObject({
+      aiMode: false,
+      handoffReason: "Você já começou uma resposta",
+    });
+    const rows = await leadEmails("a");
+    expect(rows.filter((e) => e.status === "draft")).toEqual([
+      expect.objectContaining({ author: "user", body: "Minha resposta" }),
+    ]);
+    expect(rows.some((e) => e.author === "ai" && e.status === "queued")).toBe(false);
+  });
+
+  it("never sends a reply draft as a first e-mail", async () => {
+    await db.insert(emails).values({
+      id: "reply-draft",
+      leadId: "a",
+      direction: "out",
+      status: "draft",
+      author: "user",
+      fromAddress: FROM,
+      toAddress: "contato@clinica.com.br",
+      subject: "Re: x",
+      body: "Oi",
+      inReplyTo: "<lead@clinica.com.br>",
+    });
+    const { drafts, skipped } = await prepareDrafts({ db, analyzer, fromAddress: FROM }, ["a"]);
+    expect(drafts).toEqual([]);
+    expect(skipped[0]?.reason).toBe("já está em conversa");
+    expect(await queueDrafts(db, ["reply-draft"])).toBe(0);
+    expect((await leadEmails("a"))[0]?.status).toBe("draft");
   });
 
   it("auto-dispatch leaves drafts with risky content for review", async () => {

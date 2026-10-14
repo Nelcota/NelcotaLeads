@@ -8,7 +8,8 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Avatar, IconTile, PropertyRow } from "@/components/apple-ui";
+import { errorToast } from "@/lib/mutation-toasts";
+import { Avatar, Hint, IconTile, PropertyRow, SaveStatus } from "@/components/apple-ui";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +24,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { useAutosave } from "@/lib/autosave";
 import { dashboardQuery, providerStatusQuery } from "@/lib/queries";
 import { cn } from "@/lib/utils";
 import { setAutomation } from "@/server/dashboard";
@@ -36,6 +38,7 @@ import {
 
 type Draft = Awaited<ReturnType<typeof prepareEmails>>["drafts"][number];
 type Skip = Awaited<ReturnType<typeof prepareEmails>>["skipped"][number];
+type DraftText = { subject: string; body: string };
 
 /**
  * Review step of a send: the AI writes one e-mail per selected lead, the user can edit,
@@ -81,7 +84,7 @@ function DispatchReview({
   const { data: dashboard } = useQuery(dashboardQuery);
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [skipped, setSkipped] = useState<Skip[]>([]);
-  const [edits, setEdits] = useState<Record<string, { subject: string; body: string }>>({});
+  const [edits, setEdits] = useState<Record<string, DraftText>>({});
   const [index, setIndex] = useState(0);
 
   const prepare = useMutation({
@@ -90,7 +93,7 @@ function DispatchReview({
       setDrafts(result.drafts);
       setSkipped(result.skipped);
     },
-    onError: (error) => toast.error(error.message || "A IA não conseguiu escrever os e-mails"),
+    onError: errorToast("A IA não conseguiu escrever os e-mails"),
   });
   const started = useRef(false);
   useEffect(() => {
@@ -104,29 +107,67 @@ function DispatchReview({
     ? (edits[current.id] ?? { subject: current.subject, body: current.body })
     : null;
 
+  // Edits are stored as they are typed, so closing the sheet keeps them.
+  const autosave = useAutosave(
+    (id, edit: DraftText) => updateDraft({ data: { id, ...edit } }),
+    errorToast("Não foi possível salvar a edição", { id: "dispatch-draft" }),
+  );
+  const edit = (id: string, next: DraftText) => {
+    setEdits((all) => ({ ...all, [id]: next }));
+    // The server keeps the last complete version; an empty subject or body is not saved.
+    if (next.subject.trim() && next.body.trim()) autosave.schedule(id, next);
+    else void autosave.discard(id);
+  };
+  const showVersion = (id: string, text: Partial<Draft>) => {
+    setDrafts((list) => list.map((item) => (item.id === id ? { ...item, ...text } : item)));
+    setEdits(({ [id]: _dropped, ...rest }) => rest);
+  };
+  // Runs from the toast, which may outlive the sheet.
+  const restore = async (id: string, previous: DraftText) => {
+    try {
+      await updateDraft({ data: { id, ...previous } });
+      showVersion(id, previous);
+    } catch (error) {
+      errorToast("Não foi possível desfazer")(error);
+    }
+  };
+
   const rewrite = useMutation({
-    mutationFn: (id: string) => rewriteDraft({ data: { id } }),
-    onSuccess: (draft) => {
-      if (!draft) return;
-      setDrafts((list) =>
-        list.map((item) => (item.id === draft.id ? { ...item, ...draft } : item)),
-      );
-      setEdits(({ [draft.id]: _dropped, ...rest }) => rest);
+    mutationFn: async ({ id }: { id: string; previous: DraftText }) => {
+      await autosave.flush();
+      return rewriteDraft({ data: { id } });
     },
-    onError: () => toast.error("Não foi possível reescrever"),
+    onSuccess: (draft, { id, previous }) => {
+      if (!draft) return;
+      showVersion(id, draft);
+      toast("Nova versão gerada", {
+        duration: 6000,
+        action: { label: "Desfazer", onClick: () => void restore(id, previous) },
+      });
+    },
+    onError: errorToast("Não foi possível reescrever"),
   });
   const remove = useMutation({
-    mutationFn: (id: string) => removeDraft({ data: { id } }),
+    mutationFn: async (id: string) => {
+      await autosave.discard(id);
+      return removeDraft({ data: { id } });
+    },
     onSuccess: (_result, id) => setDrafts((list) => list.filter((item) => item.id !== id)),
+    onError: errorToast("Não foi possível tirar do disparo"),
   });
   const automation = useMutation({
     mutationFn: (aiAutoReply: boolean) => setAutomation({ data: { aiAutoReply } }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
+    onError: errorToast("Não foi possível mudar a resposta automática"),
   });
+  // A draft being removed or rewritten is still in `drafts`; dispatching now would send it.
+  const busy = remove.isPending || rewrite.isPending;
   const dispatch = useMutation({
     mutationFn: async () => {
-      for (const [id, edit] of Object.entries(edits)) {
-        await updateDraft({ data: { id, ...edit } });
+      await autosave.flush();
+      // Also surfaces an edit that could not be saved (e.g. an empty subject) before sending.
+      for (const [id, text] of Object.entries(edits)) {
+        await updateDraft({ data: { id, ...text } });
       }
       return dispatchEmails({ data: { ids: drafts.map((draft) => draft.id) } });
     },
@@ -143,7 +184,7 @@ function DispatchReview({
       onDispatched();
       onClose();
     },
-    onError: (error) => toast.error(error.message || "Não foi possível disparar"),
+    onError: errorToast("Não foi possível disparar"),
   });
 
   const mail = status?.mail;
@@ -176,24 +217,28 @@ function DispatchReview({
           <div className="grid gap-3.5">
             <div className="flex items-center gap-2.5 text-sm">
               <div className="flex rounded-full bg-fill-2 p-0.5">
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="Anterior"
-                  disabled={index === 0}
-                  onClick={() => setIndex((i) => i - 1)}
-                >
-                  <ChevronLeftIcon />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="Próximo"
-                  disabled={index >= drafts.length - 1}
-                  onClick={() => setIndex((i) => i + 1)}
-                >
-                  <ChevronRightIcon />
-                </Button>
+                <Hint label="Anterior">
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Anterior"
+                    disabled={index === 0}
+                    onClick={() => setIndex((i) => i - 1)}
+                  >
+                    <ChevronLeftIcon />
+                  </Button>
+                </Hint>
+                <Hint label="Próximo">
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Próximo"
+                    disabled={index >= drafts.length - 1}
+                    onClick={() => setIndex((i) => i + 1)}
+                  >
+                    <ChevronRightIcon />
+                  </Button>
+                </Hint>
               </div>
               <span className="font-medium text-muted-foreground tabular-nums">
                 {index + 1} de {drafts.length}
@@ -238,14 +283,11 @@ function DispatchReview({
                 </label>
                 <Input
                   id="draft-subject"
+                  autoComplete="off"
                   value={value.subject}
+                  readOnly={rewrite.isPending}
                   className="h-auto bg-transparent! px-0 text-lg font-medium tracking-[-0.02em] shadow-none! focus-visible:ring-0"
-                  onChange={(event) =>
-                    setEdits((all) => ({
-                      ...all,
-                      [current.id]: { ...value, subject: event.target.value },
-                    }))
-                  }
+                  onChange={(event) => edit(current.id, { ...value, subject: event.target.value })}
                 />
                 <label htmlFor="draft-body" className="sr-only">
                   Mensagem
@@ -254,13 +296,9 @@ function DispatchReview({
                   id="draft-body"
                   rows={12}
                   value={value.body}
+                  readOnly={rewrite.isPending}
                   className="bg-transparent! px-0 text-base leading-[1.7] shadow-none! focus-visible:ring-0"
-                  onChange={(event) =>
-                    setEdits((all) => ({
-                      ...all,
-                      [current.id]: { ...value, body: event.target.value },
-                    }))
-                  }
+                  onChange={(event) => edit(current.id, { ...value, body: event.target.value })}
                 />
               </div>
             </div>
@@ -269,7 +307,7 @@ function DispatchReview({
                 variant="outline"
                 size="sm"
                 disabled={rewrite.isPending}
-                onClick={() => rewrite.mutate(current.id)}
+                onClick={() => rewrite.mutate({ id: current.id, previous: value })}
               >
                 <SparklesIcon className="text-purple" />
                 {rewrite.isPending ? "Reescrevendo…" : "Gerar outro"}
@@ -286,6 +324,7 @@ function DispatchReview({
               >
                 Tirar do disparo
               </Button>
+              <SaveStatus state={autosave.state} className="ml-auto self-center" />
             </div>
           </div>
         ) : !prepare.isPending ? (
@@ -332,17 +371,34 @@ function DispatchReview({
         <Button
           size="lg"
           className="w-full"
-          disabled={drafts.length === 0 || dispatch.isPending || !mail?.configured}
+          disabled={drafts.length === 0 || dispatch.isPending || busy || !mail?.configured}
           onClick={() => dispatch.mutate()}
         >
           <SendIcon />
-          {!mail?.configured
-            ? "Conecte o e-mail nas Configurações"
-            : dispatch.isPending
-              ? "Colocando na fila…"
-              : `Disparar ${drafts.length} ${drafts.length === 1 ? "e-mail" : "e-mails"}`}
+          {dispatchLabel({
+            mailConfigured: Boolean(mail?.configured),
+            dispatching: dispatch.isPending,
+            removing: remove.isPending,
+            rewriting: rewrite.isPending,
+            count: drafts.length,
+          })}
         </Button>
       </SheetFooter>
     </>
   );
+}
+
+/** The dispatch button's text, which also says why it is off. */
+function dispatchLabel(state: {
+  mailConfigured: boolean;
+  dispatching: boolean;
+  removing: boolean;
+  rewriting: boolean;
+  count: number;
+}): string {
+  if (!state.mailConfigured) return "Conecte o e-mail nas Configurações";
+  if (state.dispatching) return "Colocando na fila…";
+  if (state.removing) return "Tirando do disparo…";
+  if (state.rewriting) return "Gerando outra versão…";
+  return `Disparar ${state.count} ${state.count === 1 ? "e-mail" : "e-mails"}`;
 }

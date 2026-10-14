@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { assertTransition, LEAD_TRANSITIONS, leadPatch, UNSUBSCRIBED_MESSAGE } from "./lead-status";
+import {
+  assertTransition,
+  LEAD_TRANSITIONS,
+  leadPatch,
+  reopenBlocker,
+  UNSUBSCRIBED_MESSAGE,
+} from "./lead-status";
 
 const now = new Date("2026-10-11T15:00:00Z");
 const fresh = { status: "new" as const, unsubscribedAt: null, contactedAt: null, followUpOn: null };
@@ -100,6 +106,21 @@ describe("assertTransition", () => {
   it("is enforced by leadPatch", () => {
     expect(() => leadPatch(fresh, { id: "1", status: "replied" }, now, "2026-10-11")).toThrow(
       /Respondeu/,
+    );
+  });
+});
+
+describe("reopenBlocker", () => {
+  it("reopens a won conversation", () => {
+    expect(reopenBlocker({ status: "closed", unsubscribedAt: null })).toBeNull();
+  });
+
+  it("explains why a lost or opted-out conversation stays closed", () => {
+    expect(reopenBlocker({ status: "discarded", unsubscribedAt: null })).toBe(
+      "Conversas encerradas sem negócio não podem ser reabertas.",
+    );
+    expect(reopenBlocker({ status: "closed", unsubscribedAt: now })).toBe(
+      "Este lead pediu para não receber contato.",
     );
   });
 });

@@ -5,5 +5,6 @@ DEEPSEEK_API_KEY=
 # Mailbox the AI sends from and reads replies from (Hostinger Email by default).
 MAIL_ADDRESS=
 MAIL_PASSWORD=
-# Password for the login screen (8+ characters). Changing it signs every session out.
+# Access code asked to create an account or reset a password (8+ characters); it also signs
+# the sessions, so changing it signs everyone out.
 APP_PASSWORD=

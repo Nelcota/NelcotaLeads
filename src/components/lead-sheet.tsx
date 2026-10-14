@@ -1,8 +1,11 @@
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import { useEffect, useRef } from "react";
+import { Hint } from "@/components/apple-ui";
 import { LeadDetail } from "@/components/lead-detail";
+import { UnsavedEditsScope, useUnsavedEditsGuard } from "@/components/unsaved-edits";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { useListHotkeys } from "@/hooks/use-list-hotkeys";
 import type { LeadStatus } from "@/db/schema";
 
 /**
@@ -30,86 +33,83 @@ export function LeadSheet({
     if (position >= 0) neighbors.current = { prevId, nextId };
   }, [position, prevId, nextId]);
 
-  const handlers = useRef({ prevId, nextId, onSelect });
-  useEffect(() => {
-    handlers.current = { prevId, nextId, onSelect };
-  });
+  // Text without a server draft (the WhatsApp message) asks before it is dropped.
+  const { guard, report, dialog } = useUnsavedEditsGuard();
+  const go = (id: string | undefined) => guard(() => onSelect(id));
+
   const open = Boolean(leadId);
-  useEffect(() => {
-    if (!open) return undefined;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.metaKey || event.ctrlKey || event.altKey || isTyping(event.target)) return;
-      const { prevId: prev, nextId: next, onSelect: select } = handlers.current;
-      if (event.key === "j" && next) select(next);
-      if (event.key === "k" && prev) select(prev);
-    };
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [open]);
+  useListHotkeys(open, {
+    onNext: nextId ? () => go(nextId) : undefined,
+    onPrev: prevId ? () => go(prevId) : undefined,
+  });
 
   return (
-    <Sheet open={open} onOpenChange={(value) => !value && onSelect(undefined)}>
-      <SheetContent className="w-full gap-0 overflow-y-auto data-[side=right]:sm:max-w-[640px]">
+    <Sheet open={open} onOpenChange={(value) => !value && go(undefined)}>
+      <SheetContent
+        className="w-full gap-0 overflow-y-auto data-[side=right]:sm:max-w-[640px]"
+        onEscapeKeyDown={(event) => {
+          // Esc in a field being edited in place cancels that edit, not the whole panel.
+          if (event.target instanceof Element && event.target.closest("[data-inline-edit]")) {
+            event.preventDefault();
+          }
+        }}
+      >
+        {dialog}
         {leadId ? (
-          <LeadDetail
-            key={leadId}
-            leadId={leadId}
-            onStatusChanged={(status) => {
-              if (!keepsLead(status)) {
-                onSelect(neighbors.current.nextId ?? neighbors.current.prevId);
-              }
-            }}
-            toolbar={
-              position >= 0 ? (
-                <div className="flex items-center gap-2.5 pr-10 text-[12.5px] font-medium text-muted-foreground">
-                  <div className="flex rounded-full bg-fill-2 p-0.5">
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label="Lead anterior (K)"
-                      title="Anterior (K)"
-                      disabled={!prevId}
-                      onClick={() => prevId && onSelect(prevId)}
-                    >
-                      <ChevronLeftIcon />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label="Próximo lead (J)"
-                      title="Próximo (J)"
-                      disabled={!nextId}
-                      onClick={() => nextId && onSelect(nextId)}
-                    >
-                      <ChevronRightIcon />
-                    </Button>
+          <UnsavedEditsScope value={report}>
+            <LeadDetail
+              key={leadId}
+              leadId={leadId}
+              onStatusChanged={(status) => {
+                if (!keepsLead(status)) {
+                  onSelect(neighbors.current.nextId ?? neighbors.current.prevId);
+                }
+              }}
+              toolbar={
+                position >= 0 ? (
+                  <div className="flex items-center gap-2.5 pr-10 text-[12.5px] font-medium text-muted-foreground">
+                    <div className="flex rounded-full bg-fill-2 p-0.5">
+                      <Hint label="Anterior (K)">
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label="Lead anterior (K)"
+                          disabled={!prevId}
+                          onClick={() => prevId && go(prevId)}
+                        >
+                          <ChevronLeftIcon />
+                        </Button>
+                      </Hint>
+                      <Hint label="Próximo (J)">
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label="Próximo lead (J)"
+                          disabled={!nextId}
+                          onClick={() => nextId && go(nextId)}
+                        >
+                          <ChevronRightIcon />
+                        </Button>
+                      </Hint>
+                    </div>
+                    <span className="tabular-nums">
+                      {position + 1} de {ids.length}
+                    </span>
+                    <span className="hidden gap-1 sm:flex" aria-hidden>
+                      <kbd className="grid h-[18px] min-w-[18px] place-items-center rounded-[5px] bg-fill-2 px-1 text-[10.5px] text-muted-foreground">
+                        K
+                      </kbd>
+                      <kbd className="grid h-[18px] min-w-[18px] place-items-center rounded-[5px] bg-fill-2 px-1 text-[10.5px] text-muted-foreground">
+                        J
+                      </kbd>
+                    </span>
                   </div>
-                  <span className="tabular-nums">
-                    {position + 1} de {ids.length}
-                  </span>
-                  <span className="hidden gap-1 sm:flex" aria-hidden>
-                    <kbd className="grid h-[18px] min-w-[18px] place-items-center rounded-[5px] bg-fill-2 px-1 text-[10.5px] text-muted-foreground">
-                      K
-                    </kbd>
-                    <kbd className="grid h-[18px] min-w-[18px] place-items-center rounded-[5px] bg-fill-2 px-1 text-[10.5px] text-muted-foreground">
-                      J
-                    </kbd>
-                  </span>
-                </div>
-              ) : null
-            }
-          />
+                ) : null
+              }
+            />
+          </UnsavedEditsScope>
         ) : null}
       </SheetContent>
     </Sheet>
-  );
-}
-
-function isTyping(target: EventTarget | null) {
-  return (
-    target instanceof HTMLElement &&
-    (target.isContentEditable ||
-      ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName) ||
-      target.closest("[role=listbox]") !== null)
   );
 }

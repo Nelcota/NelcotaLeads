@@ -1,7 +1,88 @@
 import type { LucideIcon } from "lucide-react";
-import { ChevronRightIcon } from "lucide-react";
-import type { ComponentProps, ReactNode } from "react";
+import { ArrowUpRightIcon, ChevronRightIcon, InfoIcon } from "lucide-react";
+import { useState, type ComponentProps, type ReactElement, type ReactNode } from "react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+
+/**
+ * The app's tooltip on hover and keyboard focus, in place of the native `title`. The trigger
+ * keeps its own `aria-label`; needs the TooltipProvider of the AppShell.
+ */
+export function Hint({
+  label,
+  side,
+  children,
+}: {
+  label: ReactNode;
+  side?: ComponentProps<typeof TooltipContent>["side"];
+  children: ReactElement;
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent side={side} sideOffset={6}>
+        {label}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+/**
+ * Why a control is disabled, as a tooltip. A disabled button gets no pointer or focus events,
+ * so it is wrapped in a focusable span that carries the tooltip. Without a reason, the child
+ * is rendered as is.
+ */
+export function DisabledReason({
+  reason,
+  side,
+  className,
+  children,
+}: {
+  reason: string | null | undefined | false;
+  side?: ComponentProps<typeof TooltipContent>["side"];
+  className?: string;
+  children: ReactElement;
+}) {
+  if (!reason) return children;
+  return (
+    <Hint label={reason} side={side}>
+      <span
+        // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- reaches the tooltip by keyboard
+        tabIndex={0}
+        className={cn(
+          // The disabled control lets the pointer through, so hovering it shows the reason.
+          "inline-flex rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/40 [&>:disabled]:pointer-events-none",
+          className,
+        )}
+      >
+        {children}
+      </span>
+    </Hint>
+  );
+}
+
+/**
+ * A link that opens in a new tab: ↗ after the text, "abre em nova aba" for screen readers and
+ * `rel="noopener noreferrer"`. `indicator={false}` drops the arrow where the link is an icon.
+ */
+export function ExternalLink({
+  children,
+  indicator = true,
+  ...props
+}: Omit<ComponentProps<"a">, "target" | "rel"> & { indicator?: boolean }) {
+  return (
+    <a {...props} target="_blank" rel="noopener noreferrer">
+      {children}
+      {indicator ? <ExternalMark /> : null}
+      <span className="sr-only"> (abre em nova aba)</span>
+    </a>
+  );
+}
+
+/** The ↗ of ExternalLink, for links that place it themselves (`indicator={false}`). */
+export function ExternalMark() {
+  return <ArrowUpRightIcon aria-hidden className="size-3 shrink-0" />;
+}
 
 /** The system colors; each one carries a status meaning across the app. */
 export type Tone = "green" | "orange" | "red" | "blue" | "purple" | "teal" | "pink" | "gray";
@@ -300,5 +381,86 @@ export function EmptyState({
       </div>
       {children ? <div className="mt-1 flex flex-wrap justify-center gap-2">{children}</div> : null}
     </div>
+  );
+}
+
+/** Autosave feedback next to an edited draft; nothing until the first edit. */
+export function SaveStatus({
+  state,
+  className,
+}: {
+  state: "idle" | "saving" | "saved" | "error";
+  className?: string;
+}) {
+  if (state === "idle") return null;
+  return (
+    <span
+      aria-live="polite"
+      className={cn(
+        "text-xs font-light",
+        state === "error" ? "text-red" : "text-tertiary",
+        className,
+      )}
+    >
+      {state === "saving"
+        ? "Salvando…"
+        : state === "saved"
+          ? "Rascunho salvo"
+          : "Rascunho não salvo"}
+    </span>
+  );
+}
+
+/** A keyboard key, as in the help and next to the lead sheet's arrows. */
+export function Kbd({ className, ...props }: ComponentProps<"kbd">) {
+  return (
+    <kbd
+      className={cn(
+        "inline-grid h-[20px] min-w-[20px] place-items-center rounded-[5px] bg-fill-2 px-1.5 text-[11px] font-medium text-muted-foreground shadow-[inset_0_-1px_0_rgb(0_0_0/0.12)]",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+/**
+ * A small ⓘ next to a concept (nota, nota mínima, modo automático…) with its explanation in a
+ * tooltip: on hover, keyboard focus, and on tap (touch screens have no hover).
+ */
+export function InfoTip({
+  children,
+  side,
+  className,
+}: {
+  children: ReactNode;
+  side?: ComponentProps<typeof TooltipContent>["side"];
+  className?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Tooltip open={open} onOpenChange={setOpen}>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          aria-label="Mais informações"
+          onClick={(event) => {
+            // Radix closes a tooltip on click; a tap opens it instead (it closes on blur, Esc or
+            // a tap elsewhere). Not a toggle: a hover may already have opened it.
+            event.preventDefault();
+            setOpen(true);
+          }}
+          className={cn(
+            "-m-[9px] inline-grid size-8 shrink-0 place-items-center rounded-full align-middle text-tertiary transition-colors outline-none hover:text-muted-foreground focus-visible:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring/40",
+            className,
+          )}
+        >
+          <InfoIcon aria-hidden className="size-3.5" />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side={side} sideOffset={6} className="max-w-64 font-normal leading-snug">
+        {children}
+      </TooltipContent>
+    </Tooltip>
   );
 }

@@ -3,6 +3,8 @@ import {
   emailReplySchema,
   idSchema,
   leadAnalysisSchema,
+  leadFiltersSchema,
+  lenientSearch,
   newSearchSchema,
   outreachEmailSchema,
   updateLeadSchema,
@@ -63,5 +65,26 @@ describe("user input", () => {
     expect(idSchema.safeParse("").success).toBe(false);
     expect(idSchema.safeParse("x".repeat(65)).success).toBe(false);
     expect(idSchema.safeParse(crypto.randomUUID()).success).toBe(true);
+  });
+
+  it("only takes known sort fields and directions from the URL", () => {
+    expect(leadFiltersSchema.parse({ sort: "name", dir: "asc" })).toMatchObject({ dir: "asc" });
+    expect(leadFiltersSchema.safeParse({ dir: "asc; drop table leads" }).success).toBe(false);
+    expect(leadFiltersSchema.safeParse({ sort: "email" }).success).toBe(false);
+  });
+});
+
+describe("lenientSearch", () => {
+  const search = lenientSearch(leadFiltersSchema);
+
+  it("drops bad URL params instead of failing the page, keeping the good ones", () => {
+    expect(
+      search.parse({ view: "foo", minScore: 500, q: 123, dir: "asc; drop", sort: "name" }),
+    ).toEqual({ sort: "name" });
+    expect(search.parse({ q: "x".repeat(500), view: "all" })).toEqual({ view: "all" });
+  });
+
+  it("leaves the server-side schema strict", () => {
+    expect(leadFiltersSchema.safeParse({ view: "foo" }).success).toBe(false);
   });
 });

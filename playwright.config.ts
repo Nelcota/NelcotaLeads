@@ -1,6 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const PORT = 3100;
+// Override to run a second suite (e.g. from a git worktree) beside one already on 3100.
+const PORT = Number(process.env.E2E_PORT ?? 3100);
 
 /**
  * E2E against the real app on `vite dev`, with Google Places, DeepSeek and the mailbox

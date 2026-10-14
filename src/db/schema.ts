@@ -49,14 +49,13 @@ export const settings = sqliteTable("settings", {
   // IMAP position: messages above this UID in this mailbox were not read yet.
   mailUidValidity: integer("mail_uid_validity").notNull().default(0),
   mailLastUid: integer("mail_last_uid").notNull().default(0),
-  // Unix seconds; session tokens issued before this were signed out (logout ends every session).
-  sessionsValidFrom: integer("sessions_valid_from").notNull().default(0),
   updatedAt: integer("updated_at", { mode: "timestamp" })
     .notNull()
     .default(sql`(unixepoch())`),
 });
 
-export const SEARCH_STATUSES = ["collecting", "analyzing", "done", "error"] as const;
+// `cancelled`: stopped by the user; what was collected and analyzed so far stays.
+export const SEARCH_STATUSES = ["collecting", "analyzing", "done", "error", "cancelled"] as const;
 export type SearchStatus = (typeof SEARCH_STATUSES)[number];
 
 export const searches = sqliteTable(
@@ -77,6 +76,8 @@ export const searches = sqliteTable(
     origin: text("origin", { enum: ["manual", "autopilot"] })
       .notNull()
       .default("manual"),
+    // Hidden from the Buscas list by the user; its leads stay (and keep pointing here).
+    hiddenAt: integer("hidden_at", { mode: "timestamp" }),
     ...timestamps,
   },
   (t) => [index("searches_created_idx").on(t.createdAt)],
@@ -88,7 +89,9 @@ export type LeadStatus = (typeof LEAD_STATUSES)[number];
 export const SITE_STATUSES = ["pending", "none", "ok", "unreachable", "blocked"] as const;
 export type SiteStatus = (typeof SITE_STATUSES)[number];
 
-export const ANALYSIS_STATUSES = ["pending", "done", "error"] as const;
+// `skipped`: not analyzed on purpose (its search was cancelled, or a manual lead without a
+// site); "Reanalisar" still works.
+export const ANALYSIS_STATUSES = ["pending", "done", "error", "skipped"] as const;
 export type AnalysisStatus = (typeof ANALYSIS_STATUSES)[number];
 
 export const leads = sqliteTable(
@@ -172,7 +175,15 @@ export const analyses = sqliteTable(
   (t) => [index("analyses_lead_idx").on(t.leadId, t.createdAt)],
 );
 
-export const EMAIL_STATUSES = ["draft", "queued", "sent", "failed", "received"] as const;
+// `cancelled`: stopped on purpose (the lead answered, the conversation ended); `failed`: the send broke.
+export const EMAIL_STATUSES = [
+  "draft",
+  "queued",
+  "sent",
+  "failed",
+  "cancelled",
+  "received",
+] as const;
 export type EmailStatus = (typeof EMAIL_STATUSES)[number];
 export type EmailAuthor = "ai" | "user" | "lead";
 
@@ -222,8 +233,65 @@ export const apiUsage = sqliteTable(
   (t) => [primaryKey({ columns: [t.day, t.provider] })],
 );
 
+/**
+ * Local accounts that can sign in. `sessionVersion` is part of every session token, so bumping
+ * it (a password reset) signs that account out everywhere. Signing out ends one session only
+ * (see `revokedSessions`).
+ */
+export const users = sqliteTable(
+  "users",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    email: text("email").notNull(),
+    passwordHash: text("password_hash").notNull(),
+    sessionVersion: integer("session_version").notNull().default(1),
+    ...timestamps,
+  },
+  (t) => [uniqueIndex("users_email_idx").on(t.email)],
+);
+
+/**
+ * Sessions ended by signing out. Each token carries a session id that survives renewal, so
+ * signing out voids that browser's cookie (and any copy of it) without touching the others.
+ * A row is only needed until the last token it covers could have expired.
+ */
+export const revokedSessions = sqliteTable("revoked_sessions", {
+  id: text("id").primaryKey(),
+  expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
+});
+
+/**
+ * The user's canned answers ("Respostas rápidas"), inserted into a reply from the composer.
+ * Its own table, so the settings row (read by every tick) never depends on it.
+ */
+export const quickReplies = sqliteTable("quick_replies", {
+  id: text("id").primaryKey(),
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  position: integer("position").notNull(),
+  ...timestamps,
+});
+
+/**
+ * One row per background task (the cron steps and the analysis queue): when it last ran,
+ * worked and failed, so Conta → Status can tell the user without opening the logs.
+ * `lastError` is the friendly text; the raw error only goes to the log.
+ */
+export const jobRuns = sqliteTable("job_runs", {
+  job: text("job").primaryKey(),
+  lastRunAt: integer("last_run_at", { mode: "timestamp" }).notNull(),
+  lastOkAt: integer("last_ok_at", { mode: "timestamp" }),
+  lastErrorAt: integer("last_error_at", { mode: "timestamp" }),
+  lastError: text("last_error"),
+  consecutiveFailures: integer("consecutive_failures").notNull().default(0),
+});
+
 export type Settings = typeof settings.$inferSelect;
 export type Search = typeof searches.$inferSelect;
 export type Lead = typeof leads.$inferSelect;
 export type Analysis = typeof analyses.$inferSelect;
 export type Email = typeof emails.$inferSelect;
+export type User = typeof users.$inferSelect;
+export type QuickReply = typeof quickReplies.$inferSelect;
+export type JobRun = typeof jobRuns.$inferSelect;

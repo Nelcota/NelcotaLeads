@@ -68,3 +68,59 @@ test.describe("manual search", () => {
     await expect(table.getByText("Empresa 1", { exact: true })).toHaveCount(1);
   });
 });
+
+test.describe("search card actions", () => {
+  test("a failed search offers to try again, and the new one runs", async ({ page, backend }) => {
+    await backend.fault("places");
+    await visit(page, "/");
+    await page.getByRole("button", { name: "Nova busca" }).click();
+    const dialog = page.getByRole("dialog", { name: "Busca manual" });
+    await dialog.getByLabel("Nicho").fill("dentistas");
+    await dialog.getByLabel("Cidade").fill("Belo Horizonte");
+    await dialog.getByRole("button", { name: "Buscar empresas" }).click();
+    await expect(dialog).toBeHidden();
+
+    await visit(page, "/searches");
+    await expect(page.getByText("Falhou")).toBeVisible();
+    // A failed search with no leads is not a link to them.
+    await expect(page.getByRole("link", { name: /Ver leads: dentistas/ })).toHaveCount(0);
+    await page.getByRole("button", { name: "Tentar de novo" }).click();
+
+    await expect(page.getByText("Busca feita de novo")).toBeVisible();
+    const retried = page.getByRole("link", { name: "Ver leads: dentistas em Belo Horizonte" });
+    await expect(retried).toHaveCount(1);
+    await retried.click();
+    await expect(page).toHaveURL(/\/leads\?.*searchId=/);
+    await expect(page.getByRole("table").getByText("Empresa 20", { exact: true })).toBeVisible();
+  });
+
+  test("cancels a running search and keeps what it collected", async ({ page, backend }) => {
+    await backend.runningSearch({ niche: "padarias", city: "Contagem", leads: 3 });
+    await visit(page, "/searches");
+    await expect(page.getByText("Analisando").first()).toBeVisible();
+    await page.getByRole("button", { name: "Cancelar" }).click();
+
+    await expect(page.getByText("Busca cancelada")).toBeVisible();
+    await expect(page.getByText("Cancelada", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Cancelar" })).toHaveCount(0);
+
+    // The leads stay, set aside without an analysis.
+    await page.getByRole("link", { name: "Ver leads: padarias em Contagem" }).click();
+    const table = page.getByRole("table");
+    await expect(table.getByText("padarias 1", { exact: true })).toBeVisible();
+    await expect(table.getByText("Não analisado").first()).toBeVisible();
+  });
+
+  test("hides a search with undo", async ({ page, backend }) => {
+    await backend.runningSearch({ niche: "padarias", city: "Contagem", leads: 1 });
+    await visit(page, "/searches");
+    await page.getByRole("button", { name: "Cancelar" }).click();
+    await expect(page.getByText("Cancelada", { exact: true })).toBeVisible();
+
+    await page.getByRole("button", { name: "Mais ações" }).click();
+    await page.getByRole("menuitem", { name: "Ocultar" }).click();
+    await expect(page.getByText("Nenhuma busca ainda")).toBeVisible();
+    await page.getByRole("button", { name: "Desfazer" }).click();
+    await expect(page.getByRole("link", { name: "Ver leads: padarias em Contagem" })).toBeVisible();
+  });
+});

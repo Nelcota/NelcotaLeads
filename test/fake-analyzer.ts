@@ -1,4 +1,5 @@
 import type { LeadAnalyzer } from "@/lib/ai";
+import type { EmailReplyDecision } from "@/lib/schemas";
 
 /** Deterministic test double for the DeepSeek analyzer (tests only). */
 export function createFakeAnalyzer(score = 40): LeadAnalyzer {
@@ -28,18 +29,26 @@ export function createFakeAnalyzer(score = 40): LeadAnalyzer {
       },
       usage,
     }),
-    replyEmail: async (_settings, _lead, thread) => {
-      const last = thread.at(-1)?.text.toLowerCase() ?? "";
-      const action = /preço|valor|quanto/.test(last)
+    replyEmail: async (_settings, _lead, thread, guidance) => {
+      const fromLead = thread.filter((message) => message.from === "empresa");
+      const last = fromLead.at(-1)?.text.toLowerCase() ?? "";
+      const decided: EmailReplyDecision["action"] = /preço|valor|quanto/.test(last)
         ? "handoff"
         : /não tenho interesse|sair/.test(last)
           ? "close"
           : "reply";
+      // Asked by a person, it always writes something to review.
+      const action = guidance && decided === "close" ? "handoff" : decided;
       return {
         decision: {
           action,
           reason: `Teste: ${action}`,
-          reply: action === "reply" ? "Resposta da IA" : "",
+          reply:
+            action !== "reply"
+              ? ""
+              : guidance?.draft
+                ? "Resposta reescrita pela IA"
+                : "Resposta da IA",
           draft: action === "handoff" ? "Rascunho para você" : "",
         },
         usage,

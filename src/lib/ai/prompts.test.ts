@@ -74,8 +74,19 @@ describe("prompt fencing", () => {
         { from: "eu", text: "Olá" },
         { from: "empresa", text: INJECTION },
       ]),
+      replyUserPrompt(settings, lead, [{ from: "empresa", text: "Oi" }], { draft: INJECTION }),
     ];
     for (const prompt of prompts) expect(leaks(prompt)).toEqual([]);
+  });
+
+  it("asks for an answer to review, with the person's direction, only when they asked", () => {
+    const thread = [{ from: "empresa" as const, text: "Oi" }];
+    expect(replyUserPrompt(settings, lead, thread)).not.toContain("Pedido do profissional");
+    const guided = replyUserPrompt(settings, lead, thread, { instruction: "mais\ncurto" });
+    expect(guided).toContain("## Pedido do profissional");
+    expect(guided).toContain("não use close");
+    expect(guided).toContain("Orientação dele: mais curto");
+    expect(guided).not.toContain("Rascunho atual");
   });
 
   it("marks the analysis as derived from untrusted data", () => {

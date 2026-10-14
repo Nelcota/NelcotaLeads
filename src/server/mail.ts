@@ -1,12 +1,23 @@
 import { createServerFn } from "@tanstack/react-start";
 import { env } from "cloudflare:workers";
-import { and, asc, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { getDb } from "@/db/client";
-import { emails, leads } from "@/db/schema";
+import { emails, leads, searches } from "@/db/schema";
 import { getAnalyzer } from "@/lib/ai";
 import { getMailer, mailConfigured } from "@/lib/mail";
-import { leadPatch } from "./lead-status";
+import { splitQuoted } from "@/lib/mail/quoted";
+import {
+  closeConversation as closeLeadConversation,
+  cancelQueuedEmail as cancelQueued,
+  closeSnapshotSchema,
+  conversationDraft,
+  draftReplyWithAi as draftLeadReplyWithAi,
+  editQueuedEmail as editQueued,
+  retryEmail as retryFailedEmail,
+  saveReplyDraft as saveLeadReplyDraft,
+  undoCloseConversation as undoCloseLeadConversation,
+} from "./conversation";
 import {
   cancelQueuedAi,
   composeBody,
@@ -17,11 +28,14 @@ import {
   prepareDrafts,
   queueDrafts,
   regenerateDraft,
+  replySubject,
   sendDue,
   sendEmail,
 } from "./mail-flow";
+import { runSendJob, trackJob, watchSends } from "./job-runs";
 import { loadSettings } from "./settings-store";
-import { localDay } from "@/lib/format";
+import { DAILY_LIMIT_ERROR } from "@/lib/email-errors";
+import { friendlyJobError } from "@/lib/system-status";
 import { idSchema } from "@/lib/schemas";
 
 const id = idSchema;
@@ -99,18 +113,33 @@ export const dispatchEmails = createServerFn({ method: "POST" })
     if (!mailConfigured(env)) throw new Error("Conecte a sua caixa de e-mail nas Configurações.");
     const db = getDb();
     const queued = await queueDrafts(db, data.ids);
-    await sendDue({ db, mailer: getMailer(env), limit: limit() });
+    const watch = watchSends(getMailer(env));
+    await sendDue({ db, mailer: watch.mailer, limit: limit() });
+    await watch.record(db);
     return { queued };
   });
 
-/** Sends the queue's next e-mail and reads replies now, without waiting for the cron. */
+/**
+ * Sends the queue's next e-mail and reads replies now, without waiting for the cron (also the
+ * "Tentar agora" of both mail tasks in Conta → Status). A refused send is shown on the e-mail
+ * and in Status, so only a failed inbox read is thrown, with a friendly message.
+ */
 export const checkMailNow = createServerFn({ method: "POST" }).handler(async () => {
   if (!mailConfigured(env)) throw new Error("Conecte a sua caixa de e-mail nas Configurações.");
   const db = getDb();
   const mailer = getMailer(env);
-  const sent = await sendDue({ db, mailer, limit: limit() });
-  const received = await pollInbox({ db, mailer, analyzer: getAnalyzer(env) });
-  return { sent, received };
+  const sent = await runSendJob({ db, mailer, limit: limit() }, new Date(), {
+    verifyWhenIdle: true,
+  }).catch(() => 0);
+  try {
+    const received = await trackJob(db, "inbox", () =>
+      pollInbox({ db, mailer, analyzer: getAnalyzer(env) }),
+    );
+    return { sent, received };
+  } catch (error) {
+    // oxlint-disable-next-line eslint/preserve-caught-error -- the raw text stays in the log
+    throw new Error(friendlyJobError("inbox", error));
+  }
 });
 
 export const testMailConnection = createServerFn({ method: "POST" }).handler(async () => {
@@ -145,13 +174,17 @@ export const listConversations = createServerFn({ method: "GET" }).handler(async
     .select({
       id: leads.id,
       name: leads.name,
+      email: leads.email,
       status: leads.status,
       aiMode: leads.aiMode,
       handoffReason: leads.handoffReason,
       unsubscribedAt: leads.unsubscribedAt,
       lastEmailAt: leads.lastEmailAt,
+      // Same key as listNiches, so the niche filter matches it.
+      niche: sql<string>`lower(trim(${searches.niche}))`,
     })
     .from(leads)
+    .innerJoin(searches, eq(searches.id, leads.searchId))
     .where(isNotNull(leads.lastEmailAt))
     .orderBy(desc(leads.lastEmailAt))
     .limit(300);
@@ -180,11 +213,13 @@ export const listConversations = createServerFn({ method: "GET" }).handler(async
 
   return rows.map((row) => {
     const last = lastOf.get(row.id);
+    // A reply previews what the lead wrote, not the original it quotes.
+    const text = last?.direction === "in" ? splitQuoted(last.body).visible : last?.body;
     return {
       ...row,
       state: stateOf(row),
       preview: last
-        ? `${last.direction === "out" ? (last.author === "ai" ? "IA: " : "Você: ") : ""}${last.body.replace(/\s+/g, " ").slice(0, 140)}`
+        ? `${last.direction === "out" ? (last.author === "ai" ? "IA: " : "Você: ") : ""}${(text ?? "").replace(/\s+/g, " ").slice(0, 140)}`
         : "",
     };
   });
@@ -212,8 +247,28 @@ export const getConversation = createServerFn({ method: "GET" })
       state: stateOf(lead),
       summary: analysis?.summary ?? null,
       messages: thread.filter((item) => item.status !== "draft"),
-      draft: thread.filter((item) => item.status === "draft").at(-1) ?? null,
+      draft: conversationDraft(thread.filter((item) => item.status === "draft")),
     };
+  });
+
+/** Keeps the reply being typed, so it survives leaving the page; empty removes it. */
+export const saveReplyDraft = createServerFn({ method: "POST" })
+  .validator(z.object({ leadId: id, body: z.string().max(5000) }))
+  .handler(({ data }) => saveLeadReplyDraft(getDb(), { ...data, fromAddress: fromAddress() }));
+
+/** The AI writes (or rewrites) the reply in the composer, as the user's draft; sends nothing. */
+export const draftReplyWithAi = createServerFn({ method: "POST" })
+  .validator(z.object({ leadId: id, instruction: z.string().trim().max(300).optional() }))
+  .handler(async ({ data }) => {
+    let analyzer;
+    try {
+      analyzer = getAnalyzer(env);
+    } catch (error) {
+      console.error("analyzer unavailable", error);
+      // oxlint-disable-next-line eslint/preserve-caught-error
+      throw new Error("A IA não está configurada. Fale com quem administra o sistema.");
+    }
+    return draftLeadReplyWithAi({ db: getDb(), analyzer, fromAddress: fromAddress() }, data);
   });
 
 /** Sends a reply written (or approved) by the user right away. */
@@ -235,11 +290,15 @@ export const sendReply = createServerFn({ method: "POST" })
     });
     const subject = lastAny?.subject ?? "Olá";
     const settings = await loadSettings(db);
-    // A pending AI draft is replaced by what the user actually sends.
+    // A pending reply draft (the AI's or the user's own) is replaced by what is sent.
     await db
       .delete(emails)
       .where(
-        and(eq(emails.leadId, lead.id), eq(emails.status, "draft"), isNotNull(emails.inReplyTo)),
+        and(
+          eq(emails.leadId, lead.id),
+          eq(emails.status, "draft"),
+          or(isNotNull(emails.inReplyTo), eq(emails.author, "user")),
+        ),
       );
     // The user answered, so a queued AI reply or follow-up would answer twice.
     await cancelQueuedAi(db, lead.id, "Cancelado: você respondeu");
@@ -255,20 +314,25 @@ export const sendReply = createServerFn({ method: "POST" })
         author: "user",
         fromAddress: mailer.address,
         toAddress: lead.email,
-        subject: /^(re|res):/i.test(subject) ? subject : `Re: ${subject}`,
-        body: composeBody(data.body, settings, false),
+        subject: replySubject(subject),
+        // Without a message from the lead this is cold outreach, which carries the opt-out line.
+        body: composeBody(data.body, settings, !lastIn),
         inReplyTo: lastIn?.messageId ?? null,
         sendAfter: now,
         sentAt: now,
       })
       .returning();
     if (!email) throw new Error("Não foi possível criar o e-mail");
-    const result = await sendEmail({ db, mailer, limit: limit() }, email, now, { claimed: true });
+    const watch = watchSends(mailer);
+    const result = await sendEmail({ db, mailer: watch.mailer, limit: limit() }, email, now, {
+      claimed: true,
+    });
+    await watch.record(db, now);
     if (result === "limit") {
       // Not left queued: a retry from the page would otherwise send it twice tomorrow.
       await db
         .update(emails)
-        .set({ status: "failed", error: "Limite diário de e-mails atingido" })
+        .set({ status: "failed", error: DAILY_LIMIT_ERROR })
         .where(eq(emails.id, email.id));
       throw new Error("O limite de e-mails de hoje acabou. Tente amanhã.");
     }
@@ -293,26 +357,41 @@ export const setConversationAi = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
-/** Ends a conversation as won (closed) or lost (discarded). */
+/** Ends a conversation as won (closed) or lost (discarded); returns what undo needs. */
 export const closeConversation = createServerFn({ method: "POST" })
   .validator(z.object({ leadId: id, outcome: z.enum(["closed", "discarded"]) }))
+  .handler(({ data }) => closeLeadConversation(getDb(), data.leadId, data.outcome));
+
+/** Undoes `closeConversation` from the snapshot it returned. */
+export const undoCloseConversation = createServerFn({ method: "POST" })
+  .validator(closeSnapshotSchema.extend({ leadId: id }))
+  .handler(({ data: { leadId, ...snapshot } }) =>
+    undoCloseLeadConversation(getDb(), leadId, snapshot),
+  );
+
+/** Sends a failed e-mail again; it goes through the queue (limit and gap) like any other. */
+export const retryEmail = createServerFn({ method: "POST" })
+  .validator(z.object({ emailId: id }))
   .handler(async ({ data }) => {
+    if (!mailConfigured(env)) throw new Error("Conecte a sua caixa de e-mail nas Configurações.");
     const db = getDb();
-    const lead = await db.query.leads.findFirst({ where: eq(leads.id, data.leadId) });
-    if (!lead) throw new Error("Lead não encontrado");
-    const now = new Date();
-    await db
-      .update(leads)
-      .set({
-        ...leadPatch(lead, { id: lead.id, status: data.outcome }, now, localDay(now), {
-          anyStatus: true,
-        }),
-        aiMode: false,
-        handoffReason: null,
-      })
-      .where(eq(leads.id, lead.id));
-    await db
-      .delete(emails)
-      .where(and(eq(emails.leadId, lead.id), inArray(emails.status, ["draft", "queued"])));
+    const mailer = getMailer(env);
+    await retryFailedEmail(db, data.emailId, { fromAddress: mailer.address });
+    const watch = watchSends(mailer);
+    await sendDue({ db, mailer: watch.mailer, limit: limit() });
+    await watch.record(db);
     return { ok: true as const };
   });
+
+/** Takes an e-mail out of the send queue while no send has picked it up. */
+export const cancelQueuedEmail = createServerFn({ method: "POST" })
+  .validator(z.object({ emailId: id }))
+  .handler(async ({ data }) => {
+    await cancelQueued(getDb(), data.emailId);
+    return { ok: true as const };
+  });
+
+/** Moves a queued e-mail back to the composer as the user's draft. */
+export const editQueuedEmail = createServerFn({ method: "POST" })
+  .validator(z.object({ emailId: id }))
+  .handler(({ data }) => editQueued(getDb(), data.emailId));

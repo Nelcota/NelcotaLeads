@@ -1,24 +1,41 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
+  ArrowDownWideNarrowIcon,
+  ArrowRightLeftIcon,
   ArrowUpDownIcon,
+  ArrowUpNarrowWideIcon,
   CheckIcon,
   ChevronsUpDownIcon,
   DownloadIcon,
+  EllipsisIcon,
   FilterXIcon,
   InboxIcon,
   PlusIcon,
   SearchIcon,
   SendIcon,
   StarIcon,
+  Trash2Icon,
+  UserPlusIcon,
   XIcon,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
-import { Avatar, EmptyState, FloatingBar, TONE_TEXT, type Tone } from "@/components/apple-ui";
+import {
+  Avatar,
+  DisabledReason,
+  EmptyState,
+  FloatingBar,
+  Hint,
+  InfoTip,
+  TONE_TEXT,
+  type Tone,
+} from "@/components/apple-ui";
+import { GLOSSARY } from "@/lib/help";
 import { Page, Stat, useOpenNewSearch } from "@/components/app-shell";
 import { followUpTone, ScoreBadge, StatusBadge, TIER_TONE } from "@/components/lead-badges";
+import { AddLeadSheet } from "@/components/add-lead-sheet";
 import { DispatchSheet } from "@/components/dispatch-sheet";
 import { LeadSheet } from "@/components/lead-sheet";
 import { Badge } from "@/components/ui/badge";
@@ -27,8 +44,13 @@ import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
@@ -51,29 +73,48 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { LeadStatus } from "@/db/schema";
 import { relativeDay } from "@/lib/format";
-import { leadCountsQuery, leadsQuery, searchesQuery } from "@/lib/queries";
+import { leadCountsQuery, leadsQuery, nichesQuery, searchesQuery } from "@/lib/queries";
 import {
+  BULK_LIMIT,
+  type BulkSnapshot,
   EXPORT_LIMIT,
+  LEAD_STATUS_LABELS,
+  LEAD_STATUS_VALUES,
   LEAD_VIEW_LABELS,
   LEAD_VIEWS,
   leadFiltersSchema,
+  lenientSearch,
   SCORE_TIERS,
   type LeadFilters,
   type LeadView,
   type ScoreTier,
 } from "@/lib/schemas";
+import { useUrlSearchBox } from "@/hooks/use-url-search-box";
+import { errorToast } from "@/lib/mutation-toasts";
+import { useNotFoundToast } from "@/lib/not-found-toast";
+import { searchLabel } from "@/lib/searches";
 import { useToday } from "@/lib/today";
 import { cn } from "@/lib/utils";
+import { bulkUpdateLeads, undoBulkUpdateLeads } from "@/server/leads";
 import type { LeadRow } from "@/server/leads-query";
+import { pageTitle } from "@/lib/page-title";
 
-// `lead` is UI state (the open side sheet), kept out of the data filters.
-const searchSchema = leadFiltersSchema.extend({ lead: z.string().max(64).optional() });
+// `lead` (the open side sheet) and `missing` (a link to a lead that is gone) are UI state,
+// kept out of the data filters.
+const searchSchema = lenientSearch(
+  leadFiltersSchema.extend({
+    lead: z.string().max(64).optional(),
+    missing: z.boolean().optional(),
+  }),
+);
 
 const DEFAULT_VIEW: LeadView = "todo";
+const NO_SELECTION: ReadonlySet<string> = new Set();
 
 export const Route = createFileRoute("/leads/")({
+  head: () => ({ meta: [{ title: pageTitle("Leads") }] }),
   validateSearch: searchSchema,
-  loaderDeps: ({ search: { lead: _lead, ...filters } }) => withView(filters),
+  loaderDeps: ({ search: { lead: _lead, missing: _missing, ...filters } }) => withView(filters),
   loader: ({ context, deps }) =>
     Promise.all([
       context.queryClient.ensureQueryData(leadsQuery(deps)),
@@ -95,6 +136,7 @@ const NO_FILTERS: Partial<LeadFilters> = {
   maxScore: undefined,
   noWebsite: undefined,
   searchId: undefined,
+  niche: undefined,
 };
 
 // Which statuses still belong to each view after a status change.
@@ -146,15 +188,31 @@ function activeTier(filters: LeadFilters): ScoreTier | undefined {
 }
 
 function LeadsPage() {
-  const { lead: openLeadId, ...search } = Route.useSearch();
+  const { lead: openLeadId, missing, ...search } = Route.useSearch();
   const filters = withView(search);
   const view = filters.view ?? DEFAULT_VIEW;
   const navigate = useNavigate({ from: "/leads/" });
-  const { data } = useQuery(leadsQuery(filters));
+  useNotFoundToast(
+    missing,
+    "Lead não encontrado",
+    () => void navigate({ search: (prev) => ({ ...prev, missing: undefined }), replace: true }),
+  );
+  const { data: list } = useQuery(leadsQuery(filters));
+  const data = list?.rows;
   const { data: counts } = useQuery(leadCountsQuery(filters));
   const openNewSearch = useOpenNewSearch();
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  // The selection belongs to one list: another tab, filter, search or sort starts it over.
+  const listKey = JSON.stringify(clean(filters));
+  const [selection, setSelection] = useState({ key: listKey, ids: NO_SELECTION });
+  const selected = selection.key === listKey ? selection.ids : NO_SELECTION;
+  const setSelected = (update: (current: ReadonlySet<string>) => ReadonlySet<string>) =>
+    setSelection((current) => ({
+      key: listKey,
+      ids: update(current.key === listKey ? current.ids : NO_SELECTION),
+    }));
+  const clearSelection = () => setSelected(() => NO_SELECTION);
   const [dispatching, setDispatching] = useState(false);
+  const [adding, setAdding] = useState(false);
   const selectedRows = (data ?? []).filter((lead) => selected.has(lead.id));
   const sendable = selectedRows
     .filter((lead) => lead.email && !lead.unsubscribedAt)
@@ -207,7 +265,25 @@ function LeadsPage() {
         <PlusIcon />
         <span className="max-sm:hidden">Busca manual</span>
       </Button>
+      <DropdownMenu>
+        <Hint label="Mais ações">
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="icon" aria-label="Mais ações">
+              <EllipsisIcon />
+            </Button>
+          </DropdownMenuTrigger>
+        </Hint>
+        <DropdownMenuContent align="end" className="w-auto min-w-44">
+          <DropdownMenuItem onSelect={() => setAdding(true)}>
+            <UserPlusIcon />
+            Adicionar lead
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </>
+  );
+  const addLead = (
+    <AddLeadSheet open={adding} onOpenChange={setAdding} onOpenLead={(id) => selectLead(id)} />
   );
 
   if (counts?.byView.all === 0 && !hasFilters(filters)) {
@@ -229,6 +305,8 @@ function LeadsPage() {
             Busca manual
           </Button>
         </EmptyState>
+        {addLead}
+        <LeadSheet leadId={openLeadId} ids={[]} onSelect={selectLead} keepsLead={() => true} />
       </Page>
     );
   }
@@ -311,7 +389,7 @@ function LeadsPage() {
               (com e-mail e já analisados)
             </span>
           </p>
-          <Button size="sm" onClick={() => setSelected(new Set(readyIds))}>
+          <Button size="sm" onClick={() => setSelected(() => new Set(readyIds))}>
             Selecionar {readyIds.length === 1 ? "" : "todos"}
           </Button>
         </div>
@@ -341,7 +419,16 @@ function LeadsPage() {
           aria-live="polite"
         >
           <span>
-            {data ? (
+            {data && list?.truncated ? (
+              <>
+                Mostrando{" "}
+                <b className="font-medium text-muted-foreground tabular-nums">
+                  {formatCount(data.length)}
+                </b>
+                {counts ? ` de ${formatCount(counts.byView[view])}` : null}. Refine os filtros para
+                ver o resto.
+              </>
+            ) : data ? (
               <>
                 <b className="font-medium text-muted-foreground tabular-nums">{data.length}</b>{" "}
                 {data.length === 1 ? "lead" : "leads"}
@@ -370,15 +457,21 @@ function LeadsPage() {
             size="sm"
             className="max-sm:ml-auto"
             aria-label="Limpar seleção"
-            onClick={() => setSelected(new Set())}
+            onClick={clearSelection}
           >
             <XIcon className="sm:hidden" />
             <span className="max-sm:hidden">Limpar</span>
           </Button>
-          <Button size="sm" disabled={sendable.length === 0} onClick={() => setDispatching(true)}>
-            <SendIcon />
-            Disparar e-mail
-          </Button>
+          <SelectionMenu ids={[...selected]} onDone={clearSelection} />
+          <DisabledReason
+            reason={sendable.length === 0 && "Nenhum lead selecionado tem e-mail"}
+            side="top"
+          >
+            <Button size="sm" disabled={sendable.length === 0} onClick={() => setDispatching(true)}>
+              <SendIcon />
+              Disparar e-mail
+            </Button>
+          </DisabledReason>
         </FloatingBar>
       ) : null}
 
@@ -386,8 +479,10 @@ function LeadsPage() {
         leadIds={sendable}
         open={dispatching}
         onOpenChange={setDispatching}
-        onDispatched={() => setSelected(new Set())}
+        onDispatched={clearSelection}
       />
+
+      {addLead}
 
       <LeadSheet
         leadId={openLeadId}
@@ -396,6 +491,109 @@ function LeadsPage() {
         keepsLead={(status) => VIEW_STATUSES[view]?.includes(status) ?? true}
       />
     </Page>
+  );
+}
+
+/** Same bound as the CSV route's selection export. */
+const EXPORT_SELECTION_LIMIT = 1000;
+
+/**
+ * The selection bar's "…": change the status, discard (with undo) or export the selected
+ * leads. "Disparar e-mail" stays the one primary action next to it.
+ */
+function SelectionMenu({ ids, onDone }: { ids: string[]; onDone: () => void }) {
+  const queryClient = useQueryClient();
+  const exportForm = useRef<HTMLFormElement>(null);
+  const refresh = () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["leads"] }),
+      queryClient.invalidateQueries({ queryKey: ["lead"] }),
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
+      // The niche funnel counts leads by status.
+      queryClient.invalidateQueries({ queryKey: ["niches"] }),
+    ]);
+  const undo = async (status: LeadStatus, previous: BulkSnapshot[]) => {
+    try {
+      await undoBulkUpdateLeads({ data: { status, previous } });
+      await refresh();
+    } catch (error) {
+      errorToast("Não foi possível desfazer")(error);
+    }
+  };
+  const update = useMutation({
+    mutationFn: (status: LeadStatus) =>
+      bulkUpdateLeads({ data: { ids: ids.slice(0, BULK_LIMIT), status } }),
+    onSuccess: async (result, status) => {
+      await refresh();
+      onDone();
+      const skipped =
+        result.skipped > 0
+          ? `${result.skipped} não ${result.skipped === 1 ? "mudou" : "mudaram"}: o status atual não permite.`
+          : undefined;
+      if (result.changed === 0) {
+        toast.error("Nenhum lead mudou", { description: skipped });
+        return;
+      }
+      const count = `${result.changed} ${result.changed === 1 ? "lead" : "leads"}`;
+      toast(
+        status === "discarded"
+          ? `${count} ${result.changed === 1 ? "descartado" : "descartados"}`
+          : `${count} em ${LEAD_STATUS_LABELS[status]}`,
+        {
+          description: skipped,
+          duration: 8000,
+          action: { label: "Desfazer", onClick: () => void undo(status, result.previous) },
+        },
+      );
+    },
+    onError: errorToast("Não foi possível mudar os leads"),
+  });
+
+  return (
+    <>
+      <DropdownMenu>
+        <Hint label="Mais ações">
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="secondary"
+              size="icon-sm"
+              aria-label="Mais ações para a seleção"
+              disabled={update.isPending}
+            >
+              <EllipsisIcon />
+            </Button>
+          </DropdownMenuTrigger>
+        </Hint>
+        <DropdownMenuContent align="end" side="top" className="w-auto min-w-48">
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              <ArrowRightLeftIcon />
+              Mudar status
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              {LEAD_STATUS_VALUES.filter((status) => status !== "discarded").map((status) => (
+                <DropdownMenuItem key={status} onSelect={() => update.mutate(status)}>
+                  {LEAD_STATUS_LABELS[status]}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+          <DropdownMenuItem onSelect={() => exportForm.current?.requestSubmit()}>
+            <DownloadIcon />
+            Exportar seleção
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem variant="destructive" onSelect={() => update.mutate("discarded")}>
+            <Trash2Icon />
+            Descartar
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      {/* Posted, not a link: a long selection does not fit in a URL. */}
+      <form ref={exportForm} method="post" action="/api/leads.csv" hidden>
+        <input type="hidden" name="ids" value={ids.slice(0, EXPORT_SELECTION_LIMIT).join(",")} />
+      </form>
+    </>
   );
 }
 
@@ -410,48 +608,61 @@ function Toolbar({
   onChange: (patch: Partial<LeadFilters>) => void;
   onReset: () => void;
 }) {
-  const [q, setQ] = useState(filters.q ?? "");
-  const onChangeRef = useRef(onChange);
-  useEffect(() => {
-    onChangeRef.current = onChange;
-  });
-
-  // Keep the box in sync when filters are cleared elsewhere (state adjusted during render).
-  const [syncedQ, setSyncedQ] = useState(filters.q);
-  if (filters.q !== syncedQ) {
-    setSyncedQ(filters.q);
-    setQ(filters.q ?? "");
-  }
-
-  // Debounce free-text search so each keystroke does not hit the server.
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if ((filters.q ?? "") !== q) onChangeRef.current({ q: q || undefined });
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [q, filters.q]);
+  const searchRef = useRef<HTMLInputElement>(null);
+  // Debounced, so each keystroke does not hit the server; the box wins while it has focus.
+  const searchBox = useUrlSearchBox(filters.q ?? "", (next) => onChange({ q: next || undefined }));
+  const q = searchBox.value;
+  const clearSearch = searchBox.clear;
 
   const { data: searches } = useQuery(searchesQuery);
   const tier = activeTier(filters);
   const activeSearch = searches?.find((item) => item.id === filters.searchId);
+  const { data: niches } = useQuery(nichesQuery);
+  const activeNiche = niches?.find((item) => item.key === filters.niche);
   const sortValue: SortValue =
     filters.sort === "reviewCount" || filters.sort === "name" || filters.sort === "createdAt"
       ? filters.sort
       : "auto";
   const datedView = view === "followup" || view === "waiting";
+  const direction = filters.dir ?? defaultDirection(sortValue, datedView);
+  const directionLabel = direction === "asc" ? "Crescente" : "Decrescente";
 
   return (
     <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
       <div className="relative w-full sm:w-60">
         <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-tertiary" />
         <Input
+          ref={searchRef}
           type="search"
           aria-label="Buscar empresa"
           placeholder="Buscar empresa"
-          className="h-10 rounded-full pl-8 sm:h-8"
-          value={q}
-          onChange={(event) => setQ(event.target.value)}
+          className={cn("h-10 rounded-full pl-8 sm:h-8", q && "pr-9")}
+          {...searchBox.inputProps}
+          onKeyDown={(event) => {
+            if (event.key !== "Escape" || !q) return;
+            // Only the search: Esc doesn't also close what is around it.
+            event.preventDefault();
+            event.stopPropagation();
+            clearSearch();
+          }}
         />
+        {q ? (
+          <Hint label="Limpar busca">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Limpar busca"
+              className="absolute top-1/2 right-1.5 -translate-y-1/2 sm:right-0.5"
+              onClick={() => {
+                clearSearch();
+                searchRef.current?.focus();
+              }}
+            >
+              <XIcon />
+            </Button>
+          </Hint>
+        ) : null}
       </div>
 
       <div className="no-scrollbar -mx-4 flex items-center gap-2 overflow-x-auto px-4 sm:mx-0 sm:flex-1 sm:flex-wrap sm:overflow-visible sm:px-0">
@@ -489,9 +700,35 @@ function Toolbar({
 
         <DropdownMenu>
           <DropdownMenuTrigger className={cn(POPUP, "max-w-full")}>
+            Nicho
+            <span className="truncate font-normal text-muted-foreground">
+              {activeNiche?.label ?? filters.niche ?? "todos"}
+            </span>
+            <ChevronsUpDownIcon className="text-tertiary" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="max-h-80">
+            <DropdownMenuRadioGroup
+              value={filters.niche ?? "all"}
+              onValueChange={(value) => onChange({ niche: value === "all" ? undefined : value })}
+            >
+              <DropdownMenuRadioItem value="all">Todos</DropdownMenuRadioItem>
+              {niches?.map((item) => (
+                <DropdownMenuRadioItem key={item.key} value={item.key}>
+                  <span className="truncate">{item.label}</span>
+                  <span className="ml-auto pl-3 text-xs text-tertiary tabular-nums">
+                    {item.leads}
+                  </span>
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger className={cn(POPUP, "max-w-full")}>
             Busca
             <span className="truncate font-normal text-muted-foreground">
-              {activeSearch ? `${activeSearch.niche} em ${activeSearch.city}` : "todas"}
+              {activeSearch ? searchLabel(activeSearch) : filters.searchId ? "oculta" : "todas"}
             </span>
             <ChevronsUpDownIcon className="text-tertiary" />
           </DropdownMenuTrigger>
@@ -503,7 +740,7 @@ function Toolbar({
               <DropdownMenuRadioItem value="all">Todas</DropdownMenuRadioItem>
               {searches?.map((item) => (
                 <DropdownMenuRadioItem key={item.id} value={item.id}>
-                  {item.niche} em {item.city}
+                  {searchLabel(item)}
                 </DropdownMenuRadioItem>
               ))}
             </DropdownMenuRadioGroup>
@@ -560,9 +797,26 @@ function Toolbar({
             ))}
           </SelectContent>
         </Select>
+        <Hint label={directionLabel}>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="shrink-0 max-sm:size-9"
+            aria-label={`Ordem ${directionLabel.toLowerCase()}`}
+            onClick={() => onChange({ dir: direction === "asc" ? "desc" : "asc" })}
+          >
+            {direction === "asc" ? <ArrowUpNarrowWideIcon /> : <ArrowDownWideNarrowIcon />}
+          </Button>
+        </Hint>
       </div>
     </div>
   );
+}
+
+/** The order a sort starts in: by name A→Z, return days soonest first, the rest highest first. */
+function defaultDirection(sort: SortValue, datedView: boolean): "asc" | "desc" {
+  if (sort === "auto") return datedView ? "asc" : "desc";
+  return SORT_PATCH[sort].dir ?? "desc";
 }
 
 const EMPTY_VIEW_TEXT: Record<LeadView, string> = {
@@ -587,7 +841,7 @@ function LeadsTable({
   data: LeadRow[] | undefined;
   view: LeadView;
   filtered: boolean;
-  selected: Set<string>;
+  selected: ReadonlySet<string>;
   onToggle: (ids: string[], on: boolean) => void;
   onOpen: (id: string) => void;
   onReset: () => void;
@@ -612,7 +866,12 @@ function LeadsTable({
             />
           </TableHead>
           <TableHead>Empresa</TableHead>
-          <TableHead className="w-24">Nota</TableHead>
+          <TableHead className="w-24">
+            <span className="inline-flex items-center gap-1.5">
+              Nota
+              <InfoTip>{GLOSSARY.score.text}</InfoTip>
+            </span>
+          </TableHead>
           {showStatus ? <TableHead className="hidden sm:table-cell">Status</TableHead> : null}
           {showFollowUp ? <TableHead>Retorno</TableHead> : null}
           <TableHead className="hidden md:table-cell">E-mail</TableHead>
@@ -653,7 +912,7 @@ function LeadsTable({
                 key={lead.id}
                 tabIndex={0}
                 data-state={selected.has(lead.id) ? "selected" : undefined}
-                className="group/row cursor-pointer outline-none focus-visible:bg-fill-2"
+                className="group/row cursor-pointer outline-none focus-visible:bg-fill-2 focus-visible:shadow-[inset_0_0_0_2px_color-mix(in_srgb,var(--ring)_75%,transparent)]"
                 onClick={() => onOpen(lead.id)}
                 onKeyDown={(event) => {
                   if (event.key === "Enter") onOpen(lead.id);
@@ -668,9 +927,7 @@ function LeadsTable({
                 </TableCell>
                 <TableCell className="max-w-80">
                   <div className="flex items-center gap-3">
-                    <span className="transition-transform duration-400 ease-spring group-hover/row:scale-110">
-                      <Avatar name={lead.name} />
-                    </span>
+                    <Avatar name={lead.name} />
                     <div className="min-w-0">
                       <p className="truncate font-medium text-foreground">{lead.name}</p>
                       <p
@@ -748,7 +1005,7 @@ function LeadsList({
   data: LeadRow[] | undefined;
   view: LeadView;
   filtered: boolean;
-  selected: Set<string>;
+  selected: ReadonlySet<string>;
   onToggle: (ids: string[], on: boolean) => void;
   onOpen: (id: string) => void;
   onReset: () => void;
@@ -830,9 +1087,16 @@ function LeadsList({
 function hint(lead: LeadRow): { text: string; tone?: Tone } {
   if (lead.analysisStatus === "pending") return { text: "Analisando…", tone: "purple" };
   if (lead.analysisStatus === "error") return { text: "Falha na análise", tone: "red" };
+  if (lead.analysisStatus === "skipped") return { text: "Não analisado" };
   const signal = lead.signals?.[0];
   if (signal) return { text: signal };
   return lead.website ? { text: hostOf(lead.website) } : { text: "Sem site", tone: "orange" };
+}
+
+const COUNT_FORMAT = new Intl.NumberFormat("pt-BR");
+
+function formatCount(value: number) {
+  return COUNT_FORMAT.format(value);
 }
 
 function hasFilters(filters: LeadFilters) {

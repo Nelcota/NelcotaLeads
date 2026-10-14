@@ -1,15 +1,26 @@
-import { getDb } from "@/db/client";
+import { getDb, type Db } from "@/db/client";
 import { getAnalyzer } from "@/lib/ai";
 import { getMailer, mailConfigured } from "@/lib/mail";
+import type { Job } from "@/lib/system-status";
 import { autopilotDeps, runAutopilot } from "./autopilot";
-import { autoDispatch, mailDailyLimit, pollInbox, queueFollowUps, sendDue } from "./mail-flow";
+import { runSendJob, trackJob } from "./job-runs";
+import { autoDispatch, mailDailyLimit, pollInbox, queueFollowUps } from "./mail-flow";
 
-async function step(name: string, task: () => Promise<unknown>) {
+/**
+ * Runs one step and records it in `job_runs`. One failing step (e.g. the mail server is down)
+ * must not stop the others; trackJob already logged and recorded the failure.
+ */
+export async function runStep<T>(
+  db: Db,
+  job: Job,
+  task: () => Promise<T>,
+  now: Date,
+  isIdle?: (result: T) => boolean,
+) {
   try {
-    await task();
-  } catch (error) {
-    // One failing step (e.g. the mail server is down) must not stop the others.
-    console.error(`tick: ${name} failed`, error);
+    await trackJob(db, job, task, { now, isIdle });
+  } catch {
+    // Recorded by trackJob.
   }
 }
 
@@ -24,19 +35,43 @@ export async function runTick(env: Env, now = new Date()) {
 
   if (mailConfigured(env)) {
     const mailer = getMailer(env);
-    await step("send", () => sendDue({ db, mailer, limit }, now));
+    try {
+      await runSendJob({ db, mailer, limit }, now);
+    } catch {
+      // Recorded by runSendJob.
+    }
     if (minute % 5 === 0) {
       const analyzer = getAnalyzer(env);
-      await step("inbox", () => pollInbox({ db, mailer, analyzer }, now));
-      await step("follow-ups", () =>
-        queueFollowUps({ db, analyzer, fromAddress: mailer.address }, now),
+      await runStep(db, "inbox", () => pollInbox({ db, mailer, analyzer }, now), now);
+      await runStep(
+        db,
+        "follow-ups",
+        () => queueFollowUps({ db, analyzer, fromAddress: mailer.address }, now),
+        now,
       );
     }
     if (minute === 0) {
-      await step("auto dispatch", () =>
-        autoDispatch({ db, analyzer: getAnalyzer(env), fromAddress: mailer.address, limit }, now),
+      await runStep(
+        db,
+        "auto-dispatch",
+        () =>
+          autoDispatch({ db, analyzer: getAnalyzer(env), fromAddress: mailer.address, limit }, now),
+        now,
       );
     }
   }
-  if (minute === 0) await step("autopilot", () => runAutopilot(autopilotDeps(env), now));
+  if (minute === 0) {
+    await runStep(
+      db,
+      "autopilot",
+      async () => {
+        const result = await runAutopilot(autopilotDeps(env), now);
+        if (result.failure !== undefined) throw result.failure;
+        return result;
+      },
+      now,
+      // Not due this hour (or already done today): nothing ran.
+      (result) => result.searches === 0,
+    );
+  }
 }

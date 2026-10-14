@@ -1,3 +1,4 @@
+import { ANALYSIS_FAILED } from "@/lib/provider-errors";
 import { env } from "cloudflare:test";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -98,7 +99,7 @@ describe("processLead", () => {
     await failLead(db, { leadId: "a" }, new Error("rate limited")); // duplicate delivery
     expect(await db.query.leads.findFirst({ where: eq(leads.id, "a") })).toMatchObject({
       analysisStatus: "error",
-      analysisError: "rate limited",
+      analysisError: ANALYSIS_FAILED,
     });
     expect(await getSearch()).toMatchObject({ errorCount: 1, status: "analyzing" });
 

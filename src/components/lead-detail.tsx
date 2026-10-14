@@ -1,19 +1,35 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
+import { errorToast } from "@/lib/mutation-toasts";
 import {
   ChevronRightIcon,
+  CircleAlertIcon,
   CopyIcon,
   GlobeIcon,
   MapPinIcon,
   MessageCircleIcon,
   PhoneIcon,
   RefreshCwIcon,
+  SearchXIcon,
   SparklesIcon,
-  ArrowUpRightIcon,
 } from "lucide-react";
-import { Avatar, IconTile, ProgressRing, TONE_TEXT, type Tone } from "@/components/apple-ui";
+import {
+  Avatar,
+  EmptyState,
+  ExternalLink,
+  ExternalMark,
+  IconTile,
+  InfoTip,
+  ProgressRing,
+  SaveStatus,
+  TONE_TEXT,
+  type Tone,
+} from "@/components/apple-ui";
+import { InlineEdit } from "@/components/inline-edit";
+import { useReportUnsavedEdits } from "@/components/unsaved-edits";
+import { GLOSSARY } from "@/lib/help";
 import { followUpTone, StatusBadge, TIER_TONE } from "@/components/lead-badges";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -37,10 +53,14 @@ import { SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import type { Analysis, Lead, LeadStatus, SiteStatus } from "@/db/schema";
+import { useAutosave } from "@/lib/autosave";
 import { addDays, formatDate, localDay, relativeDay } from "@/lib/format";
+import { CONTACT_LIMITS, type ContactField } from "@/lib/lead-contact";
+import { MANUAL_SEARCH_ID } from "@/lib/searches";
 import { whatsappLink } from "@/lib/phone";
 import { conversationQuery, leadQuery, providerStatusQuery } from "@/lib/queries";
 import {
+  LEAD_NOT_FOUND,
   LEAD_STATUS_LABELS,
   LEAD_STATUS_VALUES,
   SCORE_TIERS,
@@ -49,7 +69,13 @@ import {
 } from "@/lib/schemas";
 import { cn, safeHttpUrl } from "@/lib/utils";
 import { useToday } from "@/lib/today";
-import { generateMessage, reanalyzeLead, updateFirstMessage, updateLead } from "@/server/leads";
+import {
+  generateMessage,
+  reanalyzeLead,
+  updateFirstMessage,
+  updateLead,
+  updateLeadContact,
+} from "@/server/leads";
 import { dispatchEmails, prepareEmails, rewriteDraft, updateDraft } from "@/server/mail";
 
 const SITE_STATUS_LABELS: Record<SiteStatus, string> = {
@@ -68,6 +94,7 @@ const FOLLOW_UP_OPTIONS = [
 ] as const;
 
 type LeadUpdate = Omit<UpdateLeadInput, "id">;
+type DraftText = { subject: string; body: string };
 
 const STEP_CARD = "shadow-[inset_3px_0_0_var(--green),inset_0_1px_0_rgb(255_255_255/0.05)]!";
 
@@ -85,7 +112,7 @@ export function LeadDetail({
   toolbar?: ReactNode;
   onStatusChanged?: (status: LeadStatus) => void;
 }) {
-  const { data } = useQuery(leadQuery(leadId));
+  const { data, error, refetch, isFetching } = useQuery(leadQuery(leadId));
   const queryClient = useQueryClient();
   const today = useToday();
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["lead", leadId] });
@@ -102,13 +129,27 @@ export function LeadDetail({
       await refreshAll();
       if (changes.status) onStatusChanged?.(changes.status);
     },
-    onError: (error) => toast.error(error.message || "Não foi possível atualizar o lead"),
+    onError: errorToast("Não foi possível atualizar o lead"),
   });
 
+  if (!data && error) {
+    return (
+      <DetailError
+        toolbar={toolbar}
+        missing={error.message === LEAD_NOT_FOUND}
+        retrying={isFetching}
+        onRetry={() => void refetch()}
+      />
+    );
+  }
   if (!data) return <DetailSkeleton toolbar={toolbar} />;
   const { lead, analysis, search } = data;
   const facts = [
-    search ? `${search.niche}, ${search.city}` : lead.city,
+    search?.id === MANUAL_SEARCH_ID
+      ? "Adicionado manualmente"
+      : search
+        ? `${search.niche}, ${search.city}`
+        : lead.city,
     lead.rating !== null
       ? `${lead.rating.toFixed(1).replace(".", ",")} no Google (${lead.reviewCount ?? 0})`
       : null,
@@ -132,7 +173,10 @@ export function LeadDetail({
               ) : null}
             </div>
           </div>
-          <ScoreRingLarge score={lead.score} pending={lead.analysisStatus === "pending"} />
+          <div className="flex shrink-0 flex-col items-center gap-1.5">
+            <ScoreRingLarge score={lead.score} pending={lead.analysisStatus === "pending"} />
+            <InfoTip side="bottom">{GLOSSARY.score.text}</InfoTip>
+          </div>
         </div>
         {lead.discardReason ? (
           <p className="text-[12.5px] text-red">Descartado pela IA: {lead.discardReason}</p>
@@ -151,8 +195,12 @@ export function LeadDetail({
         />
         <AnalysisSection lead={lead} analysis={analysis} />
         <div className="grid gap-6 sm:grid-cols-[1.2fr_1fr]">
-          <ContactSection lead={lead} />
-          <NotesSection key={lead.id} lead={lead} onSave={(notes) => update.mutate({ notes })} />
+          <ContactSection lead={lead} onChanged={refreshAll} />
+          <NotesSection
+            key={lead.id}
+            lead={lead}
+            onSave={(notes) => update.mutateAsync({ notes })}
+          />
         </div>
         <Footer
           lead={lead}
@@ -175,14 +223,13 @@ function QuickActions({ lead }: { lead: Lead }) {
       toast.error("Não foi possível copiar");
     }
   };
-  const external = { target: "_blank", rel: "noreferrer" } as const;
   return (
     <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1">
       {lead.phoneE164 ? (
         <>
           <QuickAction
             href={whatsappLink(lead.phoneE164)}
-            {...external}
+            external
             icon={MessageCircleIcon}
             tone="green"
           >
@@ -201,15 +248,20 @@ function QuickActions({ lead }: { lead: Lead }) {
       {safeHttpUrl(lead.website) ? (
         <QuickAction
           href={safeHttpUrl(lead.website) ?? undefined}
-          {...external}
+          external
           icon={GlobeIcon}
           tone="blue"
         >
           Site
         </QuickAction>
       ) : null}
-      {lead.mapsUrl ? (
-        <QuickAction href={lead.mapsUrl} {...external} icon={MapPinIcon} tone="red">
+      {safeHttpUrl(lead.mapsUrl) ? (
+        <QuickAction
+          href={safeHttpUrl(lead.mapsUrl) ?? undefined}
+          external
+          icon={MapPinIcon}
+          tone="red"
+        >
           Google Maps
         </QuickAction>
       ) : null}
@@ -254,9 +306,7 @@ function NextStep(props: StepProps) {
           <CardFooter className="flex-wrap gap-2">
             {lead.phoneE164 ? (
               <Button asChild variant="outline">
-                <a href={whatsappLink(lead.phoneE164)} target="_blank" rel="noreferrer">
-                  Abrir conversa
-                </a>
+                <ExternalLink href={whatsappLink(lead.phoneE164)}>Abrir conversa</ExternalLink>
               </Button>
             ) : null}
             <Button disabled={busy} onClick={() => onUpdate({ status: "closed" })}>
@@ -312,22 +362,30 @@ function FirstContactStep({ lead, analysis, today, busy, onUpdate, onChanged }: 
   const saved = analysis?.firstMessage ?? "";
   const hasMessage = message.trim().length > 0;
   const dirty = message !== saved && analysis !== null;
+  useReportUnsavedEdits(dirty);
 
   const saveMessage = useMutation({
     mutationFn: () =>
       updateFirstMessage({ data: { analysisId: analysis?.id ?? "", firstMessage: message } }),
     onSuccess: onChanged,
-    onError: () => toast.error("Não foi possível salvar a mensagem"),
+    onError: errorToast("Não foi possível salvar a mensagem"),
   });
   const generate = useMutation({
     mutationFn: () => generateMessage({ data: { id: lead.id } }),
     onSuccess: onChanged,
-    onError: (error) => toast.error(error.message || "Não foi possível gerar a mensagem"),
+    onError: errorToast("Não foi possível gerar a mensagem"),
   });
 
   // Sending is the one manual step: it opens WhatsApp and records the contact.
-  const markContacted = () => {
-    if (dirty) saveMessage.mutate();
+  const markContacted = async () => {
+    // Saved first: marking contacted closes this step, and an edit lost then is gone for good.
+    if (dirty) {
+      try {
+        await saveMessage.mutateAsync();
+      } catch {
+        return; // saveMessage already showed the error; the lead stays as it was
+      }
+    }
     const followUpOn = addDays(today, Number(followUpDays));
     onUpdate({ status: "contacted", followUpOn });
     toast(`${lead.name}: contatado`, {
@@ -394,18 +452,16 @@ function FirstContactStep({ lead, analysis, today, busy, onUpdate, onChanged }: 
       <CardFooter className="flex-wrap gap-2">
         {hasMessage && lead.phoneE164 ? (
           <Button asChild disabled={busy}>
-            <a
+            <ExternalLink
               href={whatsappLink(lead.phoneE164, message)}
-              target="_blank"
-              rel="noreferrer"
-              onClick={markContacted}
+              onClick={() => void markContacted()}
             >
               Enviar no WhatsApp
-            </a>
+            </ExternalLink>
           </Button>
         ) : null}
         {hasMessage && !lead.phoneE164 ? (
-          <Button disabled={busy} onClick={markContacted}>
+          <Button disabled={busy} onClick={() => void markContacted()}>
             Marcar como contatado
           </Button>
         ) : null}
@@ -453,9 +509,7 @@ function WaitingStep(props: StepProps) {
       <CardFooter className="flex-wrap gap-2">
         {lead.phoneE164 ? (
           <Button asChild variant="outline">
-            <a href={whatsappLink(lead.phoneE164)} target="_blank" rel="noreferrer">
-              Abrir WhatsApp
-            </a>
+            <ExternalLink href={whatsappLink(lead.phoneE164)}>Abrir WhatsApp</ExternalLink>
           </Button>
         ) : null}
         <Button disabled={busy} onClick={() => onUpdate({ status: "replied" })}>
@@ -479,7 +533,7 @@ function EmailStep({ lead, busy, onUpdate, onChanged }: StepProps) {
   const { data } = useQuery(conversationQuery(lead.id));
   const queryClient = useQueryClient();
   const draft = data?.draft ?? null;
-  const [edit, setEdit] = useState<{ subject: string; body: string } | null>(null);
+  const [edit, setEdit] = useState<DraftText | null>(null);
   const value = edit ?? (draft ? { subject: draft.subject, body: draft.body } : null);
   const refresh = () =>
     Promise.all([
@@ -487,24 +541,61 @@ function EmailStep({ lead, busy, onUpdate, onChanged }: StepProps) {
       queryClient.invalidateQueries({ queryKey: ["conversations", lead.id] }),
     ]);
 
+  // Edits are stored as they are typed, so closing the panel keeps them.
+  const autosave = useAutosave(
+    async (id, text: DraftText) => {
+      await updateDraft({ data: { id, ...text } });
+      queryClient.setQueryData(conversationQuery(lead.id).queryKey, (old) =>
+        old?.draft?.id === id ? { ...old, draft: { ...old.draft, ...text } } : old,
+      );
+    },
+    errorToast("Não foi possível salvar a edição", { id: "lead-draft" }),
+  );
+  const change = (next: DraftText) => {
+    setEdit(next);
+    if (!draft) return;
+    // The server keeps the last complete version; an empty subject or body is not saved.
+    if (next.subject.trim() && next.body.trim()) autosave.schedule(draft.id, next);
+    else void autosave.discard(draft.id);
+  };
+  // Runs from the toast, which may outlive the panel.
+  const restore = async (id: string, previous: DraftText) => {
+    try {
+      await updateDraft({ data: { id, ...previous } });
+      setEdit(null);
+      await refresh();
+    } catch (error) {
+      errorToast("Não foi possível desfazer")(error);
+    }
+  };
+
   const write = useMutation({
     mutationFn: () => prepareEmails({ data: { leadIds: [lead.id] } }),
     onSuccess: async (result) => {
       if (result.skipped[0]) toast.error(`Não deu para escrever: ${result.skipped[0].reason}`);
       await refresh();
     },
-    onError: (error) => toast.error(error.message || "A IA não conseguiu escrever"),
+    onError: errorToast("A IA não conseguiu escrever"),
   });
   const rewrite = useMutation({
-    mutationFn: () => rewriteDraft({ data: { id: draft?.id ?? "" } }),
-    onSuccess: async () => {
+    mutationFn: async ({ id }: { id: string; previous: DraftText }) => {
+      await autosave.flush();
+      return rewriteDraft({ data: { id } });
+    },
+    onSuccess: async (_draft, { id, previous }) => {
       setEdit(null);
       await refresh();
+      toast("Nova versão gerada", {
+        duration: 6000,
+        action: { label: "Desfazer", onClick: () => void restore(id, previous) },
+      });
     },
+    onError: errorToast("Não foi possível reescrever"),
   });
   const send = useMutation({
     mutationFn: async () => {
       if (!draft || !value) return;
+      await autosave.flush();
       if (edit) await updateDraft({ data: { id: draft.id, ...edit } });
       await dispatchEmails({ data: { ids: [draft.id] } });
     },
@@ -513,7 +604,7 @@ function EmailStep({ lead, busy, onUpdate, onChanged }: StepProps) {
       await refresh();
       toast.success("E-mail enviado", { description: "A resposta aparece em Conversas." });
     },
-    onError: (error) => toast.error(error.message || "Não foi possível enviar"),
+    onError: errorToast("Não foi possível enviar"),
   });
 
   return (
@@ -535,14 +626,17 @@ function EmailStep({ lead, busy, onUpdate, onChanged }: StepProps) {
           <>
             <Input
               aria-label="Assunto"
+              autoComplete="off"
               value={value.subject}
-              onChange={(event) => setEdit({ ...value, subject: event.target.value })}
+              readOnly={rewrite.isPending}
+              onChange={(event) => change({ ...value, subject: event.target.value })}
             />
             <Textarea
               aria-label="Mensagem"
               rows={10}
               value={value.body}
-              onChange={(event) => setEdit({ ...value, body: event.target.value })}
+              readOnly={rewrite.isPending}
+              onChange={(event) => change({ ...value, body: event.target.value })}
             />
           </>
         ) : (
@@ -558,10 +652,15 @@ function EmailStep({ lead, busy, onUpdate, onChanged }: StepProps) {
             <Button disabled={send.isPending} onClick={() => send.mutate()}>
               {send.isPending ? "Enviando…" : "Enviar e-mail"}
             </Button>
-            <Button variant="outline" disabled={rewrite.isPending} onClick={() => rewrite.mutate()}>
+            <Button
+              variant="outline"
+              disabled={rewrite.isPending || !value}
+              onClick={() => value && rewrite.mutate({ id: draft.id, previous: value })}
+            >
               <SparklesIcon className="text-purple" />
               {rewrite.isPending ? "Reescrevendo…" : "Gerar outro"}
             </Button>
+            <SaveStatus state={autosave.state} className="self-center" />
           </>
         ) : (
           <Button disabled={write.isPending} onClick={() => write.mutate()}>
@@ -613,7 +712,7 @@ function ConversationStep({ lead }: StepProps) {
             <p className="mb-1 text-xs text-muted-foreground">
               {message.direction === "in" ? "Empresa" : message.author === "ai" ? "IA" : "Você"}
             </p>
-            <p className="line-clamp-4 whitespace-pre-line">{message.body}</p>
+            <p className="line-clamp-4 whitespace-pre-line wrap-break-word">{message.body}</p>
           </div>
         ))}
       </CardContent>
@@ -648,14 +747,14 @@ function FollowUpPicker({ lead, today, busy, onUpdate, label }: StepProps & { la
             {option.label}
           </Button>
         ))}
-        <input
+        <Input
           type="date"
-          aria-label="Escolher data"
+          aria-label={`${label}: escolher data`}
           value={value ?? ""}
           min={today}
           disabled={busy}
           onChange={(event) => event.target.value && onUpdate({ followUpOn: event.target.value })}
-          className="h-8 rounded-md border bg-background px-2 text-sm"
+          className="h-8 w-auto tabular-nums [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-60 [&::-webkit-calendar-picker-indicator]:hover:opacity-100"
         />
       </div>
     </div>
@@ -670,7 +769,9 @@ function AnalysisSection({ lead, analysis }: { lead: Lead; analysis: Analysis | 
         <p className="text-sm font-light text-muted-foreground">
           {lead.analysisStatus === "error"
             ? `A análise falhou: ${lead.analysisError ?? "erro desconhecido"}. Tente reanalisar.`
-            : "Lendo o site e avaliando. Esta tela atualiza sozinha."}
+            : lead.analysisStatus === "skipped"
+              ? `${lead.analysisError ?? "Este lead ainda não foi analisado."} Use Reanalisar para analisar agora.`
+              : "Lendo o site e avaliando. Esta tela atualiza sozinha."}
         </p>
       </Section>
     );
@@ -712,55 +813,103 @@ function AnalysisSection({ lead, analysis }: { lead: Lead; analysis: Analysis | 
   );
 }
 
-function ContactSection({ lead }: { lead: Lead }) {
+function ContactSection({ lead, onChanged }: { lead: Lead; onChanged: () => Promise<unknown> }) {
   const site = lead.siteData;
+  const siteEmails = (site?.emails ?? []).filter(
+    (email) => email.toLowerCase() !== lead.email?.toLowerCase(),
+  );
+  const save = (field: ContactField) => async (value: string) => {
+    try {
+      await updateLeadContact({ data: { id: lead.id, field, value } });
+    } catch (error) {
+      errorToast("Não foi possível salvar")(error);
+      throw error;
+    }
+    await onChanged();
+  };
+  const website = safeHttpUrl(lead.website);
   return (
     <Section title="Contato">
       <dl className="grouped grid text-sm">
+        <Term label="Nome">
+          <InlineEdit
+            label="nome"
+            value={lead.name}
+            placeholder="Adicionar nome"
+            maxLength={CONTACT_LIMITS.name}
+            onSave={save("name")}
+          />
+        </Term>
+        <Term label="E-mail">
+          <InlineEdit
+            label="e-mail"
+            value={lead.email}
+            placeholder="Adicionar e-mail"
+            inputType="email"
+            maxLength={CONTACT_LIMITS.email}
+            onSave={save("email")}
+          />
+          {siteEmails.length > 0 ? (
+            <span className="block text-xs font-light wrap-break-word text-muted-foreground">
+              No site: {siteEmails.join(", ")}
+            </span>
+          ) : null}
+        </Term>
         <Term label="Telefone">
-          <span className="tabular-nums">{lead.phone ?? "Sem telefone"}</span>
+          <InlineEdit
+            label="telefone"
+            value={lead.phone}
+            placeholder="Adicionar telefone"
+            display={<span className="tabular-nums">{lead.phone}</span>}
+            inputType="tel"
+            maxLength={CONTACT_LIMITS.phone}
+            onSave={save("phone")}
+          />
         </Term>
         <Term label="Site">
-          {/* A website that isn't http(s) is shown as text, never as a link. */}
-          {lead.website && !safeHttpUrl(lead.website) ? (
-            <span className="break-all">{lead.website}</span>
-          ) : lead.website ? (
-            <>
-              <a
-                href={safeHttpUrl(lead.website) ?? undefined}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1 break-all text-blue hover:underline"
-              >
-                {lead.website.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")}
-                <ArrowUpRightIcon className="size-3 shrink-0" />
-              </a>
-              {SITE_STATUS_LABELS[lead.siteStatus] ? (
-                <span className="text-muted-foreground">
-                  {" "}
-                  · {SITE_STATUS_LABELS[lead.siteStatus]}
-                </span>
-              ) : null}
-            </>
-          ) : (
-            "Sem site"
-          )}
+          <InlineEdit
+            label="site"
+            value={lead.website}
+            placeholder="Adicionar site"
+            inputType="url"
+            maxLength={CONTACT_LIMITS.website}
+            editOnValueClick={!website}
+            onSave={save("website")}
+            display={
+              // A website that isn't http(s) is shown as text, never as a link.
+              website ? (
+                <>
+                  <ExternalLink
+                    href={website}
+                    className="inline-flex items-center gap-1 break-all text-blue hover:underline"
+                  >
+                    {lead.website?.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")}
+                  </ExternalLink>
+                  {SITE_STATUS_LABELS[lead.siteStatus] ? (
+                    <span className="font-normal text-muted-foreground">
+                      {" "}
+                      · {SITE_STATUS_LABELS[lead.siteStatus]}
+                    </span>
+                  ) : null}
+                </>
+              ) : (
+                <span className="break-all">{lead.website}</span>
+              )
+            }
+          />
         </Term>
-        {site && site.emails.length > 0 ? (
-          <Term label="E-mail">{site.emails.join(", ")}</Term>
-        ) : null}
         {site && site.socialLinks.length > 0 ? (
           <Term label="Redes">
             {site.socialLinks.map((link) => (
-              <a
+              <ExternalLink
                 key={link}
                 href={safeHttpUrl(link) ?? undefined}
-                target="_blank"
-                rel="noreferrer"
-                className="block truncate text-blue hover:underline"
+                className="flex min-w-0 items-center gap-1 text-blue hover:underline"
               >
-                {link.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")}
-              </a>
+                <span className="truncate">
+                  {link.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")}
+                </span>
+              </ExternalLink>
             ))}
           </Term>
         ) : null}
@@ -770,17 +919,43 @@ function ContactSection({ lead }: { lead: Lead }) {
   );
 }
 
-/** Saves when the field loses focus, so there is no button to remember. */
-function NotesSection({ lead, onSave }: { lead: Lead; onSave: (notes: string) => void }) {
+/** Saves when the field loses focus, so there is no button to remember; "Salvo" confirms it. */
+function NotesSection({
+  lead,
+  onSave,
+}: {
+  lead: Lead;
+  onSave: (notes: string) => Promise<unknown>;
+}) {
   const [notes, setNotes] = useState(lead.notes);
+  // Bumped on each save, so the 2 s of "Salvo" start over.
+  const [savedAt, setSavedAt] = useState(0);
+  useEffect(() => {
+    const timer = savedAt ? setTimeout(() => setSavedAt(0), 2000) : undefined;
+    return () => clearTimeout(timer);
+  }, [savedAt]);
   return (
-    <Section title="Notas">
+    <Section
+      title="Notas"
+      status={
+        <span aria-live="polite" className="text-xs font-light text-tertiary">
+          {savedAt ? "Salvo" : ""}
+        </span>
+      }
+    >
       <Textarea
         aria-label="Notas"
         rows={5}
         value={notes}
         onChange={(event) => setNotes(event.target.value)}
-        onBlur={() => notes !== lead.notes && onSave(notes)}
+        onBlur={() => {
+          if (notes === lead.notes) return;
+          // On failure the toast explains and the text stays in the field.
+          onSave(notes).then(
+            () => setSavedAt(Date.now()),
+            () => {},
+          );
+        }}
         placeholder="Salvas ao sair do campo."
         className="min-h-28 bg-card! shadow-[inset_0_1px_0_rgb(255_255_255/0.045)] hover:shadow-[inset_0_0_0_1px_var(--input)]"
       />
@@ -805,7 +980,7 @@ function Footer({
   const reanalyze = useMutation({
     mutationFn: () => reanalyzeLead({ data: { id: lead.id } }),
     onSuccess: onChanged,
-    onError: () => toast.error("Não foi possível iniciar a nova análise"),
+    onError: errorToast("Não foi possível iniciar a nova análise"),
   });
 
   return (
@@ -853,7 +1028,18 @@ function Footer({
   );
 }
 
-function Section({ title, tone, children }: { title: string; tone?: Tone; children: ReactNode }) {
+function Section({
+  title,
+  tone,
+  status,
+  children,
+}: {
+  title: string;
+  tone?: Tone;
+  /** Quiet feedback after the title, e.g. "Salvo". */
+  status?: ReactNode;
+  children: ReactNode;
+}) {
   return (
     <section>
       <h3
@@ -864,6 +1050,7 @@ function Section({ title, tone, children }: { title: string; tone?: Tone; childr
       >
         {tone === "purple" ? <SparklesIcon className="size-4" /> : null}
         {title}
+        {status}
       </h3>
       {children}
     </section>
@@ -908,7 +1095,7 @@ function Term({ label, children }: { label: string; children: ReactNode }) {
 /** Contacts-style action: a round colored tile with the label under it. */
 function QuickAction(
   props: { icon: typeof PhoneIcon; tone: Tone; children: ReactNode } & (
-    | ({ as?: undefined } & React.ComponentProps<"a">)
+    | ({ as?: undefined; external?: boolean } & React.ComponentProps<"a">)
     | ({ as: "button" } & React.ComponentProps<"button">)
   ),
 ) {
@@ -930,7 +1117,18 @@ function QuickAction(
       </button>
     );
   }
-  const { icon: _icon, tone: _tone, children: _children, as: _as, ...rest } = props;
+  const { icon: _icon, tone: _tone, children, as: _as, external, ...rest } = props;
+  if (external) {
+    return (
+      <ExternalLink className={className} indicator={false} {...rest}>
+        <IconTile icon={props.icon} tone={props.tone} size={34} round />
+        <span className="inline-flex items-center gap-0.5">
+          {children}
+          <ExternalMark />
+        </span>
+      </ExternalLink>
+    );
+  }
   return (
     <a className={className} {...rest}>
       {body}
@@ -959,6 +1157,44 @@ function ScoreRingLarge({ score, pending }: { score: number | null; pending: boo
         <small className="text-[10px] font-medium">{SCORE_TIERS[tier].label}</small>
       </span>
     </ProgressRing>
+  );
+}
+
+/** A lead that couldn't load: gone (a removed lead, a stale link) or a failed request. */
+function DetailError({
+  toolbar,
+  missing,
+  retrying,
+  onRetry,
+}: {
+  toolbar?: ReactNode;
+  missing: boolean;
+  retrying: boolean;
+  onRetry: () => void;
+}) {
+  return (
+    <div className="flex flex-col gap-4 p-4 sm:p-6">
+      {toolbar}
+      <SheetTitle className="sr-only">
+        {missing ? "Lead não encontrado" : "Não foi possível abrir o lead"}
+      </SheetTitle>
+      <EmptyState
+        icon={missing ? SearchXIcon : CircleAlertIcon}
+        tone={missing ? "gray" : "orange"}
+        title={missing ? "Lead não encontrado" : "Não foi possível abrir este lead"}
+        description={
+          missing
+            ? "Ele pode ter sido removido, ou o link está desatualizado."
+            : "Confira a conexão e tente de novo."
+        }
+      >
+        {missing ? null : (
+          <Button variant="outline" size="sm" disabled={retrying} onClick={onRetry}>
+            {retrying ? "Tentando…" : "Tentar de novo"}
+          </Button>
+        )}
+      </EmptyState>
+    </div>
   );
 }
 

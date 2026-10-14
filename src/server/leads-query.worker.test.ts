@@ -77,6 +77,9 @@ describe("countLeads", () => {
 const names = async (q: string) =>
   (await queryLeads(db, { q, sort: "name", dir: "asc" })).map((lead) => lead.name);
 
+const sorted = async (dir: "asc" | "desc") =>
+  (await queryLeads(db, { sort: "name", dir })).map((lead) => lead.id);
+
 describe("queryLeads search", () => {
   beforeEach(async () => {
     await resetDb();
@@ -102,5 +105,15 @@ describe("queryLeads search", () => {
     const capped = await queryLeadsCapped(db, {}, 3);
     expect(capped.rows).toHaveLength(3);
     expect(capped.truncated).toBe(true);
+  });
+
+  it("sorts both ways", async () => {
+    expect(await sorted("asc")).toEqual(["3", "4", "1", "2"]);
+    expect(await sorted("desc")).toEqual(["2", "1", "4", "3"]);
+  });
+
+  it("exports only the selected leads, whatever else is filtered", async () => {
+    const rows = await queryLeads(db, { ids: ["2", "4", "nope"], sort: "name", dir: "asc" });
+    expect(rows.map((lead) => lead.id)).toEqual(["4", "2"]);
   });
 });

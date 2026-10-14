@@ -33,6 +33,9 @@ const Toaster = ({ ...props }: ToasterProps) => {
           "--normal-text": "var(--popover-foreground)",
           "--normal-border": "var(--border)",
           "--border-radius": "var(--radius)",
+          // Local change: a modal sheet disables pointer events on the page; toasts (and
+          // their "Desfazer") must stay clickable on top of it.
+          pointerEvents: "auto",
         } as React.CSSProperties
       }
       toastOptions={{

@@ -4,17 +4,31 @@ import { and, desc, eq, isNull, lt, ne, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { getDb, type Db } from "@/db/client";
 import { analyses, leads, searches } from "@/db/schema";
-import { idSchema, leadFiltersSchema, updateLeadSchema, updateMessageSchema } from "@/lib/schemas";
+import {
+  BULK_LIMIT,
+  bulkSnapshotSchema,
+  idSchema,
+  LEAD_NOT_FOUND,
+  LEAD_STATUS_VALUES,
+  leadFiltersSchema,
+  updateLeadSchema,
+  updateMessageSchema,
+} from "@/lib/schemas";
 import { getAnalyzer } from "@/lib/ai";
+import { CONTACT_FIELDS, CONTACT_LIMITS } from "@/lib/lead-contact";
 import { localDay } from "@/lib/format";
+import { bulkUpdateLeads as bulkUpdate, undoBulkUpdate } from "./lead-bulk";
+import { editLeadContact } from "./lead-edit";
+import { createManualLead } from "./manual-lead";
 import { leadPatch } from "./lead-status";
-import { countLeads, queryLeads } from "./leads-query";
+import { countLeads, LIST_LIMIT, queryLeadsCapped } from "./leads-query";
 import { CLAIM_TIMEOUT_MS, writeMessageForLead } from "./process-lead";
 import { enqueueLeads, type LeadJob } from "./queue";
 
+/** The table's rows, and whether more leads matched than it shows (LIST_LIMIT). */
 export const listLeads = createServerFn({ method: "GET" })
   .validator(leadFiltersSchema)
-  .handler(({ data }) => queryLeads(getDb(), data));
+  .handler(({ data }) => queryLeadsCapped(getDb(), data, LIST_LIMIT));
 
 export const getLeadCounts = createServerFn({ method: "GET" })
   .validator(leadFiltersSchema)
@@ -25,7 +39,7 @@ export const getLead = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const db = getDb();
     const lead = await db.query.leads.findFirst({ where: eq(leads.id, data.id) });
-    if (!lead) throw new Error("Lead não encontrado");
+    if (!lead) throw new Error(LEAD_NOT_FOUND);
     const [analysis, search] = await Promise.all([
       db.query.analyses.findFirst({
         where: eq(analyses.leadId, lead.id),
@@ -35,6 +49,11 @@ export const getLead = createServerFn({ method: "GET" })
     ]);
     return { lead, analysis: analysis ?? null, search: search ?? null };
   });
+
+/** For old /leads/<id> links: whether that lead still exists. */
+export const leadExists = createServerFn({ method: "GET" })
+  .validator(z.object({ id: idSchema }))
+  .handler(async ({ data }) => (await getDb().$count(leads, eq(leads.id, data.id))) > 0);
 
 export const updateLead = createServerFn({ method: "POST" })
   .validator(updateLeadSchema)
@@ -57,6 +76,46 @@ export const updateLead = createServerFn({ method: "POST" })
       throw new Error("O lead mudou enquanto isso. Atualize e tente de novo.");
     return { ok: true as const };
   });
+
+/** One contact field (nome, e-mail, telefone, site) edited in the lead panel. */
+export const updateLeadContact = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      id: idSchema,
+      field: z.enum(CONTACT_FIELDS),
+      value: z.string().max(CONTACT_LIMITS.website),
+    }),
+  )
+  .handler(({ data }) => editLeadContact(getDb(), data));
+
+/** "Adicionar lead": a lead typed in by hand (see createManualLead). */
+export const createLead = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      name: z.string().max(CONTACT_LIMITS.name),
+      email: z.string().max(CONTACT_LIMITS.email).optional(),
+      phone: z.string().max(CONTACT_LIMITS.phone).optional(),
+      website: z.string().max(CONTACT_LIMITS.website).optional(),
+    }),
+  )
+  .handler(({ data }) => createManualLead(getDb(), env.LEAD_QUEUE, data));
+
+/** "Mudar status" and "Descartar" on the selection bar. */
+export const bulkUpdateLeads = createServerFn({ method: "POST" })
+  .validator(
+    z.object({ ids: z.array(idSchema).min(1).max(BULK_LIMIT), status: z.enum(LEAD_STATUS_VALUES) }),
+  )
+  .handler(({ data }) => bulkUpdate(getDb(), data.ids, data.status));
+
+/** "Desfazer" of a bulk change: the leads it changed go back as they were. */
+export const undoBulkUpdateLeads = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      status: z.enum(LEAD_STATUS_VALUES),
+      previous: z.array(bulkSnapshotSchema).max(BULK_LIMIT),
+    }),
+  )
+  .handler(({ data }) => undoBulkUpdate(getDb(), data.status, data.previous));
 
 export const updateFirstMessage = createServerFn({ method: "POST" })
   .validator(updateMessageSchema)

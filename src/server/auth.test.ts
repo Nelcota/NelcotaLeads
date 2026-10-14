@@ -1,17 +1,30 @@
 import { describe, expect, it } from "vitest";
 import {
+  PUBLIC_PATHS,
   SESSION_COOKIE,
+  accessCodeMatches,
   authGate,
   createSessionToken,
+  hashPassword,
   ipBucket,
-  passwordMatches,
   safeNext,
+  verifyPassword,
   verifySessionToken,
+  type SessionLookup,
 } from "./auth";
 
-const PASSWORD = "correct horse battery";
+const SECRET = "correct horse battery";
+const USER = { id: "4f1c2d3e-0000-4000-8000-000000000001", sessionVersion: 1 };
 const now = new Date("2026-10-11T12:00:00Z");
 const days = (n: number) => new Date(now.getTime() + n * 86_400_000);
+
+// The account store as the gate sees it: user id → current session version, and the
+// session ids that were signed out.
+const accounts = new Map([[USER.id, USER.sessionVersion]]);
+const signedOut = new Set<string>();
+const lookup: SessionLookup = async ({ userId, id }) =>
+  signedOut.has(id) ? null : (accounts.get(userId) ?? null);
+const deps = { secret: SECRET, sessions: lookup };
 
 function request(path: string, init: RequestInit & { cookie?: string; html?: boolean } = {}) {
   const headers = new Headers(init.headers);
@@ -20,34 +33,62 @@ function request(path: string, init: RequestInit & { cookie?: string; html?: boo
   return new Request(`https://app.test${path}`, { ...init, headers });
 }
 
-async function sessionCookie(at = now) {
-  return `${SESSION_COOKIE}=${await createSessionToken(PASSWORD, at)}`;
+async function sessionCookie(at = now, user = USER) {
+  return `${SESSION_COOKIE}=${await createSessionToken(SECRET, user, at)}`;
 }
 
-describe("passwordMatches", () => {
-  it("accepts only the exact password", async () => {
-    expect(await passwordMatches(PASSWORD, PASSWORD)).toBe(true);
-    expect(await passwordMatches(`${PASSWORD} `, PASSWORD)).toBe(false);
-    expect(await passwordMatches("", PASSWORD)).toBe(false);
-    expect(await passwordMatches("x".repeat(600), PASSWORD)).toBe(false);
+describe("accessCodeMatches", () => {
+  it("accepts only the exact code", async () => {
+    expect(await accessCodeMatches(SECRET, SECRET)).toBe(true);
+    expect(await accessCodeMatches(`${SECRET} `, SECRET)).toBe(false);
+    expect(await accessCodeMatches("", SECRET)).toBe(false);
+    expect(await accessCodeMatches("x".repeat(600), SECRET)).toBe(false);
+  });
+});
+
+describe("password hashes", () => {
+  it("verifies the right password and nothing else", async () => {
+    const stored = await hashPassword("minha senha forte");
+    expect(stored).toMatch(/^pbkdf2-sha256\$100000\$[\w-]{22}\$[\w-]{43}$/);
+    expect(await verifyPassword("minha senha forte", stored)).toBe(true);
+    expect(await verifyPassword("minha senha forte ", stored)).toBe(false);
+    expect(await verifyPassword("", stored)).toBe(false);
+  });
+
+  it("salts every hash", async () => {
+    expect(await hashPassword("mesma senha")).not.toBe(await hashPassword("mesma senha"));
+  });
+
+  it("rejects malformed stored values", async () => {
+    for (const stored of ["", "plain", "md5$1$a$b", "pbkdf2-sha256$x$a$b"]) {
+      expect(await verifyPassword("anything", stored)).toBe(false);
+    }
   });
 });
 
 describe("session tokens", () => {
   it("verifies a fresh token and rejects it after 30 days", async () => {
-    const token = await createSessionToken(PASSWORD, now);
-    expect(await verifySessionToken(token, PASSWORD, days(29))).not.toBeNull();
-    expect(await verifySessionToken(token, PASSWORD, days(31))).toBeNull();
+    const token = await createSessionToken(SECRET, USER, now);
+    expect(await verifySessionToken(token, SECRET, days(29))).toMatchObject({
+      userId: USER.id,
+      version: 1,
+    });
+    expect(await verifySessionToken(token, SECRET, days(31))).toBeNull();
   });
 
-  it("rejects tampered tokens and tokens signed under another password", async () => {
-    const token = await createSessionToken(PASSWORD, now);
-    const [expires, mac] = token.split(".");
-    const later = `${Number(expires) + 86_400}.${mac}`;
-    expect(await verifySessionToken(later, PASSWORD, now)).toBeNull();
-    expect(await verifySessionToken(token, "another password!", now)).toBeNull();
-    expect(await verifySessionToken("garbage", PASSWORD, now)).toBeNull();
-    expect(await verifySessionToken(null, PASSWORD, now)).toBeNull();
+  it("rejects tampered tokens and tokens signed under another secret", async () => {
+    const token = await createSessionToken(SECRET, USER, now);
+    const [id, version, session, expires, mac] = token.split(".");
+    const later = `${id}.${version}.${session}.${Number(expires) + 86_400}.${mac}`;
+    const otherUser = `other-user.${version}.${session}.${expires}.${mac}`;
+    const bumped = `${id}.${Number(version) + 1}.${session}.${expires}.${mac}`;
+    const otherSession = `${id}.${version}.${"A".repeat(22)}.${expires}.${mac}`;
+    for (const forged of [later, otherUser, bumped, otherSession]) {
+      expect(await verifySessionToken(forged, SECRET, now)).toBeNull();
+    }
+    expect(await verifySessionToken(token, "another secret!", now)).toBeNull();
+    expect(await verifySessionToken("garbage", SECRET, now)).toBeNull();
+    expect(await verifySessionToken(null, SECRET, now)).toBeNull();
   });
 });
 
@@ -58,6 +99,8 @@ describe("safeNext", () => {
     ["/\\evil.com", "/"],
     ["https://evil.com", "/"],
     ["/login?next=/x", "/"],
+    ["/criar-conta", "/"],
+    ["/redefinir-senha?next=/x", "/"],
     ["/a\r\nSet-Cookie: x", "/"],
     [undefined, "/"],
   ])("%s → %s", (value, expected) => {
@@ -67,7 +110,7 @@ describe("safeNext", () => {
 
 describe("authGate", () => {
   it("redirects page loads without a session to the login screen, keeping the path", async () => {
-    const gate = await authGate(request("/leads?status=novo", { html: true }), PASSWORD, now);
+    const gate = await authGate(request("/leads?status=novo", { html: true }), deps, now);
     expect("response" in gate && gate.response.status).toBe(303);
     expect("response" in gate && gate.response.headers.get("Location")).toBe(
       "/login?next=%2Fleads%3Fstatus%3Dnovo",
@@ -75,79 +118,156 @@ describe("authGate", () => {
   });
 
   it("answers 401 to server functions and api routes without a session", async () => {
-    for (const path of ["/_serverFn/abc", "/api/leads.csv", "/api/logout"]) {
-      const gate = await authGate(request(path, { method: "POST" }), PASSWORD, now);
+    for (const path of ["/_serverFn/abc", "/api/leads.csv"]) {
+      const gate = await authGate(request(path, { method: "POST" }), deps, now);
       expect("response" in gate && gate.response.status).toBe(401);
     }
   });
 
   it("fails closed when APP_PASSWORD is missing or too short", async () => {
     const cookie = await sessionCookie();
-    for (const password of [undefined, "", "short"]) {
-      const gate = await authGate(request("/api/leads.csv", { cookie }), password, now);
+    for (const secret of [undefined, "", "short"]) {
+      const gate = await authGate(
+        request("/api/leads.csv", { cookie }),
+        { secret, sessions: lookup },
+        now,
+      );
       expect("response" in gate && gate.response.status).toBe(401);
     }
   });
 
-  it("lets the login screen and login endpoint through", async () => {
-    expect(await authGate(request("/login", { html: true }), PASSWORD, now)).toEqual({
-      renewCookie: null,
-    });
-    expect(await authGate(request("/api/login", { method: "POST" }), PASSWORD, now)).toEqual({
-      renewCookie: null,
-    });
+  it("refuses a session that was signed out, and only that one", async () => {
+    const token = await createSessionToken(SECRET, USER, now);
+    const other = await sessionCookie();
+    const session = await verifySessionToken(token, SECRET, now);
+    if (!session) throw new Error("token did not verify");
+    signedOut.add(session.id);
+    try {
+      const out = await authGate(
+        request("/api/leads.csv", { cookie: `${SESSION_COOKIE}=${token}` }),
+        deps,
+        now,
+      );
+      expect("response" in out && out.response.status).toBe(401);
+      const still = await authGate(request("/api/leads.csv", { cookie: other }), deps, now);
+      expect(still).toEqual({ renewCookie: null });
+    } finally {
+      signedOut.delete(session.id);
+    }
   });
 
-  it("sends a signed-in visitor away from the login screen", async () => {
+  it("refuses a session whose account was deleted or signed out by a password reset", async () => {
+    const gone = await sessionCookie(now, { id: "deleted-user", sessionVersion: 1 });
+    const stale = await sessionCookie(now, { ...USER, sessionVersion: 0 });
+    for (const cookie of [gone, stale]) {
+      const gate = await authGate(request("/api/leads.csv", { cookie }), deps, now);
+      expect("response" in gate && gate.response.status).toBe(401);
+    }
+  });
+
+  it("lets the sign-in screens and their endpoints through", async () => {
+    for (const path of ["/login", "/criar-conta", "/redefinir-senha"]) {
+      expect(await authGate(request(path, { html: true }), deps, now)).toEqual({
+        renewCookie: null,
+      });
+    }
+    for (const path of [
+      "/api/login",
+      "/api/signup",
+      "/api/forgot-password",
+      "/api/reset-password",
+    ]) {
+      expect(await authGate(request(path, { method: "POST" }), deps, now)).toEqual({
+        renewCookie: null,
+      });
+    }
+  });
+
+  it("serves the app icons and manifest without a session", async () => {
+    const files = [
+      "/favicon.svg",
+      "/manifest.webmanifest",
+      "/apple-touch-icon.png",
+      "/icon-192.png",
+      "/icon-512.png",
+    ];
+    for (const path of files) {
+      expect(await authGate(request(path), deps, now)).toEqual({ renewCookie: null });
+    }
+  });
+
+  it("keeps everything else behind the session", async () => {
+    expect(PUBLIC_PATHS).toEqual(
+      new Set([
+        "/login",
+        "/criar-conta",
+        "/redefinir-senha",
+        "/api/login",
+        "/api/signup",
+        "/api/forgot-password",
+        "/api/reset-password",
+        "/api/logout",
+        "/favicon.svg",
+        "/robots.txt",
+        "/manifest.webmanifest",
+        "/apple-touch-icon.png",
+        "/icon-192.png",
+        "/icon-512.png",
+      ]),
+    );
+    const near = [
+      "/manifest.json",
+      "/apple-touch-icon-precomposed.png",
+      "/icon-1024.png",
+      "/icons/icon-192.png",
+      "/icon-192.png/x",
+    ];
+    for (const path of near) {
+      const gate = await authGate(request(path), deps, now);
+      expect("response" in gate && gate.response.status).toBe(401);
+    }
+  });
+
+  it("sends a signed-in visitor away from the sign-in screens", async () => {
+    const cookie = await sessionCookie();
     const gate = await authGate(
-      request("/login?next=%2Fconversas", { html: true, cookie: await sessionCookie() }),
-      PASSWORD,
+      request("/login?next=%2Fconversas", { html: true, cookie }),
+      deps,
       now,
     );
     expect("response" in gate && gate.response.headers.get("Location")).toBe("/conversas");
+    const signUp = await authGate(request("/criar-conta", { html: true, cookie }), deps, now);
+    expect("response" in signUp && signUp.response.headers.get("Location")).toBe("/");
   });
 
   it("lets a valid session through and renews it only when it is getting old", async () => {
     const fresh = await authGate(
       request("/", { html: true, cookie: await sessionCookie() }),
-      PASSWORD,
+      deps,
       now,
     );
     expect(fresh).toEqual({ renewCookie: null });
 
     const old = await authGate(
       request("/", { html: true, cookie: await sessionCookie(days(-20)) }),
-      PASSWORD,
+      deps,
       now,
     );
     expect("renewCookie" in old && old.renewCookie).toMatch(/HttpOnly; Secure; SameSite=Lax$/);
   });
 
-  it("refuses a session issued before the last logout", async () => {
-    const cookie = await sessionCookie(days(-1));
-    const issued = Math.floor(now.getTime() / 1000) - 86_400;
-    const before = await authGate(
-      request("/api/leads.csv", { cookie }),
-      PASSWORD,
+  it("keeps the session id when it renews, so signing out still ends the renewed cookie", async () => {
+    const token = await createSessionToken(SECRET, USER, days(-20));
+    const gate = await authGate(
+      request("/", { html: true, cookie: `${SESSION_COOKIE}=${token}` }),
+      deps,
       now,
-      async () => issued + 60,
     );
-    expect("response" in before && before.response.status).toBe(401);
-    const after = await authGate(
-      request("/api/leads.csv", { cookie }),
-      PASSWORD,
-      now,
-      async () => issued - 60,
-    );
-    expect(after).toEqual({ renewCookie: null });
-    // A login in the same second as the logout still works.
-    const sameSecond = await authGate(
-      request("/api/leads.csv", { cookie }),
-      PASSWORD,
-      now,
-      async () => issued,
-    );
-    expect(sameSecond).toEqual({ renewCookie: null });
+    const renewed = "renewCookie" in gate ? gate.renewCookie?.split(";")[0]?.split("=")[1] : null;
+    const before = await verifySessionToken(token, SECRET, now);
+    const after = await verifySessionToken(renewed ?? null, SECRET, now);
+    expect(after?.id).toBe(before?.id);
+    expect(after?.expires).toBeGreaterThan(before?.expires ?? Infinity);
   });
 
   it.each([
@@ -158,7 +278,16 @@ describe("authGate", () => {
     if (site) headers["Sec-Fetch-Site"] = site;
     const gate = await authGate(
       request("/_serverFn/abc", { method: "POST", cookie: await sessionCookie(), headers }),
-      PASSWORD,
+      deps,
+      now,
+    );
+    expect("response" in gate && gate.response.status).toBe(403);
+  });
+
+  it("blocks cross-site posts to the sign-up endpoint", async () => {
+    const gate = await authGate(
+      request("/api/signup", { method: "POST", headers: { "Sec-Fetch-Site": "cross-site" } }),
+      deps,
       now,
     );
     expect("response" in gate && gate.response.status).toBe(403);
@@ -174,7 +303,7 @@ describe("authGate", () => {
     for (const headers of variants) {
       const gate = await authGate(
         request("/_serverFn/abc", { method: "POST", cookie, headers }),
-        PASSWORD,
+        deps,
         now,
       );
       expect(gate).toEqual({ renewCookie: null });
@@ -188,7 +317,7 @@ describe("authGate", () => {
         cookie: await sessionCookie(),
         headers: { "Sec-Fetch-Site": "cross-site" },
       }),
-      PASSWORD,
+      deps,
       now,
     );
     expect("response" in gate && gate.response.status).toBe(403);

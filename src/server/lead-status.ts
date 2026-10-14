@@ -22,7 +22,7 @@ export const LEAD_TRANSITIONS: Record<LeadStatus, readonly LeadStatus[]> = {
 };
 
 /** Statuses that lead to (more) outreach; never allowed once the lead unsubscribed. */
-const OUTREACH_STATUSES: readonly LeadStatus[] = ["new", "contacted", "replied"];
+export const OUTREACH_STATUSES: readonly LeadStatus[] = ["new", "contacted", "replied"];
 
 export const UNSUBSCRIBED_MESSAGE =
   "Este lead pediu para não receber contato e não pode voltar para a fila.";
@@ -41,6 +41,18 @@ export function assertTransition(
       `Não é possível mudar o lead de "${LEAD_STATUS_LABELS[current.status]}" para "${LEAD_STATUS_LABELS[next]}".`,
     );
   }
+}
+
+/**
+ * Why a closed conversation cannot be reopened, or null when it can. Reopening moves the lead
+ * back to "replied", so it follows LEAD_TRANSITIONS and the opt-out rule.
+ */
+export function reopenBlocker(lead: Pick<Lead, "status" | "unsubscribedAt">): string | null {
+  if (lead.unsubscribedAt) return "Este lead pediu para não receber contato.";
+  if (lead.status === "replied" || LEAD_TRANSITIONS[lead.status].includes("replied")) return null;
+  return lead.status === "discarded"
+    ? "Conversas encerradas sem negócio não podem ser reabertas."
+    : "Esta conversa ainda não pode ser reaberta.";
 }
 
 /**

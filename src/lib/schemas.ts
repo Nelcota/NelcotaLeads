@@ -40,6 +40,22 @@ export const settingsInputSchema = z.object({
 });
 export type SettingsInput = z.infer<typeof settingsInputSchema>;
 
+/** Bounds of the "Respostas rápidas": how many, and how long each one may be. */
+export const QUICK_REPLY_LIMITS = { count: 10, title: 60, body: 1000 } as const;
+
+export const quickReplySchema = z.object({
+  title: userText().min(1, "Dê um nome ao modelo").max(QUICK_REPLY_LIMITS.title),
+  body: userText()
+    .min(1, "Escreva o texto do modelo")
+    .max(QUICK_REPLY_LIMITS.body, "Até 1.000 caracteres"),
+});
+export type QuickReplyInput = z.infer<typeof quickReplySchema>;
+
+export const quickRepliesInputSchema = z.object({
+  replies: z.array(quickReplySchema).max(QUICK_REPLY_LIMITS.count),
+});
+export type QuickRepliesInput = z.infer<typeof quickRepliesInputSchema>;
+
 export const AUTOPILOT_RESULTS = [20, 40, 60] as const;
 
 /** A niche + city the autopilot searches every day, rotating through the city's areas. */
@@ -229,6 +245,8 @@ export const EXPORT_LIMIT = 10_000;
 export const leadFiltersSchema = z.object({
   q: userText().max(120).optional(),
   searchId: z.string().max(64).optional(),
+  // A niche key from listNiches (the search's niche, lowercased).
+  niche: z.string().max(120).optional(),
   view: z.enum(LEAD_VIEWS).optional(),
   minScore: z.coerce.number().int().min(0).max(100).optional(),
   maxScore: z.coerce.number().int().min(0).max(100).optional(),
@@ -238,6 +256,20 @@ export const leadFiltersSchema = z.object({
   dir: z.enum(["asc", "desc"]).optional(),
 });
 export type LeadFilters = z.infer<typeof leadFiltersSchema>;
+
+/**
+ * A route's search params, where a bad value (hand-edited or an old link: `?view=foo`,
+ * `?minScore=500`) is dropped instead of failing the whole page. Server validators stay strict.
+ */
+export function lenientSearch<Shape extends Record<string, z.ZodOptional>>(
+  schema: z.ZodObject<Shape>,
+) {
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- same keys, each wrapped in .catch
+  const shape = Object.fromEntries(
+    Object.entries(schema.shape).map(([key, field]) => [key, field.catch(undefined)]),
+  ) as { [K in keyof Shape]: z.ZodCatch<Shape[K]> };
+  return z.object(shape);
+}
 
 export const updateLeadSchema = z.object({
   id: idSchema,
@@ -250,6 +282,23 @@ export const updateLeadSchema = z.object({
     .optional(),
 });
 export type UpdateLeadInput = z.infer<typeof updateLeadSchema>;
+
+/** Most leads one bulk action may touch (the selection bar works on the visible list). */
+export const BULK_LIMIT = 500;
+
+/** What a bulk status change replaced on one lead, so "Desfazer" can put it back. */
+export const bulkSnapshotSchema = z.object({
+  id: idSchema,
+  status: z.enum(LEAD_STATUS_VALUES),
+  followUpOn: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullable(),
+  discardReason: z.string().max(500).nullable(),
+  // Unix seconds.
+  discardedAt: z.number().int().nullable(),
+});
+export type BulkSnapshot = z.infer<typeof bulkSnapshotSchema>;
 
 export const updateMessageSchema = z.object({
   analysisId: idSchema,
@@ -271,3 +320,6 @@ export function scoreTier(score: number): ScoreTier {
       ? "medium"
       : "low";
 }
+
+/** The error a missing lead gives, so the screen can tell "gone" from "failed". */
+export const LEAD_NOT_FOUND = "Lead não encontrado";

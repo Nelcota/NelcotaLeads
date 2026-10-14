@@ -1,9 +1,13 @@
 import { queryOptions } from "@tanstack/react-query";
-import type { LeadFilters } from "@/lib/schemas";
+import { LEAD_NOT_FOUND, type LeadFilters } from "@/lib/schemas";
+import { getAccount } from "@/server/account";
 import { getAttentionCount, getDashboard } from "@/server/dashboard";
 import { getConversation, listConversations } from "@/server/mail";
 import { getLead, getLeadCounts, listLeads } from "@/server/leads";
 import { getProviderStatus, getSearch, listSearches } from "@/server/searches";
+import { listNiches } from "@/server/niches";
+import { getQuickReplies } from "@/server/settings";
+import { getSystemStatus } from "@/server/system-status";
 
 const isRunning = (status: string) => status === "collecting" || status === "analyzing";
 
@@ -22,6 +26,20 @@ export const searchQuery = (id: string) =>
       query.state.data && isRunning(query.state.data.status) ? 2000 : false,
   });
 
+/** Niches with their funnel, for the filters and the overview. */
+export const nichesQuery = queryOptions({
+  queryKey: ["niches"],
+  queryFn: () => listNiches(),
+  refetchInterval: 60_000,
+});
+
+/** The signed-in account; it only changes on sign-in, so it is never refetched on its own. */
+export const accountQuery = queryOptions({
+  queryKey: ["account"],
+  queryFn: () => getAccount(),
+  staleTime: Infinity,
+});
+
 export const providerStatusQuery = queryOptions({
   queryKey: ["provider-status"],
   queryFn: () => getProviderStatus(),
@@ -33,13 +51,15 @@ export const leadsQuery = (filters: LeadFilters) =>
     queryFn: () => listLeads({ data: filters }),
     // Keep refreshing while the queue is still analyzing some of the visible leads.
     refetchInterval: (query) =>
-      query.state.data?.some((lead) => lead.analysisStatus === "pending") ? 3000 : false,
+      query.state.data?.rows.some((lead) => lead.analysisStatus === "pending") ? 3000 : false,
   });
 
 export const leadQuery = (id: string) =>
   queryOptions({
     queryKey: ["lead", id],
     queryFn: () => getLead({ data: { id } }),
+    // A missing lead stays missing: show it at once instead of retrying three times.
+    retry: (failures, error) => error.message !== LEAD_NOT_FOUND && failures < 3,
     refetchInterval: (query) =>
       query.state.data?.lead.analysisStatus === "pending" ? 3000 : false,
   });
@@ -78,3 +98,16 @@ export const conversationQuery = (leadId: string) =>
     queryFn: () => getConversation({ data: { leadId } }),
     refetchInterval: 15_000,
   });
+
+/** "Respostas rápidas", edited in Configurações and inserted from the composer. */
+export const quickRepliesQuery = queryOptions({
+  queryKey: ["quick-replies"],
+  queryFn: () => getQuickReplies(),
+});
+
+/** Conta → Status. Refreshed every minute, only while a screen that shows it is open. */
+export const systemStatusQuery = queryOptions({
+  queryKey: ["system-status"],
+  queryFn: () => getSystemStatus(),
+  refetchInterval: 60_000,
+});

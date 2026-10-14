@@ -2,7 +2,9 @@ import { and, desc, eq, gte, isNull, lt, ne, or, sql, type SQL } from "drizzle-o
 import type { Db } from "@/db/client";
 import { analyses, apiUsage, leads, searches, type Lead, type Search } from "@/db/schema";
 import type { CallUsage, LeadAnalyzer, LeadContext } from "@/lib/ai";
+import { analysisErrorMessage } from "@/lib/provider-errors";
 import { localDay } from "@/lib/format";
+import { MANUAL_SEARCH_ID } from "@/lib/searches";
 import { siteDataSchema, type SiteData } from "@/lib/schemas";
 import type { SiteResult } from "@/lib/scrape";
 import { loadSettings } from "./settings-store";
@@ -31,13 +33,19 @@ export const LEAD_BUSY_MESSAGE = "O lead já está sendo analisado";
  */
 export async function processLead(deps: ProcessDeps, job: LeadJob): Promise<"done" | "skipped"> {
   const { db } = deps;
+  if (!job.force && (await skipIfSearchCancelled(db, job.leadId))) return "skipped";
   const lead = await claimLead(db, job);
   if (!lead) {
     const current = await db.query.leads.findFirst({
       where: eq(leads.id, job.leadId),
       columns: { analysisStatus: true },
     });
-    if (!current || (current.analysisStatus === "done" && !job.force)) return "skipped";
+    if (
+      !current ||
+      (!job.force && (current.analysisStatus === "done" || current.analysisStatus === "skipped"))
+    ) {
+      return "skipped";
+    }
     throw new Error(LEAD_BUSY_MESSAGE);
   }
   try {
@@ -56,6 +64,25 @@ export async function processLead(deps: ProcessDeps, job: LeadJob): Promise<"don
   }
 }
 
+export const SEARCH_CANCELLED_MESSAGE = "A busca foi cancelada antes da análise.";
+
+/** A lead still waiting in the queue whose search was cancelled is set aside, not analyzed. */
+async function skipIfSearchCancelled(db: Db, leadId: string) {
+  const skipped = await db
+    .update(leads)
+    .set({ analysisStatus: "skipped", analysisError: SEARCH_CANCELLED_MESSAGE })
+    .where(
+      and(
+        eq(leads.id, leadId),
+        eq(leads.analysisStatus, "pending"),
+        isNull(leads.analysisStartedAt),
+        sql`exists (select 1 from ${searches} where ${searches.id} = ${leads.searchId} and ${searches.status} = 'cancelled')`,
+      ),
+    )
+    .returning({ id: leads.id });
+  return skipped.length > 0;
+}
+
 /**
  * Atomically marks the lead as being analyzed. Returns undefined when the lead is missing,
  * already analyzed (unless forced) or claimed by another job.
@@ -71,7 +98,12 @@ async function claimLead(db: Db, job: LeadJob, now = new Date()): Promise<Lead |
     .where(
       job.force
         ? and(eq(leads.id, job.leadId), free)
-        : and(eq(leads.id, job.leadId), free, ne(leads.analysisStatus, "done")),
+        : and(
+            eq(leads.id, job.leadId),
+            free,
+            ne(leads.analysisStatus, "done"),
+            ne(leads.analysisStatus, "skipped"),
+          ),
     )
     .returning();
   return lead;
@@ -97,7 +129,11 @@ async function analyzeClaimed(deps: ProcessDeps, job: LeadJob, lead: Lead) {
 
   // Triage: below the minimum score the AI discards the lead. Outreach e-mails are
   // written when the lead is selected for a send, not here.
-  const keep = settings.minScore <= 0 || analysis.score >= settings.minScore;
+  // A lead the user added by hand is never discarded by the AI.
+  const keep =
+    settings.minScore <= 0 ||
+    analysis.score >= settings.minScore ||
+    lead.searchId === MANUAL_SEARCH_ID;
   const owned = ownedBy(lead);
 
   // One transaction: the analysis, its cost, the search counters and the lead all land
@@ -229,7 +265,7 @@ export function hasOffer(settings: { offer: string }) {
 
 export function buildContext(lead: Lead, search: Search | undefined): LeadContext {
   return {
-    niche: search?.niche ?? "",
+    niche: search?.id === MANUAL_SEARCH_ID ? "desconhecido" : (search?.niche ?? ""),
     name: lead.name,
     address: lead.address,
     city: lead.city,
@@ -243,9 +279,13 @@ export function buildContext(lead: Lead, search: Search | undefined): LeadContex
   };
 }
 
+// Our own reasons, shown as they are; anything else is a provider's text and is replaced.
+const KNOWN_FAILURES = [LEAD_BUSY_MESSAGE, NO_OFFER_MESSAGE, "Falha após todas as tentativas"];
+
 /** Records a permanent failure for the lead; called once retries are exhausted. */
 export async function failLead(db: Db, job: LeadJob, error: unknown) {
-  const message = error instanceof Error ? error.message : String(error);
+  console.error("lead analysis failed", job.leadId, error);
+  const message = analysisErrorMessage(error, KNOWN_FAILURES);
   const pending = and(eq(leads.id, job.leadId), eq(leads.analysisStatus, "pending"));
   const lead = await db.query.leads.findFirst({ where: pending, columns: { searchId: true } });
   if (!lead) return;
@@ -307,10 +347,11 @@ function searchCounterStatements(
 ) {
   const column = searches[counter];
   return [
+    // A cancelled search stops counting (a lead already in the model may still finish).
     db
       .update(searches)
       .set({ [counter]: sql`${column} + 1` })
-      .where(and(eq(searches.id, searchId), when)),
+      .where(and(eq(searches.id, searchId), ne(searches.status, "cancelled"), when)),
     db
       .update(searches)
       .set({ status: "done" })

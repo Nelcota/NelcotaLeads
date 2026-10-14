@@ -50,7 +50,7 @@ export type SentEmail = {
   inReplyTo?: string | null;
 };
 
-export type Fault = "places" | "writeEmail";
+export type Fault = "places" | "writeEmail" | "mailSend" | "mailbox";
 
 /** Drives the test-only `/api/e2e` route: data reset, cron ticks and the fake mailbox. */
 export class Backend {
@@ -79,18 +79,33 @@ export class Backend {
     return this.call({ action: "inbound", ...email });
   }
 
-  lead(lead: { name: string; website?: string | null; email?: string | null }) {
+  lead(lead: {
+    name: string;
+    website?: string | null;
+    email?: string | null;
+    phone?: string | null;
+  }) {
     return this.call<{ id: string }>({
       action: "lead",
       name: lead.name,
       website: lead.website ?? null,
       email: lead.email ?? null,
+      phone: lead.phone ?? null,
     });
   }
 
-  /** The next call of that fake throws once. */
+  /** A search stuck analyzing (its leads never reach the queue), to cancel it. */
+  runningSearch(search: { niche: string; city: string; leads: number }) {
+    return this.call<{ id: string }>({ action: "runningSearch", ...search });
+  }
+
+  /** The next call of that fake throws once (`mailbox`: every call, until recovered). */
   fault(fault: Fault) {
     return this.call({ action: "fault", fault });
+  }
+
+  recover(fault: Fault) {
+    return this.call({ action: "recover", fault });
   }
 }
 
@@ -121,6 +136,13 @@ export class ConsoleErrors {
 }
 
 const SESSION = "e2e/.auth/session.json";
+
+/** The account every signed-in test uses (created by auth.setup.ts). */
+export const E2E_ACCOUNT = {
+  name: "Conta E2E",
+  email: "e2e@nelcota.test",
+  password: "e2e-account-password",
+};
 
 export const test = base.extend<{ backend: Backend; consoleErrors: ConsoleErrors }>({
   // Auto: every test starts from the same data. Signed in on its own, so a test may use a

@@ -1,4 +1,17 @@
-import { and, asc, desc, eq, inArray, isNotNull, isNull, lt, lte, or, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  inArray,
+  isNotNull,
+  isNull,
+  lt,
+  lte,
+  or,
+  sql,
+  type SQLWrapper,
+} from "drizzle-orm";
 import type { Db } from "@/db/client";
 import {
   analyses,
@@ -41,6 +54,57 @@ const MAX_AUTO_LENGTH = 1200;
 export const EMAIL_OPT_OUT = 'Para não receber mais e-mails, responda com "sair".';
 const OPTED_OUT = "Pediu para não receber e-mails";
 const BLOCKED = "O lead pediu para não receber e-mails";
+/** The user's own reply in progress: at most one per lead, and the AI never writes over it. */
+export function userDraftOf(leadId: string) {
+  return and(eq(emails.leadId, leadId), eq(emails.status, "draft"), eq(emails.author, "user"));
+}
+
+/**
+ * Inserts an outgoing draft unless the lead already has one the user wrote, in a single
+ * statement, so two writers racing still leave at most one user draft per lead.
+ */
+export function insertDraftUnlessUserHasOne(
+  db: Db,
+  draft: {
+    leadId: string;
+    author: "ai" | "user";
+    fromAddress: string;
+    toAddress: string;
+    subject: string;
+    body: string;
+    inReplyTo: string | null;
+  },
+) {
+  return db.run(sql`
+    insert into emails (id, lead_id, direction, status, author, from_address, to_address, subject, body, in_reply_to)
+    select ${crypto.randomUUID()}, ${draft.leadId}, 'out', 'draft', ${draft.author}, ${draft.fromAddress},
+      ${draft.toAddress}, ${draft.subject}, ${draft.body}, ${draft.inReplyTo}
+    where not exists (select 1 from emails where lead_id = ${draft.leadId} and status = 'draft' and author = 'user')`);
+}
+
+async function hasUserDraft(db: Db, leadId: string) {
+  const rows = await db.select({ id: emails.id }).from(emails).where(userDraftOf(leadId)).limit(1);
+  return rows.length > 0;
+}
+
+const USER_DRAFT_REASON = "Você já começou uma resposta";
+
+/** Reason kept on the e-mails a closed conversation cancelled; undoing the close looks for it. */
+export const CLOSED_REASON = "Cancelado: conversa encerrada";
+export const DISCARDED_REASON = "Cancelado: lead descartado";
+
+/**
+ * A first e-mail cancelled because the lead was discarded before it went out. Nothing reached
+ * the lead, and it can be moved back to new, so it is drafted again as if never contacted.
+ * `table` is the emails table's name or alias in the query.
+ */
+const cancelledByDiscard = (table = "emails") =>
+  sql`(${sql.raw(table)}.status = 'cancelled' and coalesce(${sql.raw(table)}.error, '') = ${DISCARDED_REASON})`;
+
+/** Whether the lead in `leadId` (a column) was already written to. */
+export const wasContacted = (leadId: SQLWrapper) => sql`exists (
+  select 1 from emails e where e.lead_id = ${leadId} and e.direction = 'out' and e.status <> 'draft'
+    and not ${cancelledByDiscard("e")})`;
 
 export function mailDailyLimit(value: string | undefined): number {
   const n = Number(value);
@@ -64,7 +128,19 @@ export function composeBody(text: string, settings: SettingsInput, optOut: boole
   return [cleanText(text), signature, optOut ? EMAIL_OPT_OUT : ""].filter(Boolean).join("\n\n");
 }
 
-function replySubject(subject: string) {
+/** The text a person wrote, without what composeBody added (signature, opt-out line). */
+export function stripComposed(body: string, settings: SettingsInput): string {
+  let text = body;
+  const optOut = `\n\n${EMAIL_OPT_OUT}`;
+  if (text.endsWith(optOut)) text = text.slice(0, -optOut.length);
+  const signature = [settings.senderName, settings.senderCompany].filter(Boolean).join("\n");
+  if (signature && text.endsWith(`\n\n${signature}`)) {
+    text = text.slice(0, -(signature.length + 2));
+  }
+  return text;
+}
+
+export function replySubject(subject: string) {
   return /^(re|res|resp):/i.test(subject.trim()) ? subject : `Re: ${subject}`;
 }
 
@@ -170,12 +246,13 @@ async function latestAnalysis(db: Db, leadId: string) {
   });
 }
 
-async function leadContext(db: Db, lead: Lead) {
+export async function leadContext(db: Db, lead: Lead) {
   const search = await db.query.searches.findFirst({ where: eq(searches.id, lead.searchId) });
   return buildContext(lead, search);
 }
 
-function thread(db: Db, leadId: string) {
+/** Sent and received e-mails of a lead, oldest first: what the AI reads as the conversation. */
+export function thread(db: Db, leadId: string) {
   return db
     .select()
     .from(emails)
@@ -184,7 +261,7 @@ function thread(db: Db, leadId: string) {
 }
 
 /** Opt-out is per address: another lead row with the same e-mail is blocked too. */
-async function addressUnsubscribed(db: Db, address: string) {
+export async function addressUnsubscribed(db: Db, address: string) {
   const rows = await db
     .select({ id: leads.id })
     .from(leads)
@@ -228,7 +305,13 @@ export async function prepareDrafts(
     db
       .select()
       .from(emails)
-      .where(and(inArray(emails.leadId, ids), eq(emails.direction, "out")))
+      .where(
+        and(
+          inArray(emails.leadId, ids),
+          eq(emails.direction, "out"),
+          sql`not ${cancelledByDiscard()}`,
+        ),
+      )
       .orderBy(desc(emails.createdAt)),
     db
       .select()
@@ -257,6 +340,9 @@ export async function prepareDrafts(
     if (!lead.email) skip("sem e-mail no site");
     else if (lead.unsubscribedAt || blocked.has(lead.id)) skip("pediu para não receber");
     else if (existing && existing.status !== "draft") skip("já recebeu e-mail");
+    // A reply in progress is never sent as a first e-mail.
+    else if (existing && (existing.inReplyTo || existing.author === "user"))
+      skip("já está em conversa");
     else if (lead.status !== "new") skip("não está mais como novo");
     else if (existing) drafts.push(existing);
     else if (!analysis) skip("ainda em análise");
@@ -278,7 +364,8 @@ export async function prepareDrafts(
         insert into emails (id, lead_id, direction, status, author, from_address, to_address, subject, body)
         select ${crypto.randomUUID()}, ${lead.id}, 'out', 'draft', 'ai', ${deps.fromAddress},
           ${lead.email}, ${email.subject}, ${composeBody(email.body, settings, true)}
-        where not exists (select 1 from emails where lead_id = ${lead.id} and direction = 'out')
+        where not exists (select 1 from emails where lead_id = ${lead.id} and direction = 'out'
+            and not ${cancelledByDiscard()})
           and exists (select 1 from leads where id = ${lead.id} and status = 'new' and unsubscribed_at is null)`);
       written.push(lead);
     } catch (error) {
@@ -306,6 +393,7 @@ export async function prepareDrafts(
               written.map((lead) => lead.id),
             ),
             eq(emails.direction, "out"),
+            sql`not ${cancelledByDiscard()}`,
           ),
         )
         .orderBy(desc(emails.createdAt)),
@@ -363,7 +451,15 @@ export async function queueDrafts(db: Db, emailIds: string[], now = new Date()) 
   const drafts = await db
     .select({ id: emails.id })
     .from(emails)
-    .where(and(inArray(emails.id, emailIds), eq(emails.status, "draft")));
+    .where(
+      and(
+        inArray(emails.id, emailIds),
+        eq(emails.status, "draft"),
+        // Only first e-mails: replies go out through the conversation, never this queue.
+        eq(emails.author, "ai"),
+        isNull(emails.inReplyTo),
+      ),
+    );
   const [first, ...rest] = drafts.map((draft, index) =>
     db
       .update(emails)
@@ -407,10 +503,11 @@ async function claim(db: Db, emailId: string, now: Date) {
   return row;
 }
 
-async function failEmail(db: Db, emailId: string, error: string) {
+/** Stopped on purpose (not a send failure), so it is never offered for a retry. */
+async function cancelEmail(db: Db, emailId: string, reason: string) {
   await db
     .update(emails)
-    .set({ status: "failed", sentAt: null, error })
+    .set({ status: "cancelled", sentAt: null, error: reason })
     .where(eq(emails.id, emailId));
 }
 
@@ -429,11 +526,16 @@ export async function sendEmail(
   if (!row) return "skipped";
   const lead = await db.query.leads.findFirst({ where: eq(leads.id, row.leadId) });
   if (!lead || lead.unsubscribedAt || (await addressUnsubscribed(db, row.toAddress))) {
-    await failEmail(db, row.id, BLOCKED);
+    await cancelEmail(db, row.id, BLOCKED);
+    return "failed";
+  }
+  // Discarded or closed after it was queued (lead panel, bulk change, another tab).
+  if (lead.status === "closed" || lead.status === "discarded") {
+    await cancelEmail(db, row.id, lead.status === "closed" ? CLOSED_REASON : DISCARDED_REASON);
     return "failed";
   }
   if (row.author === "ai" && !lead.aiMode) {
-    await failEmail(db, row.id, "Cancelado: a conversa passou para você");
+    await cancelEmail(db, row.id, "Cancelado: a conversa passou para você");
     return "failed";
   }
   if (!(await reserveRequest(db, EMAIL_PROVIDER, deps.limit, now))) {
@@ -575,7 +677,7 @@ async function unsubscribe(db: Db, leadId: string, now: Date) {
       .where(eq(leads.id, leadId)),
     db
       .update(emails)
-      .set({ status: "failed", error: "Cancelado: o lead pediu para não receber" })
+      .set({ status: "cancelled", error: "Cancelado: o lead pediu para não receber" })
       .where(and(eq(emails.leadId, leadId), inArray(emails.status, ["queued", "draft"]))),
   ]);
 }
@@ -584,7 +686,7 @@ async function unsubscribe(db: Db, leadId: string, now: Date) {
 export async function cancelQueuedAi(db: Db, leadId: string, reason: string) {
   await db
     .update(emails)
-    .set({ status: "failed", error: reason })
+    .set({ status: "cancelled", error: reason })
     .where(and(eq(emails.leadId, leadId), eq(emails.status, "queued"), eq(emails.author, "ai")));
 }
 
@@ -672,6 +774,11 @@ export async function handleInbound(
     await handOff(db, lead.id, lead.handoffReason ?? "Respondeu");
     return true;
   }
+  // The user's reply in progress wins: the AI neither answers nor drafts over it.
+  if (await hasUserDraft(db, lead.id)) {
+    await handOff(db, lead.id, USER_DRAFT_REASON);
+    return true;
+  }
 
   const history = await thread(db, lead.id);
   const aiReplies = history.filter(
@@ -695,9 +802,9 @@ export async function handleInbound(
     subject: replySubject(message.subject),
     inReplyTo: message.messageId,
   };
-  // Kept without signature: it is added when the person sends it.
-  const leaveDraft = (text: string) =>
-    db.insert(emails).values({ ...base, id: crypto.randomUUID(), status: "draft", body: text });
+  // Kept without signature: it is added when the person sends it. Skipped when the user
+  // started a reply of their own in the meantime.
+  const leaveDraft = (text: string) => insertDraftUnlessUserHasOne(db, { ...base, body: text });
   try {
     const { decision, usage } = await analyzer.replyEmail(
       settings,
@@ -710,6 +817,9 @@ export async function handleInbound(
       if (issues.length > 0) {
         await handOff(db, lead.id, `Resposta da IA para revisar: ${issues.join(", ")}`);
         await leaveDraft(cleanText(decision.reply));
+      } else if (await hasUserDraft(db, lead.id)) {
+        // The user started an answer while the AI was writing; theirs goes instead.
+        await handOff(db, lead.id, USER_DRAFT_REASON);
       } else {
         await db.insert(emails).values({
           ...base,
@@ -735,7 +845,7 @@ export async function handleInbound(
             .where(eq(leads.id, lead.id)),
           db
             .update(emails)
-            .set({ status: "failed", error: "Cancelado: conversa encerrada" })
+            .set({ status: "cancelled", error: CLOSED_REASON })
             .where(and(eq(emails.leadId, lead.id), inArray(emails.status, ["queued", "draft"]))),
         ]);
       }
@@ -867,7 +977,7 @@ export async function autoDispatch(
         isNotNull(leads.email),
         isNull(leads.unsubscribedAt),
         sql`not ${unsubscribedAddress}`,
-        sql`not exists (select 1 from emails e where e.lead_id = ${leads.id} and e.direction = 'out' and e.status <> 'draft')`,
+        sql`not ${wasContacted(leads.id)}`,
       ),
     )
     // Leads that already have a draft go last: a draft held for review must not take the
