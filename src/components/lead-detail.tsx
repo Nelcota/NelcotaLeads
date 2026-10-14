@@ -255,8 +255,13 @@ function QuickActions({ lead }: { lead: Lead }) {
           Site
         </QuickAction>
       ) : null}
-      {lead.mapsUrl ? (
-        <QuickAction href={lead.mapsUrl} external icon={MapPinIcon} tone="red">
+      {safeHttpUrl(lead.mapsUrl) ? (
+        <QuickAction
+          href={safeHttpUrl(lead.mapsUrl) ?? undefined}
+          external
+          icon={MapPinIcon}
+          tone="red"
+        >
           Google Maps
         </QuickAction>
       ) : null}
