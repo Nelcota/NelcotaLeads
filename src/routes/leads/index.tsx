@@ -896,7 +896,7 @@ function LeadsTable({
                 key={lead.id}
                 tabIndex={0}
                 data-state={selected.has(lead.id) ? "selected" : undefined}
-                className="group/row cursor-pointer outline-none focus-visible:bg-fill-2"
+                className="group/row cursor-pointer outline-none focus-visible:bg-fill-2 focus-visible:shadow-[inset_0_0_0_2px_color-mix(in_srgb,var(--ring)_75%,transparent)]"
                 onClick={() => onOpen(lead.id)}
                 onKeyDown={(event) => {
                   if (event.key === "Enter") onOpen(lead.id);
@@ -911,9 +911,7 @@ function LeadsTable({
                 </TableCell>
                 <TableCell className="max-w-80">
                   <div className="flex items-center gap-3">
-                    <span className="transition-transform duration-400 ease-spring group-hover/row:scale-110">
-                      <Avatar name={lead.name} />
-                    </span>
+                    <Avatar name={lead.name} />
                     <div className="min-w-0">
                       <p className="truncate font-medium text-foreground">{lead.name}</p>
                       <p

@@ -86,7 +86,7 @@ export function SearchStatusBadge({ status }: { status: SearchStatus }) {
     );
   }
   return (
-    <Badge variant={status === "collecting" ? "blue" : "purple"} dot pulse>
+    <Badge variant={status === "collecting" ? "blue" : "purple"} dot>
       {SEARCH_LABELS[status]}
     </Badge>
   );

@@ -373,7 +373,7 @@ function Attention({ data }: { data: Dashboard }) {
             key={lead.id}
             role="link"
             tabIndex={0}
-            className="cursor-pointer outline-none focus-visible:bg-fill-2"
+            className="cursor-pointer outline-none focus-visible:bg-fill-2 focus-visible:shadow-[inset_0_0_0_2px_color-mix(in_srgb,var(--ring)_75%,transparent)]"
             onClick={() => void navigate({ to: "/conversas", search: { lead: lead.id } })}
             onKeyDown={(event) => {
               if (event.key === "Enter")
@@ -548,7 +548,7 @@ function Funnel({ data }: { data: Dashboard }) {
               key={step.label}
               {...step.link}
               aria-label={`${step.label}: ${step.value}`}
-              className="row-hover grid grid-cols-[96px_minmax(0,1fr)_52px] items-center gap-3 px-4 py-2.5 transition-colors outline-none hover:bg-fill-3 focus-visible:bg-fill-2 sm:grid-cols-[130px_minmax(0,1fr)_64px] sm:gap-3.5"
+              className="row-hover grid grid-cols-[96px_minmax(0,1fr)_52px] items-center gap-3 px-4 py-2.5 transition-colors outline-none hover:bg-fill-3 focus-visible:bg-fill-2 focus-visible:shadow-[inset_0_0_0_2px_color-mix(in_srgb,var(--ring)_75%,transparent)] sm:grid-cols-[130px_minmax(0,1fr)_64px] sm:gap-3.5"
             >
               <span className="truncate text-muted-foreground">{step.label}</span>
               <span className="h-2 overflow-hidden rounded-full bg-fill-2">
@@ -627,7 +627,7 @@ function Niches() {
             aria-label={`${niche.label}: ${niche.leads} leads, ${niche.contacted} contatados, ${niche.replied} responderam, ${niche.closed} fechados`}
             className={cn(
               NICHE_GRID,
-              "grouped-row row-hover py-2.5 transition-colors outline-none [--inset:16px] hover:bg-fill-3 focus-visible:bg-fill-2",
+              "grouped-row row-hover py-2.5 transition-colors outline-none [--inset:16px] hover:bg-fill-3 focus-visible:bg-fill-2 focus-visible:shadow-[inset_0_0_0_2px_color-mix(in_srgb,var(--ring)_75%,transparent)]",
             )}
           >
             <span className="min-w-0">
@@ -714,7 +714,7 @@ function Activity({ data }: { data: Dashboard }) {
               key={event.key}
               role="link"
               tabIndex={0}
-              className="cursor-pointer outline-none focus-visible:bg-fill-2"
+              className="cursor-pointer outline-none focus-visible:bg-fill-2 focus-visible:shadow-[inset_0_0_0_2px_color-mix(in_srgb,var(--ring)_75%,transparent)]"
               onClick={() => void navigate(event.link)}
               onKeyDown={(keyEvent) => {
                 if (keyEvent.key === "Enter") void navigate(event.link);
