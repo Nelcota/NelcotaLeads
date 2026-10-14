@@ -1,8 +1,10 @@
-import { eq } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import type { Db } from "@/db/client";
-import { leads } from "@/db/schema";
+import { emails, leads } from "@/db/schema";
 import { contactPatch, type ContactField } from "@/lib/lead-contact";
 import { addressUnsubscribed } from "./mail-flow";
+
+export const EMAIL_REMOVED_REASON = "Cancelado: o e-mail do lead foi removido";
 
 export const UNSUBSCRIBED_EMAIL_MESSAGE =
   "Este e-mail pediu para não receber contato e não pode ser usado.";
@@ -26,6 +28,32 @@ export async function editLeadContact(
   }
   // The same site again keeps what was already read from it.
   if (field === "website" && patch.website === lead.website) return { ok: true as const };
-  await db.update(leads).set(patch).where(eq(leads.id, id));
+  const updateLead = db.update(leads).set(patch).where(eq(leads.id, id));
+  const oldAddress = lead.email?.toLowerCase();
+  if (field !== "email" || !oldAddress || patch.email === oldAddress) {
+    await updateLead;
+    return { ok: true as const };
+  }
+  await db.batch([updateLead, retargetUnsentEmails(db, id, oldAddress, patch.email ?? null)]);
   return { ok: true as const };
+}
+
+/**
+ * E-mails not sent yet to the lead's old address follow the corrected one; with the address
+ * removed they are cancelled instead of going to an address the user took out.
+ */
+function retargetUnsentEmails(
+  db: Db,
+  leadId: string,
+  oldAddress: string,
+  newAddress: string | null,
+) {
+  const unsent = and(
+    eq(emails.leadId, leadId),
+    eq(emails.toAddress, oldAddress),
+    inArray(emails.status, ["draft", "queued"]),
+    isNull(emails.sentAt),
+  );
+  if (newAddress) return db.update(emails).set({ toAddress: newAddress }).where(unsent);
+  return db.update(emails).set({ status: "cancelled", error: EMAIL_REMOVED_REASON }).where(unsent);
 }

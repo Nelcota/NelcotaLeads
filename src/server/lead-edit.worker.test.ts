@@ -2,9 +2,9 @@ import { env } from "cloudflare:test";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import { getDb } from "@/db/client";
-import { leads, searches } from "@/db/schema";
+import { emails, leads, searches } from "@/db/schema";
 import { resetDb } from "../../test/reset-db";
-import { editLeadContact } from "./lead-edit";
+import { EMAIL_REMOVED_REASON, editLeadContact } from "./lead-edit";
 
 const db = getDb(env.DB);
 
@@ -72,5 +72,42 @@ describe("editLeadContact", () => {
     await expect(editLeadContact(db, { id: "zz", field: "name", value: "X" })).rejects.toThrow(
       "Lead não encontrado",
     );
+  });
+
+  it("sends e-mails not yet sent to the corrected address, or cancels them when removed", async () => {
+    await db.update(leads).set({ email: "velho@padaria.test" }).where(eq(leads.id, "a"));
+    const row = {
+      leadId: "a",
+      direction: "out" as const,
+      author: "user" as const,
+      fromAddress: "eu@nelcota.test",
+      toAddress: "velho@padaria.test",
+      subject: "Oi",
+      body: "Oi",
+    };
+    await db.insert(emails).values([
+      { ...row, id: "draft", status: "draft" },
+      { ...row, id: "queued", status: "queued" },
+      { ...row, id: "sent", status: "sent", sentAt: new Date() },
+    ]);
+    const byId = async () =>
+      Object.fromEntries(
+        (await db.select().from(emails)).map((e) => [e.id, { to: e.toAddress, status: e.status }]),
+      );
+
+    await editLeadContact(db, { id: "a", field: "email", value: "Novo@Padaria.test" });
+    expect(await byId()).toEqual({
+      draft: { to: "novo@padaria.test", status: "draft" },
+      queued: { to: "novo@padaria.test", status: "queued" },
+      sent: { to: "velho@padaria.test", status: "sent" },
+    });
+
+    await editLeadContact(db, { id: "a", field: "email", value: "" });
+    const rows = await db.select().from(emails);
+    expect(rows.find((e) => e.id === "queued")).toMatchObject({
+      status: "cancelled",
+      error: EMAIL_REMOVED_REASON,
+    });
+    expect(rows.find((e) => e.id === "sent")).toMatchObject({ status: "sent" });
   });
 });
