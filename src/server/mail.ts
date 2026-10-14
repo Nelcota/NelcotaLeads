@@ -3,7 +3,7 @@ import { env } from "cloudflare:workers";
 import { and, asc, desc, eq, inArray, isNotNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { getDb } from "@/db/client";
-import { emails, leads } from "@/db/schema";
+import { emails, leads, searches } from "@/db/schema";
 import { getAnalyzer } from "@/lib/ai";
 import { getMailer, mailConfigured } from "@/lib/mail";
 import { splitQuoted } from "@/lib/mail/quoted";
@@ -177,8 +177,11 @@ export const listConversations = createServerFn({ method: "GET" }).handler(async
       handoffReason: leads.handoffReason,
       unsubscribedAt: leads.unsubscribedAt,
       lastEmailAt: leads.lastEmailAt,
+      // Same key as listNiches, so the niche filter matches it.
+      niche: sql<string>`lower(trim(${searches.niche}))`,
     })
     .from(leads)
+    .innerJoin(searches, eq(searches.id, leads.searchId))
     .where(isNotNull(leads.lastEmailAt))
     .orderBy(desc(leads.lastEmailAt))
     .limit(300);

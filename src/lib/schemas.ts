@@ -242,6 +242,8 @@ export const LEAD_SORT_FIELDS = ["score", "name", "rating", "reviewCount", "crea
 export const leadFiltersSchema = z.object({
   q: userText().max(120).optional(),
   searchId: z.string().max(64).optional(),
+  // A niche key from listNiches (the search's niche, lowercased).
+  niche: z.string().max(120).optional(),
   view: z.enum(LEAD_VIEWS).optional(),
   minScore: z.coerce.number().int().min(0).max(100).optional(),
   maxScore: z.coerce.number().int().min(0).max(100).optional(),

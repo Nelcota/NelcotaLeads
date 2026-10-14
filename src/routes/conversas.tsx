@@ -39,6 +39,13 @@ import { ScoreBadge } from "@/components/lead-badges";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -47,7 +54,7 @@ import type { Email } from "@/db/schema";
 import { useAutosave } from "@/lib/autosave";
 import { failedEmailAction } from "@/lib/email-errors";
 import { shortTime } from "@/lib/format";
-import { conversationQuery, conversationsQuery } from "@/lib/queries";
+import { conversationQuery, conversationsQuery, nichesQuery } from "@/lib/queries";
 import { useToday } from "@/lib/today";
 import { cn, safeHttpUrl } from "@/lib/utils";
 import type { CloseSnapshot } from "@/server/conversation";
@@ -104,6 +111,7 @@ export const Route = createFileRoute("/conversas")({
     lead: z.string().max(64).optional(),
     filter: z.enum(FILTERS).optional(),
     q: z.string().max(100).optional(),
+    niche: z.string().max(120).optional(),
   }),
   loader: ({ context }) => context.queryClient.ensureQueryData(conversationsQuery),
   component: ConversationsPage,
@@ -134,7 +142,7 @@ function StateBadge({ state }: { state: ConversationState }) {
 }
 
 function ConversationsPage() {
-  const { lead: openId, filter = "all", q: urlQuery = "" } = Route.useSearch();
+  const { lead: openId, filter = "all", q: urlQuery = "", niche } = Route.useSearch();
   const navigate = useNavigate({ from: "/conversas" });
   const searchRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
@@ -146,6 +154,11 @@ function ConversationsPage() {
   const clearSearch = searchBox.clear;
 
   const { data } = useQuery(conversationsQuery);
+  const { data: niches } = useQuery(nichesQuery);
+  // Only the niches that have a conversation; the list keeps the overview's order.
+  const talkedNiches = (niches ?? []).filter((item) =>
+    (data ?? []).some((row) => row.niche === item.key),
+  );
   const refresh = useRefresh();
   const check = useMutation({
     mutationFn: () => checkMailNow(),
@@ -160,8 +173,9 @@ function ConversationsPage() {
     onError: errorToast("Não foi possível verificar os e-mails"),
   });
 
-  const searched = (data ?? []).filter((row) =>
-    matchesQuery([row.name, row.email, row.preview], query),
+  const searched = (data ?? []).filter(
+    (row) =>
+      (!niche || row.niche === niche) && matchesQuery([row.name, row.email, row.preview], query),
   );
   const countOf = (item: Filter) =>
     item === "all" ? searched.length : searched.filter((row) => row.state === item).length;
@@ -250,6 +264,33 @@ function ConversationsPage() {
                 </Hint>
               ) : null}
             </div>
+            {talkedNiches.length > 1 || niche ? (
+              <Select
+                value={niche ?? "all"}
+                onValueChange={(value) =>
+                  void navigate({
+                    search: (prev) => ({ ...prev, niche: value === "all" ? undefined : value }),
+                    replace: true,
+                  })
+                }
+              >
+                <SelectTrigger size="sm" className="w-full max-sm:h-9" aria-label="Nicho">
+                  <span className="text-muted-foreground">Nicho</span>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  {talkedNiches.map((item) => (
+                    <SelectItem key={item.key} value={item.key}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                  {niche && !talkedNiches.some((item) => item.key === niche) ? (
+                    <SelectItem value={niche}>{niche}</SelectItem>
+                  ) : null}
+                </SelectContent>
+              </Select>
+            ) : null}
             <Tabs
               value={filter}
               onValueChange={(value) => {
