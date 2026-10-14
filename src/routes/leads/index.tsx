@@ -498,6 +498,8 @@ function SelectionMenu({ ids, onDone }: { ids: string[]; onDone: () => void }) {
       queryClient.invalidateQueries({ queryKey: ["leads"] }),
       queryClient.invalidateQueries({ queryKey: ["lead"] }),
       queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
+      // The niche funnel counts leads by status.
+      queryClient.invalidateQueries({ queryKey: ["niches"] }),
     ]);
   const undo = async (status: LeadStatus, previous: BulkSnapshot[]) => {
     try {

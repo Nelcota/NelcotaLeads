@@ -127,6 +127,8 @@ function useRefresh() {
       queryClient.invalidateQueries({ queryKey: ["conversations"] }),
       queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
       queryClient.invalidateQueries({ queryKey: ["leads"] }),
+      // The niche funnel counts leads by status.
+      queryClient.invalidateQueries({ queryKey: ["niches"] }),
     ]);
 }
 
