@@ -372,8 +372,15 @@ function FirstContactStep({ lead, analysis, today, busy, onUpdate, onChanged }: 
   });
 
   // Sending is the one manual step: it opens WhatsApp and records the contact.
-  const markContacted = () => {
-    if (dirty) saveMessage.mutate();
+  const markContacted = async () => {
+    // Saved first: marking contacted closes this step, and an edit lost then is gone for good.
+    if (dirty) {
+      try {
+        await saveMessage.mutateAsync();
+      } catch {
+        return; // saveMessage already showed the error; the lead stays as it was
+      }
+    }
     const followUpOn = addDays(today, Number(followUpDays));
     onUpdate({ status: "contacted", followUpOn });
     toast(`${lead.name}: contatado`, {
@@ -440,13 +447,16 @@ function FirstContactStep({ lead, analysis, today, busy, onUpdate, onChanged }: 
       <CardFooter className="flex-wrap gap-2">
         {hasMessage && lead.phoneE164 ? (
           <Button asChild disabled={busy}>
-            <ExternalLink href={whatsappLink(lead.phoneE164, message)} onClick={markContacted}>
+            <ExternalLink
+              href={whatsappLink(lead.phoneE164, message)}
+              onClick={() => void markContacted()}
+            >
               Enviar no WhatsApp
             </ExternalLink>
           </Button>
         ) : null}
         {hasMessage && !lead.phoneE164 ? (
-          <Button disabled={busy} onClick={markContacted}>
+          <Button disabled={busy} onClick={() => void markContacted()}>
             Marcar como contatado
           </Button>
         ) : null}
