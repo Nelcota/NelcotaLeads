@@ -160,6 +160,8 @@ function DispatchReview({
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
     onError: errorToast("Não foi possível mudar a resposta automática"),
   });
+  // A draft being removed or rewritten is still in `drafts`; dispatching now would send it.
+  const busy = remove.isPending || rewrite.isPending;
   const dispatch = useMutation({
     mutationFn: async () => {
       await autosave.flush();
@@ -368,17 +370,34 @@ function DispatchReview({
         <Button
           size="lg"
           className="w-full"
-          disabled={drafts.length === 0 || dispatch.isPending || !mail?.configured}
+          disabled={drafts.length === 0 || dispatch.isPending || busy || !mail?.configured}
           onClick={() => dispatch.mutate()}
         >
           <SendIcon />
-          {!mail?.configured
-            ? "Conecte o e-mail nas Configurações"
-            : dispatch.isPending
-              ? "Colocando na fila…"
-              : `Disparar ${drafts.length} ${drafts.length === 1 ? "e-mail" : "e-mails"}`}
+          {dispatchLabel({
+            mailConfigured: Boolean(mail?.configured),
+            dispatching: dispatch.isPending,
+            removing: remove.isPending,
+            rewriting: rewrite.isPending,
+            count: drafts.length,
+          })}
         </Button>
       </SheetFooter>
     </>
   );
+}
+
+/** The dispatch button's text, which also says why it is off. */
+function dispatchLabel(state: {
+  mailConfigured: boolean;
+  dispatching: boolean;
+  removing: boolean;
+  rewriting: boolean;
+  count: number;
+}): string {
+  if (!state.mailConfigured) return "Conecte o e-mail nas Configurações";
+  if (state.dispatching) return "Colocando na fila…";
+  if (state.removing) return "Tirando do disparo…";
+  if (state.rewriting) return "Gerando outra versão…";
+  return `Disparar ${state.count} ${state.count === 1 ? "e-mail" : "e-mails"}`;
 }
