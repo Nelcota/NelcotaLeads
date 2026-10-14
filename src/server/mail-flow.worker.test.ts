@@ -367,6 +367,23 @@ describe("e-mail outreach", () => {
     expect(await requestsToday(db, EMAIL_PROVIDER, now)).toBe(0);
   });
 
+  it("drafts again for a discarded lead moved back to new, whose e-mail never went out", async () => {
+    const { drafts } = await prepareDrafts({ db, analyzer, fromAddress: FROM }, ["a"]);
+    const now = new Date("2026-10-11T12:00:00Z");
+    await queueDrafts(
+      db,
+      drafts.map((d) => d.id),
+      now,
+    );
+    await db.update(leads).set({ status: "discarded" }).where(eq(leads.id, "a"));
+    await sendDue({ db, mailer: createFakeMailer().mailer, limit: 30 }, now);
+    await db.update(leads).set({ status: "new" }).where(eq(leads.id, "a"));
+
+    const again = await prepareDrafts({ db, analyzer, fromAddress: FROM }, ["a"]);
+    expect(again.skipped).toEqual([]);
+    expect(again.drafts).toHaveLength(1);
+  });
+
   it("blocks drafts to an address that opted out on another lead", async () => {
     await db.insert(leads).values({
       id: "dup",

@@ -4,12 +4,12 @@ import { env } from "cloudflare:workers";
 import { eq } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { users } from "@/db/schema";
-import { readSession, sessionVersionLookup } from "./auth";
+import { readSession, sessionLookup } from "./auth";
 
 /** The signed-in account, for the Conta page. */
 export const getAccount = createServerFn({ method: "GET" }).handler(async () => {
   const db = getDb();
-  const session = await readSession(getRequest(), env.APP_PASSWORD, sessionVersionLookup(db));
+  const session = await readSession(getRequest(), env.APP_PASSWORD, sessionLookup(db));
   if (!session) return null;
   const user = await db.query.users.findFirst({
     where: eq(users.id, session.userId),

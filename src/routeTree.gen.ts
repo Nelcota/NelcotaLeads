@@ -17,6 +17,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as RedefinirSenhaRouteImport } from './routes/redefinir-senha'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ApiE2eRouteImport } from './routes/api/e2e'
+import { Route as ApiForgotPasswordRouteImport } from './routes/api/forgot-password'
 import { Route as ApiLeadsDotcsvRouteImport } from './routes/api/leads[.]csv'
 import { Route as ApiLoginRouteImport } from './routes/api/login'
 import { Route as ApiLogoutRouteImport } from './routes/api/logout'
@@ -65,6 +66,11 @@ const SettingsRoute = SettingsRouteImport.update({
 const ApiE2eRoute = ApiE2eRouteImport.update({
   id: '/api/e2e',
   path: '/api/e2e',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiForgotPasswordRoute = ApiForgotPasswordRouteImport.update({
+  id: '/api/forgot-password',
+  path: '/api/forgot-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiLeadsDotcsvRoute = ApiLeadsDotcsvRouteImport.update({
@@ -122,6 +128,7 @@ export interface FileRoutesByFullPath {
   '/redefinir-senha': typeof RedefinirSenhaRoute
   '/settings': typeof SettingsRoute
   '/api/e2e': typeof ApiE2eRoute
+  '/api/forgot-password': typeof ApiForgotPasswordRoute
   '/api/leads.csv': typeof ApiLeadsDotcsvRoute
   '/api/login': typeof ApiLoginRoute
   '/api/logout': typeof ApiLogoutRoute
@@ -141,6 +148,7 @@ export interface FileRoutesByTo {
   '/redefinir-senha': typeof RedefinirSenhaRoute
   '/settings': typeof SettingsRoute
   '/api/e2e': typeof ApiE2eRoute
+  '/api/forgot-password': typeof ApiForgotPasswordRoute
   '/api/leads.csv': typeof ApiLeadsDotcsvRoute
   '/api/login': typeof ApiLoginRoute
   '/api/logout': typeof ApiLogoutRoute
@@ -161,6 +169,7 @@ export interface FileRoutesById {
   '/redefinir-senha': typeof RedefinirSenhaRoute
   '/settings': typeof SettingsRoute
   '/api/e2e': typeof ApiE2eRoute
+  '/api/forgot-password': typeof ApiForgotPasswordRoute
   '/api/leads.csv': typeof ApiLeadsDotcsvRoute
   '/api/login': typeof ApiLoginRoute
   '/api/logout': typeof ApiLogoutRoute
@@ -182,6 +191,7 @@ export interface FileRouteTypes {
     | '/redefinir-senha'
     | '/settings'
     | '/api/e2e'
+    | '/api/forgot-password'
     | '/api/leads.csv'
     | '/api/login'
     | '/api/logout'
@@ -201,6 +211,7 @@ export interface FileRouteTypes {
     | '/redefinir-senha'
     | '/settings'
     | '/api/e2e'
+    | '/api/forgot-password'
     | '/api/leads.csv'
     | '/api/login'
     | '/api/logout'
@@ -220,6 +231,7 @@ export interface FileRouteTypes {
     | '/redefinir-senha'
     | '/settings'
     | '/api/e2e'
+    | '/api/forgot-password'
     | '/api/leads.csv'
     | '/api/login'
     | '/api/logout'
@@ -240,6 +252,7 @@ export interface RootRouteChildren {
   RedefinirSenhaRoute: typeof RedefinirSenhaRoute
   SettingsRoute: typeof SettingsRoute
   ApiE2eRoute: typeof ApiE2eRoute
+  ApiForgotPasswordRoute: typeof ApiForgotPasswordRoute
   ApiLeadsDotcsvRoute: typeof ApiLeadsDotcsvRoute
   ApiLoginRoute: typeof ApiLoginRoute
   ApiLogoutRoute: typeof ApiLogoutRoute
@@ -307,6 +320,13 @@ declare module '@tanstack/react-router' {
       path: '/api/e2e'
       fullPath: '/api/e2e'
       preLoaderRoute: typeof ApiE2eRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/forgot-password': {
+      id: '/api/forgot-password'
+      path: '/api/forgot-password'
+      fullPath: '/api/forgot-password'
+      preLoaderRoute: typeof ApiForgotPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/leads.csv': {
@@ -384,6 +404,7 @@ const rootRouteChildren: RootRouteChildren = {
   RedefinirSenhaRoute: RedefinirSenhaRoute,
   SettingsRoute: SettingsRoute,
   ApiE2eRoute: ApiE2eRoute,
+  ApiForgotPasswordRoute: ApiForgotPasswordRoute,
   ApiLeadsDotcsvRoute: ApiLeadsDotcsvRoute,
   ApiLoginRoute: ApiLoginRoute,
   ApiLogoutRoute: ApiLogoutRoute,

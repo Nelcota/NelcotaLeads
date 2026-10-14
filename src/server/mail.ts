@@ -28,6 +28,7 @@ import {
   prepareDrafts,
   queueDrafts,
   regenerateDraft,
+  replySubject,
   sendDue,
   sendEmail,
 } from "./mail-flow";
@@ -313,7 +314,7 @@ export const sendReply = createServerFn({ method: "POST" })
         author: "user",
         fromAddress: mailer.address,
         toAddress: lead.email,
-        subject: /^(re|res):/i.test(subject) ? subject : `Re: ${subject}`,
+        subject: replySubject(subject),
         // Without a message from the lead this is cold outreach, which carries the opt-out line.
         body: composeBody(data.body, settings, !lastIn),
         inReplyTo: lastIn?.messageId ?? null,

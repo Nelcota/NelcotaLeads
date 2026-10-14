@@ -17,7 +17,8 @@ export const LOGIN_ERROR_CODES = [
   "config",
   "codigo",
   "email-em-uso",
-  "sem-conta",
+  "sem-envio",
+  "link-invalido",
   "invalido",
 ] as const;
 
@@ -30,7 +31,9 @@ export const LOGIN_ERRORS: Record<LoginErrorCode, string> = {
   config: "O acesso ainda não foi configurado. Fale com quem administra o sistema.",
   codigo: "Código de acesso incorreto.",
   "email-em-uso": "Já existe uma conta com esse e-mail.",
-  "sem-conta": "Não há conta com esse e-mail.",
+  "sem-envio":
+    "A redefinição por e-mail ainda não está disponível. Fale com quem administra o sistema.",
+  "link-invalido": "Este link expirou ou já foi usado. Peça um novo.",
   invalido: "Confira os campos destacados.",
 };
 
@@ -65,10 +68,23 @@ export const signUpSchema = z.object({
   next,
 });
 
-export const resetPasswordSchema = z.object({ email, password, accessCode, next });
+/** Asks for a reset link. */
+export const forgotPasswordSchema = z.object({ email, next });
+
+/** Sets the new password, with the token from the link. */
+export const resetPasswordSchema = z.object({
+  token: z.string().min(1, "Abra o link enviado por e-mail.").max(200),
+  password,
+  next,
+});
+
+/** Shown after a reset link is asked, whether or not the e-mail has an account. */
+export const RESET_SENT_NOTICE =
+  "Se houver uma conta com esse e-mail, enviamos um link para criar uma senha nova. Ele vale por 1 hora.";
 
 export type SignInInput = z.infer<typeof signInSchema>;
 export type SignUpInput = z.infer<typeof signUpSchema>;
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 
 /** First message per field, for inline errors under each input. */

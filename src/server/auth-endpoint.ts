@@ -14,7 +14,8 @@ async function readBody(request: Request): Promise<unknown> {
 
 /**
  * The POST handler shared by the sign-in, sign-up and password-reset endpoints. Answers JSON
- * to the page, or redirects back to `page` with `?error=` when the form posted natively.
+ * to the page, or redirects back to `page` with `?error=` (or `?sent=1` after a notice) when
+ * the form posted natively.
  */
 export async function handleAuthPost<S extends z.ZodType<{ next?: string | undefined }>>(
   request: Request,
@@ -23,17 +24,27 @@ export async function handleAuthPost<S extends z.ZodType<{ next?: string | undef
   attempt: (deps: AuthDeps, input: z.infer<S>) => Promise<AuthResult>,
 ): Promise<Response> {
   const wantsJson = (request.headers.get("Accept") ?? "").includes("application/json");
-  const back = (code: string, next: string) => {
-    const query = new URLSearchParams({ error: code });
+  const back = (params: Record<string, string>, next: string) => {
+    const query = new URLSearchParams(params);
     if (next !== "/") query.set("next", next);
     return new Response(null, { status: 303, headers: { Location: `${page}?${query}` } });
   };
 
-  const parsed = schema.safeParse(await readBody(request));
+  const body = await readBody(request);
+  const parsed = schema.safeParse(body);
   if (!parsed.success) {
-    return wantsJson
-      ? jsonResponse({ error: LOGIN_ERRORS.invalido, fields: fieldErrors(parsed.error) }, 400)
-      : back("invalido", "/");
+    if (wantsJson) {
+      return jsonResponse({ error: LOGIN_ERRORS.invalido, fields: fieldErrors(parsed.error) }, 400);
+    }
+    // Kept so the page comes back as it was: the destination, and the reset link's token.
+    const field = (name: string) =>
+      typeof body === "object" && body !== null && name in body
+        ? Reflect.get(body, name)
+        : undefined;
+    const token = field("token");
+    const params: Record<string, string> = { error: "invalido" };
+    if (typeof token === "string" && token.length <= 200) params.token = token;
+    return back(params, safeNext(field("next") || "/"));
   }
 
   const next = safeNext(parsed.data.next || "/");
@@ -46,6 +57,9 @@ export async function handleAuthPost<S extends z.ZodType<{ next?: string | undef
     parsed.data,
   );
 
+  if (result.ok && result.cookie === null) {
+    return wantsJson ? jsonResponse({ notice: result.notice }, 200) : back({ sent: "1" }, next);
+  }
   if (result.ok) {
     const headers = { "Set-Cookie": result.cookie };
     return wantsJson
@@ -54,5 +68,5 @@ export async function handleAuthPost<S extends z.ZodType<{ next?: string | undef
   }
   return wantsJson
     ? jsonResponse({ error: result.error, code: result.code }, result.status)
-    : back(result.code, next);
+    : back({ error: result.code }, next);
 }

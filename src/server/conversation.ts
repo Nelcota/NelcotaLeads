@@ -7,11 +7,12 @@ import { cleanText, ForbiddenPhrasesError } from "@/lib/ai/analyzer";
 import type { ThreadMessage } from "@/lib/ai/prompts";
 import { localDay } from "@/lib/format";
 import { idSchema } from "@/lib/schemas";
-import { leadPatch, UNSUBSCRIBED_MESSAGE } from "./lead-status";
+import { LEAD_TRANSITIONS, leadPatch, UNSUBSCRIBED_MESSAGE } from "./lead-status";
 import { RETRIED_PREFIX } from "@/lib/email-errors";
 import {
   addressUnsubscribed,
   CLOSED_REASON,
+  insertDraftUnlessUserHasOne,
   leadContext,
   outgoingIssues,
   replySubject,
@@ -129,6 +130,11 @@ export async function undoCloseConversation(
   if (lead.status !== "closed" && lead.status !== "discarded") {
     throw new Error("Esta conversa já foi reaberta.");
   }
+  // The snapshot comes from the page: it may only name a status this close could have
+  // come from, so undo never becomes a way around LEAD_TRANSITIONS.
+  if (!LEAD_TRANSITIONS[previous.status].includes(lead.status)) {
+    throw new Error("Não é possível desfazer: a conversa não estava nesse estado.");
+  }
   const ids = [...cancelledIds.queued, ...cancelledIds.draft];
   const owners = await db.select({ leadId: emails.leadId }).from(emails).where(idIn(ids));
   if (owners.some((row) => row.leadId !== leadId)) {
@@ -206,11 +212,15 @@ export async function saveReplyDraft(
   const [updated] = await write();
   if (updated) return updated;
   // Insert-if-absent keeps it at one draft per lead even if two saves race.
-  await db.run(sql`
-    insert into emails (id, lead_id, direction, status, author, from_address, to_address, subject, body, in_reply_to)
-    select ${crypto.randomUUID()}, ${lead.id}, 'out', 'draft', 'user', ${fromAddress}, ${lead.email},
-      ${replySubject(lastAny?.subject ?? "Olá")}, ${body}, ${inReplyTo}
-    where not exists (select 1 from emails where lead_id = ${lead.id} and status = 'draft' and author = 'user')`);
+  await insertDraftUnlessUserHasOne(db, {
+    leadId: lead.id,
+    author: "user",
+    fromAddress,
+    toAddress: lead.email,
+    subject: replySubject(lastAny?.subject ?? "Olá"),
+    body,
+    inReplyTo,
+  });
   const [saved] = await write();
   return saved ?? null;
 }

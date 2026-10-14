@@ -11,6 +11,7 @@ export async function resetDb() {
       "settings",
       "api_usage",
       "users",
+      "revoked_sessions",
       "quick_replies",
       "job_runs",
     ].map((table) => env.DB.prepare(`DELETE FROM ${table}`)),
