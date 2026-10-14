@@ -56,6 +56,7 @@ const USER_DRAFT_REASON = "Você já começou uma resposta";
 
 /** Reason kept on the e-mails a closed conversation cancelled; undoing the close looks for it. */
 export const CLOSED_REASON = "Cancelado: conversa encerrada";
+export const DISCARDED_REASON = "Cancelado: lead descartado";
 
 export function mailDailyLimit(value: string | undefined): number {
   const n = Number(value);
@@ -470,6 +471,11 @@ export async function sendEmail(
   const lead = await db.query.leads.findFirst({ where: eq(leads.id, row.leadId) });
   if (!lead || lead.unsubscribedAt || (await addressUnsubscribed(db, row.toAddress))) {
     await cancelEmail(db, row.id, BLOCKED);
+    return "failed";
+  }
+  // Discarded or closed after it was queued (lead panel, bulk change, another tab).
+  if (lead.status === "closed" || lead.status === "discarded") {
+    await cancelEmail(db, row.id, lead.status === "closed" ? CLOSED_REASON : DISCARDED_REASON);
     return "failed";
   }
   if (row.author === "ai" && !lead.aiMode) {

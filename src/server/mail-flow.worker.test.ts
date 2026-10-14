@@ -11,6 +11,7 @@ import { resetDb } from "../../test/reset-db";
 import {
   autoDispatch,
   CLOSED_REASON,
+  DISCARDED_REASON,
   EMAIL_OPT_OUT,
   ensureOptOut,
   EMAIL_PROVIDER,
@@ -344,6 +345,26 @@ describe("e-mail outreach", () => {
       status: "cancelled",
       error: "Cancelado: a conversa passou para você",
     });
+  });
+
+  it("cancels a queued e-mail when the lead was discarded or closed after queuing", async () => {
+    const { drafts } = await prepareDrafts({ db, analyzer, fromAddress: FROM }, ["a"]);
+    const now = new Date("2026-10-11T12:00:00Z");
+    await queueDrafts(
+      db,
+      drafts.map((d) => d.id),
+      now,
+    );
+    // Discarded from the leads list (bulk change) before its send slot came.
+    await db.update(leads).set({ status: "discarded" }).where(eq(leads.id, "a"));
+
+    const { mailer, sent } = createFakeMailer();
+    expect(await sendDue({ db, mailer, limit: 30 }, now)).toBe(0);
+    expect(sent).toHaveLength(0);
+    expect(await leadEmails("a")).toEqual([
+      expect.objectContaining({ status: "cancelled", error: DISCARDED_REASON }),
+    ]);
+    expect(await requestsToday(db, EMAIL_PROVIDER, now)).toBe(0);
   });
 
   it("blocks drafts to an address that opted out on another lead", async () => {
