@@ -132,6 +132,19 @@ describe("jobState", () => {
   ] as const)("%s", (_name, job, info, off, state, reason) => {
     expect(jobState(job, info, { now, off })).toEqual({ state, reason });
   });
+
+  it("never calls a quiet task late where no cron runs, but still reports failures", () => {
+    const quiet = run({ lastRunAt: minutesAgo(600) });
+    expect(jobState("send", quiet, { now, off: false, scheduled: false })).toEqual({
+      state: "ok",
+      reason: "ok",
+    });
+    const failing = run({ lastRunAt: minutesAgo(600), consecutiveFailures: 1 });
+    expect(jobState("send", failing, { now, off: false, scheduled: false })).toEqual({
+      state: "warning",
+      reason: "failing",
+    });
+  });
 });
 
 describe("needsAttention", () => {

@@ -82,19 +82,21 @@ export type JobRunInfo = {
 /**
  * The state of one task: `off` when it is switched off or never ran, `error` after
  * {@link ERROR_AFTER_FAILURES} failures in a row, `warning` after one failure or when the cron
- * missed more than twice its interval, `ok` otherwise.
+ * missed more than twice its interval, `ok` otherwise. Without a cron (`scheduled: false`, the
+ * local dev server) a quiet task is not late: it only runs when asked.
  */
 export function jobState(
   job: Job,
   run: JobRunInfo | undefined,
-  { now, off }: { now: Date; off: boolean },
+  { now, off, scheduled = true }: { now: Date; off: boolean; scheduled?: boolean },
 ): { state: JobState; reason: JobReason } {
   if (off) return { state: "off", reason: "off" };
   if (!run) return { state: "off", reason: "never" };
   if (run.consecutiveFailures >= ERROR_AFTER_FAILURES) return { state: "error", reason: "failing" };
   if (run.consecutiveFailures > 0) return { state: "warning", reason: "failing" };
   const interval = JOB_INTERVAL_MINUTES[job];
-  if (interval !== null && now.getTime() - run.lastRunAt.getTime() > 2 * interval * 60_000) {
+  const late = interval !== null && now.getTime() - run.lastRunAt.getTime() > 2 * interval * 60_000;
+  if (scheduled && late) {
     return { state: "warning", reason: "stale" };
   }
   return { state: "ok", reason: "ok" };

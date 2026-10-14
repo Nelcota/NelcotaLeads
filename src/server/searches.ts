@@ -10,7 +10,7 @@ import { mailConfigured } from "@/lib/mail";
 import { needsAttention } from "@/lib/system-status";
 import { runSearch } from "./collect";
 import { cancelSearch as stopSearch, searchInputOf, setSearchHidden } from "./search-actions";
-import { loadSystemStatus } from "./job-runs";
+import { CRON_RUNS, loadSystemStatus } from "./job-runs";
 import { EMAIL_PROVIDER, mailDailyLimit } from "./mail-flow";
 import { loadConfig } from "./settings-store";
 import { GOOGLE_PLACES, placesDailyLimit, requestsToday, reserveRequest } from "./usage";
@@ -92,7 +92,12 @@ export const getProviderStatus = createServerFn({ method: "GET" }).handler(async
     config,
     requestsToday(db, GOOGLE_PLACES),
     requestsToday(db, EMAIL_PROVIDER),
-    loadSystemStatus(db, { mailConfigured: mailConfigured(env), now, config }),
+    loadSystemStatus(db, {
+      mailConfigured: mailConfigured(env),
+      now,
+      config,
+      scheduled: CRON_RUNS,
+    }),
   ]);
   return {
     placesConfigured: Boolean(env.GOOGLE_PLACES_API_KEY),

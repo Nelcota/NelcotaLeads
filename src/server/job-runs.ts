@@ -141,14 +141,24 @@ export type JobStatus = {
 /**
  * Every task with its derived state; `mailConfigured` comes from the Worker's secrets. A caller
  * that also needs the settings row passes its own read (`config`), so it is read once.
+ * `scheduled` is false where no cron runs (the local dev server), so quiet tasks aren't "late".
  */
+/** The dev server never runs the Worker's cron triggers; a deployed Worker does. */
+export const CRON_RUNS = !import.meta.env.DEV;
+
 export async function loadSystemStatus(
   db: Db,
   {
     mailConfigured,
     now = new Date(),
     config: preloaded,
-  }: { mailConfigured: boolean; now?: Date; config?: Promise<StoredConfig> },
+    scheduled = true,
+  }: {
+    mailConfigured: boolean;
+    now?: Date;
+    config?: Promise<StoredConfig>;
+    scheduled?: boolean;
+  },
 ): Promise<JobStatus[]> {
   const [rows, config] = await Promise.all([
     db.select().from(jobRuns),
@@ -165,7 +175,7 @@ export async function loadSystemStatus(
   };
   return JOBS.map((job) => {
     const run = byJob.get(job);
-    const { state, reason } = jobState(job, run, { now, off: off[job] });
+    const { state, reason } = jobState(job, run, { now, off: off[job], scheduled });
     return {
       job,
       state,

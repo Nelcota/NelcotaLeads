@@ -58,7 +58,15 @@ export function SystemStatusSection() {
   const now = new Date(dataUpdatedAt);
   return (
     <section id="status" className="enter min-w-0 scroll-mt-4">
-      <SectionHeader title="Status" hint="Tarefas que rodam sozinhas." />
+      <SectionHeader
+        title="Status"
+        hint={
+          // The local dev server has no cron: tasks only run through "Tentar agora".
+          import.meta.env.DEV
+            ? "Neste computador as tarefas só rodam quando você pede."
+            : "Tarefas que rodam sozinhas."
+        }
+      />
       <div className="grouped">
         {(jobs ?? []).map((job) => (
           <JobRow key={job.job} job={job} now={now} />
