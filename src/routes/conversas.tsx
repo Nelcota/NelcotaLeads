@@ -358,7 +358,10 @@ function ConversationsPage() {
               }
             />
           ) : (
-            <ul ref={listRef} className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
+            <ul
+              ref={listRef}
+              className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-3"
+            >
               {rows.map((row) => {
                 const selectedRow = row.id === openId;
                 const unread = row.state === "needsYou";
@@ -720,7 +723,7 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
           </p>
         ) : null}
 
-        <div className="scroll-fade min-h-0 flex-1 overflow-y-auto px-5 pb-4 sm:px-7">
+        <div className="scroll-fade min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-4 sm:px-7">
           {firstOut ? (
             <h3 className="mt-1 mb-1 max-w-[68ch] text-2xl font-medium tracking-[-0.025em]">
               {firstOut.subject}
@@ -855,7 +858,7 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
         ) : null}
       </div>
 
-      <aside className="hidden min-h-0 content-start gap-5 overflow-y-auto border-l border-border/70 px-4 py-5 xl:grid">
+      <aside className="hidden min-h-0 content-start gap-5 overflow-y-auto overscroll-contain border-l border-border/70 px-4 py-5 xl:grid">
         <div className="grid justify-items-center gap-2 text-center">
           <Avatar name={lead.name} size={56} />
           <p className="text-base font-medium">{lead.name}</p>
@@ -1129,7 +1132,7 @@ function Message({
       </div>
       <p
         className={cn(
-          "text-base leading-[1.7] whitespace-pre-line",
+          "text-base leading-[1.7] whitespace-pre-line wrap-break-word",
           message.status === "cancelled" ? "text-muted-foreground" : "text-foreground/85",
         )}
       >
@@ -1149,7 +1152,7 @@ function Message({
           {showQuoted ? (
             <p
               id={quotedId}
-              className="mt-1 border-l-2 border-border pl-3 text-sm leading-relaxed font-light whitespace-pre-line text-muted-foreground"
+              className="mt-1 border-l-2 border-border pl-3 text-sm leading-relaxed font-light whitespace-pre-line wrap-break-word text-muted-foreground"
             >
               {quoted}
             </p>

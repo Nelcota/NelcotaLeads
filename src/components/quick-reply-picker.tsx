@@ -62,6 +62,7 @@ export function QuickReplyPicker({
           autoFocus
           type="search"
           aria-label="Filtrar modelos"
+          autoComplete="off"
           placeholder="Filtrar modelos"
           className="h-8"
           value={filter}
@@ -84,7 +85,7 @@ export function QuickReplyPicker({
             Nenhum modelo com “{filter.trim()}”.
           </p>
         ) : (
-          <ul aria-label="Modelos" className="grid max-h-64 overflow-y-auto">
+          <ul aria-label="Modelos" className="grid max-h-64 overflow-y-auto overscroll-contain">
             {items.map((item) => (
               <li key={item.id}>
                 <button

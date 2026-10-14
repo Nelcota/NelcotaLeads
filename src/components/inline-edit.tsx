@@ -70,6 +70,7 @@ export function InlineEdit({
         // oxlint-disable-next-line jsx-a11y/no-autofocus -- opened by the user's own click
         autoFocus
         aria-label={`Editar ${label}`}
+        autoComplete="off"
         data-inline-edit=""
         type={inputType}
         value={draft}

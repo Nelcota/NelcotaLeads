@@ -626,6 +626,7 @@ function EmailStep({ lead, busy, onUpdate, onChanged }: StepProps) {
           <>
             <Input
               aria-label="Assunto"
+              autoComplete="off"
               value={value.subject}
               readOnly={rewrite.isPending}
               onChange={(event) => change({ ...value, subject: event.target.value })}
@@ -711,7 +712,7 @@ function ConversationStep({ lead }: StepProps) {
             <p className="mb-1 text-xs text-muted-foreground">
               {message.direction === "in" ? "Empresa" : message.author === "ai" ? "IA" : "Você"}
             </p>
-            <p className="line-clamp-4 whitespace-pre-line">{message.body}</p>
+            <p className="line-clamp-4 whitespace-pre-line wrap-break-word">{message.body}</p>
           </div>
         ))}
       </CardContent>
@@ -849,7 +850,7 @@ function ContactSection({ lead, onChanged }: { lead: Lead; onChanged: () => Prom
             onSave={save("email")}
           />
           {siteEmails.length > 0 ? (
-            <span className="block text-xs font-light text-muted-foreground">
+            <span className="block text-xs font-light wrap-break-word text-muted-foreground">
               No site: {siteEmails.join(", ")}
             </span>
           ) : null}

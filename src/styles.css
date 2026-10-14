@@ -245,6 +245,42 @@
     -webkit-appearance: none;
     display: none;
   }
+  /* Tailwind's preflight gives buttons the arrow; clickable things show the hand. Menu and
+     select items keep the arrow, as macOS menus do. */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="tab"],
+  [role="switch"],
+  [role="checkbox"],
+  summary,
+  label[for] {
+    cursor: pointer;
+  }
+  [role="menuitem"],
+  [role="menuitemcheckbox"],
+  [role="menuitemradio"],
+  [role="option"] {
+    cursor: default;
+  }
+  /* No gray flash on tap (Android); .press and active states give the touch feedback. */
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+  ::selection {
+    background: color-mix(in srgb, var(--blue) 30%, transparent);
+  }
+  input,
+  textarea {
+    caret-color: var(--primary);
+  }
+  /* Grows with its text (field-sizing), so the corner grip only gets in the way. */
+  textarea {
+    resize: none;
+  }
+  /* Nav links and cards are clicked, never dragged into another tab as a ghost image. */
+  a {
+    -webkit-user-drag: none;
+  }
 }
 
 /*

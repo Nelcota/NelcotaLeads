@@ -283,6 +283,7 @@ function DispatchReview({
                 </label>
                 <Input
                   id="draft-subject"
+                  autoComplete="off"
                   value={value.subject}
                   readOnly={rewrite.isPending}
                   className="h-auto bg-transparent! px-0 text-lg font-medium tracking-[-0.02em] shadow-none! focus-visible:ring-0"

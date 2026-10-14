@@ -38,6 +38,7 @@ export function useUrlSearchBox(urlValue: string, commit: (value: string) => voi
     clear,
     inputProps: {
       value,
+      autoComplete: "off",
       onChange: (event: ChangeEvent<HTMLInputElement>) => setValue(event.target.value),
       onFocus: () => setFocused(true),
       onBlur: () => setFocused(false),

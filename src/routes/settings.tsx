@@ -308,6 +308,7 @@ function AutopilotForm() {
               <div className="grid flex-1 grid-cols-[1fr_auto_1fr] items-center gap-2">
                 <Input
                   aria-label={`Nicho ${index + 1}`}
+                  autoComplete="off"
                   placeholder="Nicho, ex.: dentistas"
                   defaultValue={field.niche}
                   {...form.register(`targets.${index}.niche`)}
@@ -316,6 +317,7 @@ function AutopilotForm() {
                 <span className="text-sm font-light text-tertiary">em</span>
                 <Input
                   aria-label={`Cidade ${index + 1}`}
+                  autoComplete="off"
                   placeholder="Cidade, ex.: Belo Horizonte"
                   defaultValue={field.city}
                   {...form.register(`targets.${index}.city`)}
@@ -505,6 +507,7 @@ function SettingsForm({ defaults }: { defaults: SettingsInput }) {
             <div key={field.id} className="grid grid-cols-[1fr_7.5rem_22px] items-center gap-2">
               <Input
                 aria-label={`Sinal ${index + 1}`}
+                autoComplete="off"
                 defaultValue={field.label}
                 {...form.register(`criteria.${index}.label`)}
                 aria-invalid={Boolean(errors.criteria?.[index]?.label)}
@@ -720,6 +723,7 @@ function QuickRepliesForm({ defaults }: { defaults: QuickRepliesInput }) {
               <div className="flex items-center gap-2">
                 <Input
                   aria-label={`Nome do modelo ${index + 1}`}
+                  autoComplete="off"
                   placeholder="Nome, ex.: Agendar uma ligação"
                   maxLength={QUICK_REPLY_LIMITS.title}
                   defaultValue={field.title}
