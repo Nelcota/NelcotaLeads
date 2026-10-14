@@ -93,34 +93,61 @@ export async function runSendJob(
   { verifyWhenIdle = false } = {},
 ): Promise<number> {
   const { db, mailer } = deps;
-  let attempts = 0;
-  let failure: unknown;
-  const watched: Mailer = {
-    ...mailer,
-    send: async (email) => {
-      attempts += 1;
-      try {
-        await mailer.send(email);
-      } catch (error) {
-        if (!isRecipientRejection(error)) failure = error;
-        throw error;
-      }
-    },
-  };
+  const watch = watchSends(mailer);
+  let verified = false;
   return trackJob(
     db,
     "send",
     async () => {
-      const sent = await sendDue({ ...deps, mailer: watched }, now);
-      if (failure !== undefined) throw failure;
-      if (attempts === 0 && verifyWhenIdle && (await isFailing(db, "send"))) {
+      const sent = await sendDue({ ...deps, mailer: watch.mailer }, now);
+      if (watch.failure !== undefined) throw watch.failure;
+      if (watch.attempts === 0 && verifyWhenIdle && (await isFailing(db, "send"))) {
         await mailer.verify();
-        attempts = 1;
+        verified = true;
       }
       return sent;
     },
-    { now, isIdle: () => attempts === 0 },
+    { now, isIdle: () => watch.attempts === 0 && !verified },
   );
+}
+
+/**
+ * Wraps a mailer to see how its sends went: how many were tried, and the first mailbox
+ * failure. A rejected recipient is that e-mail's problem (shown on it), not the mailbox's.
+ */
+export function watchSends(mailer: Mailer) {
+  const seen: { attempts: number; failure: unknown } = { attempts: 0, failure: undefined };
+  const watched: Mailer = {
+    ...mailer,
+    send: async (email) => {
+      seen.attempts += 1;
+      try {
+        await mailer.send(email);
+      } catch (error) {
+        if (!isRecipientRejection(error) && seen.failure === undefined) seen.failure = error;
+        throw error;
+      }
+    },
+  };
+  return {
+    mailer: watched,
+    get attempts() {
+      return seen.attempts;
+    },
+    get failure() {
+      return seen.failure;
+    },
+    /** Records a send made outside `runSendJob` (a reply, a dispatch) in Status. */
+    record(db: Db, now = new Date()) {
+      if (seen.attempts === 0) return Promise.resolve();
+      return recordJobRun(
+        db,
+        "send",
+        seen.failure === undefined ? { status: "ok" } : { status: "failed", error: seen.failure },
+        now,
+      );
+    },
+  };
 }
 
 async function isFailing(db: Db, job: Job) {

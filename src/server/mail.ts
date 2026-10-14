@@ -31,7 +31,7 @@ import {
   sendDue,
   sendEmail,
 } from "./mail-flow";
-import { runSendJob, trackJob } from "./job-runs";
+import { runSendJob, trackJob, watchSends } from "./job-runs";
 import { loadSettings } from "./settings-store";
 import { DAILY_LIMIT_ERROR } from "@/lib/email-errors";
 import { friendlyJobError } from "@/lib/system-status";
@@ -112,7 +112,9 @@ export const dispatchEmails = createServerFn({ method: "POST" })
     if (!mailConfigured(env)) throw new Error("Conecte a sua caixa de e-mail nas Configurações.");
     const db = getDb();
     const queued = await queueDrafts(db, data.ids);
-    await sendDue({ db, mailer: getMailer(env), limit: limit() });
+    const watch = watchSends(getMailer(env));
+    await sendDue({ db, mailer: watch.mailer, limit: limit() });
+    await watch.record(db);
     return { queued };
   });
 
@@ -320,7 +322,11 @@ export const sendReply = createServerFn({ method: "POST" })
       })
       .returning();
     if (!email) throw new Error("Não foi possível criar o e-mail");
-    const result = await sendEmail({ db, mailer, limit: limit() }, email, now, { claimed: true });
+    const watch = watchSends(mailer);
+    const result = await sendEmail({ db, mailer: watch.mailer, limit: limit() }, email, now, {
+      claimed: true,
+    });
+    await watch.record(db, now);
     if (result === "limit") {
       // Not left queued: a retry from the page would otherwise send it twice tomorrow.
       await db
@@ -370,7 +376,9 @@ export const retryEmail = createServerFn({ method: "POST" })
     const db = getDb();
     const mailer = getMailer(env);
     await retryFailedEmail(db, data.emailId, { fromAddress: mailer.address });
-    await sendDue({ db, mailer, limit: limit() });
+    const watch = watchSends(mailer);
+    await sendDue({ db, mailer: watch.mailer, limit: limit() });
+    await watch.record(db);
     return { ok: true as const };
   });
 

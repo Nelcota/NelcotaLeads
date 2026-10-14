@@ -3,10 +3,11 @@ import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getDb } from "@/db/client";
 import { emails, jobRuns, leads, searches } from "@/db/schema";
+import type { OutgoingEmail } from "@/lib/mail";
 import { MAILBOX_REFUSED } from "@/lib/system-status";
 import { createFakeMailer } from "../../test/fake-mailer";
 import { resetDb } from "../../test/reset-db";
-import { loadSystemStatus, recordJobRun, runSendJob, trackJob } from "./job-runs";
+import { loadSystemStatus, recordJobRun, runSendJob, trackJob, watchSends } from "./job-runs";
 import { DEFAULT_CONFIG, writeAutopilot } from "./settings-store";
 import { runStep, runTick } from "./tick";
 
@@ -187,5 +188,52 @@ describe("loadSystemStatus", () => {
     const status = await loadSystemStatus(db, { mailConfigured: true, now, config });
     // On only in the passed config (the stored row keeps the default, off).
     expect(status.find((job) => job.job === "auto-dispatch")?.reason).toBe("never");
+  });
+});
+
+/** A mailer whose every send fails with `message`. */
+const throwing = (message: string) => ({
+  ...createFakeMailer().mailer,
+  send: async () => {
+    throw new Error(message);
+  },
+});
+
+describe("watchSends", () => {
+  beforeEach(resetDb);
+
+  const email: OutgoingEmail = {
+    from: { address: "eu@exemplo.com.br" },
+    to: "a@b.test",
+    subject: "Oi",
+    text: "Olá",
+    messageId: "<1@exemplo.com.br>",
+    date: now,
+  };
+
+  it("records a send made outside the queue job as a working mailbox", async () => {
+    const watch = watchSends(createFakeMailer().mailer);
+    await watch.mailer.send(email);
+    await watch.record(db, now);
+    expect(await row("send")).toMatchObject({ consecutiveFailures: 0, lastOkAt: now });
+  });
+
+  it("records a refused send as a failing mailbox", async () => {
+    const watch = watchSends(throwing("SMTP envio: 550 recusado"));
+    await expect(watch.mailer.send(email)).rejects.toThrow("SMTP envio");
+    await watch.record(db, now);
+    expect(await row("send")).toMatchObject({ consecutiveFailures: 1, lastErrorAt: now });
+  });
+
+  it("doesn't blame the mailbox for one rejected recipient", async () => {
+    const watch = watchSends(throwing("SMTP destinatário: 550 no such user"));
+    await expect(watch.mailer.send(email)).rejects.toThrow("SMTP destinatário");
+    await watch.record(db, now);
+    expect(await row("send")).toMatchObject({ consecutiveFailures: 0 });
+  });
+
+  it("records nothing when nothing was sent", async () => {
+    await watchSends(createFakeMailer().mailer).record(db, now);
+    expect(await row("send")).toBeUndefined();
   });
 });
