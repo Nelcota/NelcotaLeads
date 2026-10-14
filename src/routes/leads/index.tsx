@@ -82,6 +82,7 @@ import {
   LEAD_VIEW_LABELS,
   LEAD_VIEWS,
   leadFiltersSchema,
+  lenientSearch,
   SCORE_TIERS,
   type LeadFilters,
   type LeadView,
@@ -99,10 +100,12 @@ import { pageTitle } from "@/lib/page-title";
 
 // `lead` (the open side sheet) and `missing` (a link to a lead that is gone) are UI state,
 // kept out of the data filters.
-const searchSchema = leadFiltersSchema.extend({
-  lead: z.string().max(64).optional(),
-  missing: z.boolean().optional(),
-});
+const searchSchema = lenientSearch(
+  leadFiltersSchema.extend({
+    lead: z.string().max(64).optional(),
+    missing: z.boolean().optional(),
+  }),
+);
 
 const DEFAULT_VIEW: LeadView = "todo";
 const NO_SELECTION: ReadonlySet<string> = new Set();

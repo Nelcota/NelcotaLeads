@@ -23,6 +23,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import { errorToast } from "@/lib/mutation-toasts";
 import { z } from "zod";
+import { lenientSearch } from "@/lib/schemas";
 import {
   Avatar,
   EmptyState,
@@ -107,12 +108,14 @@ const SIDE_BY_SIDE = "(min-width: 1024px)";
 
 export const Route = createFileRoute("/conversas")({
   head: () => ({ meta: [{ title: pageTitle("Conversas") }] }),
-  validateSearch: z.object({
-    lead: z.string().max(64).optional(),
-    filter: z.enum(FILTERS).optional(),
-    q: z.string().max(100).optional(),
-    niche: z.string().max(120).optional(),
-  }),
+  validateSearch: lenientSearch(
+    z.object({
+      lead: z.string().max(64).optional(),
+      filter: z.enum(FILTERS).optional(),
+      q: z.string().max(100).optional(),
+      niche: z.string().max(120).optional(),
+    }),
+  ),
   loader: ({ context }) => context.queryClient.ensureQueryData(conversationsQuery),
   component: ConversationsPage,
 });

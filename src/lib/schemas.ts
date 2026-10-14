@@ -254,6 +254,20 @@ export const leadFiltersSchema = z.object({
 });
 export type LeadFilters = z.infer<typeof leadFiltersSchema>;
 
+/**
+ * A route's search params, where a bad value (hand-edited or an old link: `?view=foo`,
+ * `?minScore=500`) is dropped instead of failing the whole page. Server validators stay strict.
+ */
+export function lenientSearch<Shape extends Record<string, z.ZodOptional>>(
+  schema: z.ZodObject<Shape>,
+) {
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- same keys, each wrapped in .catch
+  const shape = Object.fromEntries(
+    Object.entries(schema.shape).map(([key, field]) => [key, field.catch(undefined)]),
+  ) as { [K in keyof Shape]: z.ZodCatch<Shape[K]> };
+  return z.object(shape);
+}
+
 export const updateLeadSchema = z.object({
   id: idSchema,
   status: z.enum(LEAD_STATUS_VALUES).optional(),

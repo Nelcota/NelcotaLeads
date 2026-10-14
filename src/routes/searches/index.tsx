@@ -14,6 +14,7 @@ import {
 import type { ReactNode } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
+import { lenientSearch } from "@/lib/schemas";
 import { EmptyState, Hint, IconTile, Lift, ProgressRing } from "@/components/apple-ui";
 import { Page, Stat, useOpenNewSearch } from "@/components/app-shell";
 import { SearchStatusBadge } from "@/components/lead-badges";
@@ -38,7 +39,7 @@ import { pageTitle } from "@/lib/page-title";
 export const Route = createFileRoute("/searches/")({
   head: () => ({ meta: [{ title: pageTitle("Buscas") }] }),
   // `missing`: arrived from a link to a search that no longer exists.
-  validateSearch: z.object({ missing: z.boolean().optional() }),
+  validateSearch: lenientSearch(z.object({ missing: z.boolean().optional() })),
   loader: ({ context }) => context.queryClient.ensureQueryData(searchesQuery),
   component: SearchesPage,
 });
