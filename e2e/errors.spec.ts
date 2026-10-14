@@ -27,7 +27,11 @@ test.describe("provider failures", () => {
 
     await page.getByRole("link", { name: "Buscas" }).click();
     await expect(page.getByText("Falhou")).toBeVisible();
-    await expect(page.getByText("Google Places respondeu 500: falha simulada")).toBeVisible();
+    // A fixed sentence, never Google's own response text.
+    await expect(
+      page.getByText("O Google não respondeu à busca. Tente de novo em alguns minutos.").first(),
+    ).toBeVisible();
+    await expect(page.getByText(/Google Places respondeu|falha simulada/)).toHaveCount(0);
 
     // The fault was one-shot: the app keeps working.
     await searchDentists(page);

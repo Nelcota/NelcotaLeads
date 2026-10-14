@@ -1,3 +1,4 @@
+import { ANALYSIS_FAILED } from "@/lib/provider-errors";
 import { env } from "cloudflare:test";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -80,7 +81,7 @@ describe("handleLeadBatch", () => {
     expect(last.ack).toHaveBeenCalled();
     expect(await db.query.leads.findFirst({ where: eq(leads.id, "b") })).toMatchObject({
       analysisStatus: "error",
-      analysisError: "upstream 503",
+      analysisError: ANALYSIS_FAILED,
     });
     expect(await db.query.searches.findFirst({ where: eq(searches.id, "s") })).toMatchObject({
       status: "done",

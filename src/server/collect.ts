@@ -3,6 +3,7 @@ import type { Db } from "@/db/client";
 import { leads, searches, type SearchStatus } from "@/db/schema";
 import type { PlacesProvider } from "@/lib/places";
 import { toE164 } from "@/lib/phone";
+import { searchErrorMessage } from "@/lib/provider-errors";
 import type { NewSearchInput } from "@/lib/schemas";
 import { enqueueLeads, type LeadJob } from "./queue";
 
@@ -103,12 +104,10 @@ export async function runSearch(
         ),
     ]);
   } catch (error) {
+    console.error("search failed", searchId, error);
     await db
       .update(searches)
-      .set({
-        status: keepCancelled("error"),
-        errorMessage: error instanceof Error ? error.message : String(error),
-      })
+      .set({ status: keepCancelled("error"), errorMessage: searchErrorMessage(error) })
       .where(eq(searches.id, searchId));
   }
 

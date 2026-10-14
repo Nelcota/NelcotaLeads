@@ -2,6 +2,7 @@ import { and, desc, eq, gte, isNull, lt, ne, or, sql, type SQL } from "drizzle-o
 import type { Db } from "@/db/client";
 import { analyses, apiUsage, leads, searches, type Lead, type Search } from "@/db/schema";
 import type { CallUsage, LeadAnalyzer, LeadContext } from "@/lib/ai";
+import { analysisErrorMessage } from "@/lib/provider-errors";
 import { localDay } from "@/lib/format";
 import { MANUAL_SEARCH_ID } from "@/lib/searches";
 import { siteDataSchema, type SiteData } from "@/lib/schemas";
@@ -278,9 +279,13 @@ export function buildContext(lead: Lead, search: Search | undefined): LeadContex
   };
 }
 
+// Our own reasons, shown as they are; anything else is a provider's text and is replaced.
+const KNOWN_FAILURES = [LEAD_BUSY_MESSAGE, NO_OFFER_MESSAGE, "Falha após todas as tentativas"];
+
 /** Records a permanent failure for the lead; called once retries are exhausted. */
 export async function failLead(db: Db, job: LeadJob, error: unknown) {
-  const message = error instanceof Error ? error.message : String(error);
+  console.error("lead analysis failed", job.leadId, error);
+  const message = analysisErrorMessage(error, KNOWN_FAILURES);
   const pending = and(eq(leads.id, job.leadId), eq(leads.analysisStatus, "pending"));
   const lead = await db.query.leads.findFirst({ where: pending, columns: { searchId: true } });
   if (!lead) return;

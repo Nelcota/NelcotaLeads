@@ -76,7 +76,8 @@ describe("runSearch", () => {
     };
     const { searchId } = await runSearch(db, fakeQueue().queue, failing, input);
     const search = await db.query.searches.findFirst({ where: (s, { eq }) => eq(s.id, searchId) });
-    expect(search).toMatchObject({ status: "error", errorMessage: "quota exceeded" });
+    expect(search).toMatchObject({ status: "error" });
+    expect(search?.errorMessage).toMatch(/^Limite diário de requisições ao Google/);
   });
 
   it("marks the new leads as failed when they cannot be enqueued", async () => {
