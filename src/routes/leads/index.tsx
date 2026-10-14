@@ -20,7 +20,7 @@ import {
   XIcon,
 } from "lucide-react";
 import { toast } from "sonner";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { z } from "zod";
 import {
   Avatar,
@@ -73,7 +73,7 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { LeadStatus } from "@/db/schema";
 import { relativeDay } from "@/lib/format";
-import { leadCountsQuery, leadsQuery, searchesQuery } from "@/lib/queries";
+import { leadCountsQuery, leadsQuery, nichesQuery, searchesQuery } from "@/lib/queries";
 import {
   BULK_LIMIT,
   type BulkSnapshot,
@@ -87,6 +87,7 @@ import {
   type LeadView,
   type ScoreTier,
 } from "@/lib/schemas";
+import { useUrlSearchBox } from "@/hooks/use-url-search-box";
 import { errorToast } from "@/lib/mutation-toasts";
 import { useNotFoundToast } from "@/lib/not-found-toast";
 import { searchLabel } from "@/lib/searches";
@@ -131,6 +132,7 @@ const NO_FILTERS: Partial<LeadFilters> = {
   maxScore: undefined,
   noWebsite: undefined,
   searchId: undefined,
+  niche: undefined,
 };
 
 // Which statuses still belong to each view after a status change.
@@ -590,38 +592,17 @@ function Toolbar({
   onChange: (patch: Partial<LeadFilters>) => void;
   onReset: () => void;
 }) {
-  const [q, setQ] = useState(filters.q ?? "");
   const searchRef = useRef<HTMLInputElement>(null);
-  const onChangeRef = useRef(onChange);
-  useEffect(() => {
-    onChangeRef.current = onChange;
-  });
-
-  // Keep the box in sync when filters are cleared elsewhere (state adjusted during render).
-  const [syncedQ, setSyncedQ] = useState(filters.q);
-  if (filters.q !== syncedQ) {
-    setSyncedQ(filters.q);
-    setQ(filters.q ?? "");
-  }
-
-  // Debounce free-text search so each keystroke does not hit the server.
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if ((filters.q ?? "") !== q) onChangeRef.current({ q: q || undefined });
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [q, filters.q]);
-
-  // Cleared at once, without waiting for the debounce. Always navigates: a search that was
-  // just sent may not be in `filters` yet, and would otherwise come back when it lands.
-  const clearSearch = () => {
-    setQ("");
-    onChange({ q: undefined });
-  };
+  // Debounced, so each keystroke does not hit the server; the box wins while it has focus.
+  const searchBox = useUrlSearchBox(filters.q ?? "", (next) => onChange({ q: next || undefined }));
+  const q = searchBox.value;
+  const clearSearch = searchBox.clear;
 
   const { data: searches } = useQuery(searchesQuery);
   const tier = activeTier(filters);
   const activeSearch = searches?.find((item) => item.id === filters.searchId);
+  const { data: niches } = useQuery(nichesQuery);
+  const activeNiche = niches?.find((item) => item.key === filters.niche);
   const sortValue: SortValue =
     filters.sort === "reviewCount" || filters.sort === "name" || filters.sort === "createdAt"
       ? filters.sort
@@ -640,8 +621,7 @@ function Toolbar({
           aria-label="Buscar empresa"
           placeholder="Buscar empresa"
           className={cn("h-10 rounded-full pl-8 sm:h-8", q && "pr-9")}
-          value={q}
-          onChange={(event) => setQ(event.target.value)}
+          {...searchBox.inputProps}
           onKeyDown={(event) => {
             if (event.key !== "Escape" || !q) return;
             // Only the search: Esc doesn't also close what is around it.
@@ -696,6 +676,32 @@ function Toolbar({
                 <DropdownMenuRadioItem key={item} value={item}>
                   {SCORE_TIERS[item].label} ({SCORE_TIERS[item].min}
                   {item === "high" ? "+" : `–${SCORE_TIERS[item].max}`})
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger className={cn(POPUP, "max-w-full")}>
+            Nicho
+            <span className="truncate font-normal text-muted-foreground">
+              {activeNiche?.label ?? filters.niche ?? "todos"}
+            </span>
+            <ChevronsUpDownIcon className="text-tertiary" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="max-h-80">
+            <DropdownMenuRadioGroup
+              value={filters.niche ?? "all"}
+              onValueChange={(value) => onChange({ niche: value === "all" ? undefined : value })}
+            >
+              <DropdownMenuRadioItem value="all">Todos</DropdownMenuRadioItem>
+              {niches?.map((item) => (
+                <DropdownMenuRadioItem key={item.key} value={item.key}>
+                  <span className="truncate">{item.label}</span>
+                  <span className="ml-auto pl-3 text-xs text-tertiary tabular-nums">
+                    {item.leads}
+                  </span>
                 </DropdownMenuRadioItem>
               ))}
             </DropdownMenuRadioGroup>

@@ -28,6 +28,7 @@ import {
   Lift,
   PropertyRow,
   SectionHeader,
+  TONE_TEXT,
   toneVar,
   type Tone,
 } from "@/components/apple-ui";
@@ -37,7 +38,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { shortTime } from "@/lib/format";
-import { dashboardQuery, leadCountsQuery } from "@/lib/queries";
+import { dashboardQuery, leadCountsQuery, nichesQuery } from "@/lib/queries";
 import type { LeadFilters } from "@/lib/schemas";
 import { cn } from "@/lib/utils";
 import { runAutopilotNow, setAutomation, type Dashboard } from "@/server/dashboard";
@@ -117,6 +118,7 @@ function OverviewPage() {
             <Funnel data={data} />
             <Automation data={data} />
           </div>
+          <Niches />
           <Activity data={data} />
         </>
       )}
@@ -568,6 +570,78 @@ function Funnel({ data }: { data: Dashboard }) {
             </Link>
           );
         })}
+      </div>
+    </section>
+  );
+}
+
+const PERCENT = new Intl.NumberFormat("pt-BR", { style: "percent", maximumFractionDigits: 0 });
+
+/** "12 · 40%": a count and its share of the step before, when there is one. */
+function NicheCell({ value, of, tone }: { value: number; of?: number; tone?: Tone }) {
+  return (
+    <span className="text-right tabular-nums">
+      <span className={cn("font-medium", value === 0 ? "text-tertiary" : tone && TONE_TEXT[tone])}>
+        {value}
+      </span>
+      {of !== undefined ? (
+        <span className="block text-[11px] text-tertiary">
+          {of > 0 ? PERCENT.format(value / of) : "–"}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+const NICHE_GRID =
+  "grid grid-cols-[minmax(0,1fr)_repeat(3,52px)] items-center gap-2 px-4 sm:grid-cols-[minmax(0,1fr)_repeat(4,84px)] sm:gap-3";
+
+/** The funnel split by niche: which areas answer and buy the most. */
+function Niches() {
+  const { data: niches } = useQuery(nichesQuery);
+  if (!niches || niches.length === 0) return null;
+  const best = niches[0];
+  return (
+    <section className="enter min-w-0">
+      <SectionHeader
+        title="Por nicho"
+        hint={
+          best && best.closed > 0
+            ? `${best.label} é o que mais fecha.`
+            : "Quem responde e fecha mais, por área."
+        }
+      />
+      <div className="grouped py-1">
+        <div className={cn(NICHE_GRID, "py-2 text-[12px] font-medium text-tertiary")}>
+          <span>Nicho</span>
+          <span className="text-right max-sm:hidden">Leads</span>
+          <span className="text-right">Contatados</span>
+          <span className="text-right">Responderam</span>
+          <span className="text-right">Fechados</span>
+        </div>
+        {niches.map((niche) => (
+          <Link
+            key={niche.key}
+            to="/leads"
+            search={{ view: "all", niche: niche.key }}
+            aria-label={`${niche.label}: ${niche.leads} leads, ${niche.contacted} contatados, ${niche.replied} responderam, ${niche.closed} fechados`}
+            className={cn(
+              NICHE_GRID,
+              "grouped-row row-hover py-2.5 transition-colors outline-none [--inset:16px] hover:bg-fill-3 focus-visible:bg-fill-2",
+            )}
+          >
+            <span className="min-w-0">
+              <span className="block truncate font-medium">{niche.label}</span>
+              <span className="block text-[12px] font-light text-muted-foreground sm:hidden">
+                {niche.leads} {niche.leads === 1 ? "lead" : "leads"}
+              </span>
+            </span>
+            <span className="text-right font-medium tabular-nums max-sm:hidden">{niche.leads}</span>
+            <NicheCell value={niche.contacted} />
+            <NicheCell value={niche.replied} of={niche.contacted} tone="blue" />
+            <NicheCell value={niche.closed} of={niche.contacted} tone="green" />
+          </Link>
+        ))}
       </div>
     </section>
   );

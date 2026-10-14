@@ -14,6 +14,7 @@ import {
 import type { Db } from "@/db/client";
 import { analyses, leads } from "@/db/schema";
 import { localDay } from "@/lib/format";
+import { leadNicheIs } from "./niches";
 import { SCORE_TIERS, type LeadFilters, type LeadView, type ScoreTier } from "@/lib/schemas";
 
 /** Rows shown in the leads table; the UI asks for narrower filters past this. */
@@ -72,6 +73,7 @@ function whereClause(filters: LeadQuery, today: string): SQL | undefined {
     filters.ids ? leadIdIn(filters.ids) : undefined,
     filters.q ? sql`${leads.name} like ${`%${escapeLike(filters.q)}%`} escape '\\'` : undefined,
     filters.searchId ? eq(leads.searchId, filters.searchId) : undefined,
+    filters.niche ? leadNicheIs(filters.niche) : undefined,
     viewCondition(filters.view, today),
     filters.minScore !== undefined ? gte(leads.score, filters.minScore) : undefined,
     filters.maxScore !== undefined ? lte(leads.score, filters.maxScore) : undefined,

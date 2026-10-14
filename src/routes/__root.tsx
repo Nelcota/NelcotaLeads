@@ -2,6 +2,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import {
   HeadContent,
   Link,
+  Outlet,
   Scripts,
   createRootRouteWithContext,
   useRouterState,
@@ -16,10 +17,33 @@ import { AUTH_PAGES } from "@/lib/login";
 import { applyThemeColor, THEME_COLOR, THEME_INIT_SCRIPT, useTheme } from "@/lib/theme";
 import appCss from "../styles.css?url";
 
-// Loaded on demand: the sign-in screens never download the sidebar and everything it pulls in.
-const AppShell = lazy(() =>
-  import("@/components/app-shell").then((module) => ({ default: module.AppShell })),
-);
+/**
+ * The AppShell is loaded on demand: the sign-in screens never download the sidebar and all it
+ * pulls in. The router preloads it (RootOutlet.preload) before rendering any other page, also
+ * before hydration, so the shell renders at once; the lazy fallback only covers a client-side
+ * visit coming from a sign-in screen.
+ */
+type AppShellComponent = typeof import("@/components/app-shell").AppShell;
+let loadedShell: AppShellComponent | undefined;
+let shellImport: Promise<AppShellComponent> | undefined;
+
+function loadShell() {
+  shellImport ??= import("@/components/app-shell").then((module) => {
+    loadedShell = module.AppShell;
+    return module.AppShell;
+  });
+  return shellImport;
+}
+
+const LazyAppShell = lazy(() => loadShell().then((AppShell) => ({ default: AppShell })));
+
+function RootOutlet() {
+  return <Outlet />;
+}
+RootOutlet.preload = async () => {
+  if (typeof window !== "undefined" && AUTH_PAGES.has(window.location.pathname)) return;
+  await loadShell();
+};
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   head: () => ({
@@ -38,6 +62,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     ],
   }),
   shellComponent: RootDocument,
+  component: RootOutlet,
   errorComponent: RouteError,
   notFoundComponent: () => (
     <div className="grid min-h-full place-items-center p-6">
@@ -60,6 +85,7 @@ function RootDocument({ children }: { children: ReactNode }) {
   const bare = useRouterState({ select: (state) => AUTH_PAGES.has(state.location.pathname) });
   const { theme } = useTheme();
   useEffect(() => applyThemeColor(theme), [theme]);
+  const Shell = loadedShell;
   return (
     <html lang="pt-BR" suppressHydrationWarning>
       <head>
@@ -77,11 +103,11 @@ function RootDocument({ children }: { children: ReactNode }) {
       <body>
         {bare ? (
           children
+        ) : Shell ? (
+          <Shell>{children}</Shell>
         ) : (
-          // Server-rendered pages hydrate in place (the boundary keeps the HTML until the chunk
-          // arrives); the empty panel only shows after a client-side visit from a sign-in screen.
           <Suspense fallback={<div className="h-svh bg-background" />}>
-            <AppShell>{children}</AppShell>
+            <LazyAppShell>{children}</LazyAppShell>
           </Suspense>
         )}
         <Toaster position="bottom-right" />

@@ -12,7 +12,7 @@ import {
   type JobState,
 } from "@/lib/system-status";
 import { sendDue } from "./mail-flow";
-import { loadConfig } from "./settings-store";
+import { loadConfig, type StoredConfig } from "./settings-store";
 
 export type JobOutcome =
   | { status: "ok" }
@@ -138,12 +138,22 @@ export type JobStatus = {
   error: string | null;
 };
 
-/** Every task with its derived state; `mailConfigured` comes from the Worker's secrets. */
+/**
+ * Every task with its derived state; `mailConfigured` comes from the Worker's secrets. A caller
+ * that also needs the settings row passes its own read (`config`), so it is read once.
+ */
 export async function loadSystemStatus(
   db: Db,
-  { mailConfigured, now = new Date() }: { mailConfigured: boolean; now?: Date },
+  {
+    mailConfigured,
+    now = new Date(),
+    config: preloaded,
+  }: { mailConfigured: boolean; now?: Date; config?: Promise<StoredConfig> },
 ): Promise<JobStatus[]> {
-  const [rows, config] = await Promise.all([db.select().from(jobRuns), loadConfig(db)]);
+  const [rows, config] = await Promise.all([
+    db.select().from(jobRuns),
+    preloaded ?? loadConfig(db),
+  ]);
   const byJob = new Map(rows.map((row) => [row.job, row]));
   const off: Record<Job, boolean> = {
     send: !mailConfigured,

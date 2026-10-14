@@ -5,6 +5,7 @@ import { getAttentionCount, getDashboard } from "@/server/dashboard";
 import { getConversation, listConversations } from "@/server/mail";
 import { getLead, getLeadCounts, listLeads } from "@/server/leads";
 import { getProviderStatus, getSearch, listSearches } from "@/server/searches";
+import { listNiches } from "@/server/niches";
 import { getQuickReplies } from "@/server/settings";
 import { getSystemStatus } from "@/server/system-status";
 
@@ -24,6 +25,13 @@ export const searchQuery = (id: string) =>
     refetchInterval: (query) =>
       query.state.data && isRunning(query.state.data.status) ? 2000 : false,
   });
+
+/** Niches with their funnel, for the filters and the overview. */
+export const nichesQuery = queryOptions({
+  queryKey: ["niches"],
+  queryFn: () => listNiches(),
+  refetchInterval: 60_000,
+});
 
 /** The signed-in account; it only changes on sign-in, so it is never refetched on its own. */
 export const accountQuery = queryOptions({

@@ -1,99 +1,99 @@
 # Nelcota Leads
 
-Sistema de uso próprio para encontrar negócios locais e qualificá-los com IA.
+An in-house tool that finds local businesses and qualifies them with AI.
 
-1. Você informa nicho + cidade (ex.: "dentistas" em "Belo Horizonte").
-2. O app busca as empresas no Google Places API (New).
-3. Para cada empresa, uma fila (Cloudflare Queues) lê o site público, quando ele existe, e a DeepSeek gera um resumo, sinais de oportunidade, dores prováveis e uma nota de 0 a 100 com justificativa. Leads abaixo da nota mínima são descartados.
-4. Você seleciona os leads e dispara: a IA escreve um e-mail para cada empresa, você revisa e eles saem da sua caixa, espaçados, até 30 por dia.
-5. Quando a empresa responde, a IA conversa sozinha até haver interesse (preço, reunião, proposta) e então passa a conversa para você.
+1. You enter a niche and a city (e.g. "dentistas" in "Belo Horizonte").
+2. The app looks the businesses up in the Google Places API (New).
+3. For each business, a queue (Cloudflare Queues) reads its public website, when there is one, and DeepSeek writes a summary, opportunity signals, likely pain points and a 0–100 score with its reasoning. Leads below the minimum score are discarded.
+4. You select leads and send: the AI writes an email for each business, you review them, and they go out from your own mailbox, spaced out, up to 30 a day.
+5. When a business replies, the AI carries the conversation on its own until there is interest (price, meeting, proposal), then hands it over to you.
 
-> E-mail é o único canal automático. O WhatsApp continua manual: o app prepara o texto e o link `wa.me`.
+> Email is the only automated channel. WhatsApp stays manual: the app prepares the text and the `wa.me` link.
 
 ## Stack
 
-TanStack Start (React 19) em Cloudflare Workers · D1 + Drizzle · Cloudflare Queues · Vercel AI SDK + `@ai-sdk/deepseek` · Tailwind v4 + shadcn/ui · TanStack Query/Table · oxlint/oxfmt · Vitest (`@cloudflare/vitest-plugin`) · lefthook · pnpm.
+TanStack Start (React 19) on Cloudflare Workers · D1 + Drizzle · Cloudflare Queues · Vercel AI SDK + `@ai-sdk/deepseek` · Tailwind v4 + shadcn/ui · TanStack Query/Table · oxlint/oxfmt · Vitest (`@cloudflare/vitest-plugin`) · lefthook · pnpm.
 
 ```
 src/
-  routes/            páginas (leads, detalhe, buscas, configurações) e /api/leads.csv
-  server/            server functions, coleta, fila (consumer) e processamento por lead
-  db/                schema Drizzle e cliente D1
-  lib/places/        Google Places (Text Search, limite diário)
-  lib/scrape/        leitura de site (robots.txt, linkedom)
-  lib/ai/            prompts, analisador DeepSeek, custo
-  server.ts          entry do Worker: fetch (app) + queue (consumer)
-drizzle/             migrations SQL (aplicadas pelo wrangler)
+  routes/            pages (leads, detail, searches, settings) and /api/leads.csv
+  server/            server functions, collection, queue (consumer) and per-lead processing
+  db/                Drizzle schema and D1 client
+  lib/places/        Google Places (Text Search, daily limit)
+  lib/scrape/        website reader (robots.txt, linkedom)
+  lib/ai/            prompts, DeepSeek analyzer, cost
+  server.ts          Worker entry: fetch (app) + queue (consumer)
+drizzle/             SQL migrations (applied by wrangler)
 ```
 
-## Rodando localmente
+## Running locally
 
-Requisitos: Node 22+ e pnpm.
+Requirements: Node 22+ and pnpm.
 
 ```bash
 pnpm install
-cp .dev.vars.example .dev.vars     # preencha as chaves e a APP_PASSWORD
-pnpm db:migrate:local              # cria o banco D1 local
+cp .dev.vars.example .dev.vars     # fill in the keys and APP_PASSWORD
+pnpm db:migrate:local              # creates the local D1 database
 pnpm dev                           # http://localhost:3000
 ```
 
-O app inteiro fica atrás de uma tela de login com contas locais (e-mail e senha, guardadas no D1 com hash PBKDF2). Defina `APP_PASSWORD` (8+ caracteres) no `.dev.vars` e, em produção, com `wrangler secret put APP_PASSWORD`: ele é o **código de acesso** pedido para criar uma conta (`/criar-conta`) ou redefinir a senha (`/redefinir-senha`), e também a chave que assina as sessões. Na primeira vez, abra `/criar-conta` e use esse código. Para ter uma conta local sem passar pela tela, rode `pnpm account:seed --new --name "Seu nome" --email voce@empresa.com.br`: ele grava `account.local` (ignorado pelo Git) com uma senha aleatória e cria a conta no D1 local; depois, `pnpm account:seed` recria ou atualiza essa conta em qualquer banco local novo (`--persist-to` escolhe outro). A sessão dura 30 dias; redefinir a senha desconecta os outros navegadores daquela conta, e trocar o `APP_PASSWORD` desconecta todos. Tentativas erradas bloqueiam por 15 minutos: 10 por endereço (senha ou código) e 30 por conta, vindas de qualquer endereço, e a tela diz quanto falta. O código de acesso também tem um teto de 100 erros por dia somando todos os endereços; ele fecha só o cadastro e a redefinição, nunca o login.
+The whole app sits behind a login screen with local accounts (email and password, stored in D1 with a PBKDF2 hash). Set `APP_PASSWORD` (8+ characters) in `.dev.vars` and, in production, with `wrangler secret put APP_PASSWORD`: it is the **access code** required to create an account (`/criar-conta`) or reset a password (`/redefinir-senha`), and also the key that signs sessions. The first time, open `/criar-conta` and use that code. To get a local account without going through the screen, run `pnpm account:seed --new --name "Your name" --email you@company.com`: it writes `account.local` (ignored by Git) with a random password and creates the account in the local D1; afterwards, `pnpm account:seed` recreates or updates that account in any fresh local database (`--persist-to` picks another one). A session lasts 30 days; resetting a password signs out that account's other browsers, and changing `APP_PASSWORD` signs out everyone. Wrong attempts lock out for 15 minutes: 10 per address (password or code) and 30 per account from any address, and the screen says how long is left. The access code also has a cap of 100 failures a day across all addresses; it only closes sign-up and password reset, never signing in.
 
-As chaves `GOOGLE_PLACES_API_KEY` e `DEEPSEEK_API_KEY` são obrigatórias: o app não usa dados simulados. `MAIL_ADDRESS` e `MAIL_PASSWORD` são necessárias para disparar e-mails; teste a conexão em Configurações. Enquanto alguma faltar, a tela de nova busca avisa e bloqueia a busca, e Configurações mostra "Caixa não conectada". Para resolver, coloque as variáveis no `.dev.vars` e reinicie o app; em produção, use `wrangler secret put <NOME>` (veja [Deploy](#deploy-na-cloudflare)). A tela de erro do app tem "Copiar detalhes", que copia o nome, a mensagem e a rota do erro para quem for investigar.
+The `GOOGLE_PLACES_API_KEY` and `DEEPSEEK_API_KEY` keys are required: the app does not use mock data. `MAIL_ADDRESS` and `MAIL_PASSWORD` are needed to send emails; test the connection in Configurações (Settings). While any of them is missing, the new search screen warns and blocks the search, and Configurações shows "Caixa não conectada" (mailbox not connected). To fix it, put the variables in `.dev.vars` and restart the app; in production, use `wrangler secret put <NAME>` (see [Deploy](#deploying-to-cloudflare)). The app's error screen has "Copiar detalhes" (copy details), which copies the error's name, message and route for whoever investigates it.
 
-Fluxo de uso: Configurações (oferta, critérios, e-mail e modo automático) → Buscar empresas (ou busca diária automática) → Leads: selecione e clique em Disparar e-mail → revise os e-mails escritos pela IA → Disparar → acompanhe em Conversas; quando a IA para, a conversa aparece em "Precisa de você".
+Workflow: Configurações (offer, criteria, email and automatic mode) → Buscar empresas (search businesses), or the automatic daily search → Leads: select and click Disparar e-mail (send email) → review the emails the AI wrote → Disparar (send) → follow along in Conversas (conversations); when the AI stops, the conversation shows up in "Precisa de você" (needs you).
 
-### Variáveis
+### Variables
 
-| Nome                         | Tipo                   | Descrição                                                                                                  |
-| ---------------------------- | ---------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `GOOGLE_PLACES_API_KEY`      | secret                 | Chave com a "Places API (New)" habilitada                                                                  |
-| `DEEPSEEK_API_KEY`           | secret                 | Chave de platform.deepseek.com                                                                             |
-| `AI_MODEL_ANALYSIS`          | var (`wrangler.jsonc`) | Modelo da análise e da nota. Padrão: `deepseek-flash`                                                      |
-| `AI_MODEL_MESSAGE`           | var (`wrangler.jsonc`) | Modelo da mensagem. Padrão: `deepseek-v4-pro`                                                              |
-| `PLACES_DAILY_REQUEST_LIMIT` | var (`wrangler.jsonc`) | Máximo de requisições pagas ao Google por dia (horário de Brasília). Padrão: `50`, até ~1.000 empresas/dia |
-| `MAIL_ADDRESS`               | secret                 | Endereço da caixa que envia e recebe (ex.: a sua caixa da Hostinger)                                       |
-| `MAIL_PASSWORD`              | secret                 | Senha dessa caixa                                                                                          |
-| `SMTP_HOST` / `SMTP_PORT`    | var (`wrangler.jsonc`) | Servidor de envio, TLS implícito. Padrão: `smtp.hostinger.com` / `465`                                     |
-| `IMAP_HOST` / `IMAP_PORT`    | var (`wrangler.jsonc`) | Servidor de leitura, TLS implícito. Padrão: `imap.hostinger.com` / `993`                                   |
-| `MAIL_DAILY_LIMIT`           | var (`wrangler.jsonc`) | Máximo de e-mails por dia, respostas incluídas. Padrão: `30`                                               |
+| Name                         | Type                   | Description                                                                                  |
+| ---------------------------- | ---------------------- | -------------------------------------------------------------------------------------------- |
+| `GOOGLE_PLACES_API_KEY`      | secret                 | Key with "Places API (New)" enabled                                                          |
+| `DEEPSEEK_API_KEY`           | secret                 | Key from platform.deepseek.com                                                               |
+| `AI_MODEL_ANALYSIS`          | var (`wrangler.jsonc`) | Model for the analysis and score. Default: `deepseek-flash`                                  |
+| `AI_MODEL_MESSAGE`           | var (`wrangler.jsonc`) | Model for the message. Default: `deepseek-v4-pro`                                            |
+| `PLACES_DAILY_REQUEST_LIMIT` | var (`wrangler.jsonc`) | Max paid Google requests per day (Brasília time). Default: `50`, up to ~1,000 businesses/day |
+| `MAIL_ADDRESS`               | secret                 | Address of the mailbox that sends and receives (e.g. your Hostinger mailbox)                 |
+| `MAIL_PASSWORD`              | secret                 | That mailbox's password                                                                      |
+| `SMTP_HOST` / `SMTP_PORT`    | var (`wrangler.jsonc`) | Outgoing server, implicit TLS. Default: `smtp.hostinger.com` / `465`                         |
+| `IMAP_HOST` / `IMAP_PORT`    | var (`wrangler.jsonc`) | Incoming server, implicit TLS. Default: `imap.hostinger.com` / `993`                         |
+| `MAIL_DAILY_LIMIT`           | var (`wrangler.jsonc`) | Max emails per day, replies included. Default: `30`                                          |
 
-Os nomes `deepseek-chat` e `deepseek-reasoner` foram aposentados pela DeepSeek. `deepseek-v4-flash` ainda é aceito, mas a DeepSeek o considera um nome legado de `deepseek-flash`.
+DeepSeek has retired the `deepseek-chat` and `deepseek-reasoner` names. `deepseek-v4-flash` is still accepted, but DeepSeek treats it as a legacy name for `deepseek-flash`.
 
 ### Scripts
 
-| Script                                        | O que faz                                                                 |
-| --------------------------------------------- | ------------------------------------------------------------------------- |
-| `pnpm dev`                                    | servidor de desenvolvimento (Worker + D1 + Queues locais via Miniflare)   |
-| `pnpm build` / `pnpm deploy`                  | build e deploy na Cloudflare                                              |
-| `pnpm lint`                                   | `oxlint --type-aware --type-check` (também checa os tipos)                |
-| `pnpm fmt`                                    | `oxfmt`                                                                   |
-| `pnpm test`                                   | testes unitários (Node) e de integração (runtime Workers com D1)          |
-| `pnpm test:e2e`                               | testes ponta a ponta (Playwright) com Google, DeepSeek e e-mail simulados |
-| `pnpm db:generate`                            | gera uma migration a partir de `src/db/schema.ts`                         |
-| `pnpm db:migrate:local` / `db:migrate:remote` | aplica as migrations no D1 local / remoto                                 |
-| `pnpm cf-typegen`                             | regenera `worker-configuration.d.ts` após mudar o `wrangler.jsonc`        |
+| Script                                        | What it does                                                            |
+| --------------------------------------------- | ----------------------------------------------------------------------- |
+| `pnpm dev`                                    | development server (Worker + local D1 + Queues via Miniflare)           |
+| `pnpm build` / `pnpm deploy`                  | build and deploy to Cloudflare                                          |
+| `pnpm lint`                                   | `oxlint --type-aware --type-check` (also checks types)                  |
+| `pnpm fmt`                                    | `oxfmt`                                                                 |
+| `pnpm test`                                   | unit (Node) and integration (Workers runtime with D1) tests             |
+| `pnpm test:e2e`                               | end-to-end tests (Playwright) with mocked Google, DeepSeek and email    |
+| `pnpm db:generate`                            | generates a migration from `src/db/schema.ts`                           |
+| `pnpm db:migrate:local` / `db:migrate:remote` | applies migrations to the local / remote D1                             |
+| `pnpm cf-typegen`                             | regenerates `worker-configuration.d.ts` after changing `wrangler.jsonc` |
 
-O `lefthook` roda formatação e lint em cada commit (é instalado pelo `pnpm install`).
+`lefthook` runs formatting and lint on every commit (it is installed by `pnpm install`).
 
-Os testes E2E sobem o app com `E2E=1 vite dev` na porta 3100. Nesse modo, Google Places, DeepSeek e a caixa de e-mail são trocados por versões em memória, e o banco D1 fica separado em `.wrangler/e2e`. O seu `.dev.vars` não é usado (o código de acesso de teste é `e2e-password`, e o setup cria a conta `e2e@nelcota.test`). Para rodar uma segunda suíte ao lado de outra, use `E2E_PORT=3105 pnpm test:e2e`. Esse modo só existe no servidor de desenvolvimento: o build de produção não inclui os simuladores nem a rota `/api/e2e`.
+The E2E tests start the app with `E2E=1 vite dev` on port 3100. In this mode, Google Places, DeepSeek and the mailbox are swapped for in-memory versions, and the D1 database lives separately in `.wrangler/e2e`. Your `.dev.vars` is not used (the test access code is `e2e-password`, and the setup creates the `e2e@nelcota.test` account). To run a second suite next to another, use `E2E_PORT=3105 pnpm test:e2e`. This mode only exists in the development server: the production build includes neither the mocks nor the `/api/e2e` route.
 
-## Deploy na Cloudflare
+## Deploying to Cloudflare
 
 ```bash
 pnpm exec wrangler login
 
-# 1. Banco D1: copie o "database_id" impresso para wrangler.jsonc (d1_databases[0].database_id)
+# 1. D1 database: copy the printed "database_id" into wrangler.jsonc (d1_databases[0].database_id)
 pnpm exec wrangler d1 create nelcota-leads
 
-# 2. Filas (principal + dead-letter)
+# 2. Queues (main + dead-letter)
 pnpm exec wrangler queues create nelcota-leads-analysis
 pnpm exec wrangler queues create nelcota-leads-analysis-dlq
 
-# 3. Migrations no banco remoto
+# 3. Migrations on the remote database
 pnpm db:migrate:remote
 
-# 4. Segredos (o valor é pedido no terminal; nunca vai para o repositório)
+# 4. Secrets (the value is prompted in the terminal; it never goes into the repository)
 pnpm exec wrangler secret put GOOGLE_PLACES_API_KEY
 pnpm exec wrangler secret put DEEPSEEK_API_KEY
 pnpm exec wrangler secret put MAIL_ADDRESS
@@ -103,70 +103,70 @@ pnpm exec wrangler secret put MAIL_PASSWORD
 pnpm deploy
 ```
 
-O deploy imprime a URL `*.workers.dev`. Proteja-a com Cloudflare Access antes de usar (próxima seção), pois o app não tem login próprio.
+The deploy prints the `*.workers.dev` URL. Protect it with Cloudflare Access before using it (next section), as an extra layer in front of the app's own login.
 
-Plano: Queues está incluído no Workers Free (10 mil operações/dia, ≈ 3.300 leads/dia), mas o Free limita cada invocação a 10 ms de CPU, e ler HTML de sites grandes pode passar disso. Para uso real, recomendo o Workers Paid (US$ 5/mês).
+Plan: Queues is included in Workers Free (10k operations/day, ≈ 3,300 leads/day), but Free caps each invocation at 10 ms of CPU, and parsing the HTML of large sites can go over that. For real use, Workers Paid (US$ 5/month) is recommended.
 
-### Proteger o painel com Cloudflare Access
+### Protecting the dashboard with Cloudflare Access
 
-1. No painel da Cloudflare, abra Zero Trust → Access → Applications → Add an application → Self-hosted.
-2. Em Application domain, informe o domínio do Worker (`nelcota-leads.<sua-conta>.workers.dev` ou um domínio próprio ligado ao Worker em _Workers → Settings → Domains & Routes_).
-3. Crie uma policy com Action Allow e regra Emails contendo apenas o seu e-mail. O método de login pode ser _One-time PIN_ por e-mail ou Google.
-4. Salve e abra a URL em uma janela anônima: deve aparecer a tela de login do Access.
-5. Opcional: em _Workers → nelcota-leads → Settings → Domains & Routes_, desative a URL `workers.dev` se usar domínio próprio, para não deixar uma porta sem Access.
+1. In the Cloudflare dashboard, open Zero Trust → Access → Applications → Add an application → Self-hosted.
+2. Under Application domain, enter the Worker's domain (`nelcota-leads.<your-account>.workers.dev` or a custom domain attached to the Worker in _Workers → Settings → Domains & Routes_).
+3. Create a policy with Action Allow and an Emails rule containing only your email. The login method can be email _One-time PIN_ or Google.
+4. Save and open the URL in a private window: the Access login screen should appear.
+5. Optional: in _Workers → nelcota-leads → Settings → Domains & Routes_, disable the `workers.dev` URL if you use a custom domain, so no door is left without Access.
 
-Tudo fica atrás do Access: páginas, server functions e `/api/leads.csv`. O consumer da fila não recebe tráfego HTTP.
+Everything sits behind Access: pages, server functions and `/api/leads.csv`. The queue consumer receives no HTTP traffic.
 
-## Como funciona
+## How it works
 
-- Coleta (`src/server/collect.ts`): `places:searchText` com `X-Goog-FieldMask` mínimo e paginação (`nextPageToken`, 20 por página, máximo 60). Negócios que não estão `OPERATIONAL` são ignorados. Telefones são normalizados para E.164 com `libphonenumber-js`. Cada lead é único por `place_id`: lugares já vistos em buscas anteriores não são gravados de novo nem reanalisados. A busca registra quantos já existiam.
-- Fila (`src/server/consumer.ts`): uma mensagem por lead. Uma falha temporária gera retry com backoff exponencial (30s, 60s). Após 3 tentativas o erro fica registrado no lead e a busca segue. Mensagens que esgotarem os retries da própria fila caem na DLQ, que também marca o lead. Por isso nenhuma busca fica presa em "analisando".
-- Idempotência (`src/server/process-lead.ts`): um lead já analisado é ignorado. Só o botão Reanalisar força uma nova análise, que fica no histórico (`analyses`) sem inflar os contadores da busca.
-- Leitura do site (`src/lib/scrape`): `fetch` com `AbortSignal.timeout`, User-Agent identificável (`NelcotaLeadsBot/1.0`), respeito ao `robots.txt` (RFC 9309) e limite de 1,5 MB. Extrai título, meta description, texto (truncado em 8.000 caracteres), links de redes sociais, e-mails e telefones comerciais do próprio site. Se o site falhar, o lead fica `unreachable` e segue só com os dados do Google.
-- IA (`src/lib/ai`): `generateText` + `Output.object` com schemas `zod`. O modo _thinking_ da V4 fica desligado porque encarece sem ganho para esta tarefa. O prompt manda usar somente os dados fornecidos, proíbe inventar contatos, pessoas ou fatos e trata o texto do site como não confiável (defesa contra _prompt injection_). A IA nunca se passa por cliente. Sem a oferta descrita nas Configurações ela não escreve mensagens, porque não teria o que oferecer. Cada análise grava modelo, tokens e custo estimado, e o gasto do dia fica em `api_usage` para o painel mostrar o custo do mês.
-- Triagem (`src/server/process-lead.ts`): leads novos com nota abaixo do mínimo (30 por padrão) são descartados pela IA, com o motivo gravado. O e-mail de cada lead é gravado a partir do site. A IA nunca descarta um lead que você já contatou, e um lead descartado volta para a fila se uma nova análise passar do mínimo.
-- Piloto automático (`src/server/autopilot.ts`): um Cron Trigger roda de hora em hora. Uma vez por dia, a partir do horário escolhido, ele busca cada nicho e cidade cadastrados. A primeira busca usa a cidade inteira; as seguintes percorrem bairros sugeridos pela IA, porque o Google devolve os mesmos 60 primeiros resultados para a mesma busca. Para quando o limite diário do Google acaba.
-- E-mail (`src/lib/mail`): cliente SMTP e IMAP próprio sobre os sockets TCP do Worker (`cloudflare:sockets`), com TLS implícito. Mensagens em texto simples UTF-8, `Message-ID` próprio, `In-Reply-To`/`References` para manter a conversa no mesmo fio e `List-Unsubscribe`. A leitura usa `BODY.PEEK`, então nada é marcado como lido na sua caixa, e começa do momento da conexão (não importa a caixa antiga).
-- Disparo (`src/server/mail-flow.ts`): a IA escreve um rascunho por lead; o texto passa por uma verificação de vícios (cargo inventado, "faz sentido", elogio à nota do Google) e é reescrito uma vez se algum aparecer. Na fila, sai um e-mail a cada 8 minutos, dentro do limite diário. Todo primeiro contato termina com a linha de descadastro.
-- Conversa (`handleInbound`): a cada 5 minutos o app lê as respostas e casa cada uma com o lead pelo `In-Reply-To` (ou pelo remetente). Respostas automáticas (férias, devoluções) são guardadas e ignoradas. "sair" descadastra na hora e cancela o que estiver na fila. Nos demais casos a IA decide: responder (dúvida simples sobre a oferta), passar para você (interesse, preço, reunião, pergunta que a oferta não responde, ou se perguntarem se é robô) com um rascunho, ou encerrar (sem interesse). Ela responde no máximo 3 vezes e nunca inventa preço, prazo ou funcionalidade.
-- Lembrete: sem resposta em 3 dias, sai um único lembrete curto no mesmo fio.
-- Agendador (`src/server/tick.ts`): um Cron Trigger por minuto envia o próximo e-mail da fila; a cada 5 minutos lê respostas e enfileira lembretes; na hora cheia roda a busca diária e o disparo automático (se ligado).
-- Telas: Visão geral (o que precisa de você, números, funil, atividade e interruptores do modo automático), Leads (seleção e disparo), Conversas (caixa de entrada com o fio de cada empresa e o controle "IA no comando").
-- Lista de leads (`src/routes/leads/index.tsx`): os leads ficam em filas (A contatar, Retornar hoje, Aguardando resposta, Em conversa, Fechados, Descartados). Ao marcar um lead como contatado, o app grava a data e agenda o retorno (3 dias por padrão, ajustável). No dia do retorno ele aparece em "Retornar hoje" e o menu mostra quantos são. J e K navegam entre os leads e / vai para a busca.
-- Progresso: o painel, a lista e o lead aberto fazem polling (3 s) enquanto há análise pendente.
-- Testar localmente: o cron não roda sozinho no `pnpm dev`. Use `curl "http://localhost:3000/cdn-cgi/handler/scheduled"` para uma rodada, o botão Verificar e-mails em Conversas e Buscar agora na Visão geral.
-- CSV: `/api/leads.csv` aplica os mesmos filtros da tela. Usa `;` e BOM UTF-8 para abrir direto no Excel em português, e neutraliza fórmulas (proteção contra _CSV injection_).
+- Collection (`src/server/collect.ts`): `places:searchText` with a minimal `X-Goog-FieldMask` and pagination (`nextPageToken`, 20 per page, 60 max). Businesses that are not `OPERATIONAL` are skipped. Phone numbers are normalized to E.164 with `libphonenumber-js`. Each lead is unique by `place_id`: places already seen in earlier searches are neither saved again nor reanalyzed. The search records how many already existed.
+- Queue (`src/server/consumer.ts`): one message per lead. A transient failure retries with exponential backoff (30s, 60s). After 3 attempts the error is recorded on the lead and the search moves on. Messages that exhaust the queue's own retries land in the DLQ, which also marks the lead. That is why no search ever gets stuck on "analyzing".
+- Idempotency (`src/server/process-lead.ts`): an already analyzed lead is skipped. Only the Reanalisar (reanalyze) button forces a new analysis, which goes into the history (`analyses`) without inflating the search counters.
+- Website reader (`src/lib/scrape`): `fetch` with `AbortSignal.timeout`, an identifiable User-Agent (`NelcotaLeadsBot/1.0`), `robots.txt` compliance (RFC 9309) and a 1.5 MB cap. It extracts the title, meta description, text (truncated at 8,000 characters), social links, emails and business phone numbers from the site itself. If the site fails, the lead is marked `unreachable` and continues with Google's data only.
+- AI (`src/lib/ai`): `generateText` + `Output.object` with `zod` schemas. V4's _thinking_ mode is off because it costs more with no gain for this task. The prompt says to use only the data provided, forbids inventing contacts, people or facts, and treats the site's text as untrusted (a defense against _prompt injection_). The AI never poses as a customer. Without the offer described in Configurações it writes no messages, since it would have nothing to offer. Each analysis records model, tokens and estimated cost, and the day's spend goes into `api_usage` so the dashboard can show the month's cost.
+- Triage (`src/server/process-lead.ts`): new leads scoring below the minimum (30 by default) are discarded by the AI, with the reason recorded. Each lead's email is taken from its website. The AI never discards a lead you have already contacted, and a discarded lead returns to the queue if a new analysis clears the minimum.
+- Autopilot (`src/server/autopilot.ts`): a Cron Trigger runs every hour. Once a day, from the chosen time on, it searches each registered niche and city. The first search covers the whole city; the following ones go through neighborhoods suggested by the AI, because Google returns the same top 60 results for the same query. It stops when the daily Google limit runs out.
+- Email (`src/lib/mail`): in-house SMTP and IMAP client over the Worker's TCP sockets (`cloudflare:sockets`), with implicit TLS. Plain UTF-8 text messages, its own `Message-ID`, `In-Reply-To`/`References` to keep the conversation in one thread, and `List-Unsubscribe`. Reading uses `BODY.PEEK`, so nothing is marked as read in your mailbox, and it starts from the moment of connection (old mail is not imported).
+- Sending (`src/server/mail-flow.ts`): the AI writes a draft per lead; the text goes through a check for tics (an invented job title, "faz sentido", praise for the Google rating) and is rewritten once if any shows up. In the queue, one email goes out every 8 minutes, within the daily limit. Every first contact ends with the unsubscribe line.
+- Conversation (`handleInbound`): every 5 minutes the app reads replies and matches each one to its lead by `In-Reply-To` (or by sender). Automatic replies (out of office, bounces) are kept and ignored. "sair" (opt out) unsubscribes immediately and cancels anything queued. In every other case the AI decides: reply (a simple question about the offer), hand over to you with a draft (interest, price, meeting, a question the offer doesn't answer, or if they ask whether it's a bot), or close (not interested). It replies at most 3 times and never invents price, timeline or features.
+- Follow-up: with no reply in 3 days, a single short follow-up goes out in the same thread.
+- Scheduler (`src/server/tick.ts`): a Cron Trigger every minute sends the next queued email; every 5 minutes it reads replies and queues follow-ups; on the hour it runs the daily search and the automatic sending (if enabled).
+- Screens: Visão geral (overview: what needs you, numbers, funnel, activity and the automatic-mode switches), Leads (selection and sending), Conversas (an inbox with each business's thread and the "IA no comando" control, AI in charge).
+- Lead list (`src/routes/leads/index.tsx`): leads sit in queues (A contatar, Retornar hoje, Aguardando resposta, Em conversa, Fechados, Descartados: to contact, follow up today, awaiting reply, in conversation, closed, discarded). When you mark a lead as contacted, the app records the date and schedules the follow-up (3 days by default, adjustable). On that day it shows up in "Retornar hoje" and the menu shows how many there are. J and K move between leads and / jumps to search.
+- Progress: the dashboard, the list and the open lead poll (3 s) while an analysis is pending.
+- Testing locally: the cron doesn't run on its own in `pnpm dev`. Use `curl "http://localhost:3000/cdn-cgi/handler/scheduled"` for one run, the Verificar e-mails (check emails) button in Conversas, and Buscar agora (search now) in Visão geral.
+- CSV: `/api/leads.csv` applies the same filters as the screen. It uses `;` and a UTF-8 BOM so it opens directly in Excel set to Portuguese, and neutralizes formulas (protection against _CSV injection_).
 
-## Custos estimados (outubro de 2026)
+## Estimated costs (October 2026)
 
-Google Places, SKU Text Search Enterprise. Os campos telefone, site, nota e avaliações colocam a requisição nesse SKU.
+Google Places, Text Search Enterprise SKU. The phone, website, rating and review fields put the request in this SKU.
 
-- US$ 35 por 1.000 requisições, com 1.000 requisições grátis por mês.
-- Uma requisição devolve até 20 resultados. Uma busca de 60 resultados custa 3 requisições ≈ US$ 0,105, ou ≈ US$ 0,00175 por lead.
-- A cota grátis cobre até ~20 mil resultados por mês.
+- US$ 35 per 1,000 requests, with 1,000 free requests a month.
+- One request returns up to 20 results. A 60-result search costs 3 requests ≈ US$ 0.105, or ≈ US$ 0.00175 per lead.
+- The free quota covers up to ~20k results a month.
 
-DeepSeek. Preço de pico por 1M de tokens; fora do pico custa metade.
+DeepSeek. Peak price per 1M tokens; off-peak costs half.
 
-| Etapa                         | Modelo                                           | Tokens típicos              | Custo por lead |
-| ----------------------------- | ------------------------------------------------ | --------------------------- | -------------- |
-| Análise e nota                | `deepseek-flash` (US$ 0,30 entrada / 1,20 saída) | ~3.500 entrada + ~400 saída | ≈ US$ 0,0015   |
-| Mensagem (só acima do limite) | `deepseek-v4-pro` (US$ 1,32 / 3,96)              | ~900 entrada + ~200 saída   | ≈ US$ 0,002    |
+| Step                             | Model                                           | Typical tokens             | Cost per lead |
+| -------------------------------- | ----------------------------------------------- | -------------------------- | ------------- |
+| Analysis and score               | `deepseek-flash` (US$ 0.30 input / 1.20 output) | ~3,500 input + ~400 output | ≈ US$ 0.0015  |
+| Message (only above the minimum) | `deepseek-v4-pro` (US$ 1.32 / 3.96)             | ~900 input + ~200 output   | ≈ US$ 0.002   |
 
-Total: ≈ US$ 0,003 a 0,005 por lead (Google + IA), ou cerca de US$ 0,20 a 0,30 por busca de 60 leads. O custo real de IA de cada análise aparece na página do lead. Os preços estão em `src/lib/ai/pricing.ts`; atualize-os se a DeepSeek mudar a tabela.
+Total: ≈ US$ 0.003 to 0.005 per lead (Google + AI), or about US$ 0.20 to 0.30 per 60-lead search. The actual AI cost of each analysis shows on the lead page. Prices live in `src/lib/ai/pricing.ts`; update them if DeepSeek changes its rates.
 
-## LGPD e termos de uso
+## LGPD and terms of use
 
-- Dados coletados: apenas de pessoas jurídicas e contatos comerciais públicos, ou seja, o perfil do Google e o próprio site da empresa. Não há scraping de redes sociais nem de perfis pessoais. As redes sociais só aparecem como links publicados pelo próprio site.
-- Base legal: legítimo interesse (art. 7º, IX, e art. 10 da LGPD) para uma oferta B2B relacionada à atividade da empresa. Mantenha o registro do motivo de cada contato (campo _notas_) e trate só o necessário.
-- Opt-out: todo primeiro e-mail e todo lembrete terminam com a linha de descadastro e o cabeçalho `List-Unsubscribe`. Quem responde "sair" é descadastrado automaticamente, nunca mais recebe e sai de todas as filas.
-- Volume controlado: até 30 e-mails por dia, um a cada 8 minutos, sempre personalizados e enviados da sua própria caixa. Não aumente muito o limite: e-mail frio em volume derruba a reputação do domínio. Serviços transacionais (Cloudflare Email Service, Resend) proíbem prospecção e não são usados.
-- WhatsApp: continua manual, um a um. Disparo automático por WhatsApp para contatos que não pediram viola as políticas do WhatsApp e bloqueia o número.
-- Google Places: os [termos da Google Maps Platform](https://cloud.google.com/maps-platform/terms) restringem armazenar e reutilizar conteúdo do Places. O `place_id` pode ser guardado indefinidamente; os demais campos devem ser usados como cache temporário (a política atual fala em até 30 dias) e atualizados ou descartados depois. Não revenda nem republique os dados e mantenha a atribuição ao Google quando exibi-los.
-- Sites: o leitor se identifica pelo User-Agent, respeita `robots.txt` e lê uma página por empresa.
+- Data collected: only from legal entities and public business contacts, that is, the Google profile and the business's own website. There is no scraping of social networks or personal profiles. Social networks only appear as links published by the site itself.
+- Legal basis: legitimate interest (art. 7, IX, and art. 10 of the LGPD, Brazil's data protection law) for a B2B offer related to the business's activity. Keep a record of the reason for each contact (the _notas_ field) and process only what is necessary.
+- Opt-out: every first email and every follow-up ends with the unsubscribe line and the `List-Unsubscribe` header. Anyone who replies "sair" is unsubscribed automatically, never receives anything again and leaves every queue.
+- Controlled volume: up to 30 emails a day, one every 8 minutes, always personalized and sent from your own mailbox. Don't raise the limit much: cold email in volume ruins the domain's reputation. Transactional services (Cloudflare Email Service, Resend) forbid prospecting and are not used.
+- WhatsApp: stays manual, one at a time. Automated WhatsApp messages to contacts who didn't ask for them violate WhatsApp's policies and get the number banned.
+- Google Places: the [Google Maps Platform terms](https://cloud.google.com/maps-platform/terms) restrict storing and reusing Places content. `place_id` may be stored indefinitely; the other fields must be treated as a temporary cache (the current policy says up to 30 days) and refreshed or discarded afterwards. Don't resell or republish the data, and keep the Google attribution when displaying it.
+- Websites: the reader identifies itself by User-Agent, respects `robots.txt` and reads one page per business.
 
-## Melhorias futuras
+## Future improvements
 
-- Browser Rendering da Cloudflare para sites que só renderizam com JavaScript.
-- Cloudflare Workflows para orquestrar coleta → leitura → análise com etapas persistentes.
-- Rotina que apaga ou renova os dados do Places com mais de 30 dias (`scheduled` no `src/server.ts`).
-- Botão "regenerar só a mensagem" e reanálise em lote.
+- Cloudflare Browser Rendering for sites that only render with JavaScript.
+- Cloudflare Workflows to orchestrate collection → reading → analysis with persistent steps.
+- A routine that deletes or refreshes Places data older than 30 days (`scheduled` in `src/server.ts`).
+- A "regenerate only the message" button and batch reanalysis.

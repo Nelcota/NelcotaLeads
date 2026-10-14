@@ -7,7 +7,7 @@ import { MAILBOX_REFUSED } from "@/lib/system-status";
 import { createFakeMailer } from "../../test/fake-mailer";
 import { resetDb } from "../../test/reset-db";
 import { loadSystemStatus, recordJobRun, runSendJob, trackJob } from "./job-runs";
-import { writeAutopilot } from "./settings-store";
+import { DEFAULT_CONFIG, writeAutopilot } from "./settings-store";
 import { runStep, runTick } from "./tick";
 
 const db = getDb(env.DB);
@@ -177,5 +177,15 @@ describe("loadSystemStatus", () => {
 
     const disconnected = await loadSystemStatus(db, { mailConfigured: false, now });
     expect(disconnected.find((job) => job.job === "inbox")).toMatchObject({ state: "off" });
+  });
+
+  it("uses a settings read the caller already started", async () => {
+    const config = Promise.resolve({
+      ...DEFAULT_CONFIG,
+      autoDispatch: true,
+    });
+    const status = await loadSystemStatus(db, { mailConfigured: true, now, config });
+    // On only in the passed config (the stored row keeps the default, off).
+    expect(status.find((job) => job.job === "auto-dispatch")?.reason).toBe("never");
   });
 });
