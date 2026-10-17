@@ -1,5 +1,20 @@
-import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, lt, lte, or, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  gt,
+  inArray,
+  isNotNull,
+  isNull,
+  lt,
+  lte,
+  ne,
+  or,
+  sql,
+} from "drizzle-orm";
 import type { Db } from "@/db/client";
+import { inList } from "@/db/in-list";
 import {
   analyses,
   apiUsage,
@@ -16,16 +31,16 @@ import { cleanText, ForbiddenPhrasesError } from "@/lib/ai/analyzer";
 import type { ThreadMessage } from "@/lib/ai/prompts";
 import { dayDiff, localDay } from "@/lib/format";
 import { newMessageId, type IncomingEmail, type Mailer } from "@/lib/mail";
-import type { SettingsInput } from "@/lib/schemas";
+import { DEFAULT_MAIL_DAILY_LIMIT, SEND_GAP_MINUTES, type SettingsInput } from "@/lib/schemas";
+
+// Shared with the screens that describe the sending pace.
+export { DEFAULT_MAIL_DAILY_LIMIT, SEND_GAP_MINUTES };
 import { leadPatch } from "./lead-status";
 import { buildContext, hasOffer, NO_OFFER_MESSAGE } from "./process-lead";
 import { DEFAULT_SETTINGS, loadSettings } from "./settings-store";
-import { recordAiCost, requestsToday, reserveRequest } from "./usage";
+import { dailyLimit, recordAiCost, requestsToday, reserveRequest } from "./usage";
 
 export const EMAIL_PROVIDER = "email";
-export const DEFAULT_MAIL_DAILY_LIMIT = 30;
-/** Minimum time between two outgoing e-mails, except answers to a message the lead sent. */
-export const SEND_GAP_MINUTES = 8;
 /**
  * While a row is `queued`, a non-null `sent_at` marks a send in progress (the claim). A claim
  * older than this comes from a run that crashed mid-send and may be taken over; the e-mail may
@@ -35,6 +50,14 @@ export const CLAIM_TIMEOUT_MINUTES = 10;
 // Replies go out after a short pause, like a person reading and answering.
 const REPLY_DELAY_MINUTES = 2;
 const MAX_AI_REPLIES = 3;
+/**
+ * Answers the AI may queue in one conversation, sent or not. A lead who writes again before the
+ * queued answer goes out cancels it (and gets a new one), so the sent count alone never stops a
+ * fast back-and-forth, or two auto-responders, from paying for a model call per message.
+ */
+const MAX_AI_REPLY_ATTEMPTS = 6;
+/** First e-mails one automatic dispatch run may draft. */
+export const AUTO_DISPATCH_PER_RUN = 20;
 // Parallel model calls when drafting many first e-mails at once.
 const DRAFT_CONCURRENCY = 4;
 // Longest AI text sent without a person reading it.
@@ -59,13 +82,9 @@ export const CLOSED_REASON = "Cancelado: conversa encerrada";
 export const DISCARDED_REASON = "Cancelado: lead descartado";
 
 export function mailDailyLimit(value: string | undefined): number {
-  const n = Number(value);
-  return value !== undefined && value !== "" && Number.isInteger(n) && n >= 0
-    ? n
-    : DEFAULT_MAIL_DAILY_LIMIT;
+  return dailyLimit(value, DEFAULT_MAIL_DAILY_LIMIT);
 }
 
-/** Body plus signature, and the opt-out line on first contacts and follow-ups. */
 /** Cold e-mails always carry the opt-out line, even after the user rewrote the whole draft. */
 export function ensureOptOut(body: string): string {
   return body.includes(EMAIL_OPT_OUT)
@@ -75,6 +94,7 @@ export function ensureOptOut(body: string): string {
 ${EMAIL_OPT_OUT}`;
 }
 
+/** Body plus signature, and the opt-out line on first contacts and follow-ups. */
 export function composeBody(text: string, settings: SettingsInput, optOut: boolean): string {
   const signature = [settings.senderName, settings.senderCompany].filter(Boolean).join("\n");
   return [cleanText(text), signature, optOut ? EMAIL_OPT_OUT : ""].filter(Boolean).join("\n\n");
@@ -235,6 +255,17 @@ function firstOf<T extends { leadId: string }>(items: T[]) {
 
 export type DraftSkip = { leadId: string; name: string; reason: string };
 
+/** Why a selected lead gets no first e-mail, or null when it may get one. */
+function draftBlocker(lead: Lead, existing: Email | undefined, blocked: boolean): string | null {
+  if (!lead.email) return "sem e-mail no site";
+  if (lead.unsubscribedAt || blocked) return "pediu para não receber";
+  if (existing && existing.status !== "draft") return "já recebeu e-mail";
+  // A reply in progress is never sent as a first e-mail.
+  if (existing && (existing.inReplyTo || existing.author === "user")) return "já está em conversa";
+  if (lead.status !== "new") return "não está mais como novo";
+  return null;
+}
+
 /**
  * Writes the first e-mail (as a draft) for each selected new lead that can receive one.
  * Leads that already have a draft keep it.
@@ -250,28 +281,28 @@ export async function prepareDrafts(
   const drafts: Email[] = [];
   const skipped: DraftSkip[] = [];
   const rows =
-    leadIds.length > 0 ? await db.select().from(leads).where(inArray(leads.id, leadIds)) : [];
+    leadIds.length > 0 ? await db.select().from(leads).where(inList(leads.id, leadIds)) : [];
   if (rows.length === 0) return { drafts, skipped };
   const ids = rows.map((lead) => lead.id);
   const [outgoing, analysisRows, searchRows, blockedRows] = await Promise.all([
     db
       .select()
       .from(emails)
-      .where(and(inArray(emails.leadId, ids), eq(emails.direction, "out")))
+      .where(and(inList(emails.leadId, ids), eq(emails.direction, "out")))
       .orderBy(desc(emails.createdAt)),
     db
       .select()
       .from(analyses)
-      .where(inArray(analyses.leadId, ids))
+      .where(inList(analyses.leadId, ids))
       .orderBy(desc(analyses.createdAt), desc(analyses.id)),
     db
       .select()
       .from(searches)
-      .where(inArray(searches.id, [...new Set(rows.map((lead) => lead.searchId))])),
+      .where(inList(searches.id, [...new Set(rows.map((lead) => lead.searchId))])),
     db
       .select({ id: leads.id })
       .from(leads)
-      .where(and(inArray(leads.id, ids), unsubscribedAddress)),
+      .where(and(inList(leads.id, ids), unsubscribedAddress)),
   ]);
   const lastOut = firstOf(outgoing);
   const analysisOf = firstOf(analysisRows);
@@ -283,16 +314,20 @@ export async function prepareDrafts(
     const skip = (reason: string) => skipped.push({ leadId: lead.id, name: lead.name, reason });
     const existing = lastOut.get(lead.id);
     const analysis = analysisOf.get(lead.id);
-    if (!lead.email) skip("sem e-mail no site");
-    else if (lead.unsubscribedAt || blocked.has(lead.id)) skip("pediu para não receber");
-    else if (existing && existing.status !== "draft") skip("já recebeu e-mail");
-    // A reply in progress is never sent as a first e-mail.
-    else if (existing && (existing.inReplyTo || existing.author === "user"))
-      skip("já está em conversa");
-    else if (lead.status !== "new") skip("não está mais como novo");
-    else if (existing) drafts.push(existing);
-    else if (!analysis) skip("ainda em análise");
-    else toWrite.push({ lead, analysis });
+    const blocker = draftBlocker(lead, existing, blocked.has(lead.id));
+    if (blocker) {
+      skip(blocker);
+      continue;
+    }
+    if (existing) {
+      drafts.push(existing);
+      continue;
+    }
+    if (!analysis) {
+      skip("ainda em análise");
+      continue;
+    }
+    toWrite.push({ lead, analysis });
   }
 
   const written: Lead[] = [];
@@ -333,7 +368,7 @@ export async function prepareDrafts(
         .from(emails)
         .where(
           and(
-            inArray(
+            inList(
               emails.leadId,
               written.map((lead) => lead.id),
             ),
@@ -344,8 +379,11 @@ export async function prepareDrafts(
     );
     for (const lead of written) {
       const draft = fresh.get(lead.id);
-      if (draft?.status === "draft") drafts.push(draft);
-      else skipped.push({ leadId: lead.id, name: lead.name, reason: "já recebeu e-mail" });
+      if (draft?.status === "draft") {
+        drafts.push(draft);
+        continue;
+      }
+      skipped.push({ leadId: lead.id, name: lead.name, reason: "já recebeu e-mail" });
     }
   }
   return { drafts, skipped };
@@ -397,7 +435,7 @@ export async function queueDrafts(db: Db, emailIds: string[], now = new Date()) 
     .from(emails)
     .where(
       and(
-        inArray(emails.id, emailIds),
+        inList(emails.id, emailIds),
         eq(emails.status, "draft"),
         // Only first e-mails: replies go out through the conversation, never this queue.
         eq(emails.author, "ai"),
@@ -643,6 +681,22 @@ export async function cancelQueuedAi(db: Db, leadId: string, reason: string) {
     .where(and(eq(emails.leadId, leadId), eq(emails.status, "queued"), eq(emails.author, "ai")));
 }
 
+/** How far a received Date header may be ahead of our clock (a slightly fast sender clock). */
+const MAX_DATE_AHEAD_MS = 10 * 60_000;
+/** How old it may be: a poll can run late after downtime, but not by more than this. */
+const MAX_DATE_BEHIND_MS = 30 * 24 * 60 * 60_000;
+
+/**
+ * When to show a received e-mail. The Date header is whatever the sender wrote: a year-2099
+ * date would sit on top of "Atividade de hoje" for ever, and a 1970 one sinks below the
+ * thread. Outside a plausible window the time we read it is used instead.
+ */
+export function receivedAt(date: Date | null, now: Date): Date {
+  if (!date) return now;
+  const offset = date.getTime() - now.getTime();
+  return offset > MAX_DATE_AHEAD_MS || offset < -MAX_DATE_BEHIND_MS ? now : date;
+}
+
 /** Stores a reply and decides what happens next. Returns false when it is not ours. */
 export async function handleInbound(
   deps: { db: Db; mailer: Mailer; analyzer: LeadAnalyzer },
@@ -670,7 +724,7 @@ export async function handleInbound(
       body: message.text || "(sem texto)",
       messageId: message.messageId,
       inReplyTo: message.inReplyTo,
-      sentAt: message.date ?? now,
+      sentAt: receivedAt(message.date, now),
     })
     .onConflictDoNothing()
     .returning({ id: emails.id });
@@ -727,6 +781,20 @@ export async function handleInbound(
     await handOff(db, lead.id, `A IA já respondeu ${MAX_AI_REPLIES} vezes`);
     return true;
   }
+  const aiAttempts = await db.$count(
+    emails,
+    and(
+      eq(emails.leadId, lead.id),
+      eq(emails.direction, "out"),
+      eq(emails.author, "ai"),
+      isNotNull(emails.inReplyTo),
+      ne(emails.status, "draft"),
+    ),
+  );
+  if (aiAttempts >= MAX_AI_REPLY_ATTEMPTS) {
+    await handOff(db, lead.id, "A conversa está rápida demais para a IA; responda você");
+    return true;
+  }
 
   const conversation: ThreadMessage[] = history.map((item) => ({
     from: item.direction === "out" ? "eu" : "empresa",
@@ -761,51 +829,55 @@ export async function handleInbound(
       if (issues.length > 0) {
         await handOff(db, lead.id, `Resposta da IA para revisar: ${issues.join(", ")}`);
         await leaveDraft(cleanText(decision.reply));
-      } else if (await hasUserDraft(db, lead.id)) {
+        return true;
+      }
+      if (await hasUserDraft(db, lead.id)) {
         // The user started an answer while the AI was writing; theirs goes instead.
         await handOff(db, lead.id, USER_DRAFT_REASON);
-      } else {
-        await db.insert(emails).values({
-          ...base,
-          id: crypto.randomUUID(),
-          status: "queued",
-          body: composeBody(decision.reply, settings, false),
-          sendAfter: new Date(now.getTime() + REPLY_DELAY_MINUTES * 60_000),
-        });
+        return true;
       }
-    } else if (decision.action === "close") {
+      await db.insert(emails).values({
+        ...base,
+        id: crypto.randomUUID(),
+        status: "queued",
+        body: composeBody(decision.reply, settings, false),
+        sendAfter: new Date(now.getTime() + REPLY_DELAY_MINUTES * 60_000),
+      });
+      return true;
+    }
+    if (decision.action === "close") {
       if (isOptOutReason(decision.reason)) {
         await unsubscribe(db, lead.id, now);
-      } else {
-        await db.batch([
-          db
-            .update(leads)
-            .set({
-              status: "discarded",
-              aiMode: false,
-              discardReason: decision.reason,
-              discardedAt: now,
-            })
-            .where(eq(leads.id, lead.id)),
-          db
-            .update(emails)
-            .set({ status: "cancelled", error: CLOSED_REASON })
-            .where(and(eq(emails.leadId, lead.id), inArray(emails.status, ["queued", "draft"]))),
-        ]);
+        return true;
       }
-    } else {
-      await handOff(db, lead.id, decision.reason);
-      if (decision.draft) await leaveDraft(cleanText(decision.draft));
+      await db.batch([
+        db
+          .update(leads)
+          .set({
+            status: "discarded",
+            aiMode: false,
+            discardReason: decision.reason,
+            discardedAt: now,
+          })
+          .where(eq(leads.id, lead.id)),
+        db
+          .update(emails)
+          .set({ status: "cancelled", error: CLOSED_REASON })
+          .where(and(eq(emails.leadId, lead.id), inArray(emails.status, ["queued", "draft"]))),
+      ]);
+      return true;
     }
+    await handOff(db, lead.id, decision.reason);
+    if (decision.draft) await leaveDraft(cleanText(decision.draft));
   } catch (error) {
     console.error("email reply failed", lead.id, error);
     if (error instanceof ForbiddenPhrasesError) {
       await recordAiCost(db, calls(error.usage), error.usage.cost);
       await handOff(db, lead.id, "Resposta da IA para revisar: frases proibidas");
       await leaveDraft(cleanText(error.text));
-    } else {
-      await handOff(db, lead.id, "A IA não conseguiu responder");
+      return true;
     }
+    await handOff(db, lead.id, "A IA não conseguiu responder");
   }
   return true;
 }
@@ -890,9 +962,9 @@ export async function queueFollowUps(
       if (error instanceof ForbiddenPhrasesError) {
         // Kept claimed: no follow-up beats one with forbidden phrases or paying every tick.
         await recordAiCost(db, calls(error.usage), error.usage.cost);
-      } else {
-        await db.update(leads).set({ emailFollowUps: 0 }).where(eq(leads.id, lead.id));
+        continue;
       }
+      await db.update(leads).set({ emailFollowUps: 0 }).where(eq(leads.id, lead.id));
     }
   }
   return queued;
@@ -908,7 +980,9 @@ export async function autoDispatch(
   if (!row?.autoDispatch) return 0;
   const remaining = deps.limit - (await requestsToday(db, EMAIL_PROVIDER, now));
   const queuedCount = await db.$count(emails, eq(emails.status, "queued"));
-  const room = remaining - queuedCount;
+  // Capped per run: each candidate costs a model call, and a high daily limit would otherwise
+  // draft hundreds of e-mails in one cron run. The next hourly run picks up the rest.
+  const room = Math.min(remaining - queuedCount, AUTO_DISPATCH_PER_RUN);
   if (room <= 0) return 0;
 
   const candidates = await db

@@ -7,11 +7,24 @@ export const GOOGLE_PLACES = "google_places";
 export const DEEPSEEK = "deepseek";
 export const DEFAULT_PLACES_DAILY_LIMIT = 50;
 
-export function placesDailyLimit(value: string | undefined): number {
+/**
+ * Highest daily limit a variable may set. Above it the value is a typo ("5000000"), or one such
+ * as "1e300" that passes Number.isInteger and later breaks the SQL LIMIT it reaches; either way
+ * it is ignored in favor of the default, which only ever spends less.
+ */
+export const MAX_DAILY_LIMIT = 10_000;
+
+/** A whole-number daily limit from an env var in [0, MAX_DAILY_LIMIT], or the default. */
+export function dailyLimit(value: string | undefined, fallback: number): number {
+  if (value === undefined || value.trim() === "") return fallback;
   const n = Number(value);
-  return value !== undefined && value !== "" && Number.isInteger(n) && n >= 0
-    ? n
-    : DEFAULT_PLACES_DAILY_LIMIT;
+  if (Number.isInteger(n) && n >= 0 && n <= MAX_DAILY_LIMIT) return n;
+  console.warn(`daily limit "${value}" is not a whole number from 0 to ${MAX_DAILY_LIMIT}`);
+  return fallback;
+}
+
+export function placesDailyLimit(value: string | undefined): number {
+  return dailyLimit(value, DEFAULT_PLACES_DAILY_LIMIT);
 }
 
 /**

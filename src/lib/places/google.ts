@@ -28,8 +28,10 @@ const responseSchema = z.object({
         formattedAddress: z.string().optional(),
         nationalPhoneNumber: z.string().optional(),
         websiteUri: z.string().optional(),
-        rating: z.number().optional(),
-        userRatingCount: z.number().optional(),
+        // Out-of-range numbers are dropped (shown as "sem nota"), not the whole place: a
+        // 7.5 rating or a fractional count would land in the scores, filters and CSV as is.
+        rating: z.number().min(1).max(5).optional().catch(undefined),
+        userRatingCount: z.number().int().min(0).optional().catch(undefined),
         googleMapsUri: z.string().optional(),
         businessStatus: z.string().optional(),
       }),

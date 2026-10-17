@@ -31,7 +31,9 @@ export async function recordJobRun(db: Db, job: Job, outcome: JobOutcome, now = 
         .insert(jobRuns)
         .values({ job, lastRunAt: now })
         .onConflictDoUpdate({ target: jobRuns.job, set: { lastRunAt: now } });
-    } else if (outcome.status === "ok") {
+      return;
+    }
+    if (outcome.status === "ok") {
       await db
         .insert(jobRuns)
         .values({ job, lastRunAt: now, lastOkAt: now, consecutiveFailures: 0 })
@@ -39,21 +41,21 @@ export async function recordJobRun(db: Db, job: Job, outcome: JobOutcome, now = 
           target: jobRuns.job,
           set: { lastRunAt: now, lastOkAt: now, consecutiveFailures: 0 },
         });
-    } else {
-      const lastError = friendlyJobError(job, outcome.error);
-      await db
-        .insert(jobRuns)
-        .values({ job, lastRunAt: now, lastErrorAt: now, lastError, consecutiveFailures: 1 })
-        .onConflictDoUpdate({
-          target: jobRuns.job,
-          set: {
-            lastRunAt: now,
-            lastErrorAt: now,
-            lastError,
-            consecutiveFailures: sql`${jobRuns.consecutiveFailures} + 1`,
-          },
-        });
+      return;
     }
+    const lastError = friendlyJobError(job, outcome.error);
+    await db
+      .insert(jobRuns)
+      .values({ job, lastRunAt: now, lastErrorAt: now, lastError, consecutiveFailures: 1 })
+      .onConflictDoUpdate({
+        target: jobRuns.job,
+        set: {
+          lastRunAt: now,
+          lastErrorAt: now,
+          lastError,
+          consecutiveFailures: sql`${jobRuns.consecutiveFailures} + 1`,
+        },
+      });
   } catch (error) {
     console.error(`job_runs: could not record ${job}`, error);
   }

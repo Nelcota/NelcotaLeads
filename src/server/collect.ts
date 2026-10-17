@@ -1,5 +1,6 @@
-import { and, eq, gte, inArray, sql } from "drizzle-orm";
+import { and, eq, gte, sql } from "drizzle-orm";
 import type { Db } from "@/db/client";
+import { inList } from "@/db/in-list";
 import { leads, searches, type SearchStatus } from "@/db/schema";
 import type { PlacesProvider } from "@/lib/places";
 import { toE164 } from "@/lib/phone";
@@ -69,7 +70,7 @@ export async function runSearch(
       await db
         .update(leads)
         .set({ analysisStatus: "error", analysisError: ENQUEUE_FAILED_MESSAGE })
-        .where(and(inArray(leads.id, newLeadIds), eq(leads.analysisStatus, "pending")));
+        .where(and(inList(leads.id, newLeadIds), eq(leads.analysisStatus, "pending")));
     }
 
     await db.batch([

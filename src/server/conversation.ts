@@ -1,12 +1,13 @@
 import { and, asc, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Db } from "@/db/client";
+import { inList } from "@/db/in-list";
 import { emails, leads, type Email } from "@/db/schema";
 import type { LeadAnalyzer } from "@/lib/ai";
 import { cleanText, ForbiddenPhrasesError } from "@/lib/ai/analyzer";
 import type { ThreadMessage } from "@/lib/ai/prompts";
 import { localDay } from "@/lib/format";
-import { idSchema } from "@/lib/schemas";
+import { daySchema, idSchema } from "@/lib/schemas";
 import { leadPatch, UNSUBSCRIBED_MESSAGE } from "./lead-status";
 import { RETRIED_PREFIX } from "@/lib/email-errors";
 import {
@@ -30,7 +31,7 @@ import { recordAiCost } from "./usage";
 
 /** Matches only the listed ids; an empty list matches nothing. */
 function idIn(ids: string[]) {
-  return ids.length > 0 ? inArray(emails.id, ids) : sql`0`;
+  return inList(emails.id, ids);
 }
 
 export const closeSnapshotSchema = z.object({
@@ -38,10 +39,7 @@ export const closeSnapshotSchema = z.object({
     status: z.enum(["new", "contacted", "replied"]),
     aiMode: z.boolean(),
     handoffReason: z.string().max(300).nullable(),
-    followUpOn: z
-      .string()
-      .regex(/^\d{4}-\d{2}-\d{2}$/)
-      .nullable(),
+    followUpOn: daySchema.nullable(),
   }),
   cancelledIds: z.object({
     queued: z.array(idSchema).max(200),

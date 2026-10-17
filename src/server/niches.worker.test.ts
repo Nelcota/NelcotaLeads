@@ -46,9 +46,49 @@ describe("niches", () => {
   it("merges spellings of a niche and counts its funnel, best closers first", async () => {
     const rows = await queryNiches(db);
     expect(rows.map(({ label: _label, ...row }) => row)).toEqual([
-      { key: "dentistas", leads: 3, contacted: 2, replied: 2, closed: 1 },
-      { key: "biomedicina", leads: 1, contacted: 1, replied: 0, closed: 0 },
+      {
+        key: "dentistas",
+        leads: 3,
+        contacted: 2,
+        replied: 2,
+        closed: 1,
+        repliedContacted: 2,
+        closedContacted: 1,
+      },
+      {
+        key: "biomedicina",
+        leads: 1,
+        contacted: 1,
+        replied: 0,
+        closed: 0,
+        repliedContacted: 0,
+        closedContacted: 0,
+      },
     ]);
+  });
+
+  it("takes the shares from contacted leads only, so they never pass 100%", async () => {
+    // Closed on WhatsApp, and one that wrote in by e-mail without being e-mailed first.
+    await db.insert(leads).values([
+      { siteStatus: "none", id: "5", placeId: "5", name: "E", searchId: "s3", status: "closed" },
+      { siteStatus: "none", id: "6", placeId: "6", name: "F", searchId: "s3", status: "replied" },
+    ]);
+    await db.insert(emails).values({
+      ...mail,
+      id: "e8",
+      leadId: "6",
+      direction: "in",
+      status: "received",
+      author: "lead",
+    });
+    const biomedicina = (await queryNiches(db)).find((row) => row.key === "biomedicina");
+    expect(biomedicina).toMatchObject({
+      contacted: 1,
+      replied: 1,
+      closed: 1,
+      repliedContacted: 0,
+      closedContacted: 0,
+    });
   });
 
   it("filters the leads list by niche", async () => {
