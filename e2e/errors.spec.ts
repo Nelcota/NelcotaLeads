@@ -3,7 +3,7 @@ import { expect, test, visit } from "./fixtures";
 
 async function searchDentists(page: Page) {
   await page.getByRole("button", { name: "Nova busca" }).click();
-  const dialog = page.getByRole("dialog", { name: "Busca manual" });
+  const dialog = page.getByRole("dialog", { name: "Nova busca" });
   await dialog.getByLabel("Nicho").fill("dentistas");
   await dialog.getByLabel("Cidade").fill("Belo Horizonte");
   await dialog.getByRole("button", { name: "Buscar empresas" }).click();

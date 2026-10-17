@@ -77,12 +77,14 @@ function AccountPage() {
                   />
                 }
                 title={mail?.configured ? mail.address : "Nenhuma caixa conectada"}
-                subtitle={mail?.configured ? "Caixa conectada" : "Configure em Configurações"}
+                subtitle={
+                  mail?.configured ? "Caixa conectada" : "Aguardando quem administra o sistema"
+                }
                 subtitleTone={mail?.configured ? "green" : "orange"}
                 trailing={
                   <Button asChild variant="outline" size="sm">
                     <Link to="/settings" hash="email">
-                      Gerenciar
+                      {mail?.configured ? "Gerenciar" : "Detalhes"}
                     </Link>
                   </Button>
                 }

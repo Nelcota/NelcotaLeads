@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
+  LoaderCircleIcon,
   SendIcon,
   SparklesIcon,
   TriangleAlertIcon,
@@ -26,6 +27,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useAutosave } from "@/lib/autosave";
 import { dashboardQuery, providerStatusQuery } from "@/lib/queries";
+import { SEND_GAP_MINUTES } from "@/lib/schemas";
 import { cn } from "@/lib/utils";
 import { setAutomation } from "@/server/dashboard";
 import {
@@ -115,8 +117,11 @@ function DispatchReview({
   const edit = (id: string, next: DraftText) => {
     setEdits((all) => ({ ...all, [id]: next }));
     // The server keeps the last complete version; an empty subject or body is not saved.
-    if (next.subject.trim() && next.body.trim()) autosave.schedule(id, next);
-    else void autosave.discard(id);
+    if (next.subject.trim() && next.body.trim()) {
+      autosave.schedule(id, next);
+      return;
+    }
+    void autosave.discard(id);
   };
   const showVersion = (id: string, text: Partial<Draft>) => {
     setDrafts((list) => list.map((item) => (item.id === id ? { ...item, ...text } : item)));
@@ -179,7 +184,7 @@ function DispatchReview({
         queryClient.invalidateQueries({ queryKey: ["provider-status"] }),
       ]);
       toast.success(`${queued} ${queued === 1 ? "e-mail na fila" : "e-mails na fila"}`, {
-        description: "Um a cada 8 minutos. As respostas aparecem em Conversas.",
+        description: `Um a cada ${SEND_GAP_MINUTES} minutos. As respostas aparecem em Conversas.`,
       });
       onDispatched();
       onClose();
@@ -197,7 +202,9 @@ function DispatchReview({
     <>
       <SheetHeader className="gap-1 px-5 pt-4 pb-3 pr-14">
         <SheetTitle className="flex items-center gap-2 text-lg">
-          {prepare.isPending ? <SparklesIcon className="size-4 animate-pulse text-purple" /> : null}
+          {prepare.isPending ? (
+            <LoaderCircleIcon className="size-4 animate-spin text-purple" />
+          ) : null}
           {prepare.isPending
             ? "Escrevendo os e-mails…"
             : `Disparar ${drafts.length} ${drafts.length === 1 ? "e-mail" : "e-mails"}`}
@@ -348,7 +355,7 @@ function DispatchReview({
 
       <SheetFooter className="gap-3 border-t border-border/70 bg-black/[0.02] px-5 pt-3.5 pb-5 dark:bg-black/20">
         <div className="grouped">
-          <PropertyRow label="Envio">um a cada 8 min</PropertyRow>
+          <PropertyRow label="Envio">um a cada {SEND_GAP_MINUTES} min</PropertyRow>
           <PropertyRow label="Restam hoje">
             <span className="text-green">{remaining}</span> de {mail?.limit ?? 0}
             {drafts.length > remaining ? (
@@ -357,12 +364,17 @@ function DispatchReview({
           </PropertyRow>
           <div className="grouped-row flex min-h-[46px] items-center gap-3 px-4 [--inset:16px]">
             <IconTile icon={SparklesIcon} tone="purple" size={26} />
-            <label htmlFor="dispatch-ai" className="flex-1 font-medium">
-              IA responde sozinha até haver interesse
+            {/* The global setting, not one for this batch: said so, since it sits in a send. */}
+            <label htmlFor="dispatch-ai" className="grid flex-1 gap-0.5 py-2">
+              <span className="font-medium">IA responde sozinha até haver interesse</span>
+              <span className="text-[12.5px] font-light text-muted-foreground">
+                Vale para todas as conversas, não só para este disparo.
+              </span>
             </label>
             <Switch
               id="dispatch-ai"
               checked={aiAutoReply}
+              disabled={automation.isPending}
               style={{ "--switch-on": "var(--purple)" }}
               onCheckedChange={(checked) => automation.mutate(checked)}
             />
@@ -396,7 +408,7 @@ function dispatchLabel(state: {
   rewriting: boolean;
   count: number;
 }): string {
-  if (!state.mailConfigured) return "Conecte o e-mail nas Configurações";
+  if (!state.mailConfigured) return "Caixa de e-mail ainda não conectada";
   if (state.dispatching) return "Colocando na fila…";
   if (state.removing) return "Tirando do disparo…";
   if (state.rewriting) return "Gerando outra versão…";

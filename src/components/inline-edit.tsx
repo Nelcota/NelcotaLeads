@@ -83,7 +83,9 @@ export function InlineEdit({
           if (event.key === "Enter") {
             event.preventDefault();
             void save();
-          } else if (event.key === "Escape") {
+            return;
+          }
+          if (event.key === "Escape") {
             // Only the field; the sheet leaves Esc alone for [data-inline-edit] (lead-sheet).
             event.preventDefault();
             event.stopPropagation();

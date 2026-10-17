@@ -112,8 +112,8 @@ test.describe("e-mail conversations", () => {
     await expect(row).toBeVisible();
     await expect(page.getByRole("article").filter({ hasText: "na fila" })).toHaveCount(1);
 
-    await page.getByRole("button", { name: "Marcar como fechado" }).click();
-    await expect(page.getByText("Conversa encerrada", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Fechar negócio" }).click();
+    await expect(page.getByText("Negócio fechado", { exact: true })).toBeVisible();
     await expect(row).toBeHidden();
     await expect(page.getByRole("article").filter({ hasText: "Cancelado" })).toHaveCount(1);
 
@@ -133,7 +133,7 @@ test.describe("e-mail conversations", () => {
   test("a closed conversation can be reopened", async ({ page, backend }) => {
     const { id } = await startConversation(page, backend);
     await visit(page, `/conversas?lead=${id}`);
-    await page.getByRole("button", { name: "Marcar como fechado" }).click();
+    await page.getByRole("button", { name: "Fechar negócio" }).click();
     const row = page.getByRole("button", { name: new RegExp(LEAD.name) });
     await expect(row).toContainText("Encerrada");
     await expect(page.getByLabel("Sua resposta")).toHaveCount(0);

@@ -65,7 +65,7 @@ const SYSTEM_ATTENTION = "Algo precisa de atenção";
 
 const NewSearchContext = createContext<() => void>(() => {});
 
-/** Opens the "Busca manual" dialog from anywhere in the app. */
+/** Opens the "Nova busca" dialog from anywhere in the app. */
 export function useOpenNewSearch() {
   return useContext(NewSearchContext);
 }
@@ -270,7 +270,7 @@ function UsageMeter() {
           className="flex items-center gap-2.5 text-[12.5px] font-medium text-orange"
         >
           <span className="size-2 rounded-full bg-orange" />
-          Conectar e-mail
+          E-mail não conectado
         </Link>
       )}
       <MeterRow

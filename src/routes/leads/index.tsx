@@ -30,6 +30,7 @@ import {
   Hint,
   InfoTip,
   TONE_TEXT,
+  toneVar,
   type Tone,
 } from "@/components/apple-ui";
 import { GLOSSARY } from "@/lib/help";
@@ -77,6 +78,7 @@ import { leadCountsQuery, leadsQuery, nichesQuery, searchesQuery } from "@/lib/q
 import {
   BULK_LIMIT,
   type BulkSnapshot,
+  DISPATCH_LIMIT,
   LEAD_STATUS_LABELS,
   LEAD_STATUS_VALUES,
   LEAD_VIEW_LABELS,
@@ -225,8 +227,11 @@ function LeadsPage() {
     setSelected((current) => {
       const next = new Set(current);
       for (const id of ids) {
-        if (on) next.add(id);
-        else next.delete(id);
+        if (on) {
+          next.add(id);
+          continue;
+        }
+        next.delete(id);
       }
       return next;
     });
@@ -250,9 +255,9 @@ function LeadsPage() {
           </a>
         </Button>
       ) : null}
-      <Button variant="outline" onClick={openNewSearch} aria-label="Busca manual">
+      <Button variant="outline" onClick={openNewSearch} aria-label="Nova busca">
         <PlusIcon />
-        <span className="max-sm:hidden">Busca manual</span>
+        <span className="max-sm:hidden">Nova busca</span>
       </Button>
       <DropdownMenu>
         <Hint label="Mais ações">
@@ -283,15 +288,15 @@ function LeadsPage() {
           tone="green"
           className="grouped mx-auto w-full max-w-lg"
           title="Nenhum lead ainda"
-          description="Ligue o piloto automático para receber leads todo dia, ou faça uma busca manual."
+          description="Ligue a busca diária para receber leads todo dia, ou faça uma nova busca."
         >
           <Button asChild>
             <Link to="/settings" hash="piloto">
-              Configurar piloto automático
+              Configurar busca diária
             </Link>
           </Button>
           <Button variant="outline" onClick={openNewSearch}>
-            Busca manual
+            Nova busca
           </Button>
         </EmptyState>
         {addLead}
@@ -328,7 +333,7 @@ function LeadsPage() {
         ) : null
       }
     >
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-3.5">
+      <div className="enter grid grid-cols-[minmax(0,1fr)] gap-3.5">
         <Tabs
           value={view}
           onValueChange={(value) => {
@@ -368,7 +373,10 @@ function LeadsPage() {
       </div>
 
       {view === "todo" && selected.size === 0 && readyIds.length > 0 ? (
-        <div className="grouped -mt-2 flex items-center gap-3 px-4 py-2.5">
+        <div
+          className="grouped enter -mt-2 flex items-center gap-3 px-4 py-2.5"
+          style={{ animationDelay: "40ms" }}
+        >
           <SendIcon className="size-4 shrink-0 text-blue" />
           <p className="min-w-0 flex-1 text-sm">
             <b className="font-medium tabular-nums">{readyIds.length}</b>{" "}
@@ -384,7 +392,7 @@ function LeadsPage() {
         </div>
       ) : null}
 
-      <div className="grouped -mt-2 overflow-x-auto">
+      <div className="grouped enter -mt-2 overflow-x-auto" style={{ animationDelay: "80ms" }}>
         <LeadsList
           data={data}
           view={view}
@@ -453,10 +461,20 @@ function LeadsPage() {
           </Button>
           <SelectionMenu ids={[...selected]} onDone={clearSelection} />
           <DisabledReason
-            reason={sendable.length === 0 && "Nenhum lead selecionado tem e-mail"}
+            reason={
+              sendable.length === 0
+                ? "Nenhum lead selecionado tem e-mail"
+                : sendable.length > DISPATCH_LIMIT
+                  ? `Selecione até ${DISPATCH_LIMIT} leads com e-mail por disparo`
+                  : false
+            }
             side="top"
           >
-            <Button size="sm" disabled={sendable.length === 0} onClick={() => setDispatching(true)}>
+            <Button
+              size="sm"
+              disabled={sendable.length === 0 || sendable.length > DISPATCH_LIMIT}
+              onClick={() => setDispatching(true)}
+            >
               <SendIcon />
               Disparar e-mail
             </Button>
@@ -511,7 +529,10 @@ function SelectionMenu({ ids, onDone }: { ids: string[]; onDone: () => void }) {
   };
   const update = useMutation({
     mutationFn: (status: LeadStatus) =>
-      bulkUpdateLeads({ data: { ids: ids.slice(0, BULK_LIMIT), status } }),
+      ids.length > BULK_LIMIT
+        ? // Refused rather than cut: a partial change would look like the whole selection moved.
+          Promise.reject(new Error(`Selecione até ${BULK_LIMIT} leads por vez.`))
+        : bulkUpdateLeads({ data: { ids, status } }),
     onSuccess: async (result, status) => {
       await refresh();
       onDone();
@@ -668,7 +689,7 @@ function Toolbar({
             </span>
             <ChevronsUpDownIcon className="text-tertiary" />
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start">
+          <DropdownMenuContent align="start" className="min-w-40">
             <DropdownMenuRadioGroup
               value={tier ?? "all"}
               onValueChange={(value) => {
@@ -676,11 +697,18 @@ function Toolbar({
                 onChange(next ? TIER_RANGES[next] : { minScore: undefined, maxScore: undefined });
               }}
             >
-              <DropdownMenuRadioItem value="all">Todas</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="all">
+                <span aria-hidden className="size-2 shrink-0" />
+                Todas
+              </DropdownMenuRadioItem>
               {TIERS.map((item) => (
                 <DropdownMenuRadioItem key={item} value={item}>
-                  {SCORE_TIERS[item].label} ({SCORE_TIERS[item].min}
-                  {item === "high" ? "+" : `–${SCORE_TIERS[item].max}`})
+                  <span
+                    aria-hidden
+                    className="size-2 shrink-0 rounded-full"
+                    style={{ background: toneVar(TIER_TONE[item]) }}
+                  />
+                  <span className="whitespace-nowrap">{SCORE_TIERS[item].label}</span>
                 </DropdownMenuRadioItem>
               ))}
             </DropdownMenuRadioGroup>

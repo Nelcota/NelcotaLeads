@@ -229,7 +229,7 @@ function ConversationsPage() {
       <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)] border-t border-border/70 lg:grid-cols-[330px_minmax(0,1fr)] xl:grid-cols-[330px_minmax(0,1fr)_290px]">
         <div
           className={cn(
-            "flex min-h-0 flex-col border-border/70 lg:border-r",
+            "enter flex min-h-0 flex-col border-border/70 lg:border-r",
             openId && "max-lg:hidden",
           )}
         >
@@ -424,7 +424,10 @@ function ConversationsPage() {
         {openId ? (
           <Thread key={openId} leadId={openId} onBack={() => select(undefined)} />
         ) : (
-          <div className="hidden items-center justify-center lg:flex">
+          <div
+            className="enter hidden items-center justify-center lg:flex"
+            style={{ animationDelay: "40ms" }}
+          >
             <EmptyState icon={MessagesSquareIcon} title="Escolha uma conversa." />
           </div>
         )}
@@ -451,8 +454,11 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
     async (_key, body: string) => {
       const draft = await saveReplyDraft({ data: { leadId, body } });
       // Cleared: whatever the AI had drafted shows again.
-      if (draft) setDraft(draft);
-      else await queryClient.invalidateQueries({ queryKey: conversationQuery(leadId).queryKey });
+      if (draft) {
+        setDraft(draft);
+        return;
+      }
+      await queryClient.invalidateQueries({ queryKey: conversationQuery(leadId).queryKey });
     },
     errorToast("Não foi possível salvar o rascunho", { id: "reply-draft" }),
   );
@@ -483,8 +489,11 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
         data: { leadId, body: previous.mine ? previous.body : "" },
       });
       setText(null);
-      if (draft) setDraft(draft);
-      else await queryClient.invalidateQueries({ queryKey: conversationQuery(leadId).queryKey });
+      if (draft) {
+        setDraft(draft);
+        return;
+      }
+      await queryClient.invalidateQueries({ queryKey: conversationQuery(leadId).queryKey });
     } catch (error) {
       errorToast("Não foi possível desfazer")(error);
     }
@@ -543,7 +552,7 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
     },
     onSuccess: async (snapshot, outcome) => {
       await refresh();
-      toast(outcome === "closed" ? "Conversa encerrada" : "Encerrada sem negócio", {
+      toast(outcome === "closed" ? "Negócio fechado" : "Encerrada sem negócio", {
         duration: 6000,
         action: { label: "Desfazer", onClick: () => void undoClose(snapshot) },
       });
@@ -618,7 +627,7 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
 
   return (
     <>
-      <div className="flex min-h-0 min-w-0 flex-col">
+      <div className="enter flex min-h-0 min-w-0 flex-col" style={{ animationDelay: "40ms" }}>
         <div className="flex flex-wrap items-center gap-3 px-5 pt-4 pb-3 sm:px-7">
           <Hint label="Voltar (Esc)">
             <Button
@@ -669,7 +678,7 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
                 onClick={() => close.mutate("closed")}
               >
                 <CircleCheckIcon />
-                Fechado
+                Fechar negócio
               </Button>
               <Button
                 size="sm"
@@ -679,7 +688,7 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
                 onClick={() => close.mutate("discarded")}
               >
                 <XIcon />
-                Sem negócio
+                Encerrar sem negócio
               </Button>
             </>
           ) : (
@@ -858,7 +867,10 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
         ) : null}
       </div>
 
-      <aside className="hidden min-h-0 content-start gap-5 overflow-y-auto overscroll-contain border-l border-border/70 px-4 py-5 xl:grid">
+      <aside
+        style={{ animationDelay: "80ms" }}
+        className="enter hidden min-h-0 content-start gap-5 overflow-y-auto overscroll-contain border-l border-border/70 px-4 py-5 xl:grid"
+      >
         <div className="grid justify-items-center gap-2 text-center">
           <Avatar name={lead.name} size={56} />
           <p className="text-base font-medium">{lead.name}</p>
@@ -954,7 +966,7 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
                 className="grouped-row flex min-h-[44px] w-full items-center gap-2 px-4 text-left font-medium text-green [--inset:16px] hover:bg-fill-3 disabled:opacity-50"
               >
                 <CircleCheckIcon className="size-4" />
-                Marcar como fechado
+                Fechar negócio
               </button>
               <button
                 type="button"
