@@ -164,18 +164,36 @@ function initials(name: string) {
   return letters.toUpperCase() || "?";
 }
 
-/** Initials avatar; the color is stable per name. */
+/** Initials avatar; the color is stable per name. Shows `src` instead when there is a photo. */
 export function Avatar({
   name,
+  src,
   size = 32,
   square = false,
   className,
 }: {
   name: string;
+  src?: string | null;
   size?: number;
   square?: boolean;
   className?: string;
 }) {
+  if (src) {
+    return (
+      <img
+        src={src}
+        alt=""
+        aria-hidden
+        draggable={false}
+        className={cn(
+          "shrink-0 object-cover",
+          square ? "rounded-[14px]" : "rounded-full",
+          className,
+        )}
+        style={{ width: size, height: size }}
+      />
+    );
+  }
   const tone = avatarTone(name);
   return (
     <span

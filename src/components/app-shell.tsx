@@ -356,7 +356,7 @@ function AccountRow() {
           </div>
         ) : (
           <>
-            <Avatar name={name} size={28} />
+            <Avatar name={name} src={account?.avatar} size={28} />
             <div className="min-w-0 flex-1 leading-tight group-data-[collapsible=icon]:hidden">
               <p className="truncate text-[12.5px] font-medium">{name}</p>
               <p

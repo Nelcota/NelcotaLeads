@@ -320,3 +320,15 @@ export function scoreTier(score: number): ScoreTier {
 
 /** The error a missing lead gives, so the screen can tell "gone" from "failed". */
 export const LEAD_NOT_FOUND = "Lead não encontrado";
+
+/** Largest stored profile photo; a 256px JPEG from `resizeAvatar` stays well under it. */
+export const AVATAR_MAX_LENGTH = 200_000;
+
+/** A profile photo, or `null` to remove it. Only raster data URLs, never a remote address. */
+export const avatarInputSchema = z.object({
+  avatar: z
+    .string()
+    .max(AVATAR_MAX_LENGTH, "Foto grande demais")
+    .regex(/^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/, "Formato de foto inválido")
+    .nullable(),
+});

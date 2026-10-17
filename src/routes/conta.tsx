@@ -7,7 +7,7 @@ import {
 } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { LogOutIcon, MailIcon, MoonIcon, SunIcon } from "lucide-react";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { errorToast } from "@/lib/mutation-toasts";
@@ -15,6 +15,7 @@ import { Page } from "@/components/app-shell";
 import { LeaveGuard, useReportDirtyForm } from "@/components/leave-guard";
 import { Avatar, GroupedRow, IconTile, PropertyRow, SectionHeader } from "@/components/apple-ui";
 import { Button } from "@/components/ui/button";
+import { AvatarEditor } from "@/components/avatar-editor";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SystemStatusSection } from "@/components/system-status";
@@ -22,6 +23,7 @@ import { accountQuery, providerStatusQuery, systemStatusQuery } from "@/lib/quer
 import type { SettingsInput } from "@/lib/schemas";
 import { useTheme } from "@/lib/theme";
 import { getSettings, saveSettings } from "@/server/settings";
+import { saveAvatar } from "@/server/account";
 import { pageTitle } from "@/lib/page-title";
 
 const settingsQuery = queryOptions({ queryKey: ["settings"], queryFn: () => getSettings() });
@@ -52,7 +54,7 @@ function AccountPage() {
       <LeaveGuard>
         <div className="mx-auto grid w-full max-w-2xl gap-8">
           <section className="enter flex flex-col items-center gap-3 pt-2 text-center">
-            <Avatar name={name === "Sem nome" ? "?" : name} size={72} />
+            <AvatarPicker name={name === "Sem nome" ? "?" : name} src={account?.avatar} />
             <div className="grid gap-0.5">
               <p className="text-xl font-medium tracking-[-0.02em]">{name}</p>
               <p className="font-light text-muted-foreground">
@@ -130,6 +132,50 @@ function AccountPage() {
         </div>
       </LeaveGuard>
     </Page>
+  );
+}
+
+/** The big avatar on top. Like macOS, "Editar" shows on hover and opens the photo editor. */
+function AvatarPicker({ name, src }: { name: string; src?: string | null }) {
+  const queryClient = useQueryClient();
+  const [editing, setEditing] = useState(false);
+  const [session, setSession] = useState(0);
+  const mutation = useMutation({
+    mutationFn: (avatar: string | null) => saveAvatar({ data: { avatar } }),
+    onSuccess: async (_result, avatar) => {
+      await queryClient.invalidateQueries({ queryKey: accountQuery.queryKey });
+      setEditing(false);
+      toast.success(avatar ? "Foto atualizada" : "Foto removida");
+    },
+    onError: errorToast("Não foi possível salvar a foto"),
+  });
+
+  return (
+    <>
+      <button
+        type="button"
+        aria-label={src ? "Editar foto do perfil" : "Adicionar foto do perfil"}
+        onClick={() => {
+          setSession((n) => n + 1);
+          setEditing(true);
+        }}
+        className="press group relative overflow-hidden rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      >
+        <Avatar name={name} src={src} size={72} />
+        <span className="absolute inset-x-0 bottom-0 grid h-6 place-items-center bg-black/55 text-[10.5px] font-medium text-white opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100">
+          {src ? "Editar" : "Adicionar"}
+        </span>
+      </button>
+      <AvatarEditor
+        key={session}
+        open={editing}
+        onOpenChange={setEditing}
+        name={name}
+        current={src}
+        saving={mutation.isPending}
+        onSave={(avatar) => mutation.mutate(avatar)}
+      />
+    </>
   );
 }
 
