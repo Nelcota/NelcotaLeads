@@ -121,6 +121,8 @@ export const leads = sqliteTable(
     analysisError: text("analysis_error"),
     // When a queue job claimed the analysis; a stale claim may be taken over after a crash.
     analysisStartedAt: integer("analysis_started_at", { mode: "timestamp" }),
+    // When a re-analysis was last queued; a pending lead older than this may be queued again.
+    analysisQueuedAt: integer("analysis_queued_at", { mode: "timestamp" }),
     // Denormalized from the latest analysis so the list can sort/filter without a join.
     score: integer("score"),
     status: text("status", { enum: LEAD_STATUSES }).notNull().default("new"),
@@ -233,7 +235,8 @@ export const apiUsage = sqliteTable(
 
 /**
  * Local accounts that can sign in. `sessionVersion` is part of every session token, so bumping
- * it (a password reset) signs that account out everywhere.
+ * it (a password reset) signs that account out everywhere. Signing out ends one session only
+ * (see `revokedSessions`).
  */
 export const users = sqliteTable(
   "users",
@@ -249,6 +252,16 @@ export const users = sqliteTable(
   },
   (t) => [uniqueIndex("users_email_idx").on(t.email)],
 );
+
+/**
+ * Sessions ended by signing out. Each token carries a session id that survives renewal, so
+ * signing out voids that browser's cookie (and any copy of it) without touching the others.
+ * A row is only needed until the last token it covers could have expired.
+ */
+export const revokedSessions = sqliteTable("revoked_sessions", {
+  id: text("id").primaryKey(),
+  expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
+});
 
 /**
  * The user's canned answers ("Respostas rápidas"), inserted into a reply from the composer.

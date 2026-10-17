@@ -50,4 +50,18 @@ describe("requestReanalysis", () => {
       "Lead não encontrado",
     );
   });
+
+  it("queues a lead again once it has been pending too long", async () => {
+    const { sent, queue } = createFakeQueue();
+    const queuedAt = new Date("2026-10-11T12:00:00Z");
+    await db
+      .update(leads)
+      .set({ analysisStatus: "pending", analysisQueuedAt: queuedAt })
+      .where(eq(leads.id, "a"));
+    const soon = new Date(queuedAt.getTime() + 5 * 60_000);
+    const later = new Date(queuedAt.getTime() + 2 * 60 * 60_000);
+    expect(await requestReanalysis(db, queue, "a", soon)).toMatchObject({ queued: false });
+    expect(await requestReanalysis(db, queue, "a", later)).toMatchObject({ queued: true });
+    expect(sent).toHaveLength(1);
+  });
 });

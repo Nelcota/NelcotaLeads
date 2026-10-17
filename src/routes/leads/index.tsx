@@ -19,8 +19,8 @@ import {
   UserPlusIcon,
   XIcon,
 } from "lucide-react";
-import { toast } from "sonner";
 import { useRef, useState } from "react";
+import { toast } from "sonner";
 import { z } from "zod";
 import {
   Avatar,
@@ -79,6 +79,7 @@ import {
   BULK_LIMIT,
   type BulkSnapshot,
   DISPATCH_LIMIT,
+  EXPORT_LIMIT,
   LEAD_STATUS_LABELS,
   LEAD_STATUS_VALUES,
   LEAD_VIEW_LABELS,
@@ -249,7 +250,17 @@ function LeadsPage() {
     <>
       {data && data.length > 0 ? (
         <Button asChild variant="outline" className="hidden sm:inline-flex">
-          <a href={exportHref} download>
+          <a
+            href={exportHref}
+            download
+            onClick={() => {
+              const total = counts?.byView[view] ?? 0;
+              if (total > EXPORT_LIMIT)
+                toast.warning(
+                  `O arquivo traz os primeiros ${EXPORT_LIMIT.toLocaleString("pt-BR")} de ${total.toLocaleString("pt-BR")} leads. Use filtros para exportar o resto.`,
+                );
+            }}
+          >
             <DownloadIcon />
             Exportar CSV
           </a>

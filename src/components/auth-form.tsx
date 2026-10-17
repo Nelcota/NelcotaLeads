@@ -188,6 +188,7 @@ export function SubmitButton({ pending, children }: { pending: boolean; children
 
 const responseSchema = z.object({
   next: z.string().optional(),
+  notice: z.string().optional(),
   error: z.string().optional(),
   code: z.string().optional(),
   fields: z.record(z.string(), z.string()).optional(),
@@ -197,7 +198,6 @@ const responseSchema = z.object({
 const CODE_FIELD: Partial<Record<string, string>> = {
   codigo: "accessCode",
   "email-em-uso": "email",
-  "sem-conta": "email",
 };
 
 /** A short sideways shake, like a wrong macOS password; skipped with reduced motion. */
@@ -221,16 +221,19 @@ const values = (form: HTMLFormElement) => Object.fromEntries(new FormData(form))
 /**
  * Submits a sign-in form as JSON once hydrated (before that it posts natively). Validates on
  * submit, then re-validates a field when it loses focus; server errors land on the same fields.
+ * A success that signs nobody in (a reset link sent) leaves its `notice` for the page to show.
  */
 export function useAuthForm(
   endpoint: string,
   schema: z.ZodType,
   initialError: LoginErrorCode | undefined,
+  initialNotice: string | null = null,
 ) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(
     initialError ? LOGIN_ERRORS[initialError] : null,
   );
+  const [notice, setNotice] = useState<string | null>(initialNotice);
   const [fields, setFields] = useState<Record<string, string>>({});
   const submitted = useRef(false);
 
@@ -263,6 +266,11 @@ export function useAuthForm(
         body: JSON.stringify(parsed.data),
       });
       const body = responseSchema.catch({}).parse(await response.json().catch(() => ({})));
+      if (response.ok && body.notice) {
+        setPending(false);
+        setNotice(body.notice);
+        return;
+      }
       if (response.ok) {
         // A full load, so the first render already runs with the new session.
         window.location.replace(body.next ?? "/");
@@ -288,7 +296,7 @@ export function useAuthForm(
     setFields(({ [name]: _old, ...rest }) => (message ? { ...rest, [name]: message } : rest));
   }
 
-  return { pending, error, fields, onSubmit, onBlurCapture };
+  return { pending, error, notice, fields, onSubmit, onBlurCapture };
 }
 
 /** The form-level error (or a notice like Caps Lock), above the submit button when present. */

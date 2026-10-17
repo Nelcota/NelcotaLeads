@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { Db } from "@/db/client";
 import { emails, leads } from "@/db/schema";
 import { contactPatch, type ContactField } from "@/lib/lead-contact";
@@ -50,7 +50,8 @@ function retargetUnsentEmails(
 ) {
   const unsent = and(
     eq(emails.leadId, leadId),
-    eq(emails.toAddress, oldAddress),
+    // Older rows may keep the address as it was typed, in any case.
+    sql`lower(${emails.toAddress}) = ${oldAddress}`,
     inArray(emails.status, ["draft", "queued"]),
     isNull(emails.sentAt),
   );

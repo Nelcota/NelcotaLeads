@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "e1c82d82-11c9-4feb-b966-8685000d1792",
-  "prevId": "2181ea74-8ed5-43ab-9bcf-d4618cc80b66",
+  "id": "5b258e98-cd2d-4115-a89c-0b3c1e20aec7",
+  "prevId": "9de4bee3-d724-4508-80b6-34c31ead92c4",
   "tables": {
     "analyses": {
       "name": "analyses",
@@ -532,6 +532,13 @@
           "notNull": false,
           "autoincrement": false
         },
+        "analysis_queued_at": {
+          "name": "analysis_queued_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "score": {
           "name": "score",
           "type": "integer",
@@ -738,6 +745,30 @@
           "notNull": true,
           "autoincrement": false,
           "default": "(unixepoch())"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "revoked_sessions": {
+      "name": "revoked_sessions",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
         }
       },
       "indexes": {},
@@ -1050,6 +1081,13 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false
+        },
+        "avatar": {
+          "name": "avatar",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
           "autoincrement": false
         },
         "session_version": {

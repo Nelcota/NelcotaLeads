@@ -29,12 +29,33 @@ type MailEnv = {
  * Parses one message at a time. One that fails to parse is logged and skipped:
  * the cursor still moves past it, so it can never block the inbox.
  */
-export async function parseAll(raws: { uid: number; raw: Uint8Array }[]): Promise<IncomingEmail[]> {
+/** Parses only the header block of a raw message. */
+async function parseHeaders(raw: Uint8Array): Promise<IncomingEmail> {
+  let end = raw.length;
+  for (let i = 0; i + 3 < raw.length; i++) {
+    if (raw[i] === 13 && raw[i + 1] === 10 && raw[i + 2] === 13 && raw[i + 3] === 10) {
+      end = i + 4;
+      break;
+    }
+  }
+  return parseEmail(raw.subarray(0, end));
+}
+
+export async function parseAll(
+  raws: { uid: number; raw: Uint8Array; truncated?: boolean }[],
+): Promise<IncomingEmail[]> {
   const messages: IncomingEmail[] = [];
-  for (const { uid, raw } of raws) {
+  for (const { uid, raw, truncated } of raws) {
     try {
-      messages.push(await parseEmail(raw));
+      messages.push({ ...(await parseEmail(raw)), truncated: truncated ?? false });
     } catch (error) {
+      // A message cut mid-part can fail to parse; its headers still say who it is from,
+      // so a person gets it instead of it being dropped.
+      const headers = truncated ? await parseHeaders(raw).catch(() => null) : null;
+      if (headers) {
+        messages.push({ ...headers, text: "", truncated: true });
+        continue;
+      }
       console.warn(`mail: skipping unparsable message uid ${uid}`, error);
     }
   }

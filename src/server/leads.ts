@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { env } from "cloudflare:workers";
-import { and, desc, eq, isNull, ne } from "drizzle-orm";
+import { and, desc, eq, isNull, lt, ne, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { getDb, type Db } from "@/db/client";
 import { analyses, leads, searches } from "@/db/schema";
@@ -22,7 +22,7 @@ import { editLeadContact } from "./lead-edit";
 import { createManualLead } from "./manual-lead";
 import { leadPatch } from "./lead-status";
 import { countLeads, LIST_LIMIT, queryLeadsCapped } from "./leads-query";
-import { writeMessageForLead } from "./process-lead";
+import { CLAIM_TIMEOUT_MS, writeMessageForLead } from "./process-lead";
 import { enqueueLeads, type LeadJob } from "./queue";
 
 /** The table's rows, and whether more leads matched than it shows (LIST_LIMIT). */
@@ -134,19 +134,35 @@ export const reanalyzeLead = createServerFn({ method: "POST" })
 
 const REANALYSIS_FAILED_MESSAGE = "Não foi possível pedir a nova análise. Tente de novo.";
 
+/** A pending lead nobody picked up for this long is assumed lost (e.g. its queue message). */
+const PENDING_TIMEOUT_MS = 60 * 60_000;
+
 /**
  * Queues a forced analysis once: a lead already waiting for (or in) an analysis is left
- * alone, so double clicks and retried requests do not pay for the model twice.
+ * alone, so double clicks and retried requests do not pay for the model twice. A lead that
+ * has been pending for too long without a job picking it up can be queued again.
  */
-export async function requestReanalysis(db: Db, queue: Queue<LeadJob>, leadId: string) {
+export async function requestReanalysis(
+  db: Db,
+  queue: Queue<LeadJob>,
+  leadId: string,
+  now = new Date(),
+) {
+  const lostBefore = Math.floor((now.getTime() - PENDING_TIMEOUT_MS) / 1000);
   const claimed = await db
     .update(leads)
-    .set({ analysisStatus: "pending", analysisError: null })
+    .set({ analysisStatus: "pending", analysisError: null, analysisQueuedAt: now })
     .where(
       and(
         eq(leads.id, leadId),
-        ne(leads.analysisStatus, "pending"),
-        isNull(leads.analysisStartedAt),
+        or(
+          isNull(leads.analysisStartedAt),
+          lt(leads.analysisStartedAt, new Date(now.getTime() - CLAIM_TIMEOUT_MS)),
+        ),
+        or(
+          ne(leads.analysisStatus, "pending"),
+          sql`coalesce(${leads.analysisQueuedAt}, ${leads.createdAt}) < ${lostBefore}`,
+        ),
       ),
     )
     .returning({ id: leads.id });

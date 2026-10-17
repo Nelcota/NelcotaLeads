@@ -190,6 +190,15 @@ describe("parseAll (ASY-13)", () => {
     expect(warn).toHaveBeenCalledOnce();
     warn.mockRestore();
   });
+
+  it("keeps the truncated flag of each message", async () => {
+    const good = new TextEncoder().encode("From: a@b.com\r\nSubject: oi\r\n\r\ncorpo");
+    const messages = await parseAll([
+      { uid: 1, raw: good, truncated: true },
+      { uid: 2, raw: good, truncated: false },
+    ]);
+    expect(messages.map((message) => message.truncated)).toEqual([true, false]);
+  });
 });
 
 describe("header injection (SEC-9)", () => {

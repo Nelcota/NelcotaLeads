@@ -103,7 +103,7 @@ test.describe("signed out", () => {
     await expect(page.getByText("Já existe uma conta com esse e-mail.")).toBeVisible();
   });
 
-  test("a password can be reset with the access code", async ({ page }) => {
+  test("a password can be reset through the e-mailed link", async ({ page, backend }) => {
     // Its own account: a reset signs the account out everywhere, the shared session included.
     const email = `reset-${Date.now()}@nelcota.test`;
     const created = await page.request.post("/api/signup", {
@@ -117,8 +117,17 @@ test.describe("signed out", () => {
     await page.getByRole("link", { name: "Esqueceu a senha?" }).click();
     await expect(page).toHaveURL(/\/redefinir-senha$/);
     await page.getByLabel("E-mail da conta").fill(email);
+    await page.getByRole("button", { name: "Enviar link" }).click();
+    await expect(page.getByRole("status")).toContainText("Se houver uma conta com esse e-mail");
+
+    // Sent in the background, after the page already got its answer.
+    await expect.poll(async () => (await backend.sent()).some((m) => m.to === email)).toBe(true);
+    const mail = (await backend.sent()).find((m) => m.to === email);
+    const link = /https?:\/\/\S+\/redefinir-senha\?token=\S+/.exec(mail?.text ?? "")?.[0];
+    expect(link).toBeTruthy();
+
+    await visit(page, new URL(link ?? "").pathname + new URL(link ?? "").search);
     await page.getByLabel("Nova senha").fill("senha-nova-123");
-    await page.getByLabel("Código de acesso").fill("e2e-password");
     await page.getByRole("button", { name: "Salvar senha e entrar" }).click();
     await expect(page).toHaveURL("/");
 

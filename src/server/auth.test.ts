@@ -10,7 +10,7 @@ import {
   safeNext,
   verifyPassword,
   verifySessionToken,
-  type SessionVersionLookup,
+  type SessionLookup,
 } from "./auth";
 
 const SECRET = "correct horse battery";
@@ -18,10 +18,13 @@ const USER = { id: "4f1c2d3e-0000-4000-8000-000000000001", sessionVersion: 1 };
 const now = new Date("2026-10-11T12:00:00Z");
 const days = (n: number) => new Date(now.getTime() + n * 86_400_000);
 
-// The account store as the gate sees it: user id → current session version.
+// The account store as the gate sees it: user id → current session version, and the
+// session ids that were signed out.
 const accounts = new Map([[USER.id, USER.sessionVersion]]);
-const lookup: SessionVersionLookup = async (id) => accounts.get(id) ?? null;
-const deps = { secret: SECRET, sessionVersion: lookup };
+const signedOut = new Set<string>();
+const lookup: SessionLookup = async ({ userId, id }) =>
+  signedOut.has(id) ? null : (accounts.get(userId) ?? null);
+const deps = { secret: SECRET, sessions: lookup };
 
 function request(path: string, init: RequestInit & { cookie?: string; html?: boolean } = {}) {
   const headers = new Headers(init.headers);
@@ -83,11 +86,12 @@ describe("session tokens", () => {
 
   it("rejects tampered tokens and tokens signed under another secret", async () => {
     const token = await createSessionToken(SECRET, USER, now);
-    const [id, version, expires, mac] = token.split(".");
-    const later = `${id}.${version}.${Number(expires) + 86_400}.${mac}`;
-    const otherUser = `other-user.${version}.${expires}.${mac}`;
-    const bumped = `${id}.${Number(version) + 1}.${expires}.${mac}`;
-    for (const forged of [later, otherUser, bumped]) {
+    const [id, version, session, expires, mac] = token.split(".");
+    const later = `${id}.${version}.${session}.${Number(expires) + 86_400}.${mac}`;
+    const otherUser = `other-user.${version}.${session}.${expires}.${mac}`;
+    const bumped = `${id}.${Number(version) + 1}.${session}.${expires}.${mac}`;
+    const otherSession = `${id}.${version}.${"A".repeat(22)}.${expires}.${mac}`;
+    for (const forged of [later, otherUser, bumped, otherSession]) {
       expect(await verifySessionToken(forged, SECRET, now)).toBeNull();
     }
     expect(await verifySessionToken(token, "another secret!", now)).toBeNull();
@@ -133,10 +137,30 @@ describe("authGate", () => {
     for (const secret of [undefined, "", "short"]) {
       const gate = await authGate(
         request("/api/leads.csv", { cookie }),
-        { secret, sessionVersion: lookup },
+        { secret, sessions: lookup },
         now,
       );
       expect("response" in gate && gate.response.status).toBe(401);
+    }
+  });
+
+  it("refuses a session that was signed out, and only that one", async () => {
+    const token = await createSessionToken(SECRET, USER, now);
+    const other = await sessionCookie();
+    const session = await verifySessionToken(token, SECRET, now);
+    if (!session) throw new Error("token did not verify");
+    signedOut.add(session.id);
+    try {
+      const out = await authGate(
+        request("/api/leads.csv", { cookie: `${SESSION_COOKIE}=${token}` }),
+        deps,
+        now,
+      );
+      expect("response" in out && out.response.status).toBe(401);
+      const still = await authGate(request("/api/leads.csv", { cookie: other }), deps, now);
+      expect(still).toEqual({ renewCookie: null });
+    } finally {
+      signedOut.delete(session.id);
     }
   });
 
@@ -155,7 +179,12 @@ describe("authGate", () => {
         renewCookie: null,
       });
     }
-    for (const path of ["/api/login", "/api/signup", "/api/reset-password"]) {
+    for (const path of [
+      "/api/login",
+      "/api/signup",
+      "/api/forgot-password",
+      "/api/reset-password",
+    ]) {
       expect(await authGate(request(path, { method: "POST" }), deps, now)).toEqual({
         renewCookie: null,
       });
@@ -183,6 +212,7 @@ describe("authGate", () => {
         "/redefinir-senha",
         "/api/login",
         "/api/signup",
+        "/api/forgot-password",
         "/api/reset-password",
         "/api/logout",
         "/favicon.svg",
@@ -232,6 +262,20 @@ describe("authGate", () => {
       now,
     );
     expect("renewCookie" in old && old.renewCookie).toMatch(/HttpOnly; Secure; SameSite=Lax$/);
+  });
+
+  it("keeps the session id when it renews, so signing out still ends the renewed cookie", async () => {
+    const token = await createSessionToken(SECRET, USER, days(-20));
+    const gate = await authGate(
+      request("/", { html: true, cookie: `${SESSION_COOKIE}=${token}` }),
+      deps,
+      now,
+    );
+    const renewed = "renewCookie" in gate ? gate.renewCookie?.split(";")[0]?.split("=")[1] : null;
+    const before = await verifySessionToken(token, SECRET, now);
+    const after = await verifySessionToken(renewed ?? null, SECRET, now);
+    expect(after?.id).toBe(before?.id);
+    expect(after?.expires).toBeGreaterThan(before?.expires ?? Infinity);
   });
 
   it.each([

@@ -2,19 +2,23 @@ import { env } from "cloudflare:test";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import { getDb } from "@/db/client";
-import { users } from "@/db/schema";
+import { apiUsage, users } from "@/db/schema";
 import { resetDb } from "../../test/reset-db";
 import {
   ACCESS_CODE_FAILURES_PER_DAY,
   FAILURES_PER_ACCOUNT,
   FAILURES_PER_ADDRESS,
+  RESET_MAILS_PER_ACCOUNT,
+  RESET_REQUESTS_PER_ADDRESS,
   SESSION_COOKIE,
   attemptLogin,
   attemptPasswordReset,
   attemptSignUp,
   readSession,
+  requestPasswordReset,
   signOut,
-  sessionVersionLookup,
+  sessionLookup,
+  type ResetMailer,
 } from "./auth";
 
 const db = getDb(env.DB);
@@ -36,10 +40,10 @@ const login = (password: string, ip?: string, at = now, email = ACCOUNT.email) =
   attemptLogin(deps(ip), { email, password }, at);
 
 /** The session a Set-Cookie header would give, as the gate would read it. */
-async function sessionOf(cookie: string) {
-  const token = cookie.split(";")[0] ?? "";
+async function sessionOf(cookie: string | null) {
+  const token = cookie?.split(";")[0] ?? "";
   const request = new Request("https://app.test/", { headers: { Cookie: token } });
-  return readSession(request, SECRET, sessionVersionLookup(db), now);
+  return readSession(request, SECRET, sessionLookup(db), now);
 }
 
 describe("attemptSignUp", () => {
@@ -164,6 +168,12 @@ describe("attemptLogin", () => {
     },
   );
 
+  it("keeps no per-account counter for e-mails without an account", async () => {
+    await login("nope", undefined, now, "ninguem@nelcota.test");
+    const counters = await db.select({ key: apiUsage.provider }).from(apiUsage);
+    expect(counters.filter(({ key }) => key.startsWith("login-account:"))).toEqual([]);
+  });
+
   it("does not count successful logins as failures", SLOW, async () => {
     for (let i = 0; i < FAILURES_PER_ADDRESS + 2; i++) {
       expect((await login(ACCOUNT.password)).ok).toBe(true);
@@ -180,58 +190,116 @@ describe("attemptLogin", () => {
   });
 });
 
-describe("attemptPasswordReset", () => {
+/** Asks for a link and returns the ones "sent" (captured instead of mailed). */
+async function askLink(email = ACCOUNT.email, ip?: string, at = now) {
+  const sent: string[] = [];
+  const send: ResetMailer = async ({ link }) => void sent.push(link);
+  const result = await requestPasswordReset(
+    { ...deps(ip), origin: "https://app.test", send },
+    { email },
+    at,
+  );
+  return { result, sent };
+}
+const tokenOf = (link: string | undefined) => new URL(link ?? "").searchParams.get("token") ?? "";
+const reset = (token: string, password = "senha-nova-123", at = now) =>
+  attemptPasswordReset(deps(), { token, password }, at);
+
+describe("password reset by e-mail", () => {
   beforeEach(resetDb);
 
-  it("sets the new password and signs out the account's other sessions", async () => {
+  it("mails a link that sets the new password and signs out the other sessions", async () => {
     const first = await signUp();
-    if (!first.ok) throw new Error("sign-up failed");
+    const { result, sent } = await askLink();
+    expect(result).toMatchObject({ ok: true, cookie: null });
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toMatch(/^https:\/\/app\.test\/redefinir-senha\?token=/);
 
-    const reset = await attemptPasswordReset(
-      deps(),
-      { email: ACCOUNT.email, password: "senha-nova-123", accessCode: SECRET },
-      now,
-    );
-    expect(reset.ok).toBe(true);
-    expect(await sessionOf(first.cookie)).toBeNull();
-    expect(reset.ok && (await sessionOf(reset.cookie))).not.toBeNull();
+    const done = await reset(tokenOf(sent[0]));
+    expect(done.ok).toBe(true);
+    expect(await sessionOf(first.ok ? first.cookie : null)).toBeNull();
+    expect(done.ok && (await sessionOf(done.cookie))).not.toBeNull();
     expect((await login(ACCOUNT.password)).ok).toBe(false);
     expect((await login("senha-nova-123")).ok).toBe(true);
   });
 
-  it("refuses a wrong access code and keeps the old password", async () => {
+  it("answers the same for an unknown e-mail and sends nothing", async () => {
     await signUp();
-    const result = await attemptPasswordReset(
-      deps(),
-      { email: ACCOUNT.email, password: "senha-nova-123", accessCode: "nope" },
-      now,
-    );
-    expect(result).toMatchObject({ status: 401, code: "codigo" });
+    const known = await askLink();
+    const unknown = await askLink("ninguem@nelcota.test");
+    expect(unknown.result).toEqual(known.result);
+    expect(unknown.sent).toHaveLength(0);
+  });
+
+  it("works once, and not after an hour", async () => {
+    await signUp();
+    const { sent } = await askLink();
+    const token = tokenOf(sent[0]);
+    expect((await reset(token)).ok).toBe(true);
+    expect(await reset(token, "outra-senha-456")).toMatchObject({ code: "link-invalido" });
+
+    const later = await askLink();
+    const expired = await reset(tokenOf(later.sent[0]), "outra-senha-456", tomorrow);
+    expect(expired).toMatchObject({ status: 401, code: "link-invalido" });
+    expect((await login("senha-nova-123")).ok).toBe(true);
+  });
+
+  it("refuses a forged or tampered token", async () => {
+    await signUp();
+    const { sent } = await askLink();
+    const token = tokenOf(sent[0]);
+    const tampered = `${token.slice(0, -1)}${token.endsWith("A") ? "B" : "A"}`;
+    for (const forged of [tampered, "garbage", ""]) {
+      expect(await reset(forged)).toMatchObject({ ok: false, code: "link-invalido" });
+    }
     expect((await login(ACCOUNT.password)).ok).toBe(true);
   });
 
-  it("says so when there is no account with that e-mail", async () => {
-    const result = await attemptPasswordReset(
-      deps(),
-      { email: "ninguem@nelcota.test", password: "senha-nova-123", accessCode: SECRET },
+  it("limits requests per address and mails per account", async () => {
+    await signUp();
+    let mails = 0;
+    for (let i = 0; i < RESET_REQUESTS_PER_ADDRESS; i++) {
+      mails += (await askLink(ACCOUNT.email, `198.51.100.${i}`)).sent.length;
+    }
+    expect(mails).toBe(RESET_MAILS_PER_ACCOUNT);
+    for (let i = 0; i < RESET_REQUESTS_PER_ADDRESS; i++) await askLink("x@nelcota.test");
+    expect((await askLink()).result).toMatchObject({ status: 429, code: "limite" });
+    expect((await askLink(ACCOUNT.email, undefined, nextWindow)).sent).toHaveLength(1);
+  });
+
+  it("says when the app has no mailbox to send from", async () => {
+    const result = await requestPasswordReset(
+      { ...deps(), origin: "https://app.test", send: null },
+      { email: ACCOUNT.email },
       now,
     );
-    expect(result).toMatchObject({ status: 404, code: "sem-conta" });
+    expect(result).toMatchObject({ status: 503, code: "sem-envio" });
   });
 });
 
 describe("signOut", () => {
   beforeEach(resetDb);
 
-  it("voids the session on the server, so a copied cookie stops working", async () => {
+  it("voids that session on the server, so a copied cookie stops working", async () => {
     const result = await signUp();
     if (!result.ok) throw new Error("sign-up failed");
-    const token = result.cookie.split(";")[0] ?? "";
+    const token = result.cookie?.split(";")[0] ?? "";
     const request = new Request("https://app.test/api/logout", { headers: { Cookie: token } });
 
     await signOut(db, request, SECRET, now);
     expect(await sessionOf(result.cookie)).toBeNull();
     expect((await login(ACCOUNT.password)).ok).toBe(true);
+  });
+
+  it("keeps the account signed in on its other browsers", async () => {
+    const phone = await signUp();
+    const laptop = await login(ACCOUNT.password);
+    const token = phone.ok ? (phone.cookie?.split(";")[0] ?? "") : "";
+    const request = new Request("https://app.test/api/logout", { headers: { Cookie: token } });
+
+    await signOut(db, request, SECRET, now);
+    expect(await sessionOf(phone.ok ? phone.cookie : null)).toBeNull();
+    expect(await sessionOf(laptop.ok ? laptop.cookie : null)).not.toBeNull();
   });
 
   it("does nothing without a valid session", async () => {

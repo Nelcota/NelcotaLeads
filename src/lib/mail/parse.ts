@@ -12,6 +12,8 @@ export type IncomingEmail = {
   text: string;
   date: Date | null;
   automatic: boolean;
+  // Only the start of a very large message was fetched, so the text may be partial.
+  truncated?: boolean;
 };
 
 /**

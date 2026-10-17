@@ -1,10 +1,12 @@
-import { eq, sql } from "drizzle-orm";
+import { and, eq, lt, sql } from "drizzle-orm";
 import type { Db } from "@/db/client";
-import { users } from "@/db/schema";
+import { revokedSessions, users } from "@/db/schema";
 import {
   AUTH_PAGES,
   LOGIN_ERRORS,
   MIN_PASSWORD_LENGTH,
+  RESET_SENT_NOTICE,
+  type ForgotPasswordInput,
   type LoginErrorCode,
   type ResetPasswordInput,
   type SignInInput,
@@ -24,9 +26,10 @@ export { hashPassword, verifyPassword };
 /**
  * Local accounts (the `users` table) with signed, stateless session cookies.
  *
- * APP_PASSWORD is the server secret: it keys the session signatures and is the access code
- * asked when creating an account or resetting a password, so only people who were given it
- * can get in. Changing it signs every session out.
+ * APP_PASSWORD is the server secret: it keys the session and reset-link signatures and is the
+ * access code asked when creating an account, so only people who were given it can sign up.
+ * A forgotten password is reset through a link sent to the account's e-mail. Changing
+ * APP_PASSWORD signs every session out.
  */
 
 export const SESSION_COOKIE = "__Host-nelcota_session";
@@ -36,13 +39,19 @@ export const SESSION_COOKIE = "__Host-nelcota_session";
  * - per address (IPv6 per /64), for every form;
  * - per account, for sign-in, so many addresses can't guess one password. It is not global:
  *   an attack on one account never locks the others out;
- * - across all addresses, per day, for the access code (sign-up and reset). That is the one
- *   shared secret, and a lockout there blocks new accounts, never signing in.
+ * - across all addresses, per day, for the access code (sign-up). That is the one shared
+ *   secret, and a lockout there blocks new accounts, never signing in.
+ * The account counter only exists for e-mails that have an account, so typing someone's
+ * address can't lock them out, and made-up addresses leave no rows behind.
  */
 export const LOCKOUT_MINUTES = 15;
 export const FAILURES_PER_ADDRESS = 10;
 export const FAILURES_PER_ACCOUNT = 30;
 export const ACCESS_CODE_FAILURES_PER_DAY = 100;
+/** Reset links asked per address, and sent per account, in one 15-minute window. */
+export const RESET_REQUESTS_PER_ADDRESS = 5;
+export const RESET_MAILS_PER_ACCOUNT = 3;
+export const RESET_LINK_MINUTES = 60;
 
 const DAY_SECONDS = 86_400;
 const SESSION_SECONDS = 30 * DAY_SECONDS;
@@ -51,7 +60,13 @@ const RENEW_BELOW_SECONDS = 15 * DAY_SECONDS;
 
 // Logout is open too: with an expired session it still clears the cookie and goes to /login
 // instead of answering a native form post with a JSON 401.
-const AUTH_ENDPOINTS = new Set(["/api/login", "/api/signup", "/api/reset-password", "/api/logout"]);
+const AUTH_ENDPOINTS = new Set([
+  "/api/login",
+  "/api/signup",
+  "/api/forgot-password",
+  "/api/reset-password",
+  "/api/logout",
+]);
 // Fetched by the browser itself, which leaves the session cookie out of the manifest request,
 // so the sign-in screens and the installed app get their icons.
 const STATIC_FILES = [
@@ -102,16 +117,20 @@ const timingDecoy = () => (dummyHash ??= hashPassword("timing decoy password"));
 
 const seconds = (date: Date) => Math.floor(date.getTime() / 1000);
 
-export type Session = { userId: string; version: number; expires: number };
+/** `id` names one browser's session; it stays the same when the cookie is renewed. */
+export type Session = { userId: string; version: number; id: string; expires: number };
 
-/** `<user id>.<session version>.<expiry unix seconds>.<HMAC of the three>` */
+const newSessionId = () => toBase64Url(crypto.getRandomValues(new Uint8Array(16)));
+
+/** `<user id>.<session version>.<session id>.<expiry unix seconds>.<HMAC of the four>` */
 export async function createSessionToken(
   secret: string,
   user: { id: string; sessionVersion: number },
   now = new Date(),
+  sessionId = newSessionId(),
 ): Promise<string> {
   const expires = seconds(now) + SESSION_SECONDS;
-  const payload = `${user.id}.${user.sessionVersion}.${expires}`;
+  const payload = `${user.id}.${user.sessionVersion}.${sessionId}.${expires}`;
   return `${payload}.${toBase64Url(await sign(secret, `session:${payload}`))}`;
 }
 
@@ -121,14 +140,16 @@ export async function verifySessionToken(
   secret: string,
   now = new Date(),
 ): Promise<Session | null> {
-  const match = token ? /^([\w-]{1,64})\.(\d{1,9})\.(\d{1,12})\.([\w-]{43})$/.exec(token) : null;
-  if (!match?.[1] || !match[2] || !match[3] || !match[4]) return null;
-  const expires = Number(match[3]);
+  const match = token
+    ? /^([\w-]{1,64})\.(\d{1,9})\.([\w-]{22})\.(\d{1,12})\.([\w-]{43})$/.exec(token)
+    : null;
+  if (!match?.[1] || !match[2] || !match[3] || !match[4] || !match[5]) return null;
+  const expires = Number(match[4]);
   if (expires <= seconds(now) || expires > seconds(now) + SESSION_SECONDS) return null;
-  const payload = `${match[1]}.${match[2]}.${match[3]}`;
+  const payload = `${match[1]}.${match[2]}.${match[3]}.${match[4]}`;
   const expected = toBase64Url(await sign(secret, `session:${payload}`));
-  if (!equalBytes(encoder.encode(match[4]), encoder.encode(expected))) return null;
-  return { userId: match[1], version: Number(match[2]), expires };
+  if (!equalBytes(encoder.encode(match[5]), encoder.encode(expected))) return null;
+  return { userId: match[1], version: Number(match[2]), id: match[3], expires };
 }
 
 export function sessionCookie(token: string): string {
@@ -186,35 +207,49 @@ export function jsonResponse(body: unknown, status: number, headers: Record<stri
   return Response.json(body, { status, headers: { "Cache-Control": "no-store", ...headers } });
 }
 
-/** The current session version of an account, or null when it no longer exists. */
-export type SessionVersionLookup = (userId: string) => Promise<number | null>;
+/**
+ * The current session version of the account a session belongs to, or null when the account
+ * no longer exists or that session was signed out.
+ */
+export type SessionLookup = (session: { userId: string; id: string }) => Promise<number | null>;
 
-export function sessionVersionLookup(db: Db): SessionVersionLookup {
-  return async (userId) => {
-    const row = await db.query.users.findFirst({
-      where: eq(users.id, userId),
-      columns: { sessionVersion: true },
-    });
-    return row?.sessionVersion ?? null;
+export function sessionLookup(db: Db): SessionLookup {
+  return async ({ userId, id }) => {
+    // One round trip for both checks: this runs on every signed-in request.
+    const row = await db.get<{ version: number } | undefined>(sql`
+      select ${users.sessionVersion} as version from ${users}
+      where ${users.id} = ${userId}
+        and not exists (select 1 from ${revokedSessions} where ${revokedSessions.id} = ${id})`);
+    return row?.version ?? null;
   };
 }
 
-/** The signed-in session of a request: a valid token whose account still has that version. */
-export async function readSession(
+// The gate and the app read the session of the same request; the lookup runs once.
+const sessionsByRequest = new WeakMap<Request, Promise<Session | null>>();
+
+/** The signed-in session of a request: a valid token, not signed out, of the account's version. */
+export function readSession(
   request: Request,
   secret: string | undefined,
-  lookup: SessionVersionLookup,
+  lookup: SessionLookup,
   now = new Date(),
 ): Promise<Session | null> {
-  if (!isSecretConfigured(secret)) return null;
-  const session = await verifySessionToken(readCookie(request, SESSION_COOKIE), secret, now);
-  if (!session) return null;
-  return (await lookup(session.userId)) === session.version ? session : null;
+  let session = sessionsByRequest.get(request);
+  if (!session) {
+    session = (async () => {
+      if (!isSecretConfigured(secret)) return null;
+      const token = await verifySessionToken(readCookie(request, SESSION_COOKIE), secret, now);
+      if (!token) return null;
+      return (await lookup(token)) === token.version ? token : null;
+    })();
+    sessionsByRequest.set(request, session);
+  }
+  return session;
 }
 
 /**
- * Ends the request's session on the server: bumping the account's session version voids every
- * cookie issued for it, so a copied cookie stops working once the user signs out.
+ * Ends the request's session on the server: its id is recorded as signed out, so the cookie
+ * (and any copy of it) stops working. The account's other browsers stay signed in.
  */
 export async function signOut(
   db: Db,
@@ -222,12 +257,14 @@ export async function signOut(
   secret: string | undefined,
   now = new Date(),
 ): Promise<void> {
-  const session = await readSession(request, secret, sessionVersionLookup(db), now);
+  const session = await readSession(request, secret, sessionLookup(db), now);
   if (!session) return;
   await db
-    .update(users)
-    .set({ sessionVersion: sql`${users.sessionVersion} + 1` })
-    .where(eq(users.id, session.userId));
+    .insert(revokedSessions)
+    // Renewed cookies of this session expire at most SESSION_SECONDS from now.
+    .values({ id: session.id, expiresAt: new Date((seconds(now) + SESSION_SECONDS) * 1000) })
+    .onConflictDoNothing();
+  await db.delete(revokedSessions).where(lt(revokedSessions.expiresAt, now));
 }
 
 export type GateResult =
@@ -239,7 +276,7 @@ export type GateResult =
 /** Decides, before the app runs, whether a request may reach it. */
 export async function authGate(
   request: Request,
-  deps: { secret: string | undefined; sessionVersion: SessionVersionLookup },
+  deps: { secret: string | undefined; sessions: SessionLookup },
   now = new Date(),
 ): Promise<GateResult> {
   const url = new URL(request.url);
@@ -254,9 +291,7 @@ export async function authGate(
   // Public assets skip the session lookup; the sign-in pages need it to send members on.
   const needsSession =
     !PUBLIC_PATHS.has(url.pathname) || (document && AUTH_PAGES.has(url.pathname));
-  const session = needsSession
-    ? await readSession(request, deps.secret, deps.sessionVersion, now)
-    : null;
+  const session = needsSession ? await readSession(request, deps.secret, deps.sessions, now) : null;
 
   if (AUTH_PAGES.has(url.pathname) && session && document) {
     return { response: redirect(safeNext(url.searchParams.get("next"))) };
@@ -270,6 +305,7 @@ export async function authGate(
       deps.secret,
       { id: session.userId, sessionVersion: session.version },
       now,
+      session.id,
     );
     return { renewCookie: sessionCookie(token) };
   }
@@ -284,11 +320,13 @@ export async function authGate(
 }
 
 export type AuthResult =
-  | { ok: true; cookie: string }
-  | { ok: false; status: 401 | 409 | 404 | 429 | 503; code: LoginErrorCode; error: string };
+  /** Signed in with `cookie`; or, without one, done with `notice` to show on the page. */
+  | { ok: true; cookie: string; notice?: undefined }
+  | { ok: true; cookie: null; notice: string }
+  | { ok: false; status: 401 | 409 | 429 | 503; code: LoginErrorCode; error: string };
 
 const failure = (
-  status: 401 | 409 | 404 | 429 | 503,
+  status: 401 | 409 | 429 | 503,
   code: LoginErrorCode,
   error: string = LOGIN_ERRORS[code],
 ): AuthResult => ({ ok: false, status, code, error });
@@ -379,10 +417,9 @@ export async function attemptLogin(
   const { secret } = deps;
   if (!isSecretConfigured(secret)) return failure(503, "config");
   const user = await deps.db.query.users.findFirst({ where: eq(users.email, input.email) });
-  const counters = [
-    addressCounter(deps.ip, now),
-    windowCounter(`login-account:${input.email}`, FAILURES_PER_ACCOUNT, now),
-  ];
+  const counters = [addressCounter(deps.ip, now)];
+  // Keyed by the account id, not the typed text: unknown e-mails only count per address.
+  if (user) counters.push(windowCounter(`login-account:${user.id}`, FAILURES_PER_ACCOUNT, now));
   const result = await throttled(deps.db, counters, now, async () => {
     const valid = await verifyPassword(input.password, user?.passwordHash ?? (await timingDecoy()));
     return valid && user !== undefined;
@@ -419,28 +456,88 @@ export async function attemptSignUp(
   return signedIn(secret, user, now);
 }
 
-/** Sets a new password and signs the account out of every other browser. */
+/** Sends a reset link; how it gets to the account's inbox is up to the caller. */
+export type ResetMailer = (message: { to: string; name: string; link: string }) => Promise<void>;
+
+/** `<user id>.<expiry unix seconds>.<HMAC of both and the current password hash>` */
+export async function createResetToken(
+  secret: string,
+  user: { id: string; passwordHash: string },
+  now = new Date(),
+): Promise<string> {
+  const expires = seconds(now) + RESET_LINK_MINUTES * 60;
+  const payload = `${user.id}.${expires}`;
+  const mac = await sign(secret, `reset:${payload}.${user.passwordHash}`);
+  return `${payload}.${toBase64Url(mac)}`;
+}
+
+/**
+ * The account a reset token was issued for, while it is unexpired and still unused: the
+ * signature covers the password hash, so setting a password voids every earlier link.
+ */
+async function verifyResetToken(db: Db, secret: string, token: string, now: Date) {
+  const match = /^([\w-]{1,64})\.(\d{1,12})\.([\w-]{43})$/.exec(token);
+  if (!match?.[1] || !match[2] || !match[3]) return null;
+  const expires = Number(match[2]);
+  if (expires <= seconds(now) || expires > seconds(now) + RESET_LINK_MINUTES * 60) return null;
+  const user = await db.query.users.findFirst({ where: eq(users.id, match[1]) });
+  if (!user) return null;
+  const expected = toBase64Url(
+    await sign(secret, `reset:${match[1]}.${match[2]}.${user.passwordHash}`),
+  );
+  return equalBytes(encoder.encode(match[3]), encoder.encode(expected)) ? user : null;
+}
+
+/**
+ * Mails a reset link to the account with this e-mail. The answer is the same whether or not
+ * the account exists, and the mail goes out through `send` (in the background), so neither
+ * the reply nor its timing tells who has an account.
+ */
+export async function requestPasswordReset(
+  deps: AuthDeps & { origin: string; send: ResetMailer | null },
+  input: Pick<ForgotPasswordInput, "email">,
+  now = new Date(),
+): Promise<AuthResult> {
+  const { secret, send } = deps;
+  if (!isSecretConfigured(secret)) return failure(503, "config");
+  if (!send) return failure(503, "sem-envio");
+  // Every request counts here, not just failures: each one may send an e-mail.
+  const perAddress = windowCounter(`reset:${ipBucket(deps.ip)}`, RESET_REQUESTS_PER_ADDRESS, now);
+  if (!(await reserveRequest(deps.db, perAddress.key, perAddress.limit, now))) {
+    return tooMany(perAddress.resetsAt, now);
+  }
+  const sent: AuthResult = { ok: true, cookie: null, notice: RESET_SENT_NOTICE };
+  const user = await deps.db.query.users.findFirst({ where: eq(users.email, input.email) });
+  if (!user) return sent;
+  // Quietly capped per account, so nobody can flood someone's inbox from many addresses.
+  const perAccount = windowCounter(`reset-mail:${user.id}`, RESET_MAILS_PER_ACCOUNT, now);
+  if (!(await reserveRequest(deps.db, perAccount.key, perAccount.limit, now))) return sent;
+  const token = await createResetToken(secret, user, now);
+  const link = `${deps.origin}/redefinir-senha?${new URLSearchParams({ token })}`;
+  await send({ to: user.email, name: user.name, link });
+  return sent;
+}
+
+/** Sets a new password from a reset link and signs the account out of every other browser. */
 export async function attemptPasswordReset(
   deps: AuthDeps,
-  input: Pick<ResetPasswordInput, "email" | "password" | "accessCode">,
+  input: Pick<ResetPasswordInput, "token" | "password">,
   now = new Date(),
 ): Promise<AuthResult> {
   const { secret } = deps;
   if (!isSecretConfigured(secret)) return failure(503, "config");
-  const result = await throttled(deps.db, accessCodeCounters(deps.ip, now), now, () =>
-    accessCodeMatches(input.accessCode, secret),
-  );
-  if (result.outcome === "limited") return tooMany(result.resetsAt, now);
-  if (result.outcome === "failed") return failure(401, "codigo");
+  const user = await verifyResetToken(deps.db, secret, input.token, now);
+  if (!user) return failure(401, "link-invalido");
 
-  const [user] = await deps.db
+  const [updated] = await deps.db
     .update(users)
     .set({
       passwordHash: await hashPassword(input.password),
       sessionVersion: sql`${users.sessionVersion} + 1`,
     })
-    .where(eq(users.email, input.email))
+    // Only while the password is the one the link was made for: a link works once.
+    .where(and(eq(users.id, user.id), eq(users.passwordHash, user.passwordHash)))
     .returning();
-  if (!user) return failure(404, "sem-conta");
-  return signedIn(secret, user, now);
+  if (!updated) return failure(401, "link-invalido");
+  return signedIn(secret, updated, now);
 }

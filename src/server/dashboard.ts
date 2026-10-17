@@ -21,7 +21,7 @@ import { MANUAL_SEARCH_ID } from "@/lib/searches";
 import { autopilotInputSchema } from "@/lib/schemas";
 import { ALREADY_RAN_MESSAGE, autopilotDeps, runAutopilot } from "./autopilot";
 import { recordJobRun } from "./job-runs";
-import { EMAIL_PROVIDER, mailDailyLimit } from "./mail-flow";
+import { EMAIL_PROVIDER, mailDailyLimit, wasContacted } from "./mail-flow";
 import { loadAutopilot, loadConfig, storeAutopilot, writeAutopilot } from "./settings-store";
 import { GOOGLE_PLACES, placesDailyLimit, requestsToday, usageThisMonth } from "./usage";
 
@@ -121,7 +121,7 @@ export const getDashboard = createServerFn({ method: "GET" }).handler(async () =
           eq(leads.analysisStatus, "done"),
           isNotNull(leads.email),
           isNull(leads.unsubscribedAt),
-          sql`not exists (select 1 from emails e where e.lead_id = ${leads.id} and e.direction = 'out' and e.status <> 'draft')`,
+          sql`not ${wasContacted(leads.id)}`,
         ),
       ),
     db

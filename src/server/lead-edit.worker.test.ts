@@ -74,6 +74,26 @@ describe("editLeadContact", () => {
     );
   });
 
+  it("follows unsent e-mails stored with the address in another case", async () => {
+    await db.update(leads).set({ email: "contato@loja.test" }).where(eq(leads.id, "a"));
+    await db.insert(emails).values({
+      id: "queued",
+      leadId: "a",
+      direction: "out",
+      author: "user",
+      status: "queued",
+      fromAddress: "eu@nelcota.test",
+      toAddress: "Contato@Loja.test",
+      subject: "Oi",
+      body: "Oi",
+    });
+    await editLeadContact(db, { id: "a", field: "email", value: "" });
+    expect(await db.query.emails.findFirst({ where: eq(emails.id, "queued") })).toMatchObject({
+      status: "cancelled",
+      error: EMAIL_REMOVED_REASON,
+    });
+  });
+
   it("sends e-mails not yet sent to the corrected address, or cancels them when removed", async () => {
     await db.update(leads).set({ email: "velho@padaria.test" }).where(eq(leads.id, "a"));
     const row = {

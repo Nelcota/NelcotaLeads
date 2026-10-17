@@ -195,6 +195,25 @@ describe("e-mail outreach", () => {
     });
   });
 
+  it("does not act on an opt-out matched by the sender address alone", async () => {
+    const { mailer } = await sentFirstEmail();
+    await handleInbound({ db, mailer, analyzer }, incoming({ text: "sair" }));
+    const after = await lead("a");
+    expect(after?.unsubscribedAt).toBeNull();
+    expect(after).toMatchObject({ status: "replied", aiMode: false });
+    expect(after?.handoffReason).toContain("Pediu para sair");
+  });
+
+  it("hands a truncated reply to a person instead of the AI", async () => {
+    const { mailer, messageId } = await sentFirstEmail();
+    await handleInbound(
+      { db, mailer, analyzer },
+      incoming({ inReplyTo: messageId, text: "Pode explicar", truncated: true }),
+    );
+    expect(await lead("a")).toMatchObject({ status: "replied", aiMode: false });
+    expect((await leadEmails("a")).filter((e) => e.direction === "out")).toHaveLength(1);
+  });
+
   it("ignores auto-replies and mail from unknown senders", async () => {
     const { mailer, messageId } = await sentFirstEmail();
     expect(await handleInbound({ db, mailer, analyzer }, incoming({ from: "outro@x.com" }))).toBe(
@@ -365,6 +384,23 @@ describe("e-mail outreach", () => {
       expect.objectContaining({ status: "cancelled", error: DISCARDED_REASON }),
     ]);
     expect(await requestsToday(db, EMAIL_PROVIDER, now)).toBe(0);
+  });
+
+  it("drafts again for a discarded lead moved back to new, whose e-mail never went out", async () => {
+    const { drafts } = await prepareDrafts({ db, analyzer, fromAddress: FROM }, ["a"]);
+    const now = new Date("2026-10-11T12:00:00Z");
+    await queueDrafts(
+      db,
+      drafts.map((d) => d.id),
+      now,
+    );
+    await db.update(leads).set({ status: "discarded" }).where(eq(leads.id, "a"));
+    await sendDue({ db, mailer: createFakeMailer().mailer, limit: 30 }, now);
+    await db.update(leads).set({ status: "new" }).where(eq(leads.id, "a"));
+
+    const again = await prepareDrafts({ db, analyzer, fromAddress: FROM }, ["a"]);
+    expect(again.skipped).toEqual([]);
+    expect(again.drafts).toHaveLength(1);
   });
 
   it("blocks drafts to an address that opted out on another lead", async () => {
@@ -583,6 +619,25 @@ describe("e-mail outreach", () => {
     };
     expect(await autoDispatch({ db, analyzer: pricey, fromAddress: FROM, limit: 30 })).toBe(0);
     expect((await leadEmails("a")).map((e) => e.status)).toEqual(["draft"]);
+  });
+
+  it("auto-dispatch moves past a draft held for review", async () => {
+    await db.update(settingsTable).set({ autoDispatch: true });
+    await db.update(leads).set({ email: "oi@clinicab.com.br", score: 10 }).where(eq(leads.id, "b"));
+    await db.update(leads).set({ score: 90 }).where(eq(leads.id, "a"));
+    await db.insert(emails).values({
+      id: "held",
+      leadId: "a",
+      direction: "out",
+      status: "draft",
+      author: "ai",
+      fromAddress: FROM,
+      toAddress: "contato@clinica.com.br",
+      subject: "Oi",
+      body: "Sites a partir de R$ 900.",
+    });
+    expect(await autoDispatch({ db, analyzer, fromAddress: FROM, limit: 1 })).toBe(1);
+    expect((await leadEmails("b")).map((e) => e.status)).toEqual(["queued"]);
   });
 });
 

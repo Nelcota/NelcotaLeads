@@ -5,10 +5,10 @@ import { eq } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { users } from "@/db/schema";
 import { avatarInputSchema } from "@/lib/schemas";
-import { readSession, sessionVersionLookup } from "./auth";
+import { readSession, sessionLookup } from "./auth";
 
 async function currentUserId() {
-  const session = await readSession(getRequest(), env.APP_PASSWORD, sessionVersionLookup(getDb()));
+  const session = await readSession(getRequest(), env.APP_PASSWORD, sessionLookup(getDb()));
   return session?.userId ?? null;
 }
 

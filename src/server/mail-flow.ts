@@ -3,7 +3,6 @@ import {
   asc,
   desc,
   eq,
-  gt,
   inArray,
   isNotNull,
   isNull,
@@ -12,12 +11,12 @@ import {
   ne,
   or,
   sql,
+  type SQLWrapper,
 } from "drizzle-orm";
 import type { Db } from "@/db/client";
 import { inList } from "@/db/in-list";
 import {
   analyses,
-  apiUsage,
   emails,
   leads,
   searches,
@@ -38,7 +37,13 @@ export { DEFAULT_MAIL_DAILY_LIMIT, SEND_GAP_MINUTES };
 import { leadPatch } from "./lead-status";
 import { buildContext, hasOffer, NO_OFFER_MESSAGE } from "./process-lead";
 import { DEFAULT_SETTINGS, loadSettings } from "./settings-store";
-import { dailyLimit, recordAiCost, requestsToday, reserveRequest } from "./usage";
+import {
+  dailyLimit,
+  recordAiCost,
+  releaseRequestQuery,
+  requestsToday,
+  reserveRequest,
+} from "./usage";
 
 export const EMAIL_PROVIDER = "email";
 /**
@@ -70,6 +75,29 @@ export function userDraftOf(leadId: string) {
   return and(eq(emails.leadId, leadId), eq(emails.status, "draft"), eq(emails.author, "user"));
 }
 
+/**
+ * Inserts an outgoing draft unless the lead already has one the user wrote, in a single
+ * statement, so two writers racing still leave at most one user draft per lead.
+ */
+export function insertDraftUnlessUserHasOne(
+  db: Db,
+  draft: {
+    leadId: string;
+    author: "ai" | "user";
+    fromAddress: string;
+    toAddress: string;
+    subject: string;
+    body: string;
+    inReplyTo: string | null;
+  },
+) {
+  return db.run(sql`
+    insert into emails (id, lead_id, direction, status, author, from_address, to_address, subject, body, in_reply_to)
+    select ${crypto.randomUUID()}, ${draft.leadId}, 'out', 'draft', ${draft.author}, ${draft.fromAddress},
+      ${draft.toAddress}, ${draft.subject}, ${draft.body}, ${draft.inReplyTo}
+    where not exists (select 1 from emails where lead_id = ${draft.leadId} and status = 'draft' and author = 'user')`);
+}
+
 async function hasUserDraft(db: Db, leadId: string) {
   const rows = await db.select({ id: emails.id }).from(emails).where(userDraftOf(leadId)).limit(1);
   return rows.length > 0;
@@ -80,6 +108,19 @@ const USER_DRAFT_REASON = "Você já começou uma resposta";
 /** Reason kept on the e-mails a closed conversation cancelled; undoing the close looks for it. */
 export const CLOSED_REASON = "Cancelado: conversa encerrada";
 export const DISCARDED_REASON = "Cancelado: lead descartado";
+
+/**
+ * A first e-mail cancelled because the lead was discarded before it went out. Nothing reached
+ * the lead, and it can be moved back to new, so it is drafted again as if never contacted.
+ * `table` is the emails table's name or alias in the query.
+ */
+const cancelledByDiscard = (table = "emails") =>
+  sql`(${sql.raw(table)}.status = 'cancelled' and coalesce(${sql.raw(table)}.error, '') = ${DISCARDED_REASON})`;
+
+/** Whether the lead in `leadId` (a column) was already written to. */
+export const wasContacted = (leadId: SQLWrapper) => sql`exists (
+  select 1 from emails e where e.lead_id = ${leadId} and e.direction = 'out' and e.status <> 'draft'
+    and not ${cancelledByDiscard("e")})`;
 
 export function mailDailyLimit(value: string | undefined): number {
   return dailyLimit(value, DEFAULT_MAIL_DAILY_LIMIT);
@@ -288,7 +329,13 @@ export async function prepareDrafts(
     db
       .select()
       .from(emails)
-      .where(and(inList(emails.leadId, ids), eq(emails.direction, "out")))
+      .where(
+        and(
+          inList(emails.leadId, ids),
+          eq(emails.direction, "out"),
+          sql`not ${cancelledByDiscard()}`,
+        ),
+      )
       .orderBy(desc(emails.createdAt)),
     db
       .select()
@@ -345,7 +392,8 @@ export async function prepareDrafts(
         insert into emails (id, lead_id, direction, status, author, from_address, to_address, subject, body)
         select ${crypto.randomUUID()}, ${lead.id}, 'out', 'draft', 'ai', ${deps.fromAddress},
           ${lead.email}, ${email.subject}, ${composeBody(email.body, settings, true)}
-        where not exists (select 1 from emails where lead_id = ${lead.id} and direction = 'out')
+        where not exists (select 1 from emails where lead_id = ${lead.id} and direction = 'out'
+            and not ${cancelledByDiscard()})
           and exists (select 1 from leads where id = ${lead.id} and status = 'new' and unsubscribed_at is null)`);
       written.push(lead);
     } catch (error) {
@@ -373,6 +421,7 @@ export async function prepareDrafts(
               written.map((lead) => lead.id),
             ),
             eq(emails.direction, "out"),
+            sql`not ${cancelledByDiscard()}`,
           ),
         )
         .orderBy(desc(emails.createdAt)),
@@ -549,16 +598,7 @@ export async function sendEmail(
         .set({ status: "failed", sentAt: null, error: mailErrorMessage(error) })
         .where(eq(emails.id, row.id)),
       // Nothing went out, so the day's quota gets its slot back.
-      db
-        .update(apiUsage)
-        .set({ requests: sql`${apiUsage.requests} - 1` })
-        .where(
-          and(
-            eq(apiUsage.day, localDay(now)),
-            eq(apiUsage.provider, EMAIL_PROVIDER),
-            gt(apiUsage.requests, 0),
-          ),
-        ),
+      releaseRequestQuery(db, EMAIL_PROVIDER, now),
     ]);
     return "failed";
   }
@@ -732,7 +772,9 @@ export async function handleInbound(
   // Out-of-office and bounces are kept in the thread but change nothing.
   if (message.automatic) return true;
 
-  if (isUnsubscribeRequest(message.text, message.subject)) {
+  const optOut = isUnsubscribeRequest(message.text, message.subject);
+  // A match on the From header alone can be forged, so only a reply in the thread opts out.
+  if (optOut && inThread) {
     await unsubscribe(db, lead.id, now);
     return true;
   }
@@ -754,8 +796,20 @@ export async function handleInbound(
     })
     .where(eq(leads.id, lead.id));
 
+  // Unverified sender: a person checks it before anything else happens.
   if (!inThread) {
-    await handOff(db, lead.id, "Resposta sem vínculo com o e-mail enviado; confira o remetente");
+    await handOff(
+      db,
+      lead.id,
+      optOut
+        ? "Pediu para sair, mas a mensagem não tem vínculo com o e-mail enviado; confira o remetente"
+        : "Resposta sem vínculo com o e-mail enviado; confira o remetente",
+    );
+    return true;
+  }
+
+  if (message.truncated) {
+    await handOff(db, lead.id, "Mensagem grande demais, lida só em parte; confira no seu e-mail");
     return true;
   }
 
@@ -811,12 +865,7 @@ export async function handleInbound(
   };
   // Kept without signature: it is added when the person sends it. Skipped when the user
   // started a reply of their own in the meantime.
-  const leaveDraft = (text: string) =>
-    db.run(sql`
-      insert into emails (id, lead_id, direction, status, author, from_address, to_address, subject, body, in_reply_to)
-      select ${crypto.randomUUID()}, ${base.leadId}, 'out', 'draft', 'ai', ${base.fromAddress},
-        ${base.toAddress}, ${base.subject}, ${text}, ${base.inReplyTo}
-      where not exists (select 1 from emails where lead_id = ${base.leadId} and status = 'draft' and author = 'user')`);
+  const leaveDraft = (text: string) => insertDraftUnlessUserHasOne(db, { ...base, body: text });
   try {
     const { decision, usage } = await analyzer.replyEmail(
       settings,
@@ -995,10 +1044,15 @@ export async function autoDispatch(
         isNotNull(leads.email),
         isNull(leads.unsubscribedAt),
         sql`not ${unsubscribedAddress}`,
-        sql`not exists (select 1 from emails e where e.lead_id = ${leads.id} and e.direction = 'out' and e.status <> 'draft')`,
+        sql`not ${wasContacted(leads.id)}`,
       ),
     )
-    .orderBy(desc(leads.score))
+    // Leads that already have a draft go last: a draft held for review must not take the
+    // slots of fresh leads on every tick, or nothing would ever be sent.
+    .orderBy(
+      sql`exists (select 1 from emails e where e.lead_id = ${leads.id} and e.direction = 'out')`,
+      desc(leads.score),
+    )
     .limit(room);
   if (candidates.length === 0) return 0;
   const { drafts } = await prepareDrafts(

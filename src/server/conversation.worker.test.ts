@@ -127,6 +127,17 @@ describe("closeConversation", () => {
     expect(await row("other")).toMatchObject({ status: "draft" });
   });
 
+  it("refuses an undo naming a status the close could not have come from", async () => {
+    const snapshot = await closeConversation(db, "a", "closed", now);
+    await expect(
+      undoCloseConversation(db, "a", {
+        ...snapshot,
+        previous: { ...snapshot.previous, status: "new", aiMode: true },
+      }),
+    ).rejects.toThrow("não estava nesse estado");
+    expect(await lead("a")).toMatchObject({ status: "closed", aiMode: false });
+  });
+
   it("only brings back e-mails this close cancelled", async () => {
     const snapshot = await closeConversation(db, "a", "closed", now);
     await db
