@@ -138,7 +138,7 @@ export function IconTile({
       style={{
         width: size,
         height: size,
-        background: `linear-gradient(180deg, color-mix(in srgb, ${TONE_VAR[tone]} 82%, #fff), ${TONE_VAR[tone]})`,
+        background: TONE_VAR[tone],
       }}
     >
       <Icon style={{ width: size * 0.56, height: size * 0.56 }} strokeWidth={2.2} />
@@ -207,7 +207,7 @@ export function Avatar({
         width: size,
         height: size,
         fontSize: Math.max(9, Math.round(size * 0.34)),
-        background: `linear-gradient(180deg, color-mix(in srgb, ${TONE_VAR[tone]} 80%, #fff), ${TONE_VAR[tone]})`,
+        background: TONE_VAR[tone],
       }}
     >
       {initials(name)}
@@ -323,7 +323,7 @@ export function GroupedRow({
       style={{ "--inset": `${inset}px` }}
       {...props}
     >
-      {lead ? <span className="row-lead shrink-0">{lead}</span> : null}
+      {lead ? <span className="shrink-0">{lead}</span> : null}
       <div className="min-w-0 flex-1">
         <div className="truncate font-medium">{title}</div>
         {subtitle ? (

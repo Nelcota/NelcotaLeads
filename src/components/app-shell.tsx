@@ -182,7 +182,7 @@ function AppSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild className="hover:bg-transparent">
               <Link to="/">
-                <span className="grid aspect-square size-[30px] shrink-0 place-items-center rounded-[9px] bg-[linear-gradient(180deg,#5be38f,#22b45a)] text-[13px] font-semibold text-[#032d12] shadow-[inset_0_1px_0_rgb(255_255_255/0.4),0_4px_12px_rgb(48_209_88/0.25)]">
+                <span className="grid aspect-square size-[30px] shrink-0 place-items-center rounded-[9px] bg-[#30d158] text-[13px] font-semibold text-[#032d12]">
                   N
                 </span>
                 <span className="grid flex-1 text-left leading-tight">
