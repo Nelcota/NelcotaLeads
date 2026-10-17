@@ -4,12 +4,56 @@ import { getDb } from "@/db/client";
 import { fieldErrors, LOGIN_ERRORS } from "@/lib/login";
 import { jsonResponse, safeNext, type AuthDeps, type AuthResult } from "./auth";
 
-/** Accepts JSON (the hydrated page) or a plain form post (before the page hydrates). */
+/**
+ * Largest body the sign-in forms are read from. The longest valid form (512-character password
+ * and access code, a 2,000-character `next`, all percent-encoded) stays well under it; these
+ * endpoints are open to anyone, and without a cap a 100 MB body was parsed in full.
+ */
+export const MAX_AUTH_BODY_BYTES = 64 * 1024;
+
+/** The body's bytes, or null when it is larger than `maxBytes` (read no further than that). */
+export async function readLimitedBody(
+  request: Request,
+  maxBytes: number,
+): Promise<Uint8Array<ArrayBuffer> | null> {
+  const declared = Number(request.headers.get("Content-Length") ?? "0");
+  if (!Number.isFinite(declared) || declared > maxBytes) return null;
+  if (!request.body) return new Uint8Array();
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > maxBytes) {
+      await reader.cancel().catch(() => undefined);
+      return null;
+    }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return bytes;
+}
+
+/**
+ * Accepts JSON (the hydrated page) or a plain form post (before the page hydrates). Undefined
+ * when the body is too large.
+ */
 async function readBody(request: Request): Promise<unknown> {
+  const bytes = await readLimitedBody(request, MAX_AUTH_BODY_BYTES);
+  if (bytes === null) return undefined;
+  // Parsed from the bytes already read, with the original Content-Type (form boundary included).
+  const copy = new Request(request.url, { method: "POST", headers: request.headers, body: bytes });
   const isJson = (request.headers.get("Content-Type") ?? "").includes("application/json");
   return isJson
-    ? request.json().catch(() => null)
-    : Object.fromEntries(await request.formData().catch(() => new FormData()));
+    ? copy.json().catch(() => null)
+    : Object.fromEntries(await copy.formData().catch(() => new FormData()));
 }
 
 /**
@@ -29,7 +73,11 @@ export async function handleAuthPost<S extends z.ZodType<{ next?: string | undef
     return new Response(null, { status: 303, headers: { Location: `${page}?${query}` } });
   };
 
-  const parsed = schema.safeParse(await readBody(request));
+  const body = await readBody(request);
+  if (body === undefined) {
+    return wantsJson ? jsonResponse({ error: LOGIN_ERRORS.invalido }, 413) : back("invalido", "/");
+  }
+  const parsed = schema.safeParse(body);
   if (!parsed.success) {
     return wantsJson
       ? jsonResponse({ error: LOGIN_ERRORS.invalido, fields: fieldErrors(parsed.error) }, 400)

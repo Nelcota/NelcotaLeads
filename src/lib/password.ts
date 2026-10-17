@@ -52,7 +52,12 @@ export async function hashPassword(password: string): Promise<string> {
 export async function verifyPassword(password: string, stored: string): Promise<boolean> {
   const [scheme, rounds, salt, hash] = stored.split("$");
   const iterations = Number(rounds);
-  if (scheme !== "pbkdf2-sha256" || !salt || !hash || !Number.isInteger(iterations)) return false;
+  if (scheme !== "pbkdf2-sha256" || !salt || !hash) return false;
+  // Outside [1, the runtime's cap] deriveBits throws, and a sign-in answered 500 instead of
+  // "wrong password".
+  if (!Number.isInteger(iterations) || iterations < 1 || iterations > PBKDF2_ITERATIONS) {
+    return false;
+  }
   if (password.length > MAX_PASSWORD_LENGTH) return false;
   return equalBytes(await pbkdf2(password, fromBase64Url(salt), iterations), fromBase64Url(hash));
 }

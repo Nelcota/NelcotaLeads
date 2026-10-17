@@ -5,10 +5,15 @@ export type SmtpCredentials = { user: string; password: string };
 
 type Reply = { code: number; lines: string[] };
 
+// EHLO lists a few dozen extensions at most; each line has its own read deadline, so without
+// a cap a server that never ends its "250-" lines kept the send (and the memory) going forever.
+const MAX_REPLY_LINES = 100;
+
 async function readReply(wire: Wire): Promise<Reply> {
   const lines: string[] = [];
   for (;;) {
     const line = await wire.readLine();
+    if (lines.length >= MAX_REPLY_LINES) throw new Error("SMTP: resposta longa demais");
     lines.push(line);
     // "250-..." continues a multi-line reply; "250 ..." ends it.
     if (line.length < 4 || line[3] !== "-") {
@@ -45,11 +50,11 @@ async function login(wire: Wire, credentials: SmtpCredentials) {
       [235],
       "login",
     );
-  } else {
-    await command(wire, "AUTH LOGIN", [334], "login");
-    await command(wire, b64(credentials.user), [334], "login");
-    await command(wire, b64(credentials.password), [235], "login");
+    return;
   }
+  await command(wire, "AUTH LOGIN", [334], "login");
+  await command(wire, b64(credentials.user), [334], "login");
+  await command(wire, b64(credentials.password), [235], "login");
 }
 
 /** Sends one message over an already open implicit-TLS connection, then closes it. */

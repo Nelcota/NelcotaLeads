@@ -45,8 +45,11 @@ function trailingQuoteStart(lines: string[]): number {
   let start = i;
   for (; i >= 0; i--) {
     const line = (lines[i] ?? "").trim();
-    if (QUOTE_LINE.test(line)) start = i;
-    else if (line !== "") break;
+    if (QUOTE_LINE.test(line)) {
+      start = i;
+      continue;
+    }
+    if (line !== "") break;
   }
   return start;
 }

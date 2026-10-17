@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { fetchNewMessages } from "./imap";
 import { buildMessage, encodeHeader } from "./mime";
-import { parseEmail, stripQuoted } from "./parse";
+import { parseEmail, writtenPart } from "./parse";
 import { smtpSend } from "./smtp";
 import type { Wire } from "./wire";
 
@@ -76,6 +76,16 @@ describe("smtpSend", () => {
     expect(written.find((line) => line.endsWith("\r\n.\r\n"))).toContain("\r\n..linha");
   });
 
+  it("gives up on a reply that never ends", async () => {
+    const endless = Array.from({ length: 101 }, () => "250-again");
+    const { wire } = fakeWire(["220 ready"], (command) =>
+      command.startsWith("EHLO") ? [...endless, "250 OK"] : ["250 ok"],
+    );
+    await expect(
+      smtpSend(wire, { user: "u", password: "p" }, { from: "u@x.com", to: "t@y.com" }, "x"),
+    ).rejects.toThrow("SMTP: resposta longa demais");
+  });
+
   it("fails with the server's message when the login is refused", async () => {
     const { wire } = fakeWire(["220 ready"], (command) =>
       command.startsWith("EHLO") ? ["250 AUTH PLAIN"] : ["535 authentication failed"],
@@ -111,6 +121,38 @@ describe("fetchNewMessages", () => {
     expect(result).toEqual({ cursor: { uidValidity: 7, lastUid: 12 }, messages: [] });
   });
 
+  it("reads the first message of a mailbox that was empty on the first run", async () => {
+    const emptyAtStart = fakeWire(["* OK IMAP ready"], (command) => {
+      const tag = command.split(" ")[0];
+      if (command.includes("SELECT"))
+        return ["* OK [UIDVALIDITY 7] ok", "* OK [UIDNEXT 1] ok", `${tag} OK selected`];
+      return [`${tag} OK`];
+    });
+    const first = await fetchNewMessages(
+      emptyAtStart.wire,
+      { user: "u", password: "p" },
+      { uidValidity: 0, lastUid: 0 },
+    );
+    expect(first.cursor).toEqual({ uidValidity: 7, lastUid: 0 });
+
+    const oneArrived = fakeWire(["* OK IMAP ready"], (command) => {
+      const tag = command.split(" ")[0];
+      if (command.includes("SELECT"))
+        return ["* OK [UIDVALIDITY 7] ok", "* OK [UIDNEXT 2] ok", `${tag} OK selected`];
+      if (command.includes("UID SEARCH UID 1:*")) return ["* SEARCH 1", `${tag} OK search`];
+      if (command.includes("UID FETCH 1 "))
+        return [`* 1 FETCH (UID 1 BODY[] {${raw.length}}`, raw, ")", `${tag} OK fetch`];
+      return [`${tag} OK`];
+    });
+    const second = await fetchNewMessages(
+      oneArrived.wire,
+      { user: "u", password: "p" },
+      first.cursor,
+    );
+    expect(second.cursor).toEqual({ uidValidity: 7, lastUid: 1 });
+    expect(second.messages.map((message) => message.uid)).toEqual([1]);
+  });
+
   it("fetches only messages above the cursor, keeping them unread", async () => {
     const { wire, written } = server();
     const result = await fetchNewMessages(
@@ -125,12 +167,21 @@ describe("fetchNewMessages", () => {
   });
 });
 
-describe("stripQuoted", () => {
+describe("writtenPart", () => {
   it("keeps only what the person wrote", () => {
     expect(
-      stripQuoted(
+      writtenPart(
         "Quanto custa?\n\nAbraço\n\nEm dom., 11 de out. de 2026 às 09:00, Eu <eu@x.com> escreveu:\n> Olá, tudo bem?",
       ),
     ).toBe("Quanto custa?\n\nAbraço");
+  });
+
+  it("keeps a reply line that only looks like a header", () => {
+    const reply = "Temos interesse.\nDe: 8h às 18h atendemos no consultório.\nAna";
+    expect(writtenPart(reply)).toBe(reply);
+  });
+
+  it("drops the phone signature", () => {
+    expect(writtenPart("Pode ligar amanhã.\n\nEnviado do meu iPhone")).toBe("Pode ligar amanhã.");
   });
 });
