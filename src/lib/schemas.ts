@@ -3,6 +3,22 @@ import { z } from "zod";
 /** Row ids (UUIDs today); bounded so a request cannot carry an arbitrarily long key. */
 export const idSchema = z.string().min(1).max(64);
 
+/**
+ * Days a follow-up may be set to. A date field mid-typing sends "0002-10-13" on its way to
+ * "2026-10-13", and the text comparisons against today would treat year 2 as overdue forever.
+ */
+export const DAY_RANGE = { min: "2000-01-01", max: "2099-12-31" } as const;
+
+/** A real calendar day as YYYY-MM-DD within DAY_RANGE: no 2026-02-30, no 2026-13-01. */
+export function isCalendarDay(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  if (value < DAY_RANGE.min || value > DAY_RANGE.max) return false;
+  const date = new Date(`${value}T12:00:00Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
+export const daySchema = z.string().refine(isCalendarDay, "Data inválida");
+
 /** User-typed text: NFC so "é" typed as e + combining accent matches the precomposed one. */
 const userText = () => z.string().normalize("NFC").trim();
 
@@ -143,11 +159,22 @@ export const leadAnalysisSchema = z.object({
 });
 export type LeadAnalysis = z.infer<typeof leadAnalysisSchema>;
 
+/**
+ * Lengths of generated text. `model` bounds what the model may return; `stored` what is kept
+ * after the app adds to it (the WhatsApp opt-out line; an e-mail's signature and "sair" line),
+ * which is also what an edit of that text may save, so a generated text can always be edited.
+ */
+export const TEXT_LIMITS = {
+  message: { model: 2000, stored: 2100 },
+  subject: { model: 200 },
+  emailBody: { model: 5000, stored: 5500 },
+} as const;
+
 export const firstMessageSchema = z.object({
   firstMessage: z
     .string()
     .min(1)
-    .max(2000)
+    .max(TEXT_LIMITS.message.model)
     .describe("Mensagem de WhatsApp curta e natural, em português do Brasil, seguindo as regras."),
 });
 
@@ -155,7 +182,7 @@ export const followUpSchema = z.object({
   message: z
     .string()
     .min(1)
-    .max(2000)
+    .max(TEXT_LIMITS.message.model)
     .describe("Lembrete curto de WhatsApp, em português do Brasil, seguindo as regras."),
 });
 
@@ -163,12 +190,12 @@ export const outreachEmailSchema = z.object({
   subject: z
     .string()
     .min(1)
-    .max(200)
+    .max(TEXT_LIMITS.subject.model)
     .describe("Assunto curto e específico, sem caixa alta nem ponto de exclamação."),
   body: z
     .string()
     .min(1)
-    .max(5000)
+    .max(TEXT_LIMITS.emailBody.model)
     .describe("Corpo do e-mail em texto simples, sem saudação final nem assinatura."),
 });
 export type OutreachEmail = z.infer<typeof outreachEmailSchema>;
@@ -272,34 +299,43 @@ export const updateLeadSchema = z.object({
   id: idSchema,
   status: z.enum(LEAD_STATUS_VALUES).optional(),
   notes: userText().max(5000).optional(),
-  followUpOn: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "Data inválida")
-    .nullable()
-    .optional(),
+  followUpOn: daySchema.nullable().optional(),
 });
 export type UpdateLeadInput = z.infer<typeof updateLeadSchema>;
 
-/** Most leads one bulk action may touch (the selection bar works on the visible list). */
-export const BULK_LIMIT = 500;
+/**
+ * Most leads one bulk action may touch: the whole visible list (LIST_LIMIT rows), since the
+ * selection bar works on it.
+ */
+export const BULK_LIMIT = 1000;
+
+/** E-mails sent per day when MAIL_DAILY_LIMIT is not set. */
+export const DEFAULT_MAIL_DAILY_LIMIT = 30;
+
+/** Minimum time between two outgoing e-mails, except answers to a message the lead sent. */
+export const SEND_GAP_MINUTES = 8;
+
+/** Most leads one "Disparar e-mail" may draft: each one is a model call made while you wait. */
+export const DISPATCH_LIMIT = 100;
+
+/** 2100-01-01T00:00:00Z: no timestamp the app writes comes close. */
+export const MAX_UNIX_SECONDS = 4_102_444_800;
 
 /** What a bulk status change replaced on one lead, so "Desfazer" can put it back. */
 export const bulkSnapshotSchema = z.object({
   id: idSchema,
   status: z.enum(LEAD_STATUS_VALUES),
-  followUpOn: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .nullable(),
+  followUpOn: daySchema.nullable(),
   discardReason: z.string().max(500).nullable(),
-  // Unix seconds.
-  discardedAt: z.number().int().nullable(),
+  // Unix seconds. Bounded so `new Date(seconds * 1000)` is a real date (an out-of-range one
+  // turns into NaN, which D1 stores as NULL without a word).
+  discardedAt: z.number().int().min(0).max(MAX_UNIX_SECONDS).nullable(),
 });
 export type BulkSnapshot = z.infer<typeof bulkSnapshotSchema>;
 
 export const updateMessageSchema = z.object({
   analysisId: idSchema,
-  firstMessage: userText().max(2000),
+  firstMessage: userText().max(TEXT_LIMITS.message.stored),
 });
 
 /** Score bands used by filters, badges and counts. */
