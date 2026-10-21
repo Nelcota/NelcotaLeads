@@ -12,6 +12,7 @@ import {
   type SQL,
 } from "drizzle-orm";
 import type { Db } from "@/db/client";
+import { inList } from "@/db/in-list";
 import { analyses, leads } from "@/db/schema";
 import { localDay } from "@/lib/format";
 import { leadNicheIs } from "./niches";
@@ -61,7 +62,7 @@ export function escapeLike(value: string): string {
 
 /** Matches the listed lead ids with a single bound parameter (D1 caps them at 100). */
 export function leadIdIn(ids: readonly string[]) {
-  return sql`${leads.id} in (select value from json_each(${JSON.stringify(ids)}))`;
+  return inList(leads.id, ids);
 }
 
 /** The list filters, or (for "Exportar seleção") the selected leads. */

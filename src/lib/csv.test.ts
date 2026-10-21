@@ -36,6 +36,20 @@ describe("leadsToCsv", () => {
     expect(row?.dores).toBe("Sem site | Poucas avaliações");
     expect(row?.mensagem).toBe("Olá!\nTudo bem?");
     expect(row?.criado_em).toBe("2026-10-11 14:30");
+    // pt-BR spreadsheets read "4.5" as a date; whole numbers stay as they are.
+    expect(row?.nota_google).toBe("4,5");
+    expect(row?.avaliacoes).toBe("12");
+  });
+
+  it("writes whole and missing ratings", () => {
+    const rows = Papa.parse<Record<string, string>>(
+      leadsToCsv([
+        { ...lead, rating: 5 },
+        { ...lead, rating: null },
+      ]).slice(1),
+      { header: true, delimiter: ";" },
+    ).data;
+    expect(rows.map((row) => row.nota_google)).toEqual(["5", ""]);
   });
 
   it("neutralizes spreadsheet formulas", () => {

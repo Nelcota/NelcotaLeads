@@ -50,7 +50,9 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   AUTOPILOT_RESULTS,
   autopilotInputSchema,
+  DEFAULT_MAIL_DAILY_LIMIT,
   QUICK_REPLY_LIMITS,
+  SEND_GAP_MINUTES,
   quickRepliesInputSchema,
   type QuickRepliesInput,
   settingsInputSchema,
@@ -61,7 +63,7 @@ import {
 } from "@/lib/schemas";
 import { cn } from "@/lib/utils";
 import { providerStatusQuery, quickRepliesQuery } from "@/lib/queries";
-import { getAutopilot, saveAutopilot } from "@/server/dashboard";
+import { getAutopilot, saveAutopilot, setAutomation } from "@/server/dashboard";
 import { testMailConnection } from "@/server/mail";
 import { getSettings, saveQuickReplies, saveSettings } from "@/server/settings";
 import { pageTitle } from "@/lib/page-title";
@@ -137,7 +139,7 @@ function MailCard() {
     <SettingsSection
       id="email"
       title="E-mail"
-      description={`A caixa de onde os e-mails saem e onde as respostas chegam. Até ${mail?.limit ?? 30} envios por dia, um a cada 8 minutos.`}
+      description={`A caixa de onde os e-mails saem e onde as respostas chegam. Até ${mail?.limit ?? DEFAULT_MAIL_DAILY_LIMIT} envios por dia, um a cada ${SEND_GAP_MINUTES} minutos.`}
       contentClassName="p-0"
     >
       <div className="flex flex-wrap items-center gap-3 px-4 py-3">
@@ -154,22 +156,25 @@ function MailCard() {
             <>
               <p className="font-medium text-orange">Caixa não conectada</p>
               <p className="font-light text-muted-foreground">
-                A caixa de e-mail ainda não foi configurada. Fale com quem administra o sistema.
+                Ela é conectada por quem administra o sistema, não por aqui. Quando estiver pronta,
+                aparece nesta tela e os envios começam sozinhos.
               </p>
             </>
           )}
         </div>
-        <DisabledReason reason={!mail?.configured && "Conecte a caixa de e-mail primeiro"}>
+        {/* Only once there is a mailbox: a disabled button here explained itself in a tooltip,
+            which never opens on touch. */}
+        {mail?.configured ? (
           <Button
             variant="outline"
             size="sm"
-            disabled={!mail?.configured || test.isPending}
+            disabled={test.isPending}
             onClick={() => test.mutate()}
           >
             <PlugZapIcon />
             {test.isPending ? "Testando…" : "Testar conexão"}
           </Button>
-        </DisabledReason>
+        ) : null}
       </div>
     </SettingsSection>
   );
@@ -213,9 +218,31 @@ function AutopilotForm() {
       form.reset(data);
       await queryClient.invalidateQueries({ queryKey: ["autopilot"] });
       await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      toast.success("Piloto automático salvo");
+      toast.success("Busca diária salva");
     },
-    onError: errorToast("Não foi possível salvar o piloto automático"),
+    onError: errorToast("Não foi possível salvar a busca diária"),
+  });
+
+  // The switches apply at once, like on the overview and the dispatch sheet; "Salvar" is only
+  // for what to search. Their saved value becomes the form's default, so they never count as an
+  // unsaved change.
+  const automationKey = {
+    aiAutoReply: "aiAutoReply",
+    autoDispatch: "autoDispatch",
+    enabled: "autopilot",
+  } as const;
+  const toggle = useMutation({
+    mutationFn: ({ name, checked }: { name: keyof typeof automationKey; checked: boolean }) =>
+      setAutomation({ data: { [automationKey[name]]: checked } }),
+    onSuccess: async (_result, { name, checked }) => {
+      form.resetField(name, { defaultValue: checked });
+      await queryClient.invalidateQueries({ queryKey: ["autopilot"] });
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+    onError: (error, { name, checked }) => {
+      form.setValue(name, !checked);
+      errorToast("Não foi possível mudar a automação")(error);
+    },
   });
 
   return (
@@ -240,7 +267,7 @@ function AutopilotForm() {
             ) : null}
             <DisabledReason reason={!isDirty && NOTHING_TO_SAVE}>
               <Button type="submit" disabled={!isDirty || mutation.isPending}>
-                {mutation.isPending ? "Salvando…" : "Salvar modo automático"}
+                {mutation.isPending ? "Salvando…" : "Salvar busca diária"}
               </Button>
             </DisabledReason>
           </>
@@ -292,8 +319,12 @@ function AutopilotForm() {
                   <Switch
                     id={`auto-${item.name}`}
                     checked={field.value}
+                    disabled={toggle.isPending && toggle.variables.name === item.name}
                     style={{ "--switch-on": toneVar(item.tone) }}
-                    onCheckedChange={field.onChange}
+                    onCheckedChange={(checked) => {
+                      field.onChange(checked);
+                      toggle.mutate({ name: item.name, checked });
+                    }}
                   />
                 )}
               />
@@ -327,7 +358,7 @@ function AutopilotForm() {
               <button
                 type="button"
                 aria-label={`Remover busca ${index + 1}`}
-                className="press grid size-[22px] shrink-0 place-items-center rounded-full bg-red text-white"
+                className="press relative grid size-[22px] shrink-0 place-items-center rounded-full bg-red text-white after:absolute after:-inset-2.5 after:content-['']"
                 onClick={() => removeTarget(index)}
               >
                 <MinusIcon className="size-3" strokeWidth={3} />
@@ -619,7 +650,7 @@ function SettingsForm({ defaults }: { defaults: SettingsInput }) {
 
       {isDirty || mutation.isPending ? (
         <FloatingBar>
-          <span className="text-sm font-light opacity-80">Alterações não salvas</span>
+          <span className="text-sm font-light opacity-80">Oferta e critérios não salvos</span>
           <Button
             type="button"
             variant="secondary"
@@ -821,12 +852,14 @@ function AddRow({
   onClick: () => void;
 }) {
   return (
-    <DisabledReason reason={disabledReason}>
+    // justify-self/self-start: inside a grid or flex column the row would otherwise stretch
+    // to the full width and take clicks far from the label.
+    <DisabledReason reason={disabledReason} className="self-start justify-self-start">
       <button
         type="button"
         disabled={Boolean(disabledReason)}
         onClick={onClick}
-        className="press inline-flex items-center gap-2.5 py-1 text-sm font-medium text-blue disabled:pointer-events-none disabled:opacity-50"
+        className="press inline-flex items-center gap-2.5 self-start justify-self-start py-1 text-sm font-medium text-blue disabled:pointer-events-none disabled:opacity-50"
       >
         <span className="grid size-[22px] place-items-center rounded-full bg-green text-primary-foreground">
           <PlusIcon className="size-3" strokeWidth={3} />

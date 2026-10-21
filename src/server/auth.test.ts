@@ -64,6 +64,14 @@ describe("password hashes", () => {
       expect(await verifyPassword("anything", stored)).toBe(false);
     }
   });
+
+  it("answers false, not a crash, for iteration counts out of range", async () => {
+    const [, , salt, hash] = (await hashPassword("minha senha forte")).split("$");
+    for (const rounds of ["0", "-1", "100001", "1e9", "1.5"]) {
+      const stored = `pbkdf2-sha256$${rounds}$${salt}$${hash}`;
+      await expect(verifyPassword("minha senha forte", stored)).resolves.toBe(false);
+    }
+  });
 });
 
 describe("session tokens", () => {

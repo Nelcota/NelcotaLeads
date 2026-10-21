@@ -34,10 +34,10 @@ export function NewSearchDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[560px]">
         <DialogHeader>
-          <DialogTitle>Busca manual</DialogTitle>
+          <DialogTitle>Nova busca</DialogTitle>
           <DialogDescription>
-            Uma busca avulsa no Google Maps. As empresas são avaliadas e recebem mensagem como as do
-            piloto automático.
+            Uma busca no Google Maps por nicho e cidade. As empresas encontradas são avaliadas pela
+            IA como as da busca diária.
           </DialogDescription>
         </DialogHeader>
         {open ? <NewSearchForm onDone={() => onOpenChange(false)} /> : null}

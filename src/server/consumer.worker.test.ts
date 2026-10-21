@@ -90,6 +90,24 @@ describe("handleLeadBatch", () => {
     });
   });
 
+  it("leaves a lead another job is still analyzing alone on the last attempt", async () => {
+    // A duplicate delivery whose retries ran out while the first job is mid-analysis.
+    await db.update(leads).set({ analysisStartedAt: new Date() }).where(eq(leads.id, "b"));
+    const duplicate = message("b", 3);
+    await handleLeadBatch(batch("main", [duplicate]), {
+      ...failingDeps(),
+      analyzer: createFakeAnalyzer(),
+    });
+    expect(duplicate.ack).toHaveBeenCalled();
+    expect(await db.query.leads.findFirst({ where: eq(leads.id, "b") })).toMatchObject({
+      analysisStatus: "pending",
+      analysisError: null,
+    });
+    expect(await db.query.searches.findFirst({ where: eq(searches.id, "s") })).toMatchObject({
+      errorCount: 0,
+    });
+  });
+
   it("retries instead of rejecting the batch when recording the failure fails", async () => {
     const deps = failingDeps();
     const brokenDb = new Proxy(db, {

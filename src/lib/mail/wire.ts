@@ -82,19 +82,24 @@ export function createWire(
     }
   }
 
+  /** Puts the unread bytes at the start of a buffer of `capacity` bytes (a new one if larger). */
+  function moveUnreadToFront(capacity: number) {
+    if (capacity === buffer.length) {
+      buffer.copyWithin(0, start, end);
+      return;
+    }
+    const next = new Uint8Array(capacity);
+    next.set(buffer.subarray(start, end));
+    buffer = next;
+  }
+
   function append(value: Uint8Array) {
     if (end + value.length > buffer.length) {
       // Out of room at the tail: move the unread bytes to the front, growing if needed.
       const length = end - start;
       let capacity = buffer.length;
       while (capacity < length + value.length) capacity *= 2;
-      if (capacity === buffer.length) {
-        buffer.copyWithin(0, start, end);
-      } else {
-        const next = new Uint8Array(capacity);
-        next.set(buffer.subarray(start, end));
-        buffer = next;
-      }
+      moveUnreadToFront(capacity);
       scanned -= start;
       start = 0;
       end = length;

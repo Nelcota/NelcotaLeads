@@ -12,7 +12,7 @@ An in-house tool that finds local businesses and qualifies them with AI.
 
 ## Stack
 
-TanStack Start (React 19) on Cloudflare Workers · D1 + Drizzle · Cloudflare Queues · Vercel AI SDK + `@ai-sdk/deepseek` · Tailwind v4 + shadcn/ui · TanStack Query/Table · oxlint/oxfmt · Vitest (`@cloudflare/vitest-plugin`) · lefthook · pnpm.
+TanStack Start (React 19) on Cloudflare Workers · D1 + Drizzle · Cloudflare Queues · Vercel AI SDK + `@ai-sdk/deepseek` · Tailwind v4 + shadcn/ui · TanStack Query · oxlint/oxfmt · Vitest (`@cloudflare/vitest-plugin`) · lefthook · pnpm.
 
 ```
 src/

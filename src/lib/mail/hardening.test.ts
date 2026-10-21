@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { fetchNewMessages, MAX_MESSAGE_BYTES } from "./imap";
 import { parseAll } from "./index";
 import { buildMessage, type OutgoingEmail } from "./mime";
-import { isAutomatic, parseEmail } from "./parse";
+import { htmlToText, isAutomatic, parseEmail } from "./parse";
 import { smtpSend } from "./smtp";
 import { createWire, type Wire } from "./wire";
 
@@ -326,5 +326,19 @@ describe("parseEmail bounds (VAL-2)", () => {
     );
     expect(email.messageId).toBe("<abc@b.com>");
     expect(email.date?.toISOString()).toBe("2026-10-11T12:00:00.000Z");
+  });
+});
+
+describe("htmlToText (hostile HTML-only e-mails)", () => {
+  it("strips tags and keeps the text", () => {
+    expect(htmlToText("<p>Oi<br/>tudo bem?</p><div>Sim</div>")).toBe("Oi\ntudo bem?\nSim\n");
+  });
+
+  it("stays linear on unclosed tags (was quadratic: 200 KB took tens of seconds)", () => {
+    for (const hostile of ["<br".repeat(66_000), "<".repeat(200_000), "<a ".repeat(66_000)]) {
+      const started = performance.now();
+      htmlToText(hostile);
+      expect(performance.now() - started).toBeLessThan(500);
+    }
   });
 });

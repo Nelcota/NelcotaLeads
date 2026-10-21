@@ -21,13 +21,12 @@ export function isPathAllowed(robotsTxt: string, userAgent: string, path: string
       agents.push(value.toLowerCase());
       for (const agent of agents) if (!groups.has(agent)) groups.set(agent, []);
       lastWasAgent = true;
-    } else if (key === "allow" || key === "disallow") {
-      lastWasAgent = false;
-      if (key === "disallow" && value === "") continue;
-      for (const agent of agents) groups.get(agent)?.push({ allow: key === "allow", path: value });
-    } else {
-      lastWasAgent = false;
+      continue;
     }
+    lastWasAgent = false;
+    if (key !== "allow" && key !== "disallow") continue;
+    if (key === "disallow" && value === "") continue;
+    for (const agent of agents) groups.get(agent)?.push({ allow: key === "allow", path: value });
   }
 
   const token = userAgent.toLowerCase().split("/")[0] ?? "";
@@ -48,13 +47,24 @@ export function isPathAllowed(robotsTxt: string, userAgent: string, path: string
   return best?.allow ?? true;
 }
 
-function matches(pattern: string, path: string): boolean {
+/**
+ * Prefix match with `*` wildcards and an optional `$` end anchor, piece by piece with indexOf:
+ * the site writes the pattern, and as a `.*` regex a run of wildcards backtracks exponentially.
+ */
+export function matches(pattern: string, path: string): boolean {
   const anchored = pattern.endsWith("$");
-  const body = anchored ? pattern.slice(0, -1) : pattern;
-  const regex = body.split("*").map(escapeRegex).join(".*");
-  return new RegExp(`^${regex}${anchored ? "$" : ""}`).test(path);
-}
-
-function escapeRegex(value: string) {
-  return value.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
+  const [first = "", ...rest] = (anchored ? pattern.slice(0, -1) : pattern).split("*");
+  if (!path.startsWith(first)) return false;
+  const last = rest.pop();
+  if (last === undefined) return !anchored || path.length === first.length;
+  let position = first.length;
+  // Leftmost match of each middle piece leaves the most room for the ones after it.
+  for (const piece of rest) {
+    const at = path.indexOf(piece, position);
+    if (at === -1) return false;
+    position = at + piece.length;
+  }
+  return anchored
+    ? path.length - last.length >= position && path.endsWith(last)
+    : path.includes(last, position);
 }

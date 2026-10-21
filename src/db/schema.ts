@@ -245,6 +245,8 @@ export const users = sqliteTable(
     name: text("name").notNull(),
     email: text("email").notNull(),
     passwordHash: text("password_hash").notNull(),
+    /** Profile photo as a small `data:image/...` URL, resized in the browser before upload. */
+    avatar: text("avatar"),
     sessionVersion: integer("session_version").notNull().default(1),
     ...timestamps,
   },

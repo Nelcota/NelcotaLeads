@@ -93,7 +93,7 @@ test.describe("number steppers", () => {
     await expect(minScore).toHaveValue("30");
     await scoreStepper.getByRole("button", { name: "Aumentar" }).click();
     await expect(minScore).toHaveValue("35");
-    await expect(page.getByText("Alterações não salvas")).toBeVisible();
+    await expect(page.getByText("Oferta e critérios não salvos")).toBeVisible();
     await scoreStepper.getByRole("button", { name: "Diminuir" }).click();
     await expect(minScore).toHaveValue("30");
 

@@ -65,7 +65,7 @@ const SYSTEM_ATTENTION = "Algo precisa de atenção";
 
 const NewSearchContext = createContext<() => void>(() => {});
 
-/** Opens the "Busca manual" dialog from anywhere in the app. */
+/** Opens the "Nova busca" dialog from anywhere in the app. */
 export function useOpenNewSearch() {
   return useContext(NewSearchContext);
 }
@@ -182,7 +182,7 @@ function AppSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild className="hover:bg-transparent">
               <Link to="/">
-                <span className="grid aspect-square size-[30px] shrink-0 place-items-center rounded-[9px] bg-[linear-gradient(180deg,#5be38f,#22b45a)] text-[13px] font-semibold text-[#032d12] shadow-[inset_0_1px_0_rgb(255_255_255/0.4),0_4px_12px_rgb(48_209_88/0.25)]">
+                <span className="grid aspect-square size-[30px] shrink-0 place-items-center rounded-[9px] bg-[#30d158] text-[13px] font-semibold text-[#032d12]">
                   N
                 </span>
                 <span className="grid flex-1 text-left leading-tight">
@@ -270,7 +270,7 @@ function UsageMeter() {
           className="flex items-center gap-2.5 text-[12.5px] font-medium text-orange"
         >
           <span className="size-2 rounded-full bg-orange" />
-          Conectar e-mail
+          E-mail não conectado
         </Link>
       )}
       <MeterRow
@@ -356,7 +356,7 @@ function AccountRow() {
           </div>
         ) : (
           <>
-            <Avatar name={name} size={28} />
+            <Avatar name={name} src={account?.avatar} size={28} />
             <div className="min-w-0 flex-1 leading-tight group-data-[collapsible=icon]:hidden">
               <p className="truncate text-[12.5px] font-medium">{name}</p>
               <p

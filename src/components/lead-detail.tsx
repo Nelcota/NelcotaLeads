@@ -60,6 +60,7 @@ import { MANUAL_SEARCH_ID } from "@/lib/searches";
 import { whatsappLink } from "@/lib/phone";
 import { conversationQuery, leadQuery, providerStatusQuery } from "@/lib/queries";
 import {
+  isCalendarDay,
   LEAD_NOT_FOUND,
   LEAD_STATUS_LABELS,
   LEAD_STATUS_VALUES,
@@ -190,7 +191,7 @@ export function LeadDetail({
           analysis={analysis}
           today={today}
           busy={update.isPending}
-          onUpdate={(changes) => update.mutate(changes)}
+          onUpdate={(changes, options) => update.mutate(changes, options)}
           onChanged={refreshAll}
         />
         <AnalysisSection lead={lead} analysis={analysis} />
@@ -274,7 +275,8 @@ type StepProps = {
   analysis: Analysis | null;
   today: string;
   busy: boolean;
-  onUpdate: (changes: LeadUpdate) => void;
+  /** `onSuccess` runs once the server accepted the change (a toast must not promise earlier). */
+  onUpdate: (changes: LeadUpdate, options?: { onSuccess?: () => void }) => void;
   onChanged: () => Promise<unknown>;
 };
 
@@ -310,7 +312,7 @@ function NextStep(props: StepProps) {
               </Button>
             ) : null}
             <Button disabled={busy} onClick={() => onUpdate({ status: "closed" })}>
-              Fechou negócio
+              Fechar negócio
             </Button>
             <Button
               variant="ghost"
@@ -318,7 +320,7 @@ function NextStep(props: StepProps) {
               disabled={busy}
               onClick={() => onUpdate({ status: "discarded" })}
             >
-              Não fechou
+              Encerrar sem negócio
             </Button>
           </CardFooter>
         </Card>
@@ -387,11 +389,16 @@ function FirstContactStep({ lead, analysis, today, busy, onUpdate, onChanged }: 
       }
     }
     const followUpOn = addDays(today, Number(followUpDays));
-    onUpdate({ status: "contacted", followUpOn });
-    toast(`${lead.name}: contatado`, {
-      description: `Retorno ${relativeDay(followUpOn, today)}. A IA prepara o lembrete.`,
-      action: { label: "Desfazer", onClick: () => onUpdate({ status: "new" }) },
-    });
+    onUpdate(
+      { status: "contacted", followUpOn },
+      {
+        onSuccess: () =>
+          toast(`${lead.name}: contatado`, {
+            description: `Retorno ${relativeDay(followUpOn, today)}. A IA prepara o e-mail de retorno.`,
+            action: { label: "Desfazer", onClick: () => onUpdate({ status: "new" }) },
+          }),
+      },
+    );
   };
 
   const copy = async () => {
@@ -521,7 +528,7 @@ function WaitingStep(props: StepProps) {
           disabled={busy}
           onClick={() => onUpdate({ status: "discarded" })}
         >
-          Sem interesse
+          Descartar
         </Button>
       </CardFooter>
     </Card>
@@ -555,8 +562,11 @@ function EmailStep({ lead, busy, onUpdate, onChanged }: StepProps) {
     setEdit(next);
     if (!draft) return;
     // The server keeps the last complete version; an empty subject or body is not saved.
-    if (next.subject.trim() && next.body.trim()) autosave.schedule(draft.id, next);
-    else void autosave.discard(draft.id);
+    if (next.subject.trim() && next.body.trim()) {
+      autosave.schedule(draft.id, next);
+      return;
+    }
+    void autosave.discard(draft.id);
   };
   // Runs from the toast, which may outlive the panel.
   const restore = async (id: string, previous: DraftText) => {
@@ -602,7 +612,10 @@ function EmailStep({ lead, busy, onUpdate, onChanged }: StepProps) {
     onSuccess: async () => {
       setEdit(null);
       await refresh();
-      toast.success("E-mail enviado", { description: "A resposta aparece em Conversas." });
+      // Queued: it goes out with the next send, within the daily limit and the gap.
+      toast.success("E-mail na fila de envio", {
+        description: "Sai em instantes. A resposta aparece em Conversas.",
+      });
     },
     onError: errorToast("Não foi possível enviar"),
   });
@@ -753,7 +766,12 @@ function FollowUpPicker({ lead, today, busy, onUpdate, label }: StepProps & { la
           value={value ?? ""}
           min={today}
           disabled={busy}
-          onChange={(event) => event.target.value && onUpdate({ followUpOn: event.target.value })}
+          // Typing the year fires a change per digit ("0002-…", "0020-…"); only a whole,
+          // valid day from today on is saved.
+          onChange={(event) => {
+            const day = event.target.value;
+            if (isCalendarDay(day) && day >= today) onUpdate({ followUpOn: day });
+          }}
           className="h-8 w-auto tabular-nums [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-60 [&::-webkit-calendar-picker-indicator]:hover:opacity-100"
         />
       </div>
@@ -1154,7 +1172,7 @@ function ScoreRingLarge({ score, pending }: { score: number | null; pending: boo
     <ProgressRing value={score} tone={tone} size={60} thickness={5} track="var(--popover)">
       <span className={cn("grid justify-items-center leading-none", TONE_TEXT[tone])}>
         <b className="text-lg font-medium tabular-nums">{score}</b>
-        <small className="text-[10px] font-medium">{SCORE_TIERS[tier].label}</small>
+        <small className="text-[11px] font-medium">{SCORE_TIERS[tier].label}</small>
       </span>
     </ProgressRing>
   );

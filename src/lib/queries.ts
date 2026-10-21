@@ -4,7 +4,7 @@ import { getAccount } from "@/server/account";
 import { getAttentionCount, getDashboard } from "@/server/dashboard";
 import { getConversation, listConversations } from "@/server/mail";
 import { getLead, getLeadCounts, listLeads } from "@/server/leads";
-import { getProviderStatus, getSearch, listSearches } from "@/server/searches";
+import { getProviderStatus, listSearches } from "@/server/searches";
 import { listNiches } from "@/server/niches";
 import { getQuickReplies } from "@/server/settings";
 import { getSystemStatus } from "@/server/system-status";
@@ -16,15 +16,6 @@ export const searchesQuery = queryOptions({
   queryFn: () => listSearches(),
   refetchInterval: (query) => (query.state.data?.some((s) => isRunning(s.status)) ? 3000 : false),
 });
-
-export const searchQuery = (id: string) =>
-  queryOptions({
-    queryKey: ["searches", id],
-    queryFn: () => getSearch({ data: { id } }),
-    // Poll while the queue is still working on this search.
-    refetchInterval: (query) =>
-      query.state.data && isRunning(query.state.data.status) ? 2000 : false,
-  });
 
 /** Niches with their funnel, for the filters and the overview. */
 export const nichesQuery = queryOptions({

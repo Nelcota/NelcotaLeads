@@ -23,3 +23,6 @@ todos.json
 
 # Agent worktrees nested in the checkout
 .claude/worktrees/
+
+# Regras locais do Claude (Cérebro)
+CLAUDE.local.md

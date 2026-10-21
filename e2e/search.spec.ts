@@ -1,13 +1,12 @@
 import type { Page } from "@playwright/test";
-import { expect, test, visit } from "./fixtures";
+import { expect, openNewSearch, test, visit } from "./fixtures";
 
 function rowOf(page: Page, name: string) {
   return page.getByRole("row").filter({ has: page.getByText(name, { exact: true }) });
 }
 
 async function runSearch(page: Page) {
-  await page.getByRole("button", { name: "Nova busca" }).click();
-  const dialog = page.getByRole("dialog", { name: "Busca manual" });
+  const dialog = await openNewSearch(page);
   await dialog.getByLabel("Nicho").fill("dentistas");
   await dialog.getByLabel("Cidade").fill("Belo Horizonte");
   await expect(dialog.getByRole("tab", { name: "até 20" })).toHaveAttribute(
@@ -73,8 +72,7 @@ test.describe("search card actions", () => {
   test("a failed search offers to try again, and the new one runs", async ({ page, backend }) => {
     await backend.fault("places");
     await visit(page, "/");
-    await page.getByRole("button", { name: "Nova busca" }).click();
-    const dialog = page.getByRole("dialog", { name: "Busca manual" });
+    const dialog = await openNewSearch(page);
     await dialog.getByLabel("Nicho").fill("dentistas");
     await dialog.getByLabel("Cidade").fill("Belo Horizonte");
     await dialog.getByRole("button", { name: "Buscar empresas" }).click();
@@ -119,8 +117,25 @@ test.describe("search card actions", () => {
 
     await page.getByRole("button", { name: "Mais ações" }).click();
     await page.getByRole("menuitem", { name: "Ocultar" }).click();
-    await expect(page.getByText("Nenhuma busca ainda")).toBeVisible();
+    await expect(page.getByText("Todas as buscas estão ocultas")).toBeVisible();
     await page.getByRole("button", { name: "Desfazer" }).click();
+    await expect(page.getByRole("link", { name: "Ver leads: padarias em Contagem" })).toBeVisible();
+  });
+
+  test("shows a hidden search again from the end of the list", async ({ page, backend }) => {
+    await backend.runningSearch({ niche: "padarias", city: "Contagem", leads: 1 });
+    await visit(page, "/searches");
+    await page.getByRole("button", { name: "Cancelar" }).click();
+    await expect(page.getByText("Cancelada", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Mais ações" }).click();
+    await page.getByRole("menuitem", { name: "Ocultar" }).click();
+
+    await expect(page.getByText("Todas as buscas estão ocultas")).toBeVisible();
+    await page.getByRole("button", { name: "Mostrar buscas ocultas" }).click();
+    await page.getByRole("button", { name: "Mostrar na lista" }).click();
+
+    await expect(page.getByText("Busca de volta na lista")).toBeVisible();
+    await expect(page.getByRole("button", { name: /buscas? ocultas?/ })).toHaveCount(0);
     await expect(page.getByRole("link", { name: "Ver leads: padarias em Contagem" })).toBeVisible();
   });
 });
