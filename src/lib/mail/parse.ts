@@ -22,9 +22,20 @@ export type IncomingEmail = {
  * good, since this is what gets saved: "De: 8h às 18h atendemos…" is a reply, not a header.
  */
 export function writtenPart(text: string): string {
-  return splitQuoted(text.replace(/\r\n/g, "\n"))
-    .visible.replace(/\n*(Enviado do meu|Sent from my) [^\n]*\s*$/i, "")
-    .trim();
+  return withoutPhoneSignature(splitQuoted(text.replace(/\r\n/g, "\n")).visible).trim();
+}
+
+const PHONE_SIGNATURE = /^(Enviado do meu|Sent from my) /i;
+
+/**
+ * Drops a last line such as "Enviado do meu iPhone". Looked up with lastIndexOf, not a regex
+ * anchored at the end: `\n*…$` retries from every newline, quadratic on a body of blank lines.
+ */
+function withoutPhoneSignature(text: string): string {
+  const trimmed = text.trimEnd();
+  const lineStart = trimmed.lastIndexOf("\n") + 1;
+  const lastLine = trimmed.slice(lineStart).trim();
+  return PHONE_SIGNATURE.test(lastLine) ? trimmed.slice(0, lineStart) : trimmed;
 }
 
 /**
