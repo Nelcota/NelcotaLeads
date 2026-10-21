@@ -19,6 +19,13 @@ export function isCalendarDay(value: string): boolean {
 
 export const daySchema = z.string().refine(isCalendarDay, "Data inválida");
 
+/**
+ * A day already stored, sent back by "Desfazer" to restore it. Only the shape is checked: rows
+ * saved before isCalendarDay existed may hold "0002-10-13", and refusing it would make the
+ * whole undo fail instead of putting the lead back as it was.
+ */
+export const storedDaySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data inválida");
+
 /** User-typed text: NFC so "é" typed as e + combining accent matches the precomposed one. */
 const userText = () => z.string().normalize("NFC").trim();
 
@@ -328,7 +335,7 @@ export const MAX_UNIX_SECONDS = 4_102_444_800;
 export const bulkSnapshotSchema = z.object({
   id: idSchema,
   status: z.enum(LEAD_STATUS_VALUES),
-  followUpOn: daySchema.nullable(),
+  followUpOn: storedDaySchema.nullable(),
   discardReason: z.string().max(500).nullable(),
   // Unix seconds. Bounded so `new Date(seconds * 1000)` is a real date (an out-of-range one
   // turns into NaN, which D1 stores as NULL without a word).
