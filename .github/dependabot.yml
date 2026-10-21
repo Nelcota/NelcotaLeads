@@ -1,0 +1,39 @@
+# Weekly version updates, grouped so they arrive as few PRs. New releases wait
+# 3 days first: a compromised version is usually caught and yanked within days.
+# Security updates are not delayed.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "07:00"
+      timezone: America/Sao_Paulo
+    cooldown:
+      default-days: 3
+    open-pull-requests-limit: 10
+    labels: [dependencies]
+    groups:
+      # TanStack Start and Router are pinned and must move together.
+      tanstack:
+        patterns: ["@tanstack/*"]
+      cloudflare:
+        patterns: ["wrangler", "@cloudflare/*"]
+      dependencies:
+        patterns: ["*"]
+        exclude-patterns: ["@tanstack/*", "wrangler", "@cloudflare/*"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "07:00"
+      timezone: America/Sao_Paulo
+    cooldown:
+      default-days: 3
+    labels: [dependencies, ci]
+    groups:
+      actions:
+        patterns: ["*"]
