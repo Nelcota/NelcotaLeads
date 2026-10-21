@@ -3,12 +3,19 @@ import { test as base, expect, type APIRequestContext, type Page } from "@playwr
 
 /**
  * Resolves once React hydrated the server-rendered page (it tags DOM nodes with its fiber),
- * so clicks reach their handlers instead of landing on inert SSR markup.
+ * so clicks and keys reach their handlers instead of landing on inert SSR markup. The shell
+ * hydrates first and the route (a lazy chunk behind Suspense) after it, so the page content
+ * is checked too: until it hydrates, its effects (such as the J/K listener) are not attached.
  */
 export async function hydrated(page: Page) {
-  await page.waitForFunction(() =>
-    Object.keys(document.body).some((key) => key.startsWith("__reactFiber")),
-  );
+  await page.waitForFunction(() => {
+    const hasFiber = (node: Element) =>
+      Object.keys(node).some((key) => key.startsWith("__reactFiber"));
+    if (!hasFiber(document.body)) return false;
+    const main = document.querySelector("main");
+    if (!main) return true;
+    return Array.from(main.querySelectorAll("*")).every(hasFiber);
+  });
 }
 
 const serverFnIdSchema = z.object({ export: z.string() });
