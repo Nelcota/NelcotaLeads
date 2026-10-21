@@ -36,6 +36,18 @@ export async function visit(page: Page, path: string) {
   await hydrated(page);
 }
 
+/**
+ * Opens the "Nova busca" dialog from the sidebar, which every page has. Pages such as Leads
+ * and Buscas also show a "Nova busca" button of their own, so the role alone is ambiguous.
+ */
+export async function openNewSearch(page: Page) {
+  await page
+    .locator('[data-sidebar="sidebar"]')
+    .getByRole("button", { name: "Nova busca" })
+    .click();
+  return page.getByRole("dialog", { name: "Nova busca" });
+}
+
 /** `page.reload` plus hydration. */
 export async function reload(page: Page) {
   await page.reload();
