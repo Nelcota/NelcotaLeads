@@ -68,3 +68,11 @@ export function shortTime(date: Date, today = localDay(new Date())): string {
   if (dayDiff(day, today) === 1) return `ontem ${time}`;
   return `${day.slice(8, 10)}/${day.slice(5, 7)} ${time}`;
 }
+
+/**
+ * A step's share of the one before, in whole percent; null when it is larger (the counts come
+ * from different sources, e.g. a lead whose e-mail was removed after it was contacted).
+ */
+export function sharePercent(value: number, of: number): number | null {
+  return of > 0 && value >= 0 && value <= of ? Math.round((value / of) * 100) : null;
+}

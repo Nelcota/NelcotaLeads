@@ -55,7 +55,7 @@ export async function nextQuery(
 }
 
 export const ALREADY_RAN_MESSAGE =
-  "As buscas de hoje já foram feitas. O piloto automático volta a buscar amanhã.";
+  "As buscas de hoje já foram feitas. A busca diária volta amanhã.";
 
 /**
  * Searches every target once a day, from the configured hour on, stopping when the

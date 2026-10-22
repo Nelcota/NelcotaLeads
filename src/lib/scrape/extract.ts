@@ -13,7 +13,29 @@ const SOCIAL_HOSTS = [
   "twitter.com",
 ];
 
-const EMAIL_PATTERN = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
+// Anchored: findEmails runs it on one "@" and the address characters around it.
+const EMAIL_AT_START = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i;
+const LOCAL_CHAR = /[A-Z0-9._%+-]/i;
+const DOMAIN_CHAR = /[A-Z0-9.-]/i;
+
+/**
+ * E-mail addresses in a page's text, looking only at the run around each "@". A global regex
+ * would retry from every character and rescan the run each time: quadratic on a long word.
+ */
+export function findEmails(text: string): string[] {
+  const found: string[] = [];
+  for (let at = text.indexOf("@"); at !== -1; at = text.indexOf("@", at + 1)) {
+    let start = at;
+    while (start > 0 && LOCAL_CHAR.test(text.charAt(start - 1))) start--;
+    let end = at + 1;
+    while (end < text.length && DOMAIN_CHAR.test(text.charAt(end))) end++;
+    // Longer than an address can be: the regex would have kept it whole, and fits() dropped it.
+    if (end - start > SITE_LIMITS.email) continue;
+    const email = EMAIL_AT_START.exec(text.slice(start, end))?.[0];
+    if (email) found.push(email);
+  }
+  return found;
+}
 const COPYRIGHT_PATTERN = /(?:©|&copy;|copyright)\s*(?:\d{4}\s*[-–]\s*)?(\d{4})/i;
 
 export type ExtractedSite = { data: SiteData; text: string };
@@ -39,19 +61,22 @@ export function extractSite(html: string, finalUrl: string): ExtractedSite {
     const href = anchor.getAttribute("href")?.trim() ?? "";
     if (href.toLowerCase().startsWith("mailto:")) {
       // Re-match so stray spaces or text around the address (e.g. "mailto:%20a@b.com") are dropped.
-      const email = safeDecode(href.slice(7).split("?")[0] ?? "").match(EMAIL_PATTERN)?.[0];
+      const email = findEmails(safeDecode(href.slice(7).split("?")[0] ?? ""))[0];
       if (email) emails.add(email.toLowerCase());
-    } else if (href.toLowerCase().startsWith("tel:")) {
+      continue;
+    }
+    if (href.toLowerCase().startsWith("tel:")) {
       phones.add(href.slice(4).trim());
-    } else if (/^https?:\/\//i.test(href)) {
-      try {
-        const host = new URL(href).hostname.replace(/^www\./, "");
-        if (SOCIAL_HOSTS.some((social) => host === social || host.endsWith(`.${social}`))) {
-          socialLinks.add(href.split("?")[0] ?? href);
-        }
-      } catch {
-        // Ignore malformed URLs.
+      continue;
+    }
+    if (!/^https?:\/\//i.test(href)) continue;
+    try {
+      const host = new URL(href).hostname.replace(/^www\./, "");
+      if (SOCIAL_HOSTS.some((social) => host === social || host.endsWith(`.${social}`))) {
+        socialLinks.add(href.split("?")[0] ?? href);
       }
+    } catch {
+      // Ignore malformed URLs.
     }
   }
 
@@ -59,7 +84,7 @@ export function extractSite(html: string, finalUrl: string): ExtractedSite {
     node.remove();
   }
   const text = clean(document.body?.textContent ?? document.documentElement?.textContent) ?? "";
-  for (const email of text.match(EMAIL_PATTERN) ?? []) emails.add(email.toLowerCase());
+  for (const email of findEmails(text)) emails.add(email.toLowerCase());
 
   const year = Number(COPYRIGHT_PATTERN.exec(text)?.[1]);
 

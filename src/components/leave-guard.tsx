@@ -30,8 +30,11 @@ export function useReportDirtyForm(form: string, dirty: boolean) {
 export function LeaveGuard({ children }: { children: ReactNode }) {
   const dirty = useRef(new Set<string>());
   const report = useCallback((form: string, value: boolean) => {
-    if (value) dirty.current.add(form);
-    else dirty.current.delete(form);
+    if (value) {
+      dirty.current.add(form);
+      return;
+    }
+    dirty.current.delete(form);
   }, []);
   const blocker = useBlocker({
     shouldBlockFn: ({ current, next }) =>

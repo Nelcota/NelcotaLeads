@@ -33,7 +33,7 @@ test.describe("settings", () => {
     await page.getByLabel("Descartar leads com nota abaixo de").fill("45");
     await page.getByRole("button", { name: "Salvar", exact: true }).click();
     await expect(page.getByText("Configurações salvas")).toBeVisible();
-    await expect(page.getByText("Alterações não salvas")).toBeHidden();
+    await expect(page.getByText("Oferta e critérios não salvos")).toBeHidden();
 
     await openSettings(page);
     await expect(page.getByLabel("O que você oferece")).toHaveValue("Landing pages para dentistas");

@@ -2,7 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { env } from "cloudflare:workers";
 import { and, asc, desc, eq, inArray, isNotNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
-import { getDb } from "@/db/client";
+import { getDb, type Db } from "@/db/client";
+import { inList } from "@/db/in-list";
 import { emails, leads, searches } from "@/db/schema";
 import { getAnalyzer } from "@/lib/ai";
 import { getMailer, mailConfigured } from "@/lib/mail";
@@ -36,15 +37,25 @@ import { runSendJob, trackJob, watchSends } from "./job-runs";
 import { loadSettings } from "./settings-store";
 import { DAILY_LIMIT_ERROR } from "@/lib/email-errors";
 import { friendlyJobError } from "@/lib/system-status";
-import { idSchema } from "@/lib/schemas";
+import { DISPATCH_LIMIT, idSchema, TEXT_LIMITS } from "@/lib/schemas";
 
 const id = idSchema;
+// The mailbox is set up by whoever runs the system, never in the app.
+const MAIL_NOT_CONNECTED =
+  "A caixa de e-mail ainda não foi conectada por quem administra o sistema.";
 const limit = () => mailDailyLimit(env.MAIL_DAILY_LIMIT);
 const fromAddress = () => (env.MAIL_ADDRESS ?? "").toLowerCase();
 
 /** Writes (or reuses) a draft for each selected lead and returns them for review. */
 export const prepareEmails = createServerFn({ method: "POST" })
-  .validator(z.object({ leadIds: z.array(id).min(1).max(100) }))
+  .validator(
+    z.object({
+      leadIds: z
+        .array(id)
+        .min(1)
+        .max(DISPATCH_LIMIT, `Selecione até ${DISPATCH_LIMIT} leads por disparo.`),
+    }),
+  )
   .handler(async ({ data }) => {
     const db = getDb();
     const result = await prepareDrafts(
@@ -54,7 +65,7 @@ export const prepareEmails = createServerFn({ method: "POST" })
     const names = await db
       .select({ id: leads.id, name: leads.name })
       .from(leads)
-      .where(inArray(leads.id, data.leadIds));
+      .where(inList(leads.id, data.leadIds));
     const nameOf = new Map(names.map((row) => [row.id, row.name]));
     return {
       drafts: result.drafts.map((draft) => ({
@@ -69,8 +80,9 @@ export const updateDraft = createServerFn({ method: "POST" })
   .validator(
     z.object({
       id,
-      subject: z.string().trim().min(1).max(200),
-      body: z.string().trim().min(1).max(5000),
+      subject: z.string().trim().min(1).max(TEXT_LIMITS.subject.model),
+      // The draft holds the signature and "sair" line too, so it may pass the model's bound.
+      body: z.string().trim().min(1).max(TEXT_LIMITS.emailBody.stored),
     }),
   )
   .handler(async ({ data }) => {
@@ -82,6 +94,8 @@ export const updateDraft = createServerFn({ method: "POST" })
     if (!draft) return { ok: true as const };
     // First e-mails and follow-ups (not answers to the lead) keep the "sair" line.
     const body = draft.inReplyTo ? data.body : ensureOptOut(data.body);
+    // Checked after the "sair" line is added, so what is saved can always be edited again.
+    if (body.length > TEXT_LIMITS.emailBody.stored) throw new Error("O e-mail ficou longo demais.");
     await db
       .update(emails)
       .set({ subject: data.subject, body })
@@ -108,9 +122,9 @@ export const removeDraft = createServerFn({ method: "POST" })
 
 /** Queues the reviewed drafts, one every few minutes; the first goes out right away. */
 export const dispatchEmails = createServerFn({ method: "POST" })
-  .validator(z.object({ ids: z.array(id).min(1).max(100) }))
+  .validator(z.object({ ids: z.array(id).min(1).max(DISPATCH_LIMIT) }))
   .handler(async ({ data }) => {
-    if (!mailConfigured(env)) throw new Error("Conecte a sua caixa de e-mail nas Configurações.");
+    if (!mailConfigured(env)) throw new Error(MAIL_NOT_CONNECTED);
     const db = getDb();
     const queued = await queueDrafts(db, data.ids);
     const watch = watchSends(getMailer(env));
@@ -125,7 +139,7 @@ export const dispatchEmails = createServerFn({ method: "POST" })
  * and in Status, so only a failed inbox read is thrown, with a friendly message.
  */
 export const checkMailNow = createServerFn({ method: "POST" }).handler(async () => {
-  if (!mailConfigured(env)) throw new Error("Conecte a sua caixa de e-mail nas Configurações.");
+  if (!mailConfigured(env)) throw new Error(MAIL_NOT_CONNECTED);
   const db = getDb();
   const mailer = getMailer(env);
   const sent = await runSendJob({ db, mailer, limit: limit() }, new Date(), {
@@ -167,9 +181,15 @@ function stateOf(lead: {
   return "waiting";
 }
 
+/** Conversations the page lists; past this, only the most recent ones show. */
+export const CONVERSATIONS_LIMIT = 300;
+
 /** Every lead with an e-mail conversation, latest activity first. */
-export const listConversations = createServerFn({ method: "GET" }).handler(async () => {
-  const db = getDb();
+export const listConversations = createServerFn({ method: "GET" }).handler(() =>
+  queryConversations(getDb()),
+);
+
+export async function queryConversations(db: Db) {
   const rows = await db
     .select({
       id: leads.id,
@@ -186,9 +206,15 @@ export const listConversations = createServerFn({ method: "GET" }).handler(async
     .from(leads)
     .innerJoin(searches, eq(searches.id, leads.searchId))
     .where(isNotNull(leads.lastEmailAt))
-    .orderBy(desc(leads.lastEmailAt))
-    .limit(300);
+    // The ones waiting for the user are never cut off by the limit, however old.
+    .orderBy(
+      sql`case when ${leads.status} = 'replied' and ${leads.aiMode} = 0 and ${leads.unsubscribedAt} is null then 0 else 1 end`,
+      desc(leads.lastEmailAt),
+    )
+    .limit(CONVERSATIONS_LIMIT);
   if (rows.length === 0) return [];
+  // oxlint-disable-next-line unicorn/no-array-sort -- sorts the fresh array from the query
+  rows.sort((a, b) => (b.lastEmailAt?.getTime() ?? 0) - (a.lastEmailAt?.getTime() ?? 0));
 
   const latest = await db
     .select({
@@ -201,7 +227,7 @@ export const listConversations = createServerFn({ method: "GET" }).handler(async
     .from(emails)
     .where(
       and(
-        inArray(
+        inList(
           emails.leadId,
           rows.map((row) => row.id),
         ),
@@ -223,9 +249,9 @@ export const listConversations = createServerFn({ method: "GET" }).handler(async
         : "",
     };
   });
-});
+}
 
-export type ConversationSummary = Awaited<ReturnType<typeof listConversations>>[number];
+export type ConversationSummary = Awaited<ReturnType<typeof queryConversations>>[number];
 
 export const getConversation = createServerFn({ method: "GET" })
   .validator(z.object({ leadId: id }))
@@ -275,7 +301,7 @@ export const draftReplyWithAi = createServerFn({ method: "POST" })
 export const sendReply = createServerFn({ method: "POST" })
   .validator(z.object({ leadId: id, body: z.string().trim().min(1).max(5000) }))
   .handler(async ({ data }) => {
-    if (!mailConfigured(env)) throw new Error("Conecte a sua caixa de e-mail nas Configurações.");
+    if (!mailConfigured(env)) throw new Error(MAIL_NOT_CONNECTED);
     const db = getDb();
     const mailer = getMailer(env);
     const lead = await db.query.leads.findFirst({ where: eq(leads.id, data.leadId) });
@@ -373,7 +399,7 @@ export const undoCloseConversation = createServerFn({ method: "POST" })
 export const retryEmail = createServerFn({ method: "POST" })
   .validator(z.object({ emailId: id }))
   .handler(async ({ data }) => {
-    if (!mailConfigured(env)) throw new Error("Conecte a sua caixa de e-mail nas Configurações.");
+    if (!mailConfigured(env)) throw new Error(MAIL_NOT_CONNECTED);
     const db = getDb();
     const mailer = getMailer(env);
     await retryFailedEmail(db, data.emailId, { fromAddress: mailer.address });

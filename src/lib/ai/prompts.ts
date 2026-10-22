@@ -244,6 +244,9 @@ Resposta (quando reply):
 - Sem travessão, emojis, jargão ou elogios. Não mencione que é uma IA nem que há automação.`;
 }
 
+/** Messages of a conversation the reply prompt carries, newest last. */
+export const MAX_THREAD_MESSAGES = 12;
+
 export function replyUserPrompt(
   settings: SettingsInput,
   lead: LeadContext,
@@ -251,9 +254,14 @@ export function replyUserPrompt(
   guidance?: ReplyGuidance,
 ) {
   const fence = createFence();
-  const conversation = thread
-    .map((message) => `[${message.from === "eu" ? "Eu" : "Empresa"}]\n${message.text}`)
-    .join("\n\n");
+  // The newest messages only: the thread grows with every e-mail (each up to ~8 KB), and the
+  // whole of it would grow the cost of each answer and end up past the model's context.
+  const recent = thread.slice(-MAX_THREAD_MESSAGES);
+  const omitted = thread.length - recent.length;
+  const conversation = [
+    ...(omitted > 0 ? [`(${omitted} mensagens anteriores omitidas)`] : []),
+    ...recent.map((message) => `[${message.from === "eu" ? "Eu" : "Empresa"}]\n${message.text}`),
+  ].join("\n\n");
   return `## Minha oferta
 ${settings.offer}
 

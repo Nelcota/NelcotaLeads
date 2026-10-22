@@ -78,6 +78,13 @@
       "when": 1791994620378,
       "tag": "0010_good_fallen_one",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1792278733565,
+      "tag": "0011_hard_killer_shrike",
+      "breakpoints": true
     }
   ]
 }

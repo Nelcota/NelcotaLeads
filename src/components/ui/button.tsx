@@ -10,7 +10,7 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-[linear-gradient(180deg,color-mix(in_srgb,var(--primary)_88%,#fff),var(--primary))] text-primary-foreground shadow-[inset_0_1px_0_rgb(255_255_255/0.32),0_6px_18px_color-mix(in_srgb,var(--primary)_22%,transparent)] hover:brightness-105",
+          "bg-[linear-gradient(180deg,color-mix(in_srgb,var(--primary)_88%,#fff),var(--primary))] text-primary-foreground shadow-[inset_0_1px_0_rgb(255_255_255/0.32),0_1px_2px_rgb(0_0_0/0.25)] hover:brightness-105",
         outline:
           "bg-fill text-foreground shadow-[inset_0_1px_0_rgb(255_255_255/0.06)] hover:bg-[rgb(118_118_128/0.28)] aria-expanded:bg-[rgb(118_118_128/0.28)] [&_svg]:text-muted-foreground",
         secondary:
@@ -24,12 +24,14 @@ const buttonVariants = cva(
       size: {
         default:
           "h-9 gap-1.5 px-4 has-data-[icon=inline-end]:pr-3 has-data-[icon=inline-start]:pl-3",
-        xs: "h-6 gap-1 px-2.5 text-xs [&_svg:not([class*='size-'])]:size-3",
-        sm: "h-7 gap-1.5 px-3 text-[0.78rem] [&_svg:not([class*='size-'])]:size-3.5",
+        // The small sizes get an invisible hit area on touch screens (40px+), so a 24-28px button
+        // stays easy to tap without making the desktop layout bigger.
+        xs: "relative h-6 gap-1 px-2.5 text-xs pointer-coarse:after:absolute pointer-coarse:after:-inset-2 [&_svg:not([class*='size-'])]:size-3",
+        sm: "relative h-7 gap-1.5 px-3 text-[0.78rem] pointer-coarse:after:absolute pointer-coarse:after:-inset-y-1.5 [&_svg:not([class*='size-'])]:size-3.5",
         lg: "h-11 gap-2 px-5 text-sm [&_svg:not([class*='size-'])]:size-4",
-        icon: "size-8 [&_svg:not([class*='size-'])]:size-4",
-        "icon-xs": "size-6 [&_svg:not([class*='size-'])]:size-3",
-        "icon-sm": "size-7 [&_svg:not([class*='size-'])]:size-3.5",
+        icon: "relative size-8 pointer-coarse:after:absolute pointer-coarse:after:-inset-1 [&_svg:not([class*='size-'])]:size-4",
+        "icon-xs": "relative size-6 pointer-coarse:after:absolute pointer-coarse:after:-inset-2 [&_svg:not([class*='size-'])]:size-3",
+        "icon-sm": "relative size-7 pointer-coarse:after:absolute pointer-coarse:after:-inset-1.5 [&_svg:not([class*='size-'])]:size-3.5",
         "icon-lg": "size-9 [&_svg:not([class*='size-'])]:size-4",
       },
     },

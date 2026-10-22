@@ -34,10 +34,11 @@ import {
 } from "@/components/apple-ui";
 import { Page, Stat, useOpenNewSearch } from "@/components/app-shell";
 import { GLOSSARY } from "@/lib/help";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
-import { shortTime } from "@/lib/format";
+import { sharePercent, shortTime } from "@/lib/format";
 import { dashboardQuery, leadCountsQuery, nichesQuery } from "@/lib/queries";
 import type { LeadFilters } from "@/lib/schemas";
 import { cn } from "@/lib/utils";
@@ -53,21 +54,14 @@ export const Route = createFileRoute("/")({
 
 function OverviewPage() {
   const { data } = useQuery(dashboardQuery);
-  const openNewSearch = useOpenNewSearch();
   const actions = (
-    <>
-      <Button variant="outline" onClick={openNewSearch} aria-label="Buscar empresas">
-        <SearchIcon />
-        <span className="max-sm:hidden">Buscar empresas</span>
-      </Button>
-      <Button asChild>
-        <Link to="/leads" search={{ view: "todo" }}>
-          <SendIcon />
-          <span className="sm:hidden">Disparar</span>
-          <span className="max-sm:hidden">Selecionar e disparar</span>
-        </Link>
-      </Button>
-    </>
+    <Button asChild>
+      <Link to="/leads" search={{ view: "todo" }}>
+        <SendIcon />
+        <span className="sm:hidden">Disparar</span>
+        <span className="max-sm:hidden">Selecionar e disparar</span>
+      </Link>
+    </Button>
   );
 
   if (!data) {
@@ -94,10 +88,10 @@ function OverviewPage() {
             <Stat value={data.stats.leads}>leads na base</Stat>
             {" · "}
             <Stat value={data.stats.readyToSend}>prontos para disparo</Stat>
-            {data.attention.length > 0 ? (
+            {data.stats.interested > 0 ? (
               <>
                 {" · "}
-                <Stat value={data.attention.length} tone="orange">
+                <Stat value={data.stats.interested} tone="orange">
                   precisam de você
                 </Stat>
               </>
@@ -132,15 +126,11 @@ function FirstSteps({ data }: { data: Dashboard }) {
   const steps = [
     {
       done: data.mail.configured,
-      title: "Conectar sua caixa de e-mail",
-      hint: "É por ela que os e-mails saem e as respostas chegam.",
-      action: (
-        <Button asChild size="sm">
-          <Link to="/settings" hash="email">
-            Conectar
-          </Link>
-        </Button>
-      ),
+      title: "Caixa de e-mail conectada",
+      // Set up with the server's secrets, not in the app: there is nothing to click here.
+      hint: "Quem administra o sistema conecta a caixa. Ela aparece aqui quando estiver pronta.",
+      action: null,
+      waiting: true,
     },
     {
       done: data.setup.offer,
@@ -167,7 +157,8 @@ function FirstSteps({ data }: { data: Dashboard }) {
   ];
   const doneCount = steps.filter((step) => step.done).length;
   if (doneCount === steps.length) return null;
-  const next = steps.findIndex((step) => !step.done);
+  // The next step the user can do; the mailbox one only waits.
+  const next = steps.findIndex((step) => !step.done && step.action);
   return (
     <section className="enter">
       <SectionHeader title="Primeiros passos" hint={`${doneCount} de ${steps.length} prontos`} />
@@ -190,7 +181,13 @@ function FirstSteps({ data }: { data: Dashboard }) {
             }
             title={<span className={cn(step.done && "line-through")}>{step.title}</span>}
             subtitle={step.done ? "Pronto" : step.hint}
-            trailing={!step.done && index === next ? step.action : null}
+            trailing={
+              step.done ? null : index === next ? (
+                step.action
+              ) : "waiting" in step ? (
+                <Badge variant="orange">Aguardando</Badge>
+              ) : null
+            }
           />
         ))}
       </div>
@@ -291,11 +288,7 @@ function QuickActions({ data }: { data: Dashboard }) {
       key: "search",
       icon: autopilot ? PlayIcon : SearchIcon,
       tone: "purple",
-      title: autopilot
-        ? runNow.isPending
-          ? "Buscando…"
-          : "Rodar busca diária"
-        : "Buscar empresas",
+      title: autopilot ? (runNow.isPending ? "Buscando…" : "Rodar busca diária") : "Nova busca",
       hint: autopilot
         ? "Busca agora os nichos do modo automático"
         : "Nova busca por nicho e cidade",
@@ -355,7 +348,7 @@ function Attention({ data }: { data: Dashboard }) {
       <SectionHeader
         title="Precisa de você"
         tone="orange"
-        count={data.attention.length}
+        count={data.stats.interested}
         hint="A IA parou nestas conversas e passou para você responder."
         action={
           <Link
@@ -414,7 +407,7 @@ type MetricItem = {
 function Stats({ data }: { data: Dashboard }) {
   const { stats, mail } = data;
   const navigate = useNavigate();
-  const rate = stats.contacted > 0 ? Math.round((stats.replied / stats.contacted) * 100) : null;
+  const rate = sharePercent(stats.replied, stats.contacted);
   const items: MetricItem[] = [
     {
       label: "E-mails hoje",
@@ -493,6 +486,8 @@ function Stats({ data }: { data: Dashboard }) {
 type FunnelStep = {
   label: string;
   value: number;
+  /** False when the step is not a part of the one before (no "% of" then). */
+  share?: boolean;
   /** Where the step opens: Leads with the matching filter, or Conversas. */
   link:
     | { to: "/leads"; search: LeadFilters }
@@ -523,7 +518,14 @@ function Funnel({ data }: { data: Dashboard }) {
       value: stats.interested,
       link: { to: "/conversas", search: { filter: "needsYou" } },
     },
-    { label: "Fechados", value: stats.closed, link: { to: "/leads", search: { view: "closed" } } },
+    // Closed on any channel (WhatsApp too) and no longer waiting for you: not a part of
+    // "Interessados", so a share of it could read 300%.
+    {
+      label: "Fechados",
+      value: stats.closed,
+      share: false,
+      link: { to: "/leads", search: { view: "closed" } },
+    },
   ];
   const max = Math.max(1, stats.leads);
   return (
@@ -540,8 +542,8 @@ function Funnel({ data }: { data: Dashboard }) {
         {steps.map((step, index) => {
           const previous = index > 0 ? steps[index - 1]?.value : undefined;
           const percent =
-            previous !== undefined && previous > 0
-              ? Math.round((step.value / previous) * 100)
+            step.share !== false && previous !== undefined && previous > 0
+              ? sharePercent(step.value, previous)
               : null;
           return (
             <Link
@@ -575,10 +577,22 @@ function Funnel({ data }: { data: Dashboard }) {
   );
 }
 
-const PERCENT = new Intl.NumberFormat("pt-BR", { style: "percent", maximumFractionDigits: 0 });
-
-/** "12 · 40%": a count and its share of the step before, when there is one. */
-function NicheCell({ value, of, tone }: { value: number; of?: number; tone?: Tone }) {
+/**
+ * "12 · 40%": a count and, when given, the share `part` is of `of` (the contacted leads that got
+ * this far; `value` may also count leads from outside e-mail).
+ */
+function NicheCell({
+  value,
+  part,
+  of,
+  tone,
+}: {
+  value: number;
+  part?: number;
+  of?: number;
+  tone?: Tone;
+}) {
+  const percent = of !== undefined ? sharePercent(part ?? value, of) : null;
   return (
     <span className="text-right tabular-nums">
       <span className={cn("font-medium", value === 0 ? "text-tertiary" : tone && TONE_TEXT[tone])}>
@@ -586,7 +600,7 @@ function NicheCell({ value, of, tone }: { value: number; of?: number; tone?: Ton
       </span>
       {of !== undefined ? (
         <span className="block text-[11px] text-tertiary">
-          {of > 0 ? PERCENT.format(value / of) : "–"}
+          {percent !== null ? `${percent}%` : "–"}
         </span>
       ) : null}
     </span>
@@ -638,8 +652,18 @@ function Niches() {
             </span>
             <span className="text-right font-medium tabular-nums max-sm:hidden">{niche.leads}</span>
             <NicheCell value={niche.contacted} />
-            <NicheCell value={niche.replied} of={niche.contacted} tone="blue" />
-            <NicheCell value={niche.closed} of={niche.contacted} tone="green" />
+            <NicheCell
+              value={niche.replied}
+              part={niche.repliedContacted}
+              of={niche.contacted}
+              tone="blue"
+            />
+            <NicheCell
+              value={niche.closed}
+              part={niche.closedContacted}
+              of={niche.contacted}
+              tone="green"
+            />
           </Link>
         ))}
       </div>

@@ -4,6 +4,9 @@ import { DEFAULT_SETTINGS } from "@/server/settings-store";
 import { estimateCostUsd } from "./pricing";
 import { analysisSystemPrompt, analysisUserPrompt, type LeadContext } from "./prompts";
 
+const cost = (inputTokens: number, cachedInputTokens: number, outputTokens: number) =>
+  estimateCostUsd("deepseek-flash", { inputTokens, cachedInputTokens, outputTokens });
+
 describe("estimateCostUsd", () => {
   it("prices cached and uncached input separately", () => {
     // 10k input (2k cached) + 1k output on flash: 8000*0.30 + 2000*0.006 + 1000*1.20 per 1M
@@ -14,6 +17,15 @@ describe("estimateCostUsd", () => {
         outputTokens: 1_000,
       }),
     ).toBeCloseTo(0.003612, 6);
+  });
+
+  it("counts missing, negative or impossible token counts as 0, never NaN", () => {
+    expect(cost(Number.NaN, 0, Number.NaN)).toBe(0);
+    expect(cost(-5000, 0, -1)).toBe(0);
+    expect(cost(Number.POSITIVE_INFINITY, 0, 0)).toBe(0);
+    // More cached than sent: at most the whole input is cached.
+    expect(cost(1000, 5000, 0)).toBeCloseTo(0.000006, 6);
+    expect(cost(0, 0, 0)).toBe(0);
   });
 
   it("returns 0 for unknown models", () => {

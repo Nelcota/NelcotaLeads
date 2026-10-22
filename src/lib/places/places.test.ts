@@ -11,6 +11,12 @@ const place = (id: string, businessStatus = "OPERATIONAL") => ({
   businessStatus,
 });
 
+const rated = (id: string, rating: number, userRatingCount: number) => ({
+  ...place(id),
+  rating,
+  userRatingCount,
+});
+
 describe("google places provider", () => {
   it("paginates, sends the field mask and skips non-operational places", async () => {
     const fetchFn = vi
@@ -26,6 +32,25 @@ describe("google places provider", () => {
     const [first, second] = fetchFn.mock.calls;
     expect(new Headers(first?.[1]?.headers).get("X-Goog-FieldMask")).toBe(FIELD_MASK);
     expect(second?.[1]?.body).toContain('"pageToken":"t1"');
+  });
+
+  it("keeps ratings and counts only within their range", async () => {
+    const fetchFn = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(
+        page([rated("a", 1, 0), rated("b", 5, 12), rated("c", 7.5, 2.5), rated("d", 0.9, -1)]),
+      );
+    const result = await createGooglePlacesProvider("key", { fetchFn }).search({
+      niche: "x",
+      city: "y",
+      maxResults: 10,
+    });
+    expect(result.places.map((p) => [p.placeId, p.rating, p.reviewCount])).toEqual([
+      ["a", 1, 0],
+      ["b", 5, 12],
+      ["c", null, null],
+      ["d", null, null],
+    ]);
   });
 
   it("stops once maxResults is reached", async () => {

@@ -83,7 +83,10 @@ export async function fetchNewMessages(
     const uidValidity = code(selected.untagged, "UIDVALIDITY") ?? 0;
     const uidNext = code(selected.untagged, "UIDNEXT") ?? 1;
 
-    if (cursor.lastUid === 0 || cursor.uidValidity !== uidValidity) {
+    // UIDVALIDITY is never 0 (RFC 3501), so 0 marks a cursor that was never set. lastUid can't
+    // be that marker: an empty INBOX starts at lastUid 0, and its first message (UID 1) must be
+    // read, not skipped by a second "first run".
+    if (cursor.uidValidity === 0 || cursor.uidValidity !== uidValidity) {
       return { cursor: { uidValidity, lastUid: uidNext - 1 }, messages: [] };
     }
 

@@ -4,7 +4,9 @@ import {
   ArrowRightIcon,
   BotIcon,
   CheckIcon,
+  ChevronDownIcon,
   EllipsisIcon,
+  EyeIcon,
   EyeOffIcon,
   PlusIcon,
   RotateCwIcon,
@@ -39,22 +41,32 @@ import { pageTitle } from "@/lib/page-title";
 export const Route = createFileRoute("/searches/")({
   head: () => ({ meta: [{ title: pageTitle("Buscas") }] }),
   // `missing`: arrived from a link to a search that no longer exists.
-  validateSearch: lenientSearch(z.object({ missing: z.boolean().optional() })),
+  // `hidden`: the searches the user hid are listed below the others.
+  validateSearch: lenientSearch(
+    z.object({ missing: z.boolean().optional(), hidden: z.boolean().optional() }),
+  ),
   loader: ({ context }) => context.queryClient.ensureQueryData(searchesQuery),
   component: SearchesPage,
 });
 
 function SearchesPage() {
   const { data: all } = useSuspenseQuery(searchesQuery);
-  const { missing } = Route.useSearch();
+  const { missing, hidden: showHidden } = Route.useSearch();
   const navigate = useNavigate({ from: "/searches/" });
   useNotFoundToast(
     missing,
     "Busca não encontrada",
-    () => void navigate({ search: {}, replace: true }),
+    () => void navigate({ search: (prev) => ({ ...prev, missing: undefined }), replace: true }),
   );
   // Leads added by hand are filed under a fixed "search" that is not one (see Leads).
-  const data = all.filter((search) => search.id !== MANUAL_SEARCH_ID);
+  const real = all.filter((search) => search.id !== MANUAL_SEARCH_ID);
+  const data = real.filter((search) => !search.hiddenAt);
+  const hidden = real.filter((search) => search.hiddenAt);
+  const toggleHidden = () =>
+    void navigate({
+      search: (prev) => ({ ...prev, hidden: showHidden ? undefined : true }),
+      replace: true,
+    });
   const openNewSearch = useOpenNewSearch();
   const found = data.reduce((sum, search) => sum + search.foundCount, 0);
   const running = data.filter(
@@ -66,7 +78,7 @@ function SearchesPage() {
       actions={
         <Button onClick={openNewSearch}>
           <PlusIcon />
-          Busca manual
+          Nova busca
         </Button>
       }
       description={
@@ -89,17 +101,30 @@ function SearchesPage() {
         ) : null
       }
     >
-      {data.length === 0 ? (
+      {data.length === 0 && hidden.length > 0 && !showHidden ? (
+        <EmptyState
+          icon={EyeOffIcon}
+          tone="gray"
+          className="grouped"
+          title="Todas as buscas estão ocultas"
+          description="Elas continuam guardadas, assim como os leads delas."
+        >
+          <Button variant="outline" onClick={toggleHidden}>
+            <EyeIcon />
+            Mostrar buscas ocultas
+          </Button>
+        </EmptyState>
+      ) : data.length === 0 && hidden.length === 0 ? (
         <EmptyState
           icon={SearchIcon}
           tone="purple"
-          className="grouped bg-[radial-gradient(rgb(127_127_127/0.12)_1px,transparent_1px)] bg-size-[16px_16px]"
+          className="grouped"
           title="Nenhuma busca ainda"
-          description="O piloto automático e a busca manual aparecem aqui."
+          description="As buscas diárias e as que você fizer aparecem aqui."
         >
           <Button onClick={openNewSearch}>
             <PlusIcon />
-            Busca manual
+            Nova busca
           </Button>
         </EmptyState>
       ) : (
@@ -107,9 +132,46 @@ function SearchesPage() {
           {data.map((search, index) => (
             <SearchCard key={search.id} search={search} index={index} />
           ))}
+          {hidden.length > 0 ? (
+            <HiddenSearches searches={hidden} open={showHidden === true} onToggle={toggleHidden} />
+          ) : null}
         </div>
       )}
     </Page>
+  );
+}
+
+/** The searches the user hid: a toggle at the end of the list, then the cards, dimmed. */
+function HiddenSearches({
+  searches,
+  open,
+  onToggle,
+}: {
+  searches: Search[];
+  open: boolean;
+  onToggle: () => void;
+}) {
+  const count = searches.length;
+  const label = count === 1 ? "1 busca oculta" : `${count} buscas ocultas`;
+  return (
+    <section aria-label="Buscas ocultas" className="grid gap-3.5">
+      <Button
+        variant="ghost"
+        size="sm"
+        aria-expanded={open}
+        className="justify-self-center text-muted-foreground"
+        onClick={onToggle}
+      >
+        {open ? <EyeOffIcon /> : <EyeIcon />}
+        {open ? `Esconder ${label}` : `Mostrar ${label}`}
+        <ChevronDownIcon className={cn("transition-transform", open && "rotate-180")} />
+      </Button>
+      {open
+        ? searches.map((search, index) => (
+            <SearchCard key={search.id} search={search} index={index} />
+          ))
+        : null}
+    </section>
   );
 }
 
@@ -134,12 +196,14 @@ function SearchCard({ search, index }: { search: Search; index: number }) {
   });
   const repeat = useRepeatSearch();
   const hide = useHideSearch();
+  const unhide = useUnhideSearch();
+  const isHidden = Boolean(search.hiddenAt);
   // The whole card opens the search's leads; its buttons sit above that link.
   const linked = search.foundCount > 0;
   const Card = linked ? Lift : "div";
   return (
     <Card
-      className="grouped enter relative"
+      className={cn("grouped enter relative", isHidden && "opacity-70 hover:opacity-100")}
       style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
     >
       {linked ? (
@@ -183,8 +247,20 @@ function SearchCard({ search, index }: { search: Search; index: number }) {
               {cancel.isPending ? "Cancelando…" : "Cancelar"}
             </Button>
           ) : null}
-          <SearchStatusBadge status={search.status} />
-          {search.status === "error" ? (
+          {isHidden ? (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={unhide.isPending}
+              onClick={() => unhide.mutate(search.id)}
+            >
+              <EyeIcon />
+              Mostrar na lista
+            </Button>
+          ) : (
+            <SearchStatusBadge status={search.status} />
+          )}
+          {isHidden ? null : search.status === "error" ? (
             <Button size="sm" disabled={repeat.isPending} onClick={() => repeat.mutate(search.id)}>
               <RotateCwIcon />
               {repeat.isPending ? "Buscando…" : "Tentar de novo"}
@@ -212,10 +288,17 @@ function SearchCard({ search, index }: { search: Search; index: number }) {
                   <RotateCwIcon />
                   Repetir busca
                 </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => hide.mutate(search.id)}>
-                  <EyeOffIcon />
-                  Ocultar
-                </DropdownMenuItem>
+                {isHidden ? (
+                  <DropdownMenuItem onSelect={() => unhide.mutate(search.id)}>
+                    <EyeIcon />
+                    Mostrar na lista
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem onSelect={() => hide.mutate(search.id)}>
+                    <EyeOffIcon />
+                    Ocultar
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           )}
@@ -342,15 +425,29 @@ function useHideSearch() {
     mutationFn: (id: string) => hideSearch({ data: { id, hidden: true } }),
     onSuccess: async (result, id) => {
       await refresh();
+      const leads =
+        result.leads === 0
+          ? ""
+          : ` ${result.leads === 1 ? "O lead continua" : `Os ${result.leads} leads continuam`} em Leads.`;
       toast("Busca ocultada", {
-        description:
-          result.leads === 0
-            ? undefined
-            : `${result.leads === 1 ? "O lead continua" : `Os ${result.leads} leads continuam`} em Leads.`,
+        description: `Para ver de novo, abra as buscas ocultas no fim da lista.${leads}`,
         action: { label: "Desfazer", onClick: () => void undo(id) },
       });
     },
     onError: errorToast("Não foi possível ocultar a busca"),
+  });
+}
+
+/** "Mostrar na lista" on a hidden search: back among the others. */
+function useUnhideSearch() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => hideSearch({ data: { id, hidden: false } }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["searches"] });
+      toast.success("Busca de volta na lista");
+    },
+    onError: errorToast("Não foi possível mostrar a busca"),
   });
 }
 

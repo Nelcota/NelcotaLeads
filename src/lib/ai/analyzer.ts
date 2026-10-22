@@ -11,6 +11,7 @@ import {
   type LeadAnalysis,
   type OutreachEmail,
   type SettingsInput,
+  TEXT_LIMITS,
 } from "@/lib/schemas";
 import { estimateCostUsd } from "./pricing";
 import {
@@ -130,10 +131,11 @@ export function createDeepSeekAnalyzer(options: {
         temperature: 0.6,
         abortSignal: AbortSignal.timeout(CALL_TIMEOUT_MS),
       });
-      return {
-        message: tidyMessage(firstMessageSchema.parse(result.output).firstMessage),
-        usage: toUsage(options.messageModel, result.usage),
-      };
+      const message = tidyMessage(firstMessageSchema.parse(result.output).firstMessage);
+      // tidyMessage may lengthen it (a dash becomes ", ") and adds the opt-out line; the user
+      // must be able to save an edit of it (updateMessageSchema).
+      if (message.length > TEXT_LIMITS.message.stored) throw new Error("Mensagem longa demais");
+      return { message, usage: toUsage(options.messageModel, result.usage) };
     },
     async writeFollowUp(settings, lead, sent) {
       const { value, usage } = await withoutTells(
@@ -147,10 +149,11 @@ export function createDeepSeekAnalyzer(options: {
             temperature: 0.6,
             abortSignal: AbortSignal.timeout(CALL_TIMEOUT_MS),
           });
-          return {
-            value: cleanText(followUpSchema.parse(result.output).message),
-            usage: toUsage(options.messageModel, result.usage),
-          };
+          // Parsed again after cleanText, which may lengthen it.
+          const { message } = followUpSchema.parse({
+            message: cleanText(followUpSchema.parse(result.output).message),
+          });
+          return { value: message, usage: toUsage(options.messageModel, result.usage) };
         },
         (message) => message,
       );
@@ -169,10 +172,12 @@ export function createDeepSeekAnalyzer(options: {
             abortSignal: AbortSignal.timeout(CALL_TIMEOUT_MS),
           });
           const email = outreachEmailSchema.parse(result.output);
-          return {
-            value: { subject: cleanText(email.subject), body: cleanText(email.body) },
-            usage: toUsage(options.messageModel, result.usage),
-          };
+          // Parsed again after cleanText, which may lengthen it (a dash becomes ", ").
+          const cleaned = outreachEmailSchema.parse({
+            subject: cleanText(email.subject),
+            body: cleanText(email.body),
+          });
+          return { value: cleaned, usage: toUsage(options.messageModel, result.usage) };
         },
         (email) => `${email.subject}\n${email.body}`,
       );
@@ -191,14 +196,13 @@ export function createDeepSeekAnalyzer(options: {
             abortSignal: AbortSignal.timeout(CALL_TIMEOUT_MS),
           });
           const decision = emailReplySchema.parse(result.output);
-          return {
-            value: {
-              ...decision,
-              reply: cleanText(decision.reply),
-              draft: cleanText(decision.draft),
-            },
-            usage: toUsage(options.messageModel, result.usage),
-          };
+          // Parsed again after cleanText, which may lengthen it (a dash becomes ", ").
+          const cleaned = emailReplySchema.parse({
+            ...decision,
+            reply: cleanText(decision.reply),
+            draft: cleanText(decision.draft),
+          });
+          return { value: cleaned, usage: toUsage(options.messageModel, result.usage) };
         },
         // Text that goes out on its own is checked, and any text a person asked for.
         (decision) =>

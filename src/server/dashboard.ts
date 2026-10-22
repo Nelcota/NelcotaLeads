@@ -27,6 +27,9 @@ import { GOOGLE_PLACES, placesDailyLimit, requestsToday, usageThisMonth } from "
 
 const count = sql<number>`count(*)`.mapWith(Number);
 
+/** Conversations listed under "Precisam de você"; `stats.interested` has the full count. */
+const ATTENTION_LIST_LIMIT = 20;
+
 /** Start of the given Brazil day as an instant (Brazil has no daylight saving time). */
 function dayStart(day: string) {
   return new Date(`${day}T00:00:00-03:00`);
@@ -47,6 +50,7 @@ export const getDashboard = createServerFn({ method: "GET" }).handler(async () =
 
   const [
     attention,
+    interested,
     totals,
     contacted,
     replied,
@@ -69,7 +73,9 @@ export const getDashboard = createServerFn({ method: "GET" }).handler(async () =
       .from(leads)
       .where(needsYou)
       .orderBy(desc(leads.lastEmailAt))
-      .limit(20),
+      .limit(ATTENTION_LIST_LIMIT),
+    // Counted on its own: the list above is capped, the number must not be.
+    db.select({ value: count }).from(leads).where(needsYou),
     db
       .select({
         all: count,
@@ -95,10 +101,17 @@ export const getDashboard = createServerFn({ method: "GET" }).handler(async () =
       .select({ value: countDistinct(emails.leadId) })
       .from(emails)
       .where(and(eq(emails.direction, "out"), eq(emails.status, "sent"))),
+    // Only leads we e-mailed, so "x% dos contatados" never passes 100% (a lead contacted on
+    // WhatsApp who writes in by e-mail is not one of the contacted).
     db
       .select({ value: countDistinct(emails.leadId) })
       .from(emails)
-      .where(eq(emails.direction, "in")),
+      .where(
+        and(
+          eq(emails.direction, "in"),
+          sql`exists (select 1 from emails o where o.lead_id = ${emails.leadId} and o.direction = 'out' and o.status = 'sent')`,
+        ),
+      ),
     db
       .select({ value: count })
       .from(leads)
@@ -160,7 +173,7 @@ export const getDashboard = createServerFn({ method: "GET" }).handler(async () =
       contacted: contacted[0]?.value ?? 0,
       replied: replied[0]?.value ?? 0,
       aiTalking: total?.aiTalking ?? 0,
-      interested: attention.length,
+      interested: interested[0]?.value ?? 0,
       closed: total?.closed ?? 0,
       unsubscribed: total?.unsubscribed ?? 0,
       readyToSend: readyToSend[0]?.value ?? 0,
@@ -243,7 +256,7 @@ export const runAutopilotNow = createServerFn({ method: "POST" }).handler(async 
   const db = getDb();
   const autopilot = await loadAutopilot(db);
   if (autopilot.targets.length === 0) {
-    throw new Error("Cadastre ao menos um nicho e cidade no piloto automático.");
+    throw new Error("Cadastre ao menos um nicho e cidade na busca diária, em Configurações.");
   }
   const now = new Date();
   let result;

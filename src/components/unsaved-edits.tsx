@@ -38,8 +38,11 @@ export function useUnsavedEditsGuard(
     dirty.current = value;
   }, []);
   const guard = useCallback((action: () => void) => {
-    if (dirty.current) setPending({ action });
-    else action();
+    if (dirty.current) {
+      setPending({ action });
+      return;
+    }
+    action();
   }, []);
 
   const dialog = (

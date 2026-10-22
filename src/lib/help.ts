@@ -46,7 +46,8 @@ export const GLOSSARY: Record<GlossaryKey, { term: string; text: string }> = {
     text: "Quantos e-mails saem por dia, respostas incluídas, para a sua caixa não cair no spam. As buscas no Google têm um limite próprio.",
   },
   optOut: {
-    term: "Sair",
+    // Not "Sair": that is also the button that signs you out, in Conta.
+    term: "Descadastro",
     text: 'Quem responde "sair" não recebe mais e-mails, e o lead é descadastrado.',
   },
 };

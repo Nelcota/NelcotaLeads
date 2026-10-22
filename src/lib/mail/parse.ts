@@ -1,4 +1,5 @@
 import PostalMime from "postal-mime";
+import { splitQuoted } from "./quoted";
 
 export type IncomingEmail = {
   from: string;
@@ -15,32 +16,36 @@ export type IncomingEmail = {
   truncated?: boolean;
 };
 
-const QUOTE_START = [
-  /^Em .+ escreveu:?\s*$/i,
-  /^On .+ wrote:?\s*$/i,
-  /^-{2,}\s*(Mensagem original|Original Message)\s*-{2,}/i,
-  /^De:\s.+/i,
-  /^From:\s.+/i,
-  /^Enviado do meu /i,
-  /^Sent from my /i,
-];
-
-/** Drops the quoted thread that mail apps append below a reply. */
-export function stripQuoted(text: string): string {
-  const lines = text.replace(/\r\n/g, "\n").split("\n");
-  const kept: string[] = [];
-  for (const line of lines) {
-    if (QUOTE_START.some((pattern) => pattern.test(line.trim()))) break;
-    if (line.trimStart().startsWith(">")) continue;
-    kept.push(line);
-  }
-  return kept.join("\n").trim();
+/**
+ * What the person wrote: the quoted original cut by the rules the conversation view uses
+ * (splitQuoted), plus a trailing "Enviado do meu iPhone". Stricter rules here would cut for
+ * good, since this is what gets saved: "De: 8h às 18h atendemos…" is a reply, not a header.
+ */
+export function writtenPart(text: string): string {
+  return withoutPhoneSignature(splitQuoted(text.replace(/\r\n/g, "\n")).visible).trim();
 }
 
-function htmlToText(html: string): string {
+const PHONE_SIGNATURE = /^(Enviado do meu|Sent from my) /i;
+
+/**
+ * Drops a last line such as "Enviado do meu iPhone". Looked up with lastIndexOf, not a regex
+ * anchored at the end: `\n*…$` retries from every newline, quadratic on a body of blank lines.
+ */
+function withoutPhoneSignature(text: string): string {
+  const trimmed = text.trimEnd();
+  const lineStart = trimmed.lastIndexOf("\n") + 1;
+  const lastLine = trimmed.slice(lineStart).trim();
+  return PHONE_SIGNATURE.test(lastLine) ? trimmed.slice(0, lineStart) : trimmed;
+}
+
+/**
+ * Tags never contain `<`, so `[^<>]` stops at the next one: an unclosed `<` cannot make the
+ * regex rescan the rest of a hostile body, which would stall the inbox poll.
+ */
+export function htmlToText(html: string): string {
   return html
-    .replace(/<(br|\/p|\/div)[^>]*>/gi, "\n")
-    .replace(/<[^>]+>/g, "")
+    .replace(/<(br|\/p|\/div)[^<>]*>/gi, "\n")
+    .replace(/<[^<>]+>/g, "")
     .replace(/&nbsp;/g, " ")
     .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")
@@ -95,7 +100,7 @@ export async function parseEmail(raw: Uint8Array): Promise<IncomingEmail> {
     inReplyTo: messageIds(email.inReplyTo)[0] ?? null,
     // The newest ids are at the end, and they are the ones that match our sent mail.
     references: messageIds(email.references).slice(-MAX_REFERENCES),
-    text: stripQuoted(body.slice(0, MAX_BODY)).slice(0, MAX_TEXT),
+    text: writtenPart(body.slice(0, MAX_BODY)).slice(0, MAX_TEXT),
     date: date && !Number.isNaN(date.getTime()) ? date : null,
     automatic: isAutomatic(header, from),
   };

@@ -32,7 +32,7 @@ export function AuthShell({
       <div className="enter flex w-full max-w-[380px] flex-col items-center">
         <span
           aria-hidden
-          className="grid size-14 place-items-center rounded-[16px] bg-[linear-gradient(180deg,#5be38f,#22b45a)] text-[22px] font-semibold text-[#032d12] shadow-[inset_0_1px_0_rgb(255_255_255/0.4),0_1px_2px_rgb(0_0_0/0.3)]"
+          className="grid size-14 place-items-center rounded-[16px] bg-[#30d158] text-[22px] font-semibold text-[#032d12]"
         >
           N
         </span>

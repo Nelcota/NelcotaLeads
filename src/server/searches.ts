@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { env } from "cloudflare:workers";
-import { desc, eq, isNull } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { getDb, type Db } from "@/db/client";
 import { searches } from "@/db/schema";
@@ -9,7 +9,12 @@ import { idSchema, newSearchSchema, type NewSearchInput } from "@/lib/schemas";
 import { mailConfigured } from "@/lib/mail";
 import { needsAttention } from "@/lib/system-status";
 import { runSearch } from "./collect";
-import { cancelSearch as stopSearch, searchInputOf, setSearchHidden } from "./search-actions";
+import {
+  cancelSearch as stopSearch,
+  querySearches,
+  searchInputOf,
+  setSearchHidden,
+} from "./search-actions";
 import { CRON_RUNS, loadSystemStatus } from "./job-runs";
 import { EMAIL_PROVIDER, mailDailyLimit } from "./mail-flow";
 import { loadConfig } from "./settings-store";
@@ -30,7 +35,7 @@ export const repeatSearch = createServerFn({ method: "POST" })
     return startSearch(db, await searchInputOf(db, data.id));
   });
 
-/** Same checks as the Busca manual dialog: the keys, then today's Google requests. */
+/** Same checks as the Nova busca dialog: the keys, then today's Google requests. */
 async function startSearch(db: Db, input: NewSearchInput) {
   if (!env.DEEPSEEK_API_KEY || !env.GOOGLE_PLACES_API_KEY) {
     throw new Error(
@@ -52,26 +57,12 @@ async function startSearch(db: Db, input: NewSearchInput) {
   return runSearch(db, env.LEAD_QUEUE, provider, input);
 }
 
-export const listSearches = createServerFn({ method: "GET" }).handler(() =>
-  getDb().query.searches.findMany({
-    where: isNull(searches.hiddenAt),
-    orderBy: desc(searches.createdAt),
-    limit: 100,
-  }),
-);
+export const listSearches = createServerFn({ method: "GET" }).handler(() => querySearches(getDb()));
 
 /** "Ocultar" in the card's menu, and its "Desfazer". */
 export const hideSearch = createServerFn({ method: "POST" })
   .validator(z.object({ id: idSchema, hidden: z.boolean() }))
   .handler(({ data }) => setSearchHidden(getDb(), data.id, data.hidden));
-
-export const getSearch = createServerFn({ method: "GET" })
-  .validator(z.object({ id: idSchema }))
-  .handler(async ({ data }) => {
-    const search = await getDb().query.searches.findFirst({ where: eq(searches.id, data.id) });
-    if (!search) throw new Error("Busca não encontrada");
-    return search;
-  });
 
 /** Stops a running search; see cancelSearch for what is kept. */
 export const cancelSearch = createServerFn({ method: "POST" })

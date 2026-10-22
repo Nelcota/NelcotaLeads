@@ -40,7 +40,8 @@ export function leadsToCsv(rows: CsvLead[]): string {
     telefone_e164: lead.phoneE164 ?? "",
     whatsapp: lead.phoneE164 ? whatsappLink(lead.phoneE164) : "",
     site: lead.website ?? "",
-    nota_google: lead.rating ?? "",
+    // Decimal comma: Excel in pt-BR reads "4.7" as a date (4 de julho), not a rating.
+    nota_google: lead.rating === null ? "" : String(lead.rating).replace(".", ","),
     avaliacoes: lead.reviewCount ?? "",
     nota_ia: lead.score ?? "",
     status: LEAD_STATUS_LABELS[lead.status],
