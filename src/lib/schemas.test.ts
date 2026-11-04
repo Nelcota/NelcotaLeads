@@ -128,6 +128,13 @@ describe("bulk undo snapshot", () => {
     }
   });
 
+  it("restores a follow-up day saved before days were checked", () => {
+    expect(bulkSnapshotSchema.safeParse({ ...snapshot, followUpOn: "0002-10-13" }).success).toBe(
+      true,
+    );
+    expect(bulkSnapshotSchema.safeParse({ ...snapshot, followUpOn: "amanhã" }).success).toBe(false);
+  });
+
   it("refuses times a Date cannot hold (they were stored as NULL)", () => {
     for (const discardedAt of [-1, MAX_UNIX_SECONDS + 1, 1e15, 1.5]) {
       expect(bulkSnapshotSchema.safeParse({ ...snapshot, discardedAt }).success).toBe(false);

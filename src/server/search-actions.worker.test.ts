@@ -6,7 +6,7 @@ import { leads, searches } from "@/db/schema";
 import { createFakeAnalyzer } from "../../test/fake-analyzer";
 import { resetDb } from "../../test/reset-db";
 import { processLead, SEARCH_CANCELLED_MESSAGE, type ProcessDeps } from "./process-lead";
-import { cancelSearch, searchInputOf, setSearchHidden } from "./search-actions";
+import { cancelSearch, querySearches, searchInputOf, setSearchHidden } from "./search-actions";
 
 const db = getDb(env.DB);
 
@@ -19,6 +19,8 @@ const deps: ProcessDeps = {
 async function lead(id: string) {
   return db.query.leads.findFirst({ where: eq(leads.id, id) });
 }
+
+const ids = (rows: { id: string }[]) => rows.map((row) => row.id);
 
 async function search(id = "s") {
   return db.query.searches.findFirst({ where: eq(searches.id, id) });
@@ -107,6 +109,31 @@ describe("setSearchHidden", () => {
 
     await setSearchHidden(db, "s", false);
     expect(await search()).toMatchObject({ hiddenAt: null });
+  });
+
+  it("lists the visible searches first, so hidden ones never push them past the limit", async () => {
+    await db.insert(searches).values([
+      {
+        id: "h1",
+        niche: "a",
+        city: "b",
+        maxResults: 1,
+        status: "done",
+        createdAt: new Date("2099-01-01T12:00:00Z"),
+      },
+      {
+        id: "h2",
+        niche: "a",
+        city: "b",
+        maxResults: 1,
+        status: "done",
+        createdAt: new Date("2099-01-02T12:00:00Z"),
+      },
+    ]);
+    await setSearchHidden(db, "h1", true);
+    await setSearchHidden(db, "h2", true);
+    expect(ids(await querySearches(db, 2))).toEqual(expect.arrayContaining(["s", "r"]));
+    expect(ids(await querySearches(db)).slice(2)).toEqual(["h2", "h1"]);
   });
 
   it("refuses to hide a running search", async () => {

@@ -1,10 +1,8 @@
 import type { Page } from "@playwright/test";
-import { expect, reload, test, tickTimes, visit } from "./fixtures";
+import { expect, openNewSearch, reload, test, tickTimes, visit } from "./fixtures";
 
 async function searchDentists(page: Page) {
-  // The sidebar's, on every page (Buscas has its own too).
-  await page.getByRole("button", { name: "Nova busca" }).first().click();
-  const dialog = page.getByRole("dialog", { name: "Nova busca" });
+  const dialog = await openNewSearch(page);
   await dialog.getByLabel("Nicho").fill("dentistas");
   await dialog.getByLabel("Cidade").fill("Belo Horizonte");
   await dialog.getByRole("button", { name: "Buscar empresas" }).click();

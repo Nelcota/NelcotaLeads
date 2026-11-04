@@ -7,7 +7,7 @@ import type { LeadAnalyzer } from "@/lib/ai";
 import { cleanText, ForbiddenPhrasesError } from "@/lib/ai/analyzer";
 import type { ThreadMessage } from "@/lib/ai/prompts";
 import { localDay } from "@/lib/format";
-import { daySchema, idSchema } from "@/lib/schemas";
+import { idSchema, storedDaySchema } from "@/lib/schemas";
 import { leadEvent, statusEvents, type LeadEventRow } from "./lead-events";
 import {
   LEAD_CHANGED_MESSAGE,
@@ -49,7 +49,7 @@ export const closeSnapshotSchema = z.object({
     status: z.enum(["new", "contacted", "replied"]),
     aiMode: z.boolean(),
     handoffReason: z.string().max(300).nullable(),
-    followUpOn: daySchema.nullable(),
+    followUpOn: storedDaySchema.nullable(),
   }),
   cancelledIds: z.object({
     queued: z.array(idSchema).max(200),
