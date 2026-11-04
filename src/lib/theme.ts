@@ -5,7 +5,7 @@ export type Theme = "light" | "dark";
 const STORAGE_KEY = "theme";
 
 /** The browser bar color per theme: the sidebar background (`--sidebar` in styles.css). */
-export const THEME_COLOR: Record<Theme, string> = { light: "#f6f6f8", dark: "#18181a" };
+export const THEME_COLOR: Record<Theme, string> = { light: "#f5f5f7", dark: "#1b1b1e" };
 
 /**
  * The `theme-color` metas follow the system scheme until the app runs; then they follow the

@@ -8,6 +8,7 @@ import {
 } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
+  ChevronRightIcon,
   ClockIcon,
   MailIcon,
   MinusIcon,
@@ -16,6 +17,7 @@ import {
   SendIcon,
   SettingsIcon,
   SparklesIcon,
+  TagIcon,
 } from "lucide-react";
 import {
   DisabledReason,
@@ -62,7 +64,9 @@ import {
   type SettingsInput,
 } from "@/lib/schemas";
 import { cn } from "@/lib/utils";
-import { providerStatusQuery, quickRepliesQuery } from "@/lib/queries";
+import { providerStatusQuery, quickRepliesQuery, sendWindowQuery } from "@/lib/queries";
+import { SendWindowRow } from "@/components/send-window-row";
+import { useSendWindow } from "@/hooks/use-send-window";
 import { getAutopilot, saveAutopilot, setAutomation } from "@/server/dashboard";
 import { testMailConnection } from "@/server/mail";
 import { getSettings, saveQuickReplies, saveSettings } from "@/server/settings";
@@ -89,6 +93,7 @@ export const Route = createFileRoute("/settings")({
       context.queryClient.ensureQueryData(autopilotQuery),
       // The e-mail card renders from it; prefetching keeps SSR and hydration in agreement.
       context.queryClient.ensureQueryData(providerStatusQuery),
+      context.queryClient.ensureQueryData(sendWindowQuery),
       // Never fails the page: the section shows its own error.
       context.queryClient.prefetchQuery(quickRepliesQuery),
     ]),
@@ -119,6 +124,7 @@ function SettingsPage() {
           <MailCard />
           <AutopilotForm />
           <SettingsForm defaults={data} />
+          <ServicesLink />
           <QuickReplies />
         </div>
       </LeaveGuard>
@@ -135,11 +141,12 @@ function MailCard() {
     onError: errorToast("Não foi possível testar a conexão. Confira a sua internet."),
   });
   const mail = status?.mail;
+  const sendWindow = useSendWindow();
   return (
     <SettingsSection
       id="email"
       title="E-mail"
-      description={`A caixa de onde os e-mails saem e onde as respostas chegam. Até ${mail?.limit ?? DEFAULT_MAIL_DAILY_LIMIT} envios por dia, um a cada ${SEND_GAP_MINUTES} minutos.`}
+      description={`A caixa de onde os e-mails saem e onde as respostas chegam. Até ${mail?.limit ?? DEFAULT_MAIL_DAILY_LIMIT} envios por dia, das ${sendWindow.window.start}h às ${sendWindow.window.end}h, um a cada ${SEND_GAP_MINUTES} minutos.`}
       contentClassName="p-0"
     >
       <div className="flex flex-wrap items-center gap-3 px-4 py-3">
@@ -176,6 +183,12 @@ function MailCard() {
           </Button>
         ) : null}
       </div>
+      <SendWindowRow
+        window={sendWindow.window}
+        error={sendWindow.error}
+        saving={sendWindow.saving}
+        onChange={sendWindow.change}
+      />
     </SettingsSection>
   );
 }
@@ -674,6 +687,27 @@ function SettingsForm({ defaults }: { defaults: SettingsInput }) {
         }}
       />
     </form>
+  );
+}
+
+/** The service table has its own page: Configurações → Serviços e preços. */
+function ServicesLink() {
+  return (
+    <SettingsSection
+      id="servicos"
+      title="Serviços e preços"
+      description="A tabela fixa de onde saem as propostas: serviços, preços, prazos e adicionais."
+      contentClassName="p-0"
+    >
+      <Link
+        to="/settings/servicos"
+        className="flex items-center gap-3 px-4 py-3 text-sm transition-colors hover:bg-fill-3"
+      >
+        <IconTile icon={TagIcon} tone="blue" size={30} />
+        <span className="flex-1 font-medium">Abrir a tabela de serviços</span>
+        <ChevronRightIcon className="size-4 text-tertiary" />
+      </Link>
+    </SettingsSection>
   );
 }
 

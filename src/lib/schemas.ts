@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { MAX_DEAL_CENTS } from "./money";
 
 /** Row ids (UUIDs today); bounded so a request cannot carry an arbitrarily long key. */
 export const idSchema = z.string().min(1).max(64);
@@ -318,6 +319,19 @@ export const DEFAULT_MAIL_DAILY_LIMIT = 30;
 /** Minimum time between two outgoing e-mails, except answers to a message the lead sent. */
 export const SEND_GAP_MINUTES = 8;
 
+/** Brazil hours in which first e-mails and follow-ups go out, when nothing else is saved. */
+export const DEFAULT_SEND_WINDOW = { start: 6, end: 18 } as const;
+
+const windowHour = z.number().int().min(0).max(23);
+
+export const sendWindowInputSchema = z
+  .object({ start: windowHour, end: windowHour })
+  .refine((window) => window.start < window.end, {
+    message: "O fim precisa ser depois do início",
+    path: ["end"],
+  });
+export type SendWindowInput = z.infer<typeof sendWindowInputSchema>;
+
 /** Most leads one "Disparar e-mail" may draft: each one is a model call made while you wait. */
 export const DISPATCH_LIMIT = 100;
 
@@ -325,17 +339,6 @@ export const DISPATCH_LIMIT = 100;
 export const MAX_UNIX_SECONDS = 4_102_444_800;
 
 /** What a bulk status change replaced on one lead, so "Desfazer" can put it back. */
-export const bulkSnapshotSchema = z.object({
-  id: idSchema,
-  status: z.enum(LEAD_STATUS_VALUES),
-  followUpOn: daySchema.nullable(),
-  discardReason: z.string().max(500).nullable(),
-  // Unix seconds. Bounded so `new Date(seconds * 1000)` is a real date (an out-of-range one
-  // turns into NaN, which D1 stores as NULL without a word).
-  discardedAt: z.number().int().min(0).max(MAX_UNIX_SECONDS).nullable(),
-});
-export type BulkSnapshot = z.infer<typeof bulkSnapshotSchema>;
-
 export const updateMessageSchema = z.object({
   analysisId: idSchema,
   firstMessage: userText().max(TEXT_LIMITS.message.stored),
@@ -371,3 +374,97 @@ export const avatarInputSchema = z.object({
     .regex(/^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/, "Formato de foto inválido")
     .nullable(),
 });
+
+/** Why a deal was lost: a fixed list, so losses can be counted and compared by niche. */
+export const LOSS_REASONS = [
+  "price",
+  "has_provider",
+  "not_now",
+  "no_budget",
+  "not_decision_maker",
+  "stopped_replying",
+  "out_of_profile",
+  "asked_no_contact",
+  "other",
+] as const;
+export type LossReason = (typeof LOSS_REASONS)[number];
+export const LOSS_REASON_LABELS: Record<LossReason, string> = {
+  price: "Preço alto",
+  has_provider: "Já tem fornecedor",
+  not_now: "Sem interesse agora",
+  no_budget: "Sem orçamento",
+  not_decision_maker: "Não é quem decide",
+  stopped_replying: "Parou de responder",
+  out_of_profile: "Fora do perfil",
+  asked_no_contact: "Pediu para não ser contatado",
+  other: "Outro",
+};
+
+/** Steps of a sale after the lead replied. */
+export const SALES_STAGES = ["meeting", "proposal"] as const;
+export type SalesStage = (typeof SALES_STAGES)[number];
+
+export const MEETING_KINDS = ["video", "call", "in_person"] as const;
+export type MeetingKind = (typeof MEETING_KINDS)[number];
+export const MEETING_KIND_LABELS: Record<MeetingKind, string> = {
+  video: "Videochamada",
+  call: "Ligação",
+  in_person: "Presencial",
+};
+
+/** One line of a proposal, copied from the service table (or typed for a client's request). */
+export type ProposalItem = {
+  kind: "service" | "addon" | "custom";
+  label: string;
+  priceCents: number;
+  monthly: boolean;
+};
+
+/** "Fechar negócio": the value in cents, the day it closed and what was sold. */
+export const closeWonSchema = z.object({
+  id: idSchema,
+  valueCents: z.number().int().positive("Informe o valor").max(MAX_DEAL_CENTS, "Valor alto demais"),
+  closedOn: daySchema,
+  service: userText().min(1, "Informe o serviço").max(120, "Até 120 caracteres"),
+});
+export type CloseWonInput = z.infer<typeof closeWonSchema>;
+
+/** "Encerrar sem negócio": one reason from the list and an optional note. */
+export const closeLostSchema = z.object({
+  id: idSchema,
+  reason: z.enum(LOSS_REASONS),
+  note: userText().max(500, "Até 500 caracteres").optional(),
+});
+export type CloseLostInput = z.infer<typeof closeLostSchema>;
+
+export const salesStageInputSchema = z.object({
+  id: idSchema,
+  stage: z.enum(SALES_STAGES).nullable(),
+});
+export type SalesStageInput = z.infer<typeof salesStageInputSchema>;
+
+/** "Assumir" (the signed-in person) or "Liberar" (null). */
+export const ownerInputSchema = z.object({ id: idSchema, owner: z.literal("me").nullable() });
+export type OwnerInput = z.infer<typeof ownerInputSchema>;
+
+/**
+ * What a lead had before a bulk change, for "Desfazer". Dates are Unix seconds, bounded so
+ * `new Date(seconds * 1000)` is a real date (an out-of-range one turns into NaN, which D1
+ * stores as NULL without a word). The deal's columns come along, so undoing a bulk discard of
+ * a closed or lost lead brings its value, reason and stage back.
+ */
+export const bulkSnapshotSchema = z.object({
+  id: idSchema,
+  status: z.enum(LEAD_STATUS_VALUES),
+  followUpOn: daySchema.nullable(),
+  discardReason: z.string().max(500).nullable(),
+  discardedAt: z.number().int().min(0).max(MAX_UNIX_SECONDS).nullable(),
+  closedAt: z.number().int().min(0).max(MAX_UNIX_SECONDS).nullable().default(null),
+  dealValueCents: z.number().int().positive().max(MAX_DEAL_CENTS).nullable().default(null),
+  dealService: z.string().max(120).nullable().default(null),
+  lossReason: z.enum(LOSS_REASONS).nullable().default(null),
+  lossNote: z.string().max(500).nullable().default(null),
+  lostAt: z.number().int().min(0).max(MAX_UNIX_SECONDS).nullable().default(null),
+  salesStage: z.enum(SALES_STAGES).nullable().default(null),
+});
+export type BulkSnapshot = z.infer<typeof bulkSnapshotSchema>;

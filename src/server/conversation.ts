@@ -1,14 +1,22 @@
-import { and, asc, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Db } from "@/db/client";
 import { inList } from "@/db/in-list";
-import { emails, leads, type Email } from "@/db/schema";
+import { emails, leadEvents, leads, meetings, type Email, type Lead } from "@/db/schema";
 import type { LeadAnalyzer } from "@/lib/ai";
 import { cleanText, ForbiddenPhrasesError } from "@/lib/ai/analyzer";
 import type { ThreadMessage } from "@/lib/ai/prompts";
 import { localDay } from "@/lib/format";
 import { daySchema, idSchema } from "@/lib/schemas";
-import { LEAD_TRANSITIONS, leadPatch, UNSUBSCRIBED_MESSAGE } from "./lead-status";
+import { leadEvent, statusEvents, type LeadEventRow } from "./lead-events";
+import {
+  LEAD_CHANGED_MESSAGE,
+  LEAD_TRANSITIONS,
+  leadPatch,
+  outcomeReset,
+  UNSUBSCRIBED_MESSAGE,
+} from "./lead-status";
+import { cancelMeetingsStatements, futureMeetingIds, MEETING_CLOSED_REASON } from "./meeting-store";
 import { RETRIED_PREFIX } from "@/lib/email-errors";
 import {
   addressUnsubscribed,
@@ -23,6 +31,7 @@ import {
 } from "./mail-flow";
 import { hasOffer, NO_OFFER_MESSAGE } from "./process-lead";
 import { loadSettings } from "./settings-store";
+import { isSalesEmail, relinkSalesEmail, SALES_RETRY_OFF_MESSAGE } from "./sales-mail";
 import { recordAiCost } from "./usage";
 
 /**
@@ -46,20 +55,82 @@ export const closeSnapshotSchema = z.object({
     queued: z.array(idSchema).max(200),
     draft: z.array(idSchema).max(200),
   }),
+  // Upcoming meetings the close cancelled; undo puts them back on the agenda.
+  cancelledMeetings: z.array(idSchema).max(200).default([]),
 });
 export type CloseSnapshot = z.infer<typeof closeSnapshotSchema>;
 
+/** The won or lost deal's columns a close may also write. */
+export type DealFields = Partial<
+  Pick<
+    Lead,
+    | "closedAt"
+    | "dealValueCents"
+    | "dealService"
+    | "lossReason"
+    | "lossNote"
+    | "lostAt"
+    | "discardReason"
+    | "discardedAt"
+    | "unsubscribedAt"
+  >
+>;
+
 /**
- * Ends a conversation as won (closed) or lost (discarded). Drafts and queued e-mails not yet
- * picked up by a send are cancelled; the returned snapshot is what `undoCloseConversation`
- * needs to put everything back.
+ * Who closed it (for the history), and the deal and its event when one was recorded.
+ * `automatic` marks a close no person asked for, the only one that may discard without a reason.
+ */
+export type CloseOptions = {
+  userId?: string | null;
+  deal?: DealFields;
+  events?: LeadEventRow[];
+  automatic?: boolean;
+};
+
+export const WON_NEEDS_DEAL_MESSAGE = "Para fechar o negócio, informe o valor e o serviço.";
+export const LOST_NEEDS_REASON_MESSAGE = "Para encerrar sem negócio, escolha o motivo.";
+
+/** A won close always carries the deal; a person's lost close always carries the reason. */
+function assertDealData(outcome: "closed" | "discarded", deal: DealFields, automatic: boolean) {
+  if (outcome === "closed" && (deal.dealValueCents == null || !deal.dealService)) {
+    throw new Error(WON_NEEDS_DEAL_MESSAGE);
+  }
+  if (outcome === "discarded" && !automatic && !deal.lossReason) {
+    throw new Error(LOST_NEEDS_REASON_MESSAGE);
+  }
+}
+
+/** Drafts and queued e-mails no send picked up yet, by status. */
+async function pendingEmails(db: Db, leadId: string) {
+  const pending = await db
+    .select({ id: emails.id, status: emails.status })
+    .from(emails)
+    .where(
+      and(
+        eq(emails.leadId, leadId),
+        or(eq(emails.status, "draft"), and(eq(emails.status, "queued"), isNull(emails.sentAt))),
+      ),
+    );
+  const idsOf = (status: string) =>
+    pending.filter((row) => row.status === status).map((row) => row.id);
+  return { drafts: idsOf("draft"), queued: idsOf("queued") };
+}
+
+/**
+ * Ends a conversation as won (closed) or lost (discarded). The lead is moved first, guarded on
+ * the status just read, so two clicks (or two tabs) close it once. Then drafts and queued
+ * e-mails not yet picked up by a send are cancelled, and so are the upcoming meetings; the
+ * returned snapshot is what `undoCloseConversation` needs to put everything back. The status
+ * change (and the deal, if given) goes to the history.
  */
 export async function closeConversation(
   db: Db,
   leadId: string,
   outcome: "closed" | "discarded",
   now = new Date(),
+  { userId = null, deal = {}, events = [], automatic = false }: CloseOptions = {},
 ): Promise<CloseSnapshot> {
+  assertDealData(outcome, deal, automatic);
   const lead = await db.query.leads.findFirst({ where: eq(leads.id, leadId) });
   if (!lead) throw new Error("Lead não encontrado");
   if (lead.status === "closed" || lead.status === "discarded") {
@@ -67,35 +138,34 @@ export async function closeConversation(
   }
   // Throws when the lead cannot end this way (e.g. it was never contacted).
   const patch = leadPatch(lead, { id: lead.id, status: outcome }, now, localDay(now));
+  const moved = await db
+    .update(leads)
+    .set({ ...patch, ...deal, aiMode: false, handoffReason: null })
+    .where(and(eq(leads.id, lead.id), eq(leads.status, lead.status)))
+    .returning({ id: leads.id });
+  if (moved.length === 0) throw new Error(LEAD_CHANGED_MESSAGE);
 
-  const pending = await db
-    .select({ id: emails.id, status: emails.status })
-    .from(emails)
-    .where(
-      and(
-        eq(emails.leadId, lead.id),
-        or(eq(emails.status, "draft"), and(eq(emails.status, "queued"), isNull(emails.sentAt))),
-      ),
-    );
-  const idsOf = (status: string) =>
-    pending.filter((row) => row.status === status).map((row) => row.id);
+  const [pending, meetingIds] = await Promise.all([
+    pendingEmails(db, lead.id),
+    futureMeetingIds(db, lead.id, now),
+  ]);
   const cancel = { status: "cancelled" as const, error: CLOSED_REASON };
-  const [, drafts, queued] = await db.batch([
-    db
-      .update(leads)
-      .set({ ...patch, aiMode: false, handoffReason: null })
-      .where(eq(leads.id, lead.id)),
+  const [drafts, queued] = await db.batch([
     db
       .update(emails)
       .set(cancel)
-      .where(and(idIn(idsOf("draft")), eq(emails.status, "draft")))
+      .where(and(idIn(pending.drafts), eq(emails.status, "draft")))
       .returning({ id: emails.id }),
     // A queued row with sent_at set is going out right now; it is left to finish.
     db
       .update(emails)
       .set(cancel)
-      .where(and(idIn(idsOf("queued")), eq(emails.status, "queued"), isNull(emails.sentAt)))
+      .where(and(idIn(pending.queued), eq(emails.status, "queued"), isNull(emails.sentAt)))
       .returning({ id: emails.id }),
+    db
+      .insert(leadEvents)
+      .values([...statusEvents(lead.id, lead.status, outcome, userId, now), ...events]),
+    ...cancelMeetingsStatements(db, lead.id, meetingIds, now),
   ]);
 
   return {
@@ -109,18 +179,20 @@ export async function closeConversation(
       queued: queued.map((row) => row.id),
       draft: drafts.map((row) => row.id),
     },
+    cancelledMeetings: meetingIds,
   };
 }
 
 /**
  * Puts a just-closed conversation back exactly as it was, outside the normal status rules
- * (a discarded lead may not go back to "replied" otherwise). Only e-mails this close
- * cancelled come back; a lead that opted out in the meantime stays closed.
+ * (a discarded lead may not go back to "replied" otherwise). Only e-mails and meetings this
+ * close cancelled come back; a lead that opted out in the meantime stays closed.
  */
 export async function undoCloseConversation(
   db: Db,
   leadId: string,
-  { previous, cancelledIds }: CloseSnapshot,
+  { previous, cancelledIds, cancelledMeetings }: CloseSnapshot,
+  { userId = null, now = new Date() }: { userId?: string | null; now?: Date } = {},
 ) {
   const lead = await db.query.leads.findFirst({ where: eq(leads.id, leadId) });
   if (!lead) throw new Error("Lead não encontrado");
@@ -141,7 +213,7 @@ export async function undoCloseConversation(
 
   const restored = await db
     .update(leads)
-    .set({ ...previous, discardReason: null, discardedAt: null })
+    .set({ ...previous, ...outcomeReset(previous.status), discardReason: null, discardedAt: null })
     .where(
       and(
         eq(leads.id, leadId),
@@ -155,9 +227,12 @@ export async function undoCloseConversation(
   const ours = and(
     eq(emails.leadId, leadId),
     eq(emails.status, "cancelled"),
-    eq(emails.error, CLOSED_REASON),
+    or(eq(emails.error, CLOSED_REASON), eq(emails.error, MEETING_CLOSED_REASON)),
   );
   await db.batch([
+    db
+      .insert(leadEvents)
+      .values(leadEvent(leadId, "status", { from: lead.status, to: previous.status }, userId, now)),
     db
       .update(emails)
       .set({ status: "queued", error: null })
@@ -166,6 +241,18 @@ export async function undoCloseConversation(
       .update(emails)
       .set({ status: "draft", error: null })
       .where(and(idIn(cancelledIds.draft), ours)),
+    // Only this lead's meetings, and only those still ahead.
+    db
+      .update(meetings)
+      .set({ cancelledAt: null })
+      .where(
+        and(
+          inList(meetings.id, cancelledMeetings),
+          eq(meetings.leadId, leadId),
+          isNotNull(meetings.cancelledAt),
+          gt(meetings.startsAt, now),
+        ),
+      ),
   ]);
   return { ok: true as const };
 }
@@ -197,7 +284,12 @@ export async function saveReplyDraft(
 
   const [lastIn, lastAny] = await Promise.all([
     db.query.emails.findFirst({
-      where: and(eq(emails.leadId, lead.id), eq(emails.direction, "in")),
+      // The lead's own last message: an out-of-office is never what we answer.
+      where: and(
+        eq(emails.leadId, lead.id),
+        eq(emails.direction, "in"),
+        eq(emails.automatic, false),
+      ),
       orderBy: [desc(emails.createdAt)],
     }),
     db.query.emails.findFirst({
@@ -231,7 +323,11 @@ export async function saveReplyDraft(
 export async function retryEmail(
   db: Db,
   emailId: string,
-  { fromAddress, now = new Date() }: { fromAddress: string; now?: Date },
+  {
+    fromAddress,
+    now = new Date(),
+    salesEmails = false,
+  }: { fromAddress: string; now?: Date; salesEmails?: boolean },
 ): Promise<Email> {
   const failed = await db.query.emails.findFirst({ where: eq(emails.id, emailId) });
   if (!failed || failed.direction !== "out" || failed.status !== "failed") {
@@ -246,6 +342,8 @@ export async function retryEmail(
   if (lead.status === "closed" || lead.status === "discarded") {
     throw new Error("Reabra a conversa para reenviar.");
   }
+  // Invites and proposals follow SALES_EMAILS_ENABLED, also when sent again.
+  if (!salesEmails && (await isSalesEmail(db, failed.id))) throw new Error(SALES_RETRY_OFF_MESSAGE);
 
   const claimed = await db
     .update(emails)
@@ -259,8 +357,9 @@ export async function retryEmail(
     )
     .returning({ id: emails.id });
   if (claimed.length === 0) throw new Error("Este e-mail já foi reenviado.");
+  let queued: Email | undefined;
   try {
-    const [queued] = await db
+    [queued] = await db
       .insert(emails)
       .values({
         id: crypto.randomUUID(),
@@ -278,12 +377,13 @@ export async function retryEmail(
       })
       .returning();
     if (!queued) throw new Error("Não foi possível reenviar.");
-    return queued;
   } catch (error) {
     // Nothing was queued: free the failed e-mail for another try.
     await db.update(emails).set({ error: failed.error }).where(eq(emails.id, failed.id));
     throw error;
   }
+  await relinkSalesEmail(db, failed.id, queued.id);
+  return queued;
 }
 
 const SENDING_NOW = "Já está saindo, não dá mais para cancelar.";

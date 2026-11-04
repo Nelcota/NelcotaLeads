@@ -1,8 +1,9 @@
 import type { Page } from "@playwright/test";
-import { expect, test, visit } from "./fixtures";
+import { expect, reload, test, tickTimes, visit } from "./fixtures";
 
 async function searchDentists(page: Page) {
-  await page.getByRole("button", { name: "Nova busca" }).click();
+  // The sidebar's, on every page (Buscas has its own too).
+  await page.getByRole("button", { name: "Nova busca" }).first().click();
   const dialog = page.getByRole("dialog", { name: "Nova busca" });
   await dialog.getByLabel("Nicho").fill("dentistas");
   await dialog.getByLabel("Cidade").fill("Belo Horizonte");
@@ -54,12 +55,15 @@ test.describe("provider failures", () => {
     ).toHaveCount(1);
     await sheet.getByRole("button", { name: "Disparar 1 e-mail" }).click();
     await expect(page.getByText("1 e-mail na fila")).toBeVisible();
+    // Out right away inside the send window; otherwise on a tick within it.
+    await backend.tick(tickTimes(1)[0] ?? new Date());
 
     const sent = await backend.sent();
     expect(sent).toHaveLength(1);
     expect(sent[0]?.subject).toMatch(/^Assunto para Clínica (Norte|Sul)$/);
 
-    // The skipped lead can be retried right away.
+    // The skipped lead can be retried right away (reloaded: the tick sent the other one).
+    await reload(page);
     await page.getByRole("button", { name: "Selecionar", exact: true }).click();
     await page.getByRole("button", { name: "Disparar e-mail" }).click();
     const retry = page.getByRole("dialog", { name: "Disparar 1 e-mail" });

@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
+  CalendarIcon,
   CircleHelpIcon,
   HistoryIcon,
   InboxIcon,
@@ -11,10 +12,11 @@ import {
   SettingsIcon,
   SunIcon,
   UserIcon,
+  UsersIcon,
   type LucideIcon,
 } from "lucide-react";
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
-import { Avatar, Hint, ProgressRing, TONE_TEXT, toneVar, type Tone } from "@/components/apple-ui";
+import { Avatar, Hint, TONE_TEXT, toneVar, type Tone } from "@/components/apple-ui";
 import { HelpSheet } from "@/components/help-sheet";
 import { NewSearchDialog } from "@/components/new-search-dialog";
 import {
@@ -38,27 +40,28 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { GLOSSARY, isHelpKey } from "@/lib/help";
 import { withAttentionCount } from "@/lib/page-title";
-import { accountQuery, attentionQuery, providerStatusQuery } from "@/lib/queries";
+import { accountQuery, attentionQuery, providerStatusQuery, todayAgendaQuery } from "@/lib/queries";
 import { isTypingTarget } from "@/lib/shortcuts";
 import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
 type NavItem = {
-  to: "/" | "/leads" | "/conversas" | "/searches" | "/conta" | "/settings";
+  to: "/" | "/leads" | "/conversas" | "/agenda" | "/searches" | "/equipe" | "/conta" | "/settings";
   label: string;
   icon: LucideIcon;
-  tone: Tone;
 };
 
 const NAV: NavItem[] = [
-  { to: "/", label: "Visão geral", icon: LayoutGridIcon, tone: "blue" },
-  { to: "/leads", label: "Leads", icon: InboxIcon, tone: "green" },
-  { to: "/conversas", label: "Conversas", icon: MessageCircleIcon, tone: "orange" },
-  { to: "/searches", label: "Buscas", icon: HistoryIcon, tone: "purple" },
+  { to: "/", label: "Visão geral", icon: LayoutGridIcon },
+  { to: "/leads", label: "Leads", icon: InboxIcon },
+  { to: "/conversas", label: "Conversas", icon: MessageCircleIcon },
+  { to: "/agenda", label: "Agenda", icon: CalendarIcon },
+  { to: "/searches", label: "Buscas", icon: HistoryIcon },
 ];
 const SYSTEM_NAV: NavItem[] = [
-  { to: "/conta", label: "Conta", icon: UserIcon, tone: "teal" },
-  { to: "/settings", label: "Configurações", icon: SettingsIcon, tone: "gray" },
+  { to: "/equipe", label: "Equipe", icon: UsersIcon },
+  { to: "/conta", label: "Conta", icon: UserIcon },
+  { to: "/settings", label: "Configurações", icon: SettingsIcon },
 ];
 
 const SYSTEM_ATTENTION = "Algo precisa de atenção";
@@ -118,7 +121,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <TooltipProvider delayDuration={300}>
           <SidebarProvider>
             <AppSidebar />
-            <SidebarInset className="h-svh overflow-hidden md:m-2.5 md:h-[calc(100svh-20px)] md:rounded-[18px] md:shadow-[inset_0_0_0_1px_rgb(255_255_255/0.07),inset_0_1px_0_rgb(255_255_255/0.05),var(--shadow-panel)]">
+            <SidebarInset className="h-svh overflow-hidden md:m-2.5 md:h-[calc(100svh-20px)] md:rounded-[28px] md:shadow-[inset_0_0_0_1px_var(--sidebar-border)]">
               {children}
             </SidebarInset>
           </SidebarProvider>
@@ -134,6 +137,9 @@ function AppSidebar() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const { data: attention = 0 } = useQuery(attentionQuery);
   const { data: provider } = useQuery(providerStatusQuery);
+  // Today's meetings and follow-ups, on the Agenda item.
+  const { data: agendaToday } = useQuery(todayAgendaQuery);
+  const todayCount = agendaToday?.entries.length ?? 0;
   const systemAttention = provider?.systemAttention ?? false;
   const openNewSearch = useOpenNewSearch();
   const isActive = (to: NavItem["to"]) => (to === "/" ? pathname === "/" : pathname.startsWith(to));
@@ -146,10 +152,10 @@ function AppSidebar() {
           asChild
           isActive={isActive(item.to)}
           tooltip={warn ? `${item.label} · ${SYSTEM_ATTENTION}` : item.label}
-          className="press h-8 gap-2.5 text-muted-foreground data-active:text-foreground hover:text-foreground"
+          className="press h-9 gap-2.5 rounded-[12px] text-foreground hover:bg-fill-2 data-active:bg-sidebar-accent data-active:font-semibold data-active:text-sidebar-accent-foreground"
         >
           <Link to={item.to}>
-            <NavTile icon={item.icon} tone={item.tone} />
+            <item.icon aria-hidden className="size-4!" />
             <span>{item.label}</span>
             {warn ? <span className="sr-only"> · {SYSTEM_ATTENTION}</span> : null}
           </Link>
@@ -158,6 +164,12 @@ function AppSidebar() {
           <SidebarMenuBadge className="top-1.5! h-[18px] min-w-0 rounded-full bg-orange px-1.5 text-[11px] text-[#1b1000] tabular-nums">
             {attention}
             <span className="sr-only"> precisam de você</span>
+          </SidebarMenuBadge>
+        ) : null}
+        {item.to === "/agenda" && todayCount > 0 ? (
+          <SidebarMenuBadge className="top-1.5! h-[18px] min-w-0 rounded-full bg-blue px-1.5 text-[11px] text-white tabular-nums">
+            {todayCount}
+            <span className="sr-only"> hoje</span>
           </SidebarMenuBadge>
         ) : null}
         {warn ? (
@@ -182,7 +194,7 @@ function AppSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild className="hover:bg-transparent">
               <Link to="/">
-                <span className="grid aspect-square size-[30px] shrink-0 place-items-center rounded-[9px] bg-[#30d158] text-[13px] font-semibold text-[#032d12]">
+                <span className="grid aspect-square size-[30px] shrink-0 place-items-center rounded-[9px] bg-primary text-[13px] font-bold text-primary-foreground">
                   N
                 </span>
                 <span className="grid flex-1 text-left leading-tight">
@@ -231,19 +243,6 @@ function AppSidebar() {
   );
 }
 
-/** Gray when the item is idle; takes its color on hover and when active (see styles.css). */
-function NavTile({ icon: Icon, tone }: { icon: LucideIcon; tone: Tone }) {
-  return (
-    <span
-      aria-hidden
-      className="nav-tile grid size-[22px] shrink-0 place-items-center rounded-[6px] text-white"
-      style={{ "--tone": toneVar(tone) }}
-    >
-      <Icon className="size-3!" strokeWidth={2.2} />
-    </span>
-  );
-}
-
 function percent(used: number, limit: number) {
   return limit > 0 ? (used / limit) * 100 : 0;
 }
@@ -253,11 +252,11 @@ function UsageMeter() {
   if (!data) return null;
   const { mail, placesUsage } = data;
   return (
-    <div className="grid gap-3 rounded-[14px] bg-black/[0.03] p-3 shadow-[inset_0_0_0_1px_var(--sidebar-border)] group-data-[collapsible=icon]:hidden dark:bg-white/[0.045]">
+    <div className="grid gap-3 rounded-[16px] bg-card p-3 shadow-[inset_0_0_0_1px_var(--sidebar-border)] group-data-[collapsible=icon]:hidden">
       {mail.configured ? (
         <MeterRow
           value={percent(mail.sentToday, mail.limit)}
-          tone="green"
+          tone="blue"
           used={mail.sentToday}
           limit={mail.limit}
           label="e-mails hoje"
@@ -275,7 +274,7 @@ function UsageMeter() {
       )}
       <MeterRow
         value={percent(placesUsage.used, placesUsage.limit)}
-        tone="blue"
+        tone="gray"
         used={placesUsage.used}
         limit={placesUsage.limit}
         label="buscas no Google"
@@ -302,17 +301,22 @@ function MeterRow({
 }) {
   const row = (
     <div
-      className="flex items-center gap-2.5 rounded-[9px] outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+      className="grid gap-1.5 rounded-[9px] outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
       {...(info
         ? { tabIndex: 0, role: "group", "aria-label": `${used} de ${limit} ${label}` }
         : {})}
     >
-      <ProgressRing value={value} tone={tone} size={32} thickness={4} track="var(--card-2)" />
-      <div className="leading-tight">
-        <p className="font-medium tabular-nums">
-          {used} <span className="font-normal text-tertiary">de {limit}</span>
-        </p>
-        <p className="text-xs font-light text-muted-foreground">{label}</p>
+      <div className="flex items-baseline justify-between gap-2 text-[12.5px] leading-tight">
+        <span className="text-muted-foreground first-letter:uppercase">{label}</span>
+        <span className="font-semibold tabular-nums">
+          {used} de {limit}
+        </span>
+      </div>
+      <div className="h-1 overflow-hidden rounded-full bg-fill-2" aria-hidden>
+        <div
+          className="bar-grow h-full rounded-full"
+          style={{ width: `${Math.min(value, 100)}%`, background: toneVar(tone) }}
+        />
       </div>
     </div>
   );
@@ -426,7 +430,7 @@ export function Page({
             className="-ml-1 size-9 text-tertiary md:hidden"
           />
         </Hint>
-        <h1 className="min-w-0 flex-1 truncate text-xl font-medium tracking-[-0.03em] sm:text-2xl">
+        <h1 className="min-w-0 flex-1 truncate text-xl font-semibold tracking-[-0.02em] sm:text-2xl">
           {title}
         </h1>
         {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}

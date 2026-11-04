@@ -6,7 +6,8 @@ function rowOf(page: Page, name: string) {
 }
 
 async function runSearch(page: Page) {
-  await page.getByRole("button", { name: "Nova busca" }).click();
+  // The sidebar's, on every page (Buscas has its own too).
+  await page.getByRole("button", { name: "Nova busca" }).first().click();
   const dialog = page.getByRole("dialog", { name: "Nova busca" });
   await dialog.getByLabel("Nicho").fill("dentistas");
   await dialog.getByLabel("Cidade").fill("Belo Horizonte");

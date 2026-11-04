@@ -45,34 +45,38 @@ Workflow: Configurações (offer, criteria, email and automatic mode) → Buscar
 
 ### Variables
 
-| Name                         | Type                   | Description                                                                                  |
-| ---------------------------- | ---------------------- | -------------------------------------------------------------------------------------------- |
-| `GOOGLE_PLACES_API_KEY`      | secret                 | Key with "Places API (New)" enabled                                                          |
-| `DEEPSEEK_API_KEY`           | secret                 | Key from platform.deepseek.com                                                               |
-| `AI_MODEL_ANALYSIS`          | var (`wrangler.jsonc`) | Model for the analysis and score. Default: `deepseek-flash`                                  |
-| `AI_MODEL_MESSAGE`           | var (`wrangler.jsonc`) | Model for the message. Default: `deepseek-v4-pro`                                            |
-| `PLACES_DAILY_REQUEST_LIMIT` | var (`wrangler.jsonc`) | Max paid Google requests per day (Brasília time). Default: `50`, up to ~1,000 businesses/day |
-| `MAIL_ADDRESS`               | secret                 | Address of the mailbox that sends and receives (e.g. your Hostinger mailbox)                 |
-| `MAIL_PASSWORD`              | secret                 | That mailbox's password                                                                      |
-| `SMTP_HOST` / `SMTP_PORT`    | var (`wrangler.jsonc`) | Outgoing server, implicit TLS. Default: `smtp.hostinger.com` / `465`                         |
-| `IMAP_HOST` / `IMAP_PORT`    | var (`wrangler.jsonc`) | Incoming server, implicit TLS. Default: `imap.hostinger.com` / `993`                         |
-| `MAIL_DAILY_LIMIT`           | var (`wrangler.jsonc`) | Max emails per day, replies included. Default: `30`                                          |
+| Name                         | Type                          | Description                                                                                                                                                                                      |
+| ---------------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `GOOGLE_PLACES_API_KEY`      | secret                        | Key with "Places API (New)" enabled                                                                                                                                                              |
+| `DEEPSEEK_API_KEY`           | secret                        | Key from platform.deepseek.com                                                                                                                                                                   |
+| `AI_MODEL_ANALYSIS`          | var (`wrangler.jsonc`)        | Model for the analysis and score. Default: `deepseek-flash`                                                                                                                                      |
+| `AI_MODEL_MESSAGE`           | var (`wrangler.jsonc`)        | Model for the message. Default: `deepseek-v4-pro`                                                                                                                                                |
+| `PLACES_DAILY_REQUEST_LIMIT` | var (`wrangler.jsonc`)        | Max paid Google requests per day (Brasília time). Default: `50`, up to ~1,000 businesses/day                                                                                                     |
+| `MAIL_ADDRESS`               | secret                        | Address of the mailbox that sends and receives (e.g. your Hostinger mailbox)                                                                                                                     |
+| `MAIL_PASSWORD`              | secret                        | That mailbox's password                                                                                                                                                                          |
+| `SMTP_HOST` / `SMTP_PORT`    | var (`wrangler.jsonc`)        | Outgoing server, implicit TLS. Default: `smtp.hostinger.com` / `465`                                                                                                                             |
+| `IMAP_HOST` / `IMAP_PORT`    | var (`wrangler.jsonc`)        | Incoming server, implicit TLS. Default: `imap.hostinger.com` / `993`                                                                                                                             |
+| `MAIL_DAILY_LIMIT`           | var (`wrangler.jsonc`)        | Max emails per day, replies included. Default: `30`                                                                                                                                              |
+| `SALES_EMAILS_ENABLED`       | var (`.dev.vars` / dashboard) | `true` e-mails meeting invites and proposals (signed "Equipe Nelcota"). Unset or anything else: off, the app records them and shows the text to copy                                             |
+| `TEAM_INVITE_EMAILS_ENABLED` | var (`.dev.vars` / dashboard) | `true` e-mails the invite made in Equipe (from the app mailbox, signed "Equipe Nelcota"). Unset or anything else: off, the invite is stored and Equipe shows "Copiar link" with the sign-up link |
+| `INVITE_ONLY_SIGNUP`         | var (`.dev.vars` / dashboard) | `true` lets only e-mails with a pending invite create an account (the first account excepted). Unset or anything else: off, the access code alone is enough, as before                           |
 
 DeepSeek has retired the `deepseek-chat` and `deepseek-reasoner` names. `deepseek-v4-flash` is still accepted, but DeepSeek treats it as a legacy name for `deepseek-flash`.
 
 ### Scripts
 
-| Script                                        | What it does                                                            |
-| --------------------------------------------- | ----------------------------------------------------------------------- |
-| `pnpm dev`                                    | development server (Worker + local D1 + Queues via Miniflare)           |
-| `pnpm build` / `pnpm deploy`                  | build and deploy to Cloudflare                                          |
-| `pnpm lint`                                   | `oxlint --type-aware --type-check` (also checks types)                  |
-| `pnpm fmt`                                    | `oxfmt`                                                                 |
-| `pnpm test`                                   | unit (Node) and integration (Workers runtime with D1) tests             |
-| `pnpm test:e2e`                               | end-to-end tests (Playwright) with mocked Google, DeepSeek and email    |
-| `pnpm db:generate`                            | generates a migration from `src/db/schema.ts`                           |
-| `pnpm db:migrate:local` / `db:migrate:remote` | applies migrations to the local / remote D1                             |
-| `pnpm cf-typegen`                             | regenerates `worker-configuration.d.ts` after changing `wrangler.jsonc` |
+| Script                                        | What it does                                                               |
+| --------------------------------------------- | -------------------------------------------------------------------------- |
+| `pnpm dev`                                    | development server (Worker + local D1 + Queues via Miniflare)              |
+| `pnpm build` / `pnpm deploy`                  | build and deploy to Cloudflare                                             |
+| `pnpm lint`                                   | `oxlint --type-aware --type-check` (also checks types)                     |
+| `pnpm fmt`                                    | `oxfmt`                                                                    |
+| `pnpm test`                                   | unit (Node) and integration (Workers runtime with D1) tests                |
+| `pnpm test:e2e`                               | end-to-end tests (Playwright) with mocked Google, DeepSeek and email       |
+| `pnpm db:generate`                            | generates a migration from `src/db/schema.ts`                              |
+| `pnpm db:migrate:local` / `db:migrate:remote` | applies migrations to the local / remote D1                                |
+| `pnpm cf-typegen`                             | regenerates `worker-configuration.d.ts` after changing `wrangler.jsonc`    |
+| `pnpm services:seed`                          | fills the **local** D1 with the example service table (refuses `--remote`) |
 
 `lefthook` runs formatting and lint on every commit (it is installed by `pnpm install`).
 

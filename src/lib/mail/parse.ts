@@ -1,4 +1,5 @@
 import PostalMime from "postal-mime";
+import { bounceReport, isBounce, reportPartsText, type BounceReport } from "./bounce";
 import { splitQuoted } from "./quoted";
 
 export type IncomingEmail = {
@@ -14,6 +15,8 @@ export type IncomingEmail = {
   automatic: boolean;
   // Only the start of a very large message was fetched, so the text may be partial.
   truncated?: boolean;
+  // Set when the message is a bounce: what it says about the e-mail that did not arrive.
+  bounce?: BounceReport | null;
 };
 
 /**
@@ -81,16 +84,30 @@ export async function parseEmail(raw: Uint8Array): Promise<IncomingEmail> {
     email.headers.find((item) => item.key === name.toLowerCase())?.value ?? "";
   const from = (email.from?.address ?? "").toLowerCase().slice(0, 254);
   const date = email.date ? new Date(email.date) : null;
+  const messageId = messageIds(email.messageId)[0] ?? null;
+  const fromMailServer = isBounce(header, from);
+  // A delay notice or a postmaster@ message without a failure is only automatic mail.
+  const bounce = fromMailServer
+    ? bounceReport({
+        source: `${new TextDecoder().decode(raw.subarray(0, MAX_BODY * 4))}
+${reportPartsText(email.attachments)}`,
+        text: body,
+        ownMessageId: messageId,
+        failedRecipients: header("x-failed-recipients"),
+        from,
+      })
+    : null;
   return {
     from,
     fromName: email.from?.name?.slice(0, MAX_NAME) || null,
     subject: (email.subject ?? "").slice(0, MAX_SUBJECT),
-    messageId: messageIds(email.messageId)[0] ?? null,
+    messageId,
     inReplyTo: messageIds(email.inReplyTo)[0] ?? null,
     // The newest ids are at the end, and they are the ones that match our sent mail.
     references: messageIds(email.references).slice(-MAX_REFERENCES),
     text: writtenPart(body.slice(0, MAX_BODY)).slice(0, MAX_TEXT),
     date: date && !Number.isNaN(date.getTime()) ? date : null,
-    automatic: isAutomatic(header, from),
+    automatic: fromMailServer || isAutomatic(header, from),
+    bounce,
   };
 }

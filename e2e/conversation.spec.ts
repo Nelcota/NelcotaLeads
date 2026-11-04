@@ -1,18 +1,20 @@
 import type { Page } from "@playwright/test";
-import { expect, reload, test, tickTimes, visit, type Backend } from "./fixtures";
+import { expect, firstSendTime, reload, test, tickTimes, visit, type Backend } from "./fixtures";
 
 const LEAD = { name: "Clínica Sorriso", email: "contato@sorriso.test" };
 const OTHER = { name: "Clínica Aurora", email: "contato@aurora.test" };
 
 /**
- * Writes and sends the first e-mail from the lead panel; returns its Message-ID. A second
- * conversation waits for the gap between first e-mails, so it needs a cron tick (`sendAt`).
+ * Writes and sends the first e-mail from the lead panel; returns its Message-ID. "Enviar"
+ * queues it: it goes out right away inside the send window, else on the cron tick `sendAt`
+ * (a second conversation also waits for the gap between first e-mails, so it passes a later
+ * tick).
  */
 async function startConversation(
   page: Page,
   backend: Backend,
   lead: { name: string; email: string; phone?: string } = LEAD,
-  sendAt?: Date,
+  sendAt: Date = firstSendTime(),
 ) {
   const before = (await backend.sent()).length;
   const { id } = await backend.lead(lead);
@@ -21,8 +23,8 @@ async function startConversation(
   await panel.getByRole("button", { name: "Escrever e-mail" }).click();
   await expect(panel.getByLabel("Assunto")).toHaveValue(`Assunto para ${lead.name}`);
   await panel.getByRole("button", { name: "Enviar e-mail" }).click();
-  await expect(page.getByText("E-mail enviado")).toBeVisible();
-  if (sendAt) await backend.tick(sendAt);
+  await expect(page.getByText("E-mail na fila de envio")).toBeVisible();
+  await backend.tick(sendAt);
 
   const sent = await backend.sent();
   expect(sent).toHaveLength(before + 1);
@@ -30,6 +32,16 @@ async function startConversation(
   if (!first) throw new Error("first e-mail not sent");
   expect(first.to).toBe(lead.email);
   return { id, messageId: first.messageId, subject: first.subject };
+}
+
+/** "Fechar negócio" opens a form: the value and the service sold are required. */
+async function closeWon(page: Page) {
+  await page.getByRole("button", { name: "Fechar negócio" }).click();
+  const form = page.getByRole("dialog", { name: "Fechar negócio" });
+  await form.getByLabel("Valor").fill("1500");
+  await form.getByLabel("Serviço").fill("Site institucional");
+  await form.getByRole("button", { name: "Confirmar" }).click();
+  await expect(form).toBeHidden();
 }
 
 test.describe("e-mail conversations", () => {
@@ -112,8 +124,8 @@ test.describe("e-mail conversations", () => {
     await expect(row).toBeVisible();
     await expect(page.getByRole("article").filter({ hasText: "na fila" })).toHaveCount(1);
 
-    await page.getByRole("button", { name: "Fechar negócio" }).click();
-    await expect(page.getByText("Negócio fechado", { exact: true })).toBeVisible();
+    await closeWon(page);
+    await expect(page.getByText(/^Negócio fechado: R\$\s1\.500$/)).toBeVisible();
     await expect(row).toBeHidden();
     await expect(page.getByRole("article").filter({ hasText: "Cancelado" })).toHaveCount(1);
 
@@ -133,7 +145,7 @@ test.describe("e-mail conversations", () => {
   test("a closed conversation can be reopened", async ({ page, backend }) => {
     const { id } = await startConversation(page, backend);
     await visit(page, `/conversas?lead=${id}`);
-    await page.getByRole("button", { name: "Fechar negócio" }).click();
+    await closeWon(page);
     const row = page.getByRole("button", { name: new RegExp(LEAD.name) });
     await expect(row).toContainText("Encerrada");
     await expect(page.getByLabel("Sua resposta")).toHaveCount(0);

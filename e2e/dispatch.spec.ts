@@ -60,12 +60,17 @@ test.describe("e-mail dispatch", () => {
     await expect(page.getByText("2 e-mails na fila")).toBeVisible();
     await expect(review).toBeHidden();
 
-    // The first goes out right away, the rest one per tick; later ticks find nothing to send.
-    expect(await backend.sent()).toHaveLength(1);
-    await backend.tick(t1);
-    expect(await backend.sent()).toHaveLength(2);
-    await backend.tick(t2);
-    await backend.tick(t3);
+    // One per send at most: the first goes out right away inside the send window (else on the
+    // first tick within it), the next one on a later tick; later ticks find nothing to send.
+    const counts = [(await backend.sent()).length];
+    for (const at of [t1, t2, t3]) {
+      await backend.tick(at);
+      counts.push((await backend.sent()).length);
+    }
+    expect(counts[0]).toBeLessThanOrEqual(1);
+    for (const [index, count] of counts.slice(1).entries()) {
+      expect(count - (counts[index] ?? 0)).toBeLessThanOrEqual(1);
+    }
     const sent = await backend.sent();
     expect(sent).toHaveLength(2);
     expect(sent.map((email) => email.to)).toEqual(
@@ -139,6 +144,8 @@ Para não receber mais e-mails, responda com "sair".`,
 
     await again.getByRole("button", { name: "Disparar 1 e-mail" }).click();
     await expect(page.getByText("1 e-mail na fila")).toBeVisible();
+    // Out right away inside the send window; otherwise on a tick within it.
+    await backend.tick(tickTimes(1)[0] ?? new Date());
     const sent = await backend.sent();
     expect(sent).toHaveLength(1);
     expect(sent[0]?.subject).toBe("Assunto que eu escrevi");
