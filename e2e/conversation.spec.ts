@@ -21,7 +21,7 @@ async function startConversation(
   await panel.getByRole("button", { name: "Escrever e-mail" }).click();
   await expect(panel.getByLabel("Assunto")).toHaveValue(`Assunto para ${lead.name}`);
   await panel.getByRole("button", { name: "Enviar e-mail" }).click();
-  await expect(page.getByText("E-mail enviado")).toBeVisible();
+  await expect(page.getByText("E-mail na fila de envio")).toBeVisible();
   if (sendAt) await backend.tick(sendAt);
 
   const sent = await backend.sent();

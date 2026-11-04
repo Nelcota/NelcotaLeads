@@ -1,13 +1,12 @@
 import type { Page } from "@playwright/test";
-import { expect, test, visit } from "./fixtures";
+import { expect, openNewSearch, test, visit } from "./fixtures";
 
 function rowOf(page: Page, name: string) {
   return page.getByRole("row").filter({ has: page.getByText(name, { exact: true }) });
 }
 
 async function runSearch(page: Page) {
-  await page.getByRole("button", { name: "Nova busca" }).click();
-  const dialog = page.getByRole("dialog", { name: "Nova busca" });
+  const dialog = await openNewSearch(page);
   await dialog.getByLabel("Nicho").fill("dentistas");
   await dialog.getByLabel("Cidade").fill("Belo Horizonte");
   await expect(dialog.getByRole("tab", { name: "até 20" })).toHaveAttribute(
@@ -73,8 +72,7 @@ test.describe("search card actions", () => {
   test("a failed search offers to try again, and the new one runs", async ({ page, backend }) => {
     await backend.fault("places");
     await visit(page, "/");
-    await page.getByRole("button", { name: "Nova busca" }).click();
-    const dialog = page.getByRole("dialog", { name: "Nova busca" });
+    const dialog = await openNewSearch(page);
     await dialog.getByLabel("Nicho").fill("dentistas");
     await dialog.getByLabel("Cidade").fill("Belo Horizonte");
     await dialog.getByRole("button", { name: "Buscar empresas" }).click();

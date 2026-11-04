@@ -184,4 +184,15 @@ describe("writtenPart", () => {
   it("drops the phone signature", () => {
     expect(writtenPart("Pode ligar amanhã.\n\nEnviado do meu iPhone")).toBe("Pode ligar amanhã.");
   });
+
+  it("keeps a signature-like phrase in the middle of a line", () => {
+    expect(writtenPart("Pode ligar. Sent from my phone")).toBe("Pode ligar. Sent from my phone");
+  });
+
+  it("stays linear on a body of blank lines (the end-anchored regex was quadratic)", () => {
+    const hostile = `Oi${"\n".repeat(50_000)}x`;
+    const started = performance.now();
+    expect(writtenPart(hostile)).toBe(`Oi${"\n".repeat(50_000)}x`);
+    expect(performance.now() - started).toBeLessThan(200);
+  });
 });

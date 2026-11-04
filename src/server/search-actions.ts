@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { NewSearchInput } from "@/lib/schemas";
 import { MANUAL_SEARCH_ID } from "@/lib/searches";
 import type { Db } from "@/db/client";
@@ -42,6 +42,20 @@ export async function searchInputOf(db: Db, id: string): Promise<NewSearchInput>
   if (!search) throw new Error("Busca não encontrada");
   if (id === MANUAL_SEARCH_ID) throw new Error("Leads adicionados à mão não são uma busca.");
   return search;
+}
+
+/** Searches the Buscas list loads. */
+export const SEARCH_LIST_LIMIT = 100;
+
+/**
+ * The Buscas list, newest first, hidden ones included (they show under "Mostrar buscas
+ * ocultas"). The visible ones come first, so hidden searches never push them past the limit.
+ */
+export function querySearches(db: Db, limit = SEARCH_LIST_LIMIT) {
+  return db.query.searches.findMany({
+    orderBy: [sql`${searches.hiddenAt} is not null`, desc(searches.createdAt)],
+    limit,
+  });
 }
 
 /**

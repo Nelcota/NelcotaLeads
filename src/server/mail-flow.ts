@@ -31,9 +31,6 @@ import type { ThreadMessage } from "@/lib/ai/prompts";
 import { dayDiff, localDay } from "@/lib/format";
 import { newMessageId, type IncomingEmail, type Mailer } from "@/lib/mail";
 import { DEFAULT_MAIL_DAILY_LIMIT, SEND_GAP_MINUTES, type SettingsInput } from "@/lib/schemas";
-
-// Shared with the screens that describe the sending pace.
-export { DEFAULT_MAIL_DAILY_LIMIT, SEND_GAP_MINUTES };
 import { leadPatch } from "./lead-status";
 import { buildContext, hasOffer, NO_OFFER_MESSAGE } from "./process-lead";
 import { DEFAULT_SETTINGS, loadSettings } from "./settings-store";
