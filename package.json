@@ -22,7 +22,7 @@
   },
   "dependencies": {
     "@ai-sdk/deepseek": "^3.0.63",
-    "@fontsource/manrope": "^5.3.0",
+    "@fontsource/urbanist": "^5.3.0",
     "@hookform/resolvers": "^5.9.1",
     "@tailwindcss/vite": "^4.1.18",
     "@tanstack/react-query": "^5.104.1",
