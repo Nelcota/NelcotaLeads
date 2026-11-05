@@ -8,3 +8,12 @@ MAIL_PASSWORD=
 # Access code asked to create an account or reset a password (8+ characters); it also signs
 # the sessions, so changing it signs everyone out.
 APP_PASSWORD=
+# Meeting invites and proposals go out by e-mail only with this set to true. Off by default:
+# the app still records them and shows the text to copy ("Envio por e-mail desligado").
+SALES_EMAILS_ENABLED=false
+# Invites made in Equipe are e-mailed only with this set to true. Off by default: the invite is
+# stored and the page shows "Copiar link" with the sign-up link to send by hand.
+TEAM_INVITE_EMAILS_ENABLED=false
+# With true, only invited e-mails can create an account (the very first account excepted).
+# Off by default: anyone with the access code can sign up, as before.
+INVITE_ONLY_SIGNUP=false

@@ -55,23 +55,26 @@ import type { Email } from "@/db/schema";
 import { useAutosave } from "@/lib/autosave";
 import { failedEmailAction } from "@/lib/email-errors";
 import { shortTime } from "@/lib/format";
-import { conversationQuery, conversationsQuery, nichesQuery } from "@/lib/queries";
+import {
+  conversationQuery,
+  conversationsQuery,
+  invalidateLeadScreens,
+  leadSalesQuery,
+  nichesQuery,
+} from "@/lib/queries";
 import { useToday } from "@/lib/today";
 import { cn, safeHttpUrl } from "@/lib/utils";
-import type { CloseSnapshot } from "@/server/conversation";
 import { reopenBlocker } from "@/server/lead-status";
 import { updateLead } from "@/server/leads";
 import {
   cancelQueuedEmail,
   checkMailNow,
-  closeConversation,
   draftReplyWithAi,
   editQueuedEmail,
   retryEmail,
   saveReplyDraft,
   sendReply,
   setConversationAi,
-  undoCloseConversation,
   type ConversationState,
 } from "@/server/mail";
 import { pageTitle } from "@/lib/page-title";
@@ -82,6 +85,8 @@ import { whatsappLink } from "@/lib/phone";
 import { splitQuoted } from "@/lib/mail/quoted";
 import { QuickReplyPicker } from "@/components/quick-reply-picker";
 import { useListHotkeys } from "@/hooks/use-list-hotkeys";
+import { useLeadDeal } from "@/hooks/use-lead-deal";
+import { CloseDealDialog, type CloseDealMode } from "@/components/lead/close-deal-dialog";
 
 const FILTERS = ["all", "needsYou", "aiTalking", "waiting", "closed"] as const;
 type Filter = (typeof FILTERS)[number];
@@ -122,14 +127,8 @@ export const Route = createFileRoute("/conversas")({
 
 function useRefresh() {
   const queryClient = useQueryClient();
-  return () =>
-    Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["conversations"] }),
-      queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
-      queryClient.invalidateQueries({ queryKey: ["leads"] }),
-      // The niche funnel counts leads by status.
-      queryClient.invalidateQueries({ queryKey: ["niches"] }),
-    ]);
+  // Conversations, lists, goal, metrics, niches and agenda all show the lead's status.
+  return () => invalidateLeadScreens(queryClient);
 }
 
 function StateBadge({ state }: { state: ConversationState }) {
@@ -535,30 +534,16 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
     onSuccess: refresh,
     onError: errorToast("Não foi possível mudar a IA desta conversa"),
   });
-  // Runs from the toast, which may outlive this thread (the user opened another one).
-  const undoClose = async (snapshot: CloseSnapshot) => {
-    try {
-      await undoCloseConversation({ data: { leadId, ...snapshot } });
-      await refresh();
-    } catch (error) {
-      errorToast("Não foi possível desfazer")(error);
-    }
-  };
-  const close = useMutation({
-    mutationFn: async (outcome: "closed" | "discarded") => {
-      // Saved first, so the reply in progress is part of what the close keeps (and undo restores).
-      await autosave.flush();
-      return closeConversation({ data: { leadId, outcome } });
-    },
-    onSuccess: async (snapshot, outcome) => {
-      await refresh();
-      toast(outcome === "closed" ? "Negócio fechado" : "Encerrada sem negócio", {
-        duration: 6000,
-        action: { label: "Desfazer", onClick: () => void undoClose(snapshot) },
-      });
-    },
-    onError: errorToast("Não foi possível encerrar"),
+  // "Fechar negócio" and "Encerrar sem negócio" open the lead panel's forms in a dialog. The
+  // reply in progress is saved first, so it is part of what the close keeps (and undo restores).
+  const [closing, setClosing] = useState<CloseDealMode | null>(null);
+  const deal = useLeadDeal(leadId, {
+    onChanged: () => queryClient.invalidateQueries({ queryKey: leadSalesQuery(leadId).queryKey }),
+    beforeClose: () => autosave.flush(),
   });
+  // The latest proposal, which "Fechar negócio" starts from.
+  const { data: sales } = useQuery(leadSalesQuery(leadId));
+  const closeDone = { onSuccess: () => setClosing(null) };
   const retry = useMutation({
     mutationFn: (emailId: string) => retryEmail({ data: { emailId } }),
     onSuccess: refresh,
@@ -674,8 +659,8 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
                 size="sm"
                 variant="secondary"
                 className="text-green"
-                disabled={close.isPending}
-                onClick={() => close.mutate("closed")}
+                disabled={deal.closing}
+                onClick={() => setClosing("won")}
               >
                 <CircleCheckIcon />
                 Fechar negócio
@@ -684,8 +669,8 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
                 size="sm"
                 variant="secondary"
                 className="text-red"
-                disabled={close.isPending}
-                onClick={() => close.mutate("discarded")}
+                disabled={deal.closing}
+                onClick={() => setClosing("lost")}
               >
                 <XIcon />
                 Encerrar sem negócio
@@ -961,8 +946,8 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
             <>
               <button
                 type="button"
-                disabled={close.isPending}
-                onClick={() => close.mutate("closed")}
+                disabled={deal.closing}
+                onClick={() => setClosing("won")}
                 className="grouped-row flex min-h-[44px] w-full items-center gap-2 px-4 text-left font-medium text-green [--inset:16px] hover:bg-fill-3 disabled:opacity-50"
               >
                 <CircleCheckIcon className="size-4" />
@@ -970,8 +955,8 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
               </button>
               <button
                 type="button"
-                disabled={close.isPending}
-                onClick={() => close.mutate("discarded")}
+                disabled={deal.closing}
+                onClick={() => setClosing("lost")}
                 className="grouped-row flex min-h-[44px] w-full items-center px-4 text-left font-medium text-red [--inset:16px] hover:bg-fill-3 disabled:opacity-50"
               >
                 Encerrar sem negócio
@@ -993,6 +978,16 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
           <p className="-mt-3 px-4 text-xs font-light text-muted-foreground">{blocker}</p>
         ) : null}
       </aside>
+      <CloseDealDialog
+        mode={closed ? null : closing}
+        leadName={lead.name}
+        today={today}
+        proposal={sales?.proposal ?? null}
+        busy={deal.closing}
+        onWon={(won) => deal.closeWon(won, closeDone)}
+        onLost={(lost) => deal.closeLost(lost, closeDone)}
+        onClose={() => setClosing(null)}
+      />
     </>
   );
 }

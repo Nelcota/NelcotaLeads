@@ -64,6 +64,10 @@ function email(id: string, leadId: string, overrides: Partial<Email> = {}) {
   };
 }
 
+/** A person's won and lost closes carry their deal. */
+const WON = { deal: { dealValueCents: 150_000, dealService: "Site" } };
+const LOST = { deal: { lossReason: "price" as const } };
+
 const lead = (id: string) => db.query.leads.findFirst({ where: eq(leads.id, id) });
 const row = (id: string) => db.query.emails.findFirst({ where: eq(emails.id, id) });
 const userDrafts = async () =>
@@ -87,7 +91,7 @@ describe("closeConversation", () => {
   });
 
   it("cancels pending e-mails instead of deleting them, and undo restores everything", async () => {
-    const snapshot = await closeConversation(db, "a", "discarded", now);
+    const snapshot = await closeConversation(db, "a", "discarded", now, LOST);
     expect(snapshot).toEqual({
       previous: {
         status: "replied",
@@ -96,6 +100,7 @@ describe("closeConversation", () => {
         followUpOn: "2026-10-15",
       },
       cancelledIds: { queued: ["queued"], draft: ["draft"] },
+      cancelledMeetings: [],
     });
     expect(await lead("a")).toMatchObject({ status: "discarded", aiMode: false, followUpOn: null });
     expect(await row("queued")).toMatchObject({ status: "cancelled", error: CLOSED_REASON });
@@ -116,7 +121,7 @@ describe("closeConversation", () => {
   });
 
   it("refuses an undo carrying another lead's e-mails", async () => {
-    const snapshot = await closeConversation(db, "a", "closed", now);
+    const snapshot = await closeConversation(db, "a", "closed", now, WON);
     await expect(
       undoCloseConversation(db, "a", {
         ...snapshot,
@@ -128,7 +133,7 @@ describe("closeConversation", () => {
   });
 
   it("refuses an undo naming a status the close could not have come from", async () => {
-    const snapshot = await closeConversation(db, "a", "closed", now);
+    const snapshot = await closeConversation(db, "a", "closed", now, WON);
     await expect(
       undoCloseConversation(db, "a", {
         ...snapshot,
@@ -139,7 +144,7 @@ describe("closeConversation", () => {
   });
 
   it("only brings back e-mails this close cancelled", async () => {
-    const snapshot = await closeConversation(db, "a", "closed", now);
+    const snapshot = await closeConversation(db, "a", "closed", now, WON);
     await db
       .update(emails)
       .set({ error: "Cancelado: o lead respondeu" })
@@ -150,7 +155,7 @@ describe("closeConversation", () => {
   });
 
   it("never restores a lead that opted out in the meantime", async () => {
-    const snapshot = await closeConversation(db, "a", "closed", now);
+    const snapshot = await closeConversation(db, "a", "closed", now, WON);
     await db.update(leads).set({ unsubscribedAt: now }).where(eq(leads.id, "a"));
     await expect(undoCloseConversation(db, "a", snapshot)).rejects.toThrow(
       "pediu para não receber contato",
@@ -160,8 +165,10 @@ describe("closeConversation", () => {
   });
 
   it("refuses to close twice or to undo an open conversation", async () => {
-    const snapshot = await closeConversation(db, "a", "closed", now);
-    await expect(closeConversation(db, "a", "discarded", now)).rejects.toThrow("já está encerrada");
+    const snapshot = await closeConversation(db, "a", "closed", now, WON);
+    await expect(closeConversation(db, "a", "discarded", now, LOST)).rejects.toThrow(
+      "já está encerrada",
+    );
     await undoCloseConversation(db, "a", snapshot);
     await expect(undoCloseConversation(db, "a", snapshot)).rejects.toThrow("já foi reaberta");
   });

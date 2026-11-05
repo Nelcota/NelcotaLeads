@@ -18,7 +18,8 @@
     "cf-typegen": "wrangler types",
     "prepare": "lefthook install",
     "test:e2e": "playwright test",
-    "account:seed": "node scripts/seed-account.ts"
+    "account:seed": "node scripts/seed-account.ts",
+    "services:seed": "node scripts/seed-services.ts"
   },
   "dependencies": {
     "@ai-sdk/deepseek": "^3.0.67",

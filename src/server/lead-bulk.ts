@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import type { Db } from "@/db/client";
-import { leads, type LeadStatus } from "@/db/schema";
+import { leads, type Lead, type LeadStatus } from "@/db/schema";
 import { localDay } from "@/lib/format";
 import type { BulkSnapshot } from "@/lib/schemas";
 import { leadPatch, OUTREACH_STATUSES } from "./lead-status";
@@ -8,6 +8,45 @@ import { leadIdIn } from "./leads-query";
 
 /** Chunks of statements per D1 batch. */
 const BATCH_SIZE = 50;
+
+const toSeconds = (date: Date | null) => (date ? Math.floor(date.getTime() / 1000) : null);
+const fromSeconds = (seconds: number | null) =>
+  seconds === null ? null : new Date(seconds * 1000);
+
+/** What "Desfazer" needs to put the lead back: its status and the deal's columns. */
+function bulkSnapshot(lead: Lead): BulkSnapshot {
+  return {
+    id: lead.id,
+    status: lead.status,
+    followUpOn: lead.followUpOn,
+    discardReason: lead.discardReason,
+    discardedAt: toSeconds(lead.discardedAt),
+    closedAt: toSeconds(lead.closedAt),
+    dealValueCents: lead.dealValueCents,
+    dealService: lead.dealService,
+    lossReason: lead.lossReason,
+    lossNote: lead.lossNote,
+    lostAt: toSeconds(lead.lostAt),
+    salesStage: lead.salesStage,
+  };
+}
+
+/** The columns the undo writes back, the deal included. */
+function restoredColumns(snapshot: BulkSnapshot) {
+  return {
+    status: snapshot.status,
+    followUpOn: snapshot.followUpOn,
+    discardReason: snapshot.discardReason,
+    discardedAt: fromSeconds(snapshot.discardedAt),
+    closedAt: fromSeconds(snapshot.closedAt),
+    dealValueCents: snapshot.dealValueCents,
+    dealService: snapshot.dealService,
+    lossReason: snapshot.lossReason,
+    lossNote: snapshot.lossNote,
+    lostAt: fromSeconds(snapshot.lostAt),
+    salesStage: snapshot.salesStage,
+  };
+}
 
 /**
  * Moves the selected leads to `status`, one by one through the same rules as the lead panel
@@ -41,13 +80,7 @@ export async function bulkUpdateLeads(
         .where(and(eq(leads.id, lead.id), eq(leads.status, lead.status)))
         .returning({ id: leads.id }),
     );
-    snapshots.push({
-      id: lead.id,
-      status: lead.status,
-      followUpOn: lead.followUpOn,
-      discardReason: lead.discardReason,
-      discardedAt: lead.discardedAt ? Math.floor(lead.discardedAt.getTime() / 1000) : null,
-    });
+    snapshots.push(bulkSnapshot(lead));
   }
   const changedIds = new Set<string>();
   for (let i = 0; i < updates.length; i += BATCH_SIZE) {
@@ -80,12 +113,7 @@ export async function undoBulkUpdate(db: Db, status: LeadStatus, previous: BulkS
     updates.push(
       db
         .update(leads)
-        .set({
-          status: snapshot.status,
-          followUpOn: snapshot.followUpOn,
-          discardReason: snapshot.discardReason,
-          discardedAt: snapshot.discardedAt === null ? null : new Date(snapshot.discardedAt * 1000),
-        })
+        .set(restoredColumns(snapshot))
         .where(and(eq(leads.id, snapshot.id), eq(leads.status, status)))
         .returning({ id: leads.id }),
     );

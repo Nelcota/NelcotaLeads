@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
+  CalendarIcon,
   CircleHelpIcon,
   HistoryIcon,
   InboxIcon,
@@ -11,6 +12,7 @@ import {
   SettingsIcon,
   SunIcon,
   UserIcon,
+  UsersIcon,
   type LucideIcon,
 } from "lucide-react";
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
@@ -38,13 +40,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { GLOSSARY, isHelpKey } from "@/lib/help";
 import { withAttentionCount } from "@/lib/page-title";
-import { accountQuery, attentionQuery, providerStatusQuery } from "@/lib/queries";
+import { accountQuery, attentionQuery, providerStatusQuery, todayAgendaQuery } from "@/lib/queries";
 import { isTypingTarget } from "@/lib/shortcuts";
 import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
 type NavItem = {
-  to: "/" | "/leads" | "/conversas" | "/searches" | "/conta" | "/settings";
+  to: "/" | "/leads" | "/conversas" | "/agenda" | "/searches" | "/equipe" | "/conta" | "/settings";
   label: string;
   icon: LucideIcon;
 };
@@ -53,9 +55,11 @@ const NAV: NavItem[] = [
   { to: "/", label: "Visão geral", icon: LayoutGridIcon },
   { to: "/leads", label: "Leads", icon: InboxIcon },
   { to: "/conversas", label: "Conversas", icon: MessageCircleIcon },
+  { to: "/agenda", label: "Agenda", icon: CalendarIcon },
   { to: "/searches", label: "Buscas", icon: HistoryIcon },
 ];
 const SYSTEM_NAV: NavItem[] = [
+  { to: "/equipe", label: "Equipe", icon: UsersIcon },
   { to: "/conta", label: "Conta", icon: UserIcon },
   { to: "/settings", label: "Configurações", icon: SettingsIcon },
 ];
@@ -133,6 +137,9 @@ function AppSidebar() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const { data: attention = 0 } = useQuery(attentionQuery);
   const { data: provider } = useQuery(providerStatusQuery);
+  // Today's meetings and follow-ups, on the Agenda item.
+  const { data: agendaToday } = useQuery(todayAgendaQuery);
+  const todayCount = agendaToday?.entries.length ?? 0;
   const systemAttention = provider?.systemAttention ?? false;
   const openNewSearch = useOpenNewSearch();
   const isActive = (to: NavItem["to"]) => (to === "/" ? pathname === "/" : pathname.startsWith(to));
@@ -157,6 +164,12 @@ function AppSidebar() {
           <SidebarMenuBadge className="top-1.5! h-[18px] min-w-0 rounded-full bg-orange px-1.5 text-[11px] text-[#1b1000] tabular-nums">
             {attention}
             <span className="sr-only"> precisam de você</span>
+          </SidebarMenuBadge>
+        ) : null}
+        {item.to === "/agenda" && todayCount > 0 ? (
+          <SidebarMenuBadge className="top-1.5! h-[18px] min-w-0 rounded-full bg-blue px-1.5 text-[11px] text-white tabular-nums">
+            {todayCount}
+            <span className="sr-only"> hoje</span>
           </SidebarMenuBadge>
         ) : null}
         {warn ? (

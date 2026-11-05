@@ -198,6 +198,7 @@ const responseSchema = z.object({
 const CODE_FIELD: Partial<Record<string, string>> = {
   codigo: "accessCode",
   "email-em-uso": "email",
+  "sem-convite": "email",
 };
 
 /** A short sideways shake, like a wrong macOS password; skipped with reduced motion. */
