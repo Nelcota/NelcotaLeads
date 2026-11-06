@@ -1,13 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
+  AGENDA_MAX_DAYS,
   agendaDayLabel,
   agendaDetail,
   agendaWhen,
   dueToday,
   groupAgenda,
   OVERDUE_DAY,
+  agendaRangeSchema,
   type AgendaEntry,
 } from "./agenda";
+import { addDays } from "./format";
 
 // Tuesday.
 const today = "2026-11-03";
@@ -83,5 +86,20 @@ describe("labels", () => {
     expect(agendaDetail(entry({ kind: "followup", meetingKind: null, ownerName: null }))).toBe(
       "Retornar o contato",
     );
+  });
+});
+
+describe("agendaRangeSchema", () => {
+  const range = (from: string, to: string) =>
+    agendaRangeSchema.safeParse({ owner: null, from, to }).success;
+
+  it("accepts one day and the 42 days of the Month grid", () => {
+    expect(range(today, today)).toBe(true);
+    expect(range(today, addDays(today, AGENDA_MAX_DAYS - 1))).toBe(true);
+  });
+
+  it("refuses a range that ends before it starts or is longer than 42 days", () => {
+    expect(range(today, addDays(today, -1))).toBe(false);
+    expect(range(today, addDays(today, AGENDA_MAX_DAYS))).toBe(false);
   });
 });

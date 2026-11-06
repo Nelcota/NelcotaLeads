@@ -161,6 +161,19 @@ describe("meetings", () => {
       rescheduleMeeting(db, { id, day: "2026-11-07", time: "10:00" }, "u2", now),
     ).rejects.toThrow(MEETING_NOT_FOUND);
   });
+
+  it("reschedules to the same time without a history line, and never for a closed lead", async () => {
+    const { id } = await scheduleMeeting(db, meeting, "u1", off, now);
+    const linesBefore = (await eventKinds()).length;
+
+    await rescheduleMeeting(db, { id, day: meeting.day, time: meeting.time }, "u2", now);
+    await db.update(leads).set({ status: "closed" }).where(eq(leads.id, "a"));
+
+    expect(await eventKinds()).toHaveLength(linesBefore);
+    await expect(
+      rescheduleMeeting(db, { id, day: "2026-11-06", time: "10:00" }, "u2", now),
+    ).rejects.toThrow(LEAD_ENDED_MESSAGE);
+  });
 });
 
 describe("the e-mail flag", () => {
