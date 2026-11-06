@@ -6,11 +6,14 @@ import { emails, leadEvents, leads, meetings, proposals, searches, users } from 
 import { PAST_MEETING_MESSAGE } from "@/lib/meetings";
 import { createFakeMailer } from "../../test/fake-mailer";
 import { resetDb } from "../../test/reset-db";
-import { agendaEntries, agendaSummary, todayEntries } from "./agenda-store";
+import { agendaEntries, bookableLeads, todayEntries } from "./agenda-store";
 import { retryEmail } from "./conversation";
 import { sendDue } from "./mail-flow";
 import {
   cancelMeeting,
+  MEETING_NOT_FOUND,
+  MEETING_RESCHEDULED_REASON,
+  rescheduleMeeting,
   LEAD_ENDED_MESSAGE,
   scheduleMeeting,
   upcomingMeetings,
@@ -142,6 +145,35 @@ describe("meetings", () => {
     expect(await db.query.meetings.findFirst()).toMatchObject({ cancelledAt: now });
     expect((await eventKinds()).filter((event) => event.to === "cancelled")).toHaveLength(1);
   });
+
+  it("reschedules: new time, a history line from the old one, and never into the past", async () => {
+    const { id } = await scheduleMeeting(db, meeting, "u1", off, now);
+    await rescheduleMeeting(db, { id, day: "2026-11-06", time: "15:30" }, "u2", now);
+    const [moved] = await upcomingMeetings(db, "a", now);
+    expect(moved?.startsAt).toEqual(new Date("2026-11-06T18:30:00Z"));
+    const line = (await eventKinds()).find((event) => event.from === "2026-11-05T13:00:00.000Z");
+    expect(line).toMatchObject({ to: "2026-11-06T18:30:00.000Z" });
+    await expect(
+      rescheduleMeeting(db, { id, day: "2026-11-02", time: "10:00" }, "u2", now),
+    ).rejects.toThrow(PAST_MEETING_MESSAGE);
+    await cancelMeeting(db, id, "u2", now);
+    await expect(
+      rescheduleMeeting(db, { id, day: "2026-11-07", time: "10:00" }, "u2", now),
+    ).rejects.toThrow(MEETING_NOT_FOUND);
+  });
+
+  it("reschedules to the same time without a history line, and never for a closed lead", async () => {
+    const { id } = await scheduleMeeting(db, meeting, "u1", off, now);
+    const linesBefore = (await eventKinds()).length;
+
+    await rescheduleMeeting(db, { id, day: meeting.day, time: meeting.time }, "u2", now);
+    await db.update(leads).set({ status: "closed" }).where(eq(leads.id, "a"));
+
+    expect(await eventKinds()).toHaveLength(linesBefore);
+    await expect(
+      rescheduleMeeting(db, { id, day: "2026-11-06", time: "10:00" }, "u2", now),
+    ).rejects.toThrow(LEAD_ENDED_MESSAGE);
+  });
 });
 
 describe("the e-mail flag", () => {
@@ -233,6 +265,16 @@ describe("the e-mail flag", () => {
     const { id } = await scheduleMeeting(db, { ...meeting, sendInvite: true }, "u1", on, now);
     await cancelMeeting(db, id, "u1", now);
     expect((await outgoing())[0]).toMatchObject({ status: "cancelled" });
+  });
+
+  it("on: rescheduling cancels an invite still in the queue, since it has the old time", async () => {
+    const { id } = await scheduleMeeting(db, { ...meeting, sendInvite: true }, "u1", on, now);
+    const moved = await rescheduleMeeting(db, { id, day: "2026-11-06", time: "10:00" }, "u1", now);
+    expect(moved.inviteCancelled).toBe(true);
+    expect((await outgoing())[0]).toMatchObject({
+      status: "cancelled",
+      error: MEETING_RESCHEDULED_REASON,
+    });
   });
 
   it("on: a lead without e-mail cannot get one", async () => {
@@ -383,17 +425,11 @@ describe("agenda", () => {
     expect(mine.map((entry) => entry.leadName)).toEqual(["Clínica A"]);
     expect(await todayEntries(db, now)).toHaveLength(2);
 
-    await db.update(leads).set({ status: "closed" }).where(eq(leads.id, "a"));
-    await db
-      .update(leads)
-      .set({ status: "replied", salesStage: "proposal" })
-      .where(eq(leads.id, "c"));
-    expect(await agendaSummary(db, null)).toEqual({
-      proposalsToPresent: 1,
-      leadsWithMeeting: 2,
-      closedAfterMeeting: 1,
-    });
+    expect(mine.map((entry) => entry.ownerId)).toEqual(["u1"]);
     expect(await db.$count(meetings)).toBe(2);
+
+    await db.update(leads).set({ status: "closed" }).where(eq(leads.id, "a"));
+    expect((await bookableLeads(db)).map((item) => item.id)).not.toContain("a");
   });
 
   it("keeps overdue follow-ups (like Retornar hoje) and drops meetings of discarded leads", async () => {

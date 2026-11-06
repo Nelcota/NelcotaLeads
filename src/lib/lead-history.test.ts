@@ -76,12 +76,18 @@ describe("historyLines", () => {
     expect(
       texts([
         event({ kind: "meeting", toValue: "2026-11-05T13:00:00.000Z" }),
+        event({
+          kind: "meeting",
+          fromValue: "2026-11-05T13:00:00.000Z",
+          toValue: "2026-11-06T18:30:00.000Z",
+        }),
         event({ kind: "meeting", fromValue: "2026-11-05T13:00:00.000Z", toValue: "cancelled" }),
         event({ kind: "proposal", fromValue: "email", toValue: "118000" }),
         event({ kind: "proposal", fromValue: null, toValue: "99000" }),
       ]),
     ).toEqual([
       "Reunião marcada para 05/11 10:00",
+      "Reunião remarcada de 05/11 10:00 para 06/11 15:30",
       "Reunião cancelada",
       "Proposta para envio por e-mail: R$ 1.180",
       "Proposta montada: R$ 990",
