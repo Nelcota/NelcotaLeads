@@ -112,6 +112,14 @@ const searchSchema = lenientSearch(
 
 const DEFAULT_VIEW: LeadView = "todo";
 const NO_SELECTION: ReadonlySet<string> = new Set();
+/**
+ * "Mudar status" for a selection: never "Fechado" (a won deal needs its value and service, so it
+ * is closed one lead at a time) nor "Descartado" (it has its own item).
+ */
+const BULK_STATUSES = LEAD_STATUS_VALUES.filter(
+  (status): status is Exclude<LeadStatus, "closed" | "discarded"> =>
+    status !== "closed" && status !== "discarded",
+);
 
 export const Route = createFileRoute("/leads/")({
   head: () => ({ meta: [{ title: pageTitle("Leads") }] }),
@@ -539,7 +547,7 @@ function SelectionMenu({ ids, onDone }: { ids: string[]; onDone: () => void }) {
     }
   };
   const update = useMutation({
-    mutationFn: (status: LeadStatus) =>
+    mutationFn: (status: Exclude<LeadStatus, "closed">) =>
       ids.length > BULK_LIMIT
         ? // Refused rather than cut: a partial change would look like the whole selection moved.
           Promise.reject(new Error(`Selecione até ${BULK_LIMIT} leads por vez.`))
@@ -592,7 +600,7 @@ function SelectionMenu({ ids, onDone }: { ids: string[]; onDone: () => void }) {
               Mudar status
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent>
-              {LEAD_STATUS_VALUES.filter((status) => status !== "discarded").map((status) => (
+              {BULK_STATUSES.map((status) => (
                 <DropdownMenuItem key={status} onSelect={() => update.mutate(status)}>
                   {LEAD_STATUS_LABELS[status]}
                 </DropdownMenuItem>

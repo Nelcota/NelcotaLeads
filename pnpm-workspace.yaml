@@ -4,3 +4,7 @@ allowBuilds:
   sharp: true
   workerd: true
   lefthook: true
+
+overrides:
+  # GHSA-2m5v-pch6-74hx and GHSA-qrxm-fqhp-jwvm (high, fixed in 7.30.1) reach production through the AI SDK.
+  undici: 7.30.1

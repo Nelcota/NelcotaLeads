@@ -8,6 +8,9 @@ import {
 } from "./lead-status";
 
 const now = new Date("2026-10-11T15:00:00Z");
+// What any status change forgets of a deal that is not its outcome.
+const noWon = { closedAt: null, dealValueCents: null, dealService: null };
+const noLoss = { lossReason: null, lossNote: null, lostAt: null };
 const fresh = { status: "new" as const, unsubscribedAt: null, contactedAt: null, followUpOn: null };
 
 describe("leadPatch", () => {
@@ -27,6 +30,9 @@ describe("leadPatch", () => {
       followUpOn: "2026-10-14",
       discardReason: null,
       discardedAt: null,
+      ...noWon,
+      ...noLoss,
+      salesStage: null,
     });
   });
 
@@ -51,6 +57,9 @@ describe("leadPatch", () => {
       contactedAt: earlier,
       discardReason: null,
       discardedAt: null,
+      ...noWon,
+      ...noLoss,
+      salesStage: null,
     });
   });
 
@@ -62,7 +71,49 @@ describe("leadPatch", () => {
         now,
         "2026-10-11",
       ),
-    ).toEqual({ status: "closed", followUpOn: null, discardReason: null, discardedAt: null });
+    ).toEqual({
+      status: "closed",
+      followUpOn: null,
+      discardReason: null,
+      discardedAt: null,
+      ...noLoss,
+    });
+  });
+
+  it("forgets the old outcome when a lead is reopened, keeping the sale's stage", () => {
+    const closed = {
+      status: "closed" as const,
+      unsubscribedAt: null,
+      contactedAt: now,
+      followUpOn: null,
+    };
+    expect(leadPatch(closed, { id: "1", status: "replied" }, now, "2026-10-11")).toEqual({
+      status: "replied",
+      discardReason: null,
+      discardedAt: null,
+      ...noWon,
+      ...noLoss,
+    });
+    const lost = { ...closed, status: "discarded" as const };
+    expect(leadPatch(lost, { id: "1", status: "new" }, now, "2026-10-11")).toMatchObject({
+      status: "new",
+      ...noWon,
+      ...noLoss,
+      salesStage: null,
+    });
+  });
+
+  it("keeps a won deal while closed and a lost one while discarded", () => {
+    const replied = {
+      status: "replied" as const,
+      unsubscribedAt: null,
+      contactedAt: now,
+      followUpOn: null,
+    };
+    const discarded = leadPatch(replied, { id: "1", status: "discarded" }, now, "2026-10-11");
+    expect(discarded).toMatchObject(noWon);
+    expect(discarded).not.toHaveProperty("lossReason");
+    expect(discarded).not.toHaveProperty("salesStage");
   });
 
   it("leaves other updates untouched", () => {

@@ -17,6 +17,7 @@ export const LOGIN_ERROR_CODES = [
   "config",
   "codigo",
   "email-em-uso",
+  "sem-convite",
   "sem-envio",
   "link-invalido",
   "invalido",
@@ -31,6 +32,7 @@ export const LOGIN_ERRORS: Record<LoginErrorCode, string> = {
   config: "O acesso ainda não foi configurado. Fale com quem administra o sistema.",
   codigo: "Código de acesso incorreto.",
   "email-em-uso": "Já existe uma conta com esse e-mail.",
+  "sem-convite": "Esse e-mail não foi convidado. Peça um convite a alguém da equipe.",
   "sem-envio":
     "A redefinição por e-mail ainda não está disponível. Fale com quem administra o sistema.",
   "link-invalido": "Este link expirou ou já foi usado. Peça um novo.",

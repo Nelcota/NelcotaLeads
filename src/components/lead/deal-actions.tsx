@@ -1,0 +1,48 @@
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import type { LostDeal, WonDeal } from "@/lib/deal-form";
+import type { ProposalItem } from "@/lib/schemas";
+import { CloseLostForm } from "./close-lost-form";
+import { CloseWonForm } from "./close-won-form";
+
+type Mode = "idle" | "won" | "lost";
+
+/** "Fechar negócio" and "Encerrar sem negócio", each opening its form in place of the buttons. */
+export function DealActions({
+  today,
+  proposal,
+  busy,
+  onWon,
+  onLost,
+}: {
+  today: string;
+  /** The lead's latest proposal, which "Fechar negócio" starts from. */
+  proposal: { items: ProposalItem[]; totalCents: number } | null;
+  busy: boolean;
+  onWon: (deal: WonDeal) => void;
+  onLost: (deal: LostDeal) => void;
+}) {
+  const [mode, setMode] = useState<Mode>("idle");
+  const back = () => setMode("idle");
+  if (mode === "won") {
+    return (
+      <CloseWonForm today={today} proposal={proposal} busy={busy} onConfirm={onWon} onBack={back} />
+    );
+  }
+  if (mode === "lost") return <CloseLostForm busy={busy} onConfirm={onLost} onBack={back} />;
+  return (
+    <div className="flex w-full flex-wrap gap-2">
+      <Button disabled={busy} onClick={() => setMode("won")}>
+        Fechar negócio
+      </Button>
+      <Button
+        variant="ghost"
+        className="ml-auto hover:bg-red/15 hover:text-red"
+        disabled={busy}
+        onClick={() => setMode("lost")}
+      >
+        Encerrar sem negócio
+      </Button>
+    </div>
+  );
+}
