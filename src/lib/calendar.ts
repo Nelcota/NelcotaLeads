@@ -97,6 +97,14 @@ export function calendarRange(view: CalendarView, anchor: string) {
   return { from: days[0] ?? anchor, to: days.at(-1) ?? anchor };
 }
 
+/**
+ * The days the Agenda loads. A phone always shows the Day, but its strip marks every busy day of
+ * the week, so it loads the whole week around the day.
+ */
+export function loadedRange(view: CalendarView, anchor: string, isMobile: boolean) {
+  return calendarRange(isMobile ? "semana" : view, anchor);
+}
+
 /** The anchor one step back (-1) or ahead (1): a month, a week or a day. */
 export function stepAnchor(view: CalendarView, anchor: string, direction: -1 | 1): string {
   if (view === "mes") return shiftMonth(anchor, direction);

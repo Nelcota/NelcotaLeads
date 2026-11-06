@@ -2,8 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import {
   calendarEntries,
-  calendarRange,
   DEFAULT_ZOOM,
+  loadedRange,
   stepAnchor,
   VIEW_LABELS,
   ZOOM_LEVELS,
@@ -33,7 +33,7 @@ export function useAgendaCalendar(
   const view: CalendarView = isMobile ? "dia" : (search.view ?? "semana");
   const anchor = search.date ?? clientToday;
   const owner = search.owner ?? null;
-  const range = calendarRange(view, anchor);
+  const range = loadedRange(view, anchor, isMobile);
   const query = useQuery(agendaQuery(owner, range.from, range.to));
   const [history, setHistory] = useState<Place[]>([]);
   const [zoom, setZoom] = useState(DEFAULT_ZOOM);

@@ -7,6 +7,7 @@ import {
   firstFreeSlot,
   gridHours,
   layoutLanes,
+  loadedRange,
   monthGrid,
   rangeLabel,
   relativeWhen,
@@ -40,6 +41,12 @@ describe("calendar ranges", () => {
     expect(calendarRange("dia", today)).toEqual({ from: today, to: today });
     expect(calendarRange("mes", today)).toEqual({ from: "2026-10-26", to: "2026-12-06" });
     expect(monthGrid(today)).toHaveLength(42);
+  });
+
+  it("loads the whole week on a phone, so the week strip can mark its busy days", () => {
+    expect(loadedRange("dia", today, true)).toEqual({ from: "2026-11-02", to: "2026-11-08" });
+    expect(loadedRange("dia", today, false)).toEqual({ from: today, to: today });
+    expect(loadedRange("mes", today, false)).toEqual(calendarRange("mes", today));
   });
 
   it("steps by month, week or day, and names the range", () => {
