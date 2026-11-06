@@ -31,19 +31,18 @@ test.describe("leads inbox", () => {
     await notes.blur();
     expect((await notesSaved).ok()).toBe(true);
 
+    // The status changes from the panel's step card (there is no status select any more).
     const statusSaved = nextLeadUpdate(page);
-    await panel.getByRole("combobox", { name: "Status do lead" }).click();
-    await page.getByRole("option", { name: "Descartado" }).click();
+    await panel.getByRole("button", { name: "Descartar", exact: true }).click();
     expect((await statusSaved).ok()).toBe(true);
-    await expect(panel.getByRole("combobox", { name: "Status do lead" })).toHaveText("Descartado");
+    // A discarded lead's card offers to put it back in the queue.
+    await expect(panel.getByRole("button", { name: "Voltar para a fila" })).toBeVisible();
 
     // The panel reopens from the URL with the saved values.
     await reload(page);
     const reopened = page.getByRole("dialog", { name: "Padaria Sol" });
     await expect(reopened.getByLabel("Notas")).toHaveValue("Ligar depois das 14h");
-    await expect(reopened.getByRole("combobox", { name: "Status do lead" })).toHaveText(
-      "Descartado",
-    );
+    await expect(reopened.getByRole("button", { name: "Voltar para a fila" })).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(reopened).toBeHidden();
     await expect(rowOf(page, "Padaria Sol")).toContainText("Descartado");

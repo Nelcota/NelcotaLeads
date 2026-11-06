@@ -19,6 +19,7 @@ import {
   analyses,
   emails,
   leads,
+  proposals,
   searches,
   settings as settingsTable,
   type Analysis,
@@ -28,12 +29,17 @@ import {
 import type { CallUsage, LeadAnalyzer } from "@/lib/ai";
 import { cleanText, ForbiddenPhrasesError } from "@/lib/ai/analyzer";
 import type { ThreadMessage } from "@/lib/ai/prompts";
-import { dayDiff, localDay } from "@/lib/format";
+import { brazilInstant, dayDiff, localDay } from "@/lib/format";
 import { newMessageId, type IncomingEmail, type Mailer } from "@/lib/mail";
+import { coldSendingOpen, compareByScore, sendSlots, type ScoredItem } from "@/lib/send-window";
 import { DEFAULT_MAIL_DAILY_LIMIT, SEND_GAP_MINUTES, type SettingsInput } from "@/lib/schemas";
-import { leadPatch } from "./lead-status";
+
+// Shared with the screens that describe the sending pace.
+export { DEFAULT_MAIL_DAILY_LIMIT, SEND_GAP_MINUTES };
+import { leadPatch, outcomeReset } from "./lead-status";
 import { buildContext, hasOffer, NO_OFFER_MESSAGE } from "./process-lead";
-import { DEFAULT_SETTINGS, loadSettings } from "./settings-store";
+import { isSalesEmail, SALES_EMAILS_OFF_REASON } from "./sales-mail";
+import { DEFAULT_SETTINGS, loadDispatchControl, loadSettings } from "./settings-store";
 import {
   dailyLimit,
   recordAiCost,
@@ -58,6 +64,21 @@ const MAX_AI_REPLIES = 3;
  * fast back-and-forth, or two auto-responders, from paying for a model call per message.
  */
 const MAX_AI_REPLY_ATTEMPTS = 6;
+/**
+ * Room kept in the daily limit for conversation e-mails (AI answers, what a person writes):
+ * cold outreach (first e-mails, follow-ups) stops at `limit - reserve`, so a lead who answers
+ * late in the day still gets a reply. The reserve is 10 e-mails, or 20% of the limit when that
+ * is smaller (a limit of 30 keeps 6). Conversation e-mails may use the whole limit.
+ */
+export const REPLY_RESERVE = 10;
+const REPLY_RESERVE_SHARE = 0.2;
+
+/** How many e-mails of the daily `limit` cold outreach may use. */
+export function coldDailyLimit(limit: number): number {
+  const reserve = Math.min(REPLY_RESERVE, Math.floor(limit * REPLY_RESERVE_SHARE));
+  return Math.max(0, limit - reserve);
+}
+
 /** First e-mails one automatic dispatch run may draft. */
 export const AUTO_DISPATCH_PER_RUN = 20;
 // Parallel model calls when drafting many first e-mails at once.
@@ -105,14 +126,29 @@ const USER_DRAFT_REASON = "Você já começou uma resposta";
 /** Reason kept on the e-mails a closed conversation cancelled; undoing the close looks for it. */
 export const CLOSED_REASON = "Cancelado: conversa encerrada";
 export const DISCARDED_REASON = "Cancelado: lead descartado";
+/** Reason kept on the first e-mails "Cancelar disparo" took out of the queue. */
+export const DISPATCH_CANCELLED_REASON = "Cancelado: disparo do dia cancelado";
 
 /**
- * A first e-mail cancelled because the lead was discarded before it went out. Nothing reached
- * the lead, and it can be moved back to new, so it is drafted again as if never contacted.
+ * A first e-mail cancelled before it went out because the lead was discarded or the day's run
+ * was cancelled. Nothing reached the lead, so it is drafted again as if never contacted.
  * `table` is the emails table's name or alias in the query.
  */
 const cancelledByDiscard = (table = "emails") =>
-  sql`(${sql.raw(table)}.status = 'cancelled' and coalesce(${sql.raw(table)}.error, '') = ${DISCARDED_REASON})`;
+  sql`(${sql.raw(table)}.status = 'cancelled' and coalesce(${sql.raw(table)}.error, '') in (${DISCARDED_REASON}, ${DISPATCH_CANCELLED_REASON}))`;
+
+/**
+ * First e-mails and follow-ups the AI wrote: the cold outreach that obeys the send window and
+ * the pause. Everything else in the queue is part of an ongoing conversation (an AI answer to
+ * a message the lead sent, or anything a person wrote) and keeps going at any hour: the lead is
+ * waiting for it, and its volume is bounded by the inbound mail.
+ */
+export const isColdOutreach = sql`(${emails.author} = 'ai' and ${emails.inReplyTo} is null and ${emails.conversationReply} = 0)`;
+
+/** A cold e-mail to a lead nobody e-mailed yet: a first e-mail, not a follow-up. */
+export const isFirstOutreach = sql`(${isColdOutreach} and not exists (
+  select 1 from emails done where done.lead_id = emails.lead_id and done.direction = 'out'
+    and done.status = 'sent'))`;
 
 /** Whether the lead in `leadId` (a column) was already written to. */
 export const wasContacted = (leadId: SQLWrapper) => sql`exists (
@@ -261,12 +297,21 @@ export async function leadContext(db: Db, lead: Lead) {
   return buildContext(lead, search);
 }
 
-/** Sent and received e-mails of a lead, oldest first: what the AI reads as the conversation. */
+/**
+ * Sent and received e-mails of a lead, oldest first: what the AI reads as the conversation.
+ * Machine mail (out-of-office, auto-replies) is left out: nobody wrote it.
+ */
 export function thread(db: Db, leadId: string) {
   return db
     .select()
     .from(emails)
-    .where(and(eq(emails.leadId, leadId), inArray(emails.status, ["sent", "received"])))
+    .where(
+      and(
+        eq(emails.leadId, leadId),
+        inArray(emails.status, ["sent", "received"]),
+        eq(emails.automatic, false),
+      ),
+    )
     .orderBy(asc(emails.createdAt), asc(emails.sentAt));
 }
 
@@ -466,48 +511,112 @@ export async function regenerateDraft(deps: { db: Db; analyzer: LeadAnalyzer }, 
     .where(and(eq(emails.id, emailId), eq(emails.status, "draft")));
 }
 
-/** Puts drafts in the send queue, spaced out after whatever is already queued. */
-export async function queueDrafts(db: Db, emailIds: string[], now = new Date()) {
-  if (emailIds.length === 0) return 0;
-  const last = await db
-    .select({ at: sql<number | null>`max(${emails.sendAfter})` })
+type QueueRow = ScoredItem & { status: Email["status"] };
+
+/**
+ * The selected drafts plus the cold e-mails already waiting in the queue (not claimed by a
+ * running send), with their lead's score: the whole cold queue, to be put in score order.
+ */
+function coldQueueRows(db: Db, draftIds: string[]): Promise<QueueRow[]> {
+  return db
+    .select({
+      id: emails.id,
+      status: emails.status,
+      score: leads.score,
+      createdAt: leads.createdAt,
+    })
     .from(emails)
-    .where(eq(emails.status, "queued"));
-  const lastAt = last[0]?.at ? last[0].at * 1000 : 0;
-  const gap = SEND_GAP_MINUTES * 60_000;
-  const start = Math.max(now.getTime(), lastAt + gap);
-  const drafts = await db
-    .select({ id: emails.id })
-    .from(emails)
+    .innerJoin(leads, eq(leads.id, emails.leadId))
     .where(
       and(
-        inList(emails.id, emailIds),
-        eq(emails.status, "draft"),
-        // Only first e-mails: replies go out through the conversation, never this queue.
-        eq(emails.author, "ai"),
-        isNull(emails.inReplyTo),
+        // Only cold e-mails: replies go out through the conversation, never this queue.
+        isColdOutreach,
+        or(
+          and(inList(emails.id, draftIds), eq(emails.status, "draft")),
+          and(eq(emails.status, "queued"), isNull(emails.sentAt)),
+        ),
       ),
     );
-  const [first, ...rest] = drafts.map((draft, index) =>
-    db
-      .update(emails)
-      .set({ status: "queued", sendAfter: new Date(start + index * gap) })
-      // A draft deleted or sent in the meantime is left alone.
-      .where(and(eq(emails.id, draft.id), eq(emails.status, "draft")))
-      .returning({ id: emails.id }),
-  );
+}
+
+/** The first free slot: now, or one gap after the last e-mail that went out (or is going). */
+async function queueStart(db: Db, now: Date): Promise<Date> {
+  const [last] = await db
+    .select({ at: sql<number | null>`max(${emails.sentAt})` })
+    .from(emails)
+    .where(and(eq(emails.direction, "out"), inArray(emails.status, ["sent", "queued"])));
+  const lastAt = last?.at ? last.at * 1000 + SEND_GAP_MINUTES * 60_000 : 0;
+  return new Date(Math.max(now.getTime(), lastAt));
+}
+
+/**
+ * Puts drafts in the send queue. The whole cold queue (these drafts and the first e-mails and
+ * follow-ups already waiting) gets new slots in score order, highest first, one gap apart and
+ * always inside the send window, so the day's run reaches the best leads first.
+ */
+export async function queueDrafts(db: Db, emailIds: string[], now = new Date()) {
+  if (emailIds.length === 0) return 0;
+  return slotColdQueue(db, emailIds, now);
+}
+
+/**
+ * New slots for the cold e-mails already waiting, after the send window changed: the same
+ * order and spacing as `queueDrafts`, inside the new hours.
+ */
+export async function reslotColdQueue(db: Db, now = new Date()): Promise<void> {
+  await slotColdQueue(db, [], now);
+}
+
+/**
+ * Slots the cold queue plus the drafts in `draftIds` (none when only re-slotting). Returns how
+ * many drafts were queued.
+ */
+async function slotColdQueue(db: Db, draftIds: string[], now: Date) {
+  const [rows, control, start] = await Promise.all([
+    coldQueueRows(db, draftIds),
+    loadDispatchControl(db),
+    queueStart(db, now),
+  ]);
+  if (draftIds.length > 0 && !rows.some((row) => row.status === "draft")) return 0;
+  const ordered = rows.toSorted(compareByScore);
+  const slots = sendSlots(start, ordered.length, SEND_GAP_MINUTES * 60_000, control);
+  const updates = ordered.map((row, index) => {
+    const isDraft = row.status === "draft";
+    return {
+      isDraft,
+      query: db
+        .update(emails)
+        .set({ status: "queued", sendAfter: slots[index] ?? start })
+        // A draft deleted or sent in the meantime, or a queued e-mail a send already claimed,
+        // is left alone.
+        .where(
+          and(
+            eq(emails.id, row.id),
+            isDraft
+              ? eq(emails.status, "draft")
+              : and(eq(emails.status, "queued"), isNull(emails.sentAt)),
+          ),
+        )
+        .returning({ id: emails.id }),
+    };
+  });
+  const [first, ...rest] = updates.map((update) => update.query);
   if (first === undefined) return 0;
   const results = await db.batch([first, ...rest]);
-  return results.reduce((total, rows) => total + rows.length, 0);
+  return results.reduce(
+    (total, rowsUpdated, index) => (updates[index]?.isDraft ? total + rowsUpdated.length : total),
+    0,
+  );
 }
 
 /**
  * Queued rows that may be sent now: due, not claimed by a running send (or claimed so long
  * ago that it crashed), and outside the gap after the last outgoing e-mail. Answers to a
  * message the lead sent (in_reply_to set) skip the gap: the person is waiting, and their
- * volume is bounded by the inbound mail.
+ * volume is bounded by the inbound mail. With `coldAllowed` false (outside the send window,
+ * or the run is paused) only e-mails of an ongoing conversation qualify; cold ones wait.
  */
-function sendable(now: Date) {
+function sendable(now: Date, coldAllowed: boolean) {
   const staleBefore = new Date(now.getTime() - CLAIM_TIMEOUT_MINUTES * 60_000);
   const gapStart = Math.floor((now.getTime() - SEND_GAP_MINUTES * 60_000) / 1000);
   return and(
@@ -516,17 +625,19 @@ function sendable(now: Date) {
     or(isNull(emails.sentAt), lt(emails.sentAt, staleBefore)),
     or(
       isNotNull(emails.inReplyTo),
+      eq(emails.conversationReply, true),
       sql`not exists (select 1 from emails recent where recent.direction = 'out' and recent.status in ('sent', 'queued') and recent.sent_at > ${gapStart})`,
     ),
+    coldAllowed ? undefined : sql`not ${isColdOutreach}`,
   );
 }
 
 /** Atomically claims one queued e-mail; undefined when another run got it first. */
-async function claim(db: Db, emailId: string, now: Date) {
+async function claim(db: Db, emailId: string, now: Date, coldAllowed: boolean) {
   const [row] = await db
     .update(emails)
     .set({ sentAt: now })
-    .where(and(eq(emails.id, emailId), sendable(now)))
+    .where(and(eq(emails.id, emailId), sendable(now, coldAllowed)))
     .returning();
   return row;
 }
@@ -540,17 +651,23 @@ async function cancelEmail(db: Db, emailId: string, reason: string) {
 }
 
 /**
+ * What a send needs. `salesEmails` is SALES_EMAILS_ENABLED: without it (the default) a queued
+ * meeting invite or proposal is cancelled instead of sent.
+ */
+export type SendDeps = { db: Db; mailer: Mailer; limit: number; salesEmails?: boolean };
+
+/**
  * Sends one queued e-mail now: claims it (unless the caller inserted it already claimed),
  * then checks the lead, the daily limit and adds the threading headers.
  */
 export async function sendEmail(
-  deps: { db: Db; mailer: Mailer; limit: number },
+  deps: SendDeps,
   email: Email,
   now = new Date(),
-  options: { claimed?: boolean } = {},
+  options: { claimed?: boolean; coldAllowed?: boolean } = {},
 ): Promise<"sent" | "limit" | "failed" | "skipped"> {
   const { db, mailer } = deps;
-  const row = options.claimed ? email : await claim(db, email.id, now);
+  const row = options.claimed ? email : await claim(db, email.id, now, options.coldAllowed ?? true);
   if (!row) return "skipped";
   const lead = await db.query.leads.findFirst({ where: eq(leads.id, row.leadId) });
   if (!lead || lead.unsubscribedAt || (await addressUnsubscribed(db, row.toAddress))) {
@@ -564,6 +681,11 @@ export async function sendEmail(
   }
   if (row.author === "ai" && !lead.aiMode) {
     await cancelEmail(db, row.id, "Cancelado: a conversa passou para você");
+    return "failed";
+  }
+  // The kill switch applies to what is already queued, not only to new invites and proposals.
+  if (row.author === "user" && !deps.salesEmails && (await isSalesEmail(db, row.id))) {
+    await cancelEmail(db, row.id, SALES_EMAILS_OFF_REASON);
     return "failed";
   }
   if (!(await reserveRequest(db, EMAIL_PROVIDER, deps.limit, now))) {
@@ -592,7 +714,9 @@ export async function sendEmail(
     await db.batch([
       db
         .update(emails)
-        .set({ status: "failed", sentAt: null, error: mailErrorMessage(error) })
+        // The attempt time goes in `sendAfter`: an e-mail carried over from yesterday that
+        // fails today shows up in today's "Falharam" and "Últimos envios".
+        .set({ status: "failed", sentAt: null, sendAfter: now, error: mailErrorMessage(error) })
         .where(eq(emails.id, row.id)),
       // Nothing went out, so the day's quota gets its slot back.
       releaseRequestQuery(db, EMAIL_PROVIDER, now),
@@ -600,10 +724,17 @@ export async function sendEmail(
     return "failed";
   }
 
-  await db
-    .update(emails)
-    .set({ status: "sent", sentAt: now, messageId, fromAddress: mailer.address, error: null })
-    .where(eq(emails.id, row.id));
+  await db.batch([
+    db
+      .update(emails)
+      .set({ status: "sent", sentAt: now, messageId, fromAddress: mailer.address, error: null })
+      .where(eq(emails.id, row.id)),
+    // A proposal counts as sent only once its e-mail actually went out.
+    db
+      .update(proposals)
+      .set({ sentAt: now })
+      .where(and(eq(proposals.emailId, row.id), isNull(proposals.sentAt))),
+  ]);
   const contact =
     lead.status === "new"
       ? leadPatch(lead, { id: lead.id, status: "contacted" }, now, localDay(now))
@@ -615,16 +746,26 @@ export async function sendEmail(
   return "sent";
 }
 
-/** One e-mail per tick from the queue, so sends stay spaced out. */
-export async function sendDue(deps: { db: Db; mailer: Mailer; limit: number }, now = new Date()) {
-  if ((await requestsToday(deps.db, EMAIL_PROVIDER, now)) >= deps.limit) return 0;
-  const next = await deps.db.query.emails.findFirst({
-    where: sendable(now),
-    orderBy: [asc(emails.sendAfter)],
+/**
+ * One e-mail per tick from the queue, so sends stay spaced out. Earliest slot first (the
+ * slots are in score order), then the oldest row, so the pick is always the same. Outside the
+ * send window, while the run is paused or once cold outreach used its share of the daily limit,
+ * only e-mails of an ongoing conversation go out.
+ */
+export async function sendDue(deps: SendDeps, now = new Date()) {
+  const { db } = deps;
+  const sentToday = await requestsToday(db, EMAIL_PROVIDER, now);
+  if (sentToday >= deps.limit) return 0;
+  // Past the cold share of the limit only conversation e-mails go out (see REPLY_RESERVE).
+  const coldAllowed =
+    sentToday < coldDailyLimit(deps.limit) && coldSendingOpen(await loadDispatchControl(db), now);
+  const next = await db.query.emails.findFirst({
+    where: sendable(now, coldAllowed),
+    orderBy: [asc(emails.sendAfter), asc(emails.createdAt), asc(emails.id)],
   });
   if (!next) return 0;
   // A concurrent run that claimed it first sends it; this one does nothing.
-  return (await sendEmail(deps, next, now)) === "sent" ? 1 : 0;
+  return (await sendEmail(deps, next, now, { coldAllowed })) === "sent" ? 1 : 0;
 }
 
 /** Reads new replies from the mailbox and lets the AI answer them. */
@@ -689,6 +830,56 @@ async function findLead(
   return lead ? { lead, inThread: false } : undefined;
 }
 
+/**
+ * The e-mail a bounce reports as not delivered: the one whose Message-ID the report quotes (or
+ * answers), or else the latest one sent to an address the report says failed.
+ */
+export async function findBouncedEmail(
+  db: Db,
+  message: Pick<IncomingEmail, "inReplyTo" | "references" | "bounce">,
+): Promise<Email | undefined> {
+  const report = message.bounce;
+  if (!report) return undefined;
+  const ids = [...report.messageIds, message.inReplyTo, ...message.references.slice(-20)].filter(
+    (id): id is string => Boolean(id),
+  );
+  if (ids.length > 0) {
+    const quoted = await db.query.emails.findFirst({
+      where: and(inArray(emails.messageId, ids), eq(emails.direction, "out")),
+    });
+    if (quoted) return quoted;
+  }
+  if (report.recipients.length === 0) return undefined;
+  return db.query.emails.findFirst({
+    where: and(
+      eq(emails.direction, "out"),
+      eq(emails.status, "sent"),
+      // Older rows may keep the address as it was typed, in any case.
+      inArray(sql`lower(${emails.toAddress})`, report.recipients),
+    ),
+    orderBy: [desc(emails.sentAt), desc(emails.createdAt)],
+  });
+}
+
+export const BOUNCED_REASON = "Cancelado: e-mail voltou";
+
+/**
+ * Marks the e-mail a bounce matched as never delivered and stops writing to that dead address:
+ * the lead's queued AI e-mails are cancelled and no follow-up is due any more. A report read
+ * twice (overlapping polls) keeps the first time.
+ */
+async function markBounced(db: Db, email: Email, now: Date): Promise<boolean> {
+  const marked = await db
+    .update(emails)
+    .set({ bouncedAt: now })
+    .where(and(eq(emails.id, email.id), isNull(emails.bouncedAt)))
+    .returning({ id: emails.id });
+  if (marked.length === 0) return false;
+  await cancelQueuedAi(db, email.leadId, BOUNCED_REASON);
+  await db.update(leads).set({ followUpOn: null }).where(eq(leads.id, email.leadId));
+  return true;
+}
+
 async function unsubscribe(db: Db, leadId: string, now: Date) {
   await db.batch([
     db
@@ -734,6 +925,16 @@ export function receivedAt(date: Date | null, now: Date): Date {
   return offset > MAX_DATE_AHEAD_MS || offset < -MAX_DATE_BEHIND_MS ? now : date;
 }
 
+/**
+ * The Message-ID an answer to `message` threads on: its own, or else the newest one it answers.
+ * Null only when the message carries none at all.
+ */
+export function replyTarget(
+  message: Pick<IncomingEmail, "messageId" | "inReplyTo" | "references">,
+): string | null {
+  return message.messageId ?? message.inReplyTo ?? message.references.at(-1) ?? null;
+}
+
 /** Stores a reply and decides what happens next. Returns false when it is not ours. */
 export async function handleInbound(
   deps: { db: Db; mailer: Mailer; analyzer: LeadAnalyzer },
@@ -742,6 +943,10 @@ export async function handleInbound(
 ): Promise<boolean> {
   const { db, mailer, analyzer } = deps;
   if (!message.from || message.from.toLowerCase() === mailer.address) return false;
+  const bounced = await findBouncedEmail(db, message);
+  // A bounce is the server's word about our e-mail, not a message from the lead: it marks the
+  // e-mail as never delivered and is not stored as a reply.
+  if (bounced) return markBounced(db, bounced, now);
   const match = await findLead(db, message);
   if (!match) return false;
   const { lead, inThread } = match;
@@ -761,12 +966,13 @@ export async function handleInbound(
       body: message.text || "(sem texto)",
       messageId: message.messageId,
       inReplyTo: message.inReplyTo,
+      automatic: message.automatic,
       sentAt: receivedAt(message.date, now),
     })
     .onConflictDoNothing()
     .returning({ id: emails.id });
   if (stored.length === 0) return false;
-  // Out-of-office and bounces are kept in the thread but change nothing.
+  // Out-of-office and other machine mail is kept in the thread but changes nothing.
   if (message.automatic) return true;
 
   const optOut = isUnsubscribeRequest(message.text, message.subject);
@@ -788,6 +994,8 @@ export async function handleInbound(
     .update(leads)
     .set({
       status: lead.status === "closed" ? "closed" : "replied",
+      // A lost deal answering is back in conversation: its loss no longer holds.
+      ...(lead.status === "closed" ? {} : outcomeReset("replied")),
       followUpOn: null,
       lastEmailAt: now,
     })
@@ -826,7 +1034,10 @@ export async function handleInbound(
 
   const history = await thread(db, lead.id);
   const aiReplies = history.filter(
-    (item) => item.direction === "out" && item.author === "ai" && item.inReplyTo,
+    (item) =>
+      item.direction === "out" &&
+      item.author === "ai" &&
+      (item.inReplyTo !== null || item.conversationReply),
   ).length;
   if (aiReplies >= MAX_AI_REPLIES) {
     await handOff(db, lead.id, `A IA já respondeu ${MAX_AI_REPLIES} vezes`);
@@ -838,7 +1049,7 @@ export async function handleInbound(
       eq(emails.leadId, lead.id),
       eq(emails.direction, "out"),
       eq(emails.author, "ai"),
-      isNotNull(emails.inReplyTo),
+      or(isNotNull(emails.inReplyTo), eq(emails.conversationReply, true)),
       ne(emails.status, "draft"),
     ),
   );
@@ -851,6 +1062,7 @@ export async function handleInbound(
     from: item.direction === "out" ? "eu" : "empresa",
     text: item.body,
   }));
+  const inReplyTo = replyTarget(message);
   const base = {
     leadId: lead.id,
     direction: "out" as const,
@@ -858,7 +1070,7 @@ export async function handleInbound(
     fromAddress: mailer.address,
     toAddress: lead.email ?? message.from,
     subject: replySubject(message.subject),
-    inReplyTo: message.messageId,
+    inReplyTo,
   };
   // Kept without signature: it is added when the person sends it. Skipped when the user
   // started a reply of their own in the meantime.
@@ -886,6 +1098,8 @@ export async function handleInbound(
         ...base,
         id: crypto.randomUUID(),
         status: "queued",
+        // Nothing to thread on: still an answer, never cold outreach held by the window.
+        conversationReply: inReplyTo === null,
         body: composeBody(decision.reply, settings, false),
         sendAfter: new Date(now.getTime() + REPLY_DELAY_MINUTES * 60_000),
       });
@@ -942,6 +1156,8 @@ export async function queueFollowUps(
   now = new Date(),
 ): Promise<number> {
   const { db, analyzer } = deps;
+  // Paused: no follow-up is drafted (each one is a paid model call) until someone resumes.
+  if ((await loadDispatchControl(db)).pausedAt) return 0;
   const settings = await loadSettings(db);
   if (!hasOffer(settings)) return 0;
   const today = localDay(now);
@@ -956,6 +1172,8 @@ export async function queueFollowUps(
         eq(leads.aiMode, true),
         isNotNull(leads.email),
         isNull(leads.unsubscribedAt),
+        // An e-mail that came back means a dead address: nothing more goes to it.
+        sql`not exists (select 1 from emails b where b.lead_id = ${leads.id} and b.bounced_at is not null)`,
       ),
     )
     .limit(10);
@@ -1016,6 +1234,26 @@ export async function queueFollowUps(
   return queued;
 }
 
+/**
+ * Whether the lead in `leadId` (a column) had a first e-mail taken out by "Cancelar disparo"
+ * for today's run: the automatic dispatch leaves it alone until tomorrow, or cancelling would
+ * be undone (and paid for again) on the next hourly run.
+ */
+function cancelledToday(leadId: SQLWrapper, now: Date) {
+  const since = Math.floor(brazilInstant(localDay(now), "00:00").getTime() / 1000);
+  return sql`exists (select 1 from emails c where c.lead_id = ${leadId} and c.status = 'cancelled'
+    and c.error = ${DISPATCH_CANCELLED_REASON} and c.send_after >= ${since})`;
+}
+
+/** Whether today's cold run was cancelled or paused since it started. */
+async function dispatchStopped(db: Db, now: Date): Promise<boolean> {
+  const row = await db.query.settings.findFirst({
+    columns: { dispatchPausedAt: true, dispatchCancelledOn: true },
+  });
+  if (!row) return false;
+  return row.dispatchPausedAt !== null || row.dispatchCancelledOn === localDay(now);
+}
+
 /** With automatic dispatch on, new leads with an e-mail are drafted and queued. */
 export async function autoDispatch(
   deps: { db: Db; analyzer: LeadAnalyzer; fromAddress: string; limit: number },
@@ -1024,7 +1262,11 @@ export async function autoDispatch(
   const { db } = deps;
   const row = await db.query.settings.findFirst();
   if (!row?.autoDispatch) return 0;
-  const remaining = deps.limit - (await requestsToday(db, EMAIL_PROVIDER, now));
+  // Paused: nothing new is drafted (each draft is a paid model call) until someone resumes.
+  if (row.dispatchPausedAt) return 0;
+  // "Cancelar disparo" stops the rest of today's run; tomorrow's goes ahead.
+  if (row.dispatchCancelledOn === localDay(now)) return 0;
+  const remaining = coldDailyLimit(deps.limit) - (await requestsToday(db, EMAIL_PROVIDER, now));
   const queuedCount = await db.$count(emails, eq(emails.status, "queued"));
   // Capped per run: each candidate costs a model call, and a high daily limit would otherwise
   // draft hundreds of e-mails in one cron run. The next hourly run picks up the rest.
@@ -1042,6 +1284,7 @@ export async function autoDispatch(
         isNull(leads.unsubscribedAt),
         sql`not ${unsubscribedAddress}`,
         sql`not ${wasContacted(leads.id)}`,
+        sql`not ${cancelledToday(leads.id, now)}`,
       ),
     )
     // Leads that already have a draft go last: a draft held for review must not take the
@@ -1049,6 +1292,8 @@ export async function autoDispatch(
     .orderBy(
       sql`exists (select 1 from emails e where e.lead_id = ${leads.id} and e.direction = 'out')`,
       desc(leads.score),
+      asc(leads.createdAt),
+      asc(leads.id),
     )
     .limit(room);
   if (candidates.length === 0) return 0;
@@ -1060,6 +1305,8 @@ export async function autoDispatch(
   const ready = drafts.filter(
     (draft) => outgoingIssues(`${draft.subject}\n${draft.body}`).length === 0,
   );
+  // Drafting takes a while: a cancel (or pause) in the meantime keeps them as drafts.
+  if (await dispatchStopped(db, now)) return 0;
   return queueDrafts(
     db,
     ready.map((draft) => draft.id),

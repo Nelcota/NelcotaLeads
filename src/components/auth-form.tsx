@@ -32,7 +32,7 @@ export function AuthShell({
       <div className="enter flex w-full max-w-[380px] flex-col items-center">
         <span
           aria-hidden
-          className="grid size-14 place-items-center rounded-[16px] bg-[#30d158] text-[22px] font-semibold text-[#032d12]"
+          className="grid size-14 place-items-center rounded-[16px] bg-primary text-[22px] font-bold text-primary-foreground"
         >
           N
         </span>
@@ -198,6 +198,7 @@ const responseSchema = z.object({
 const CODE_FIELD: Partial<Record<string, string>> = {
   codigo: "accessCode",
   "email-em-uso": "email",
+  "sem-convite": "email",
 };
 
 /** A short sideways shake, like a wrong macOS password; skipped with reduced motion. */

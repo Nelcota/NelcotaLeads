@@ -4,6 +4,11 @@ import { env } from "cloudflare:test";
 export async function resetDb() {
   await env.DB.batch(
     [
+      "lead_events",
+      "meetings",
+      "proposals",
+      "services",
+      "service_addons",
       "emails",
       "analyses",
       "leads",
@@ -14,6 +19,8 @@ export async function resetDb() {
       "revoked_sessions",
       "quick_replies",
       "job_runs",
+      "monthly_goals",
+      "invites",
     ].map((table) => env.DB.prepare(`DELETE FROM ${table}`)),
   );
 }
