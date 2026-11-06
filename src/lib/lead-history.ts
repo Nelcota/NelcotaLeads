@@ -64,14 +64,24 @@ function wonText(toValue: string | null): string {
   return Number.isInteger(cents) && cents > 0 ? `Fechado por ${formatCents(cents)}` : "Fechado";
 }
 
-/** Written when a meeting is booked (`to` = when it starts) or cancelled (`to` = "cancelled"). */
+/**
+ * Written when a meeting is booked (`to` = when it starts), rescheduled (`from` = the old start,
+ * `to` = the new one) or cancelled (`to` = "cancelled").
+ */
 export const MEETING_CANCELLED = "cancelled";
 
-function meetingText(toValue: string | null): string {
+function meetingText(fromValue: string | null, toValue: string | null): string {
   if (toValue === MEETING_CANCELLED) return "Reunião cancelada";
-  const startsAt = toValue ? new Date(toValue) : null;
-  if (!startsAt || Number.isNaN(startsAt.getTime())) return "Reunião marcada";
+  const startsAt = validDate(toValue);
+  if (!startsAt) return "Reunião marcada";
+  const before = validDate(fromValue);
+  if (before) return `Reunião remarcada de ${eventTime(before)} para ${eventTime(startsAt)}`;
   return `Reunião marcada para ${eventTime(startsAt)}`;
+}
+
+function validDate(value: string | null): Date | null {
+  const date = value ? new Date(value) : null;
+  return date && !Number.isNaN(date.getTime()) ? date : null;
 }
 
 /**
@@ -95,7 +105,7 @@ const EVENT_TEXT: Record<LeadEventKind, (event: HistoryEvent) => string> = {
   owner: (event) => ownerText(event.toValue, event.userName),
   won: (event) => wonText(event.toValue),
   lost: (event) => lostText(event.toValue),
-  meeting: (event) => meetingText(event.toValue),
+  meeting: (event) => meetingText(event.fromValue, event.toValue),
   proposal: (event) => proposalText(event.fromValue, event.toValue),
 };
 

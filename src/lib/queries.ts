@@ -11,7 +11,7 @@ import { getLead, getLeadCounts, listLeads } from "@/server/leads";
 import { getProviderStatus, listSearches } from "@/server/searches";
 import { listNicheMetrics, listNiches } from "@/server/niches";
 import { getOverviewMetrics } from "@/server/overview-metrics";
-import { getLeadSales } from "@/server/sales";
+import { getBookableLeads, getLeadSales } from "@/server/sales";
 import { getServiceTable } from "@/server/services";
 import { getQuickReplies } from "@/server/settings";
 import { getSystemStatus } from "@/server/system-status";
@@ -130,13 +130,22 @@ export const leadSalesQuery = (leadId: string) =>
     queryFn: () => getLeadSales({ data: { leadId } }),
   });
 
-/** The Agenda, for everyone (null) or one person of the team. */
-export const agendaQuery = (owner: string | null) =>
+/** The Agenda from one day to another, for everyone (null) or one person of the team. */
+export const agendaQuery = (owner: string | null, from: string, to: string) =>
   queryOptions({
-    queryKey: ["agenda", owner],
-    queryFn: () => getAgenda({ data: { owner } }),
+    queryKey: ["agenda", owner, from, to],
+    queryFn: () => getAgenda({ data: { owner, from, to } }),
     refetchInterval: 60_000,
+    // While a new range loads, keep the last one on screen, but never another owner's agenda.
+    placeholderData: (previous, previousQuery) =>
+      previousQuery?.queryKey[1] === owner ? previous : undefined,
   });
+
+/** The leads "Marcar reunião" on the Agenda can pick from. */
+export const bookableLeadsQuery = queryOptions({
+  queryKey: ["leads", "bookable"],
+  queryFn: () => getBookableLeads(),
+});
 
 /** Today's meetings and follow-ups: the sidebar badge and "Agenda de hoje". */
 export const todayAgendaQuery = queryOptions({

@@ -24,6 +24,14 @@ export type MeetingInput = z.infer<typeof meetingInputSchema>;
 
 export const meetingCancelSchema = z.object({ id: idSchema });
 
+/** "Remarcar" or a drag on the Agenda: the meeting's new Brazil day and time. */
+export const meetingRescheduleSchema = z.object({
+  id: idSchema,
+  day: daySchema,
+  time: z.string().regex(TIME, "Horário inválido"),
+});
+export type MeetingReschedule = z.infer<typeof meetingRescheduleSchema>;
+
 export const PAST_MEETING_MESSAGE = "Escolha um dia e horário que ainda não passaram.";
 
 /** The form's fields as typed. */

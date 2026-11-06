@@ -1,15 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
-  agendaCounts,
   agendaDayLabel,
   agendaDetail,
-  agendaTiles,
   agendaWhen,
-  closedAfterMeetingLabel,
   dueToday,
   groupAgenda,
   OVERDUE_DAY,
-  weekEnd,
   type AgendaEntry,
 } from "./agenda";
 
@@ -24,6 +20,7 @@ const entry = (overrides: Partial<AgendaEntry>): AgendaEntry => ({
   day: today,
   time: "10:00",
   meetingKind: "video",
+  ownerId: "u1",
   ownerName: "Haniel",
   note: "",
   ...overrides,
@@ -62,7 +59,6 @@ describe("groupAgenda", () => {
     ]);
     expect(days[0]?.entries.map((item) => item.id)).toEqual(["fri", "mon"]);
     expect(dueToday(entries, today).map((item) => item.id)).toEqual(["fri", "mon", "today"]);
-    expect(agendaCounts(entries, today)).toEqual({ today: 3, week: 4 });
     expect(agendaWhen(entry({ ...followup, day: "2026-10-30" }), today)).toBe("30/10");
     expect(agendaWhen(entry({ ...followup }), today)).toBe("dia todo");
     expect(agendaWhen(entry({}), today)).toBe("10:00");
@@ -87,37 +83,5 @@ describe("labels", () => {
     expect(agendaDetail(entry({ kind: "followup", meetingKind: null, ownerName: null }))).toBe(
       "Retornar o contato",
     );
-  });
-
-  it("shows the closing share, or a dash without meetings", () => {
-    expect(closedAfterMeetingLabel(2, 5)).toBe("40%");
-    expect(closedAfterMeetingLabel(0, 0)).toBe("—");
-  });
-});
-
-describe("counts and tiles", () => {
-  it("counts today and the rest of the week until Sunday", () => {
-    expect(weekEnd(today)).toBe("2026-11-08");
-    expect(weekEnd("2026-11-08")).toBe("2026-11-08");
-    const entries = [entry({}), entry({ day: "2026-11-08" }), entry({ day: "2026-11-09" })];
-    expect(agendaCounts(entries, today)).toEqual({ today: 1, week: 2 });
-  });
-
-  it("builds the four tiles", () => {
-    const tiles = agendaTiles(
-      [entry({})],
-      {
-        proposalsToPresent: 2,
-        leadsWithMeeting: 0,
-        closedAfterMeeting: 0,
-      },
-      today,
-    );
-    expect(tiles.map((tile) => [tile.label, tile.value])).toEqual([
-      ["Hoje", "1"],
-      ["Esta semana", "1"],
-      ["Propostas a apresentar", "2"],
-      ["Fecharam após reunião", "—"],
-    ]);
   });
 });

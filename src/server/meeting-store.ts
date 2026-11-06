@@ -5,7 +5,7 @@ import { inList } from "@/db/in-list";
 import { emails, leadEvents, leads, meetings, type Lead } from "@/db/schema";
 import { brazilInstant, localDay } from "@/lib/format";
 import { MEETING_CANCELLED } from "@/lib/lead-history";
-import { PAST_MEETING_MESSAGE, type MeetingInput } from "@/lib/meetings";
+import { PAST_MEETING_MESSAGE, type MeetingInput, type MeetingReschedule } from "@/lib/meetings";
 import { meetingInviteEmail } from "@/lib/sales-email";
 import { LEAD_NOT_FOUND } from "@/lib/schemas";
 import { leadEvent } from "./lead-events";
@@ -144,6 +144,72 @@ export async function cancelMeeting(db: Db, id: string, userId: string | null, n
   const [first, ...rest] = statements;
   if (first) await db.batch([first, ...rest]);
   return { ok: true as const };
+}
+
+export const MEETING_RESCHEDULED_REASON = "Cancelado: reunião remarcada";
+
+/**
+ * "Remarcar" (or a drag on the Agenda): moves a meeting still on the agenda to a new day and
+ * time, with a history line from the old time to the new one. An invite still waiting in the
+ * queue would announce the old time, so it is cancelled; one already sent stays sent. Nothing
+ * is e-mailed.
+ */
+export async function rescheduleMeeting(
+  db: Db,
+  input: MeetingReschedule,
+  userId: string | null,
+  now = new Date(),
+) {
+  const meeting = await db.query.meetings.findFirst({ where: eq(meetings.id, input.id) });
+  if (!meeting || meeting.cancelledAt) throw new Error(MEETING_NOT_FOUND);
+  const lead = await db.query.leads.findFirst({ where: eq(leads.id, meeting.leadId) });
+  if (!lead) throw new Error(LEAD_NOT_FOUND);
+  assertLeadOpen(lead);
+  const startsAt = brazilInstant(input.day, input.time);
+  if (startsAt <= now) throw new Error(PAST_MEETING_MESSAGE);
+  if (startsAt.getTime() === meeting.startsAt.getTime()) {
+    return { ok: true as const, inviteCancelled: false };
+  }
+  const queuedInvite = meeting.inviteEmailId
+    ? await db.query.emails.findFirst({
+        where: and(
+          eq(emails.id, meeting.inviteEmailId),
+          eq(emails.status, "queued"),
+          isNull(emails.sentAt),
+        ),
+      })
+    : undefined;
+
+  const statements: BatchItem<"sqlite">[] = [
+    db
+      .update(meetings)
+      .set({ startsAt })
+      .where(and(eq(meetings.id, meeting.id), isNull(meetings.cancelledAt))),
+    db
+      .insert(leadEvents)
+      .values(
+        leadEvent(
+          meeting.leadId,
+          "meeting",
+          { from: meeting.startsAt.toISOString(), to: startsAt.toISOString() },
+          userId,
+          now,
+        ),
+      ),
+  ];
+  if (queuedInvite) {
+    statements.push(
+      db
+        .update(emails)
+        .set({ status: "cancelled", error: MEETING_RESCHEDULED_REASON })
+        .where(
+          and(eq(emails.id, queuedInvite.id), eq(emails.status, "queued"), isNull(emails.sentAt)),
+        ),
+    );
+  }
+  const [first, ...rest] = statements;
+  if (first) await db.batch([first, ...rest]);
+  return { ok: true as const, inviteCancelled: queuedInvite !== undefined };
 }
 
 /** The lead's meetings from today on, not cancelled, soonest first. */

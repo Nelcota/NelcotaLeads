@@ -1,22 +1,21 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getDb } from "@/db/client";
-import { AGENDA_DAYS, agendaFilterSchema } from "@/lib/agenda";
-import { addDays, localDay } from "@/lib/format";
-import { agendaEntries, agendaSummary, teamMembers, todayEntries } from "./agenda-store";
+import { agendaRangeSchema } from "@/lib/agenda";
+import { localDay, localTime } from "@/lib/format";
+import { agendaEntries, teamMembers, todayEntries } from "./agenda-store";
 
-/** The Agenda: meetings and follow-ups of the next AGENDA_DAYS days, the tiles and the team. */
+/**
+ * The Agenda: meetings and follow-ups from one day to another (the visible Month, Week or Day),
+ * the team, and today and now in Brazil time.
+ */
 export const getAgenda = createServerFn({ method: "GET" })
-  .validator(agendaFilterSchema)
+  .validator(agendaRangeSchema)
   .handler(async ({ data }) => {
     const db = getDb();
-    const today = localDay(new Date());
-    const range = { from: today, to: addDays(today, AGENDA_DAYS - 1), ownerId: data.owner };
-    const [entries, summary, team] = await Promise.all([
-      agendaEntries(db, range),
-      agendaSummary(db, data.owner),
-      teamMembers(db),
-    ]);
-    return { today, entries, summary, team };
+    const now = new Date();
+    const range = { from: data.from, to: data.to, ownerId: data.owner };
+    const [entries, team] = await Promise.all([agendaEntries(db, range), teamMembers(db)]);
+    return { today: localDay(now), now: localTime(now), entries, team };
   });
 
 export type Agenda = Awaited<ReturnType<typeof getAgenda>>;
