@@ -2,9 +2,12 @@ import { and, eq, getTableColumns, isNull, ne, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Db } from "@/db/client";
 import { settings } from "@/db/schema";
+import type { DispatchControl } from "@/lib/send-window";
 import {
   autopilotInputSchema,
   DEFAULT_CRITERIA,
+  DEFAULT_SEND_WINDOW,
+  sendWindowInputSchema,
   settingsInputSchema,
   type AutopilotInput,
   type AutopilotTarget,
@@ -127,6 +130,45 @@ function parseTargets(value: unknown): AutopilotTarget[] {
     const parsed = autopilotTargetSchema.safeParse(item);
     return parsed.success ? [parsed.data] : [];
   });
+}
+
+const pausedAtSchema = z.date().nullable();
+
+/**
+ * The send window and the pause switch, read on every send. A stored window that makes no
+ * sense (start not before end) falls back to the default, so sending never stops for good.
+ */
+export async function loadDispatchControl(db: Db): Promise<DispatchControl> {
+  const [row] = await db
+    .select({
+      start: settings.sendWindowStart,
+      end: settings.sendWindowEnd,
+      pausedAt: settings.dispatchPausedAt,
+    })
+    .from(settings)
+    .where(eq(settings.id, SETTINGS_ID))
+    .limit(1);
+  if (!row) return { ...DEFAULT_SEND_WINDOW, pausedAt: null };
+  const window = sendWindowInputSchema.safeParse({ start: row.start, end: row.end });
+  return {
+    ...(window.success ? window.data : DEFAULT_SEND_WINDOW),
+    pausedAt: field(pausedAtSchema, row.pausedAt, null),
+  };
+}
+
+export async function writeDispatchControl(
+  db: Db,
+  changes: Partial<
+    Pick<
+      typeof settings.$inferInsert,
+      "sendWindowStart" | "sendWindowEnd" | "dispatchPausedAt" | "dispatchCancelledOn"
+    >
+  >,
+) {
+  await db
+    .insert(settings)
+    .values({ id: SETTINGS_ID, ...DEFAULT_SETTINGS, ...changes })
+    .onConflictDoUpdate({ target: settings.id, set: changes });
 }
 
 export async function loadSettings(db: Db): Promise<SettingsInput> {

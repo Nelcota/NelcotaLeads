@@ -10,9 +10,11 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AgendaRouteImport } from './routes/agenda'
 import { Route as ContaRouteImport } from './routes/conta'
 import { Route as ConversasRouteImport } from './routes/conversas'
 import { Route as CriarContaRouteImport } from './routes/criar-conta'
+import { Route as EquipeRouteImport } from './routes/equipe'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as RedefinirSenhaRouteImport } from './routes/redefinir-senha'
 import { Route as SettingsRouteImport } from './routes/settings'
@@ -27,10 +29,16 @@ import { Route as LeadsIndexRouteImport } from './routes/leads/index'
 import { Route as LeadsLeadIdRouteImport } from './routes/leads/$leadId'
 import { Route as SearchesIndexRouteImport } from './routes/searches/index'
 import { Route as SearchesSearchIdRouteImport } from './routes/searches/$searchId'
+import { Route as SettingsServicosRouteImport } from './routes/settings_.servicos'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AgendaRoute = AgendaRouteImport.update({
+  id: '/agenda',
+  path: '/agenda',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ContaRoute = ContaRouteImport.update({
@@ -46,6 +54,11 @@ const ConversasRoute = ConversasRouteImport.update({
 const CriarContaRoute = CriarContaRouteImport.update({
   id: '/criar-conta',
   path: '/criar-conta',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EquipeRoute = EquipeRouteImport.update({
+  id: '/equipe',
+  path: '/equipe',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -118,12 +131,19 @@ const SearchesSearchIdRoute = SearchesSearchIdRouteImport.update({
   path: '/searches/$searchId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsServicosRoute = SettingsServicosRouteImport.update({
+  id: '/settings_/servicos',
+  path: '/settings/servicos',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/agenda': typeof AgendaRoute
   '/conta': typeof ContaRoute
   '/conversas': typeof ConversasRoute
   '/criar-conta': typeof CriarContaRoute
+  '/equipe': typeof EquipeRoute
   '/login': typeof LoginRoute
   '/redefinir-senha': typeof RedefinirSenhaRoute
   '/settings': typeof SettingsRoute
@@ -136,14 +156,17 @@ export interface FileRoutesByFullPath {
   '/api/signup': typeof ApiSignupRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
   '/searches/$searchId': typeof SearchesSearchIdRoute
+  '/settings/servicos': typeof SettingsServicosRoute
   '/leads/': typeof LeadsIndexRoute
   '/searches/': typeof SearchesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/agenda': typeof AgendaRoute
   '/conta': typeof ContaRoute
   '/conversas': typeof ConversasRoute
   '/criar-conta': typeof CriarContaRoute
+  '/equipe': typeof EquipeRoute
   '/login': typeof LoginRoute
   '/redefinir-senha': typeof RedefinirSenhaRoute
   '/settings': typeof SettingsRoute
@@ -156,15 +179,18 @@ export interface FileRoutesByTo {
   '/api/signup': typeof ApiSignupRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
   '/searches/$searchId': typeof SearchesSearchIdRoute
+  '/settings/servicos': typeof SettingsServicosRoute
   '/leads': typeof LeadsIndexRoute
   '/searches': typeof SearchesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/agenda': typeof AgendaRoute
   '/conta': typeof ContaRoute
   '/conversas': typeof ConversasRoute
   '/criar-conta': typeof CriarContaRoute
+  '/equipe': typeof EquipeRoute
   '/login': typeof LoginRoute
   '/redefinir-senha': typeof RedefinirSenhaRoute
   '/settings': typeof SettingsRoute
@@ -177,6 +203,7 @@ export interface FileRoutesById {
   '/api/signup': typeof ApiSignupRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
   '/searches/$searchId': typeof SearchesSearchIdRoute
+  '/settings_/servicos': typeof SettingsServicosRoute
   '/leads/': typeof LeadsIndexRoute
   '/searches/': typeof SearchesIndexRoute
 }
@@ -184,9 +211,11 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/agenda'
     | '/conta'
     | '/conversas'
     | '/criar-conta'
+    | '/equipe'
     | '/login'
     | '/redefinir-senha'
     | '/settings'
@@ -199,14 +228,17 @@ export interface FileRouteTypes {
     | '/api/signup'
     | '/leads/$leadId'
     | '/searches/$searchId'
+    | '/settings/servicos'
     | '/leads/'
     | '/searches/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/agenda'
     | '/conta'
     | '/conversas'
     | '/criar-conta'
+    | '/equipe'
     | '/login'
     | '/redefinir-senha'
     | '/settings'
@@ -219,14 +251,17 @@ export interface FileRouteTypes {
     | '/api/signup'
     | '/leads/$leadId'
     | '/searches/$searchId'
+    | '/settings/servicos'
     | '/leads'
     | '/searches'
   id:
     | '__root__'
     | '/'
+    | '/agenda'
     | '/conta'
     | '/conversas'
     | '/criar-conta'
+    | '/equipe'
     | '/login'
     | '/redefinir-senha'
     | '/settings'
@@ -239,15 +274,18 @@ export interface FileRouteTypes {
     | '/api/signup'
     | '/leads/$leadId'
     | '/searches/$searchId'
+    | '/settings_/servicos'
     | '/leads/'
     | '/searches/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AgendaRoute: typeof AgendaRoute
   ContaRoute: typeof ContaRoute
   ConversasRoute: typeof ConversasRoute
   CriarContaRoute: typeof CriarContaRoute
+  EquipeRoute: typeof EquipeRoute
   LoginRoute: typeof LoginRoute
   RedefinirSenhaRoute: typeof RedefinirSenhaRoute
   SettingsRoute: typeof SettingsRoute
@@ -260,6 +298,7 @@ export interface RootRouteChildren {
   ApiSignupRoute: typeof ApiSignupRoute
   LeadsLeadIdRoute: typeof LeadsLeadIdRoute
   SearchesSearchIdRoute: typeof SearchesSearchIdRoute
+  SettingsServicosRoute: typeof SettingsServicosRoute
   LeadsIndexRoute: typeof LeadsIndexRoute
   SearchesIndexRoute: typeof SearchesIndexRoute
 }
@@ -271,6 +310,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/agenda': {
+      id: '/agenda'
+      path: '/agenda'
+      fullPath: '/agenda'
+      preLoaderRoute: typeof AgendaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/conta': {
@@ -292,6 +338,13 @@ declare module '@tanstack/react-router' {
       path: '/criar-conta'
       fullPath: '/criar-conta'
       preLoaderRoute: typeof CriarContaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/equipe': {
+      id: '/equipe'
+      path: '/equipe'
+      fullPath: '/equipe'
+      preLoaderRoute: typeof EquipeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -392,14 +445,23 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SearchesSearchIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings_/servicos': {
+      id: '/settings_/servicos'
+      path: '/settings/servicos'
+      fullPath: '/settings/servicos'
+      preLoaderRoute: typeof SettingsServicosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AgendaRoute: AgendaRoute,
   ContaRoute: ContaRoute,
   ConversasRoute: ConversasRoute,
   CriarContaRoute: CriarContaRoute,
+  EquipeRoute: EquipeRoute,
   LoginRoute: LoginRoute,
   RedefinirSenhaRoute: RedefinirSenhaRoute,
   SettingsRoute: SettingsRoute,
@@ -412,6 +474,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiSignupRoute: ApiSignupRoute,
   LeadsLeadIdRoute: LeadsLeadIdRoute,
   SearchesSearchIdRoute: SearchesSearchIdRoute,
+  SettingsServicosRoute: SettingsServicosRoute,
   LeadsIndexRoute: LeadsIndexRoute,
   SearchesIndexRoute: SearchesIndexRoute,
 }

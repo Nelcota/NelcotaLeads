@@ -76,3 +76,41 @@ export function shortTime(date: Date, today = localDay(new Date())): string {
 export function sharePercent(value: number, of: number): number | null {
   return of > 0 && value >= 0 && value <= of ? Math.round((value / of) * 100) : null;
 }
+
+const WEEKDAYS = [
+  "Domingo",
+  "Segunda-feira",
+  "Terça-feira",
+  "Quarta-feira",
+  "Quinta-feira",
+  "Sexta-feira",
+  "Sábado",
+] as const;
+
+/** "Quinta-feira" for a YYYY-MM-DD day (calendar math, no time zone involved). */
+export function weekdayName(day: string): string {
+  return WEEKDAYS[new Date(`${day}T12:00:00Z`).getUTCDay()] ?? "";
+}
+
+/** "05/11" of a YYYY-MM-DD day. */
+export function dayMonth(day: string): string {
+  return `${day.slice(8, 10)}/${day.slice(5, 7)}`;
+}
+
+/** "14:05" of an instant, in Brazil time. */
+export function localTime(date: Date): string {
+  return formatIsoLocal(date).slice(11, 16);
+}
+
+/**
+ * The instant of a Brazil day and HH:MM time. Brazil has had no daylight saving time since
+ * 2019, so it is always UTC-3.
+ */
+export function brazilInstant(day: string, time: string): Date {
+  return new Date(`${day}T${time}:00-03:00`);
+}
+
+/** 1 (Monday) to 7 (Sunday) for a YYYY-MM-DD day. */
+export function isoWeekday(day: string): number {
+  return new Date(`${day}T12:00:00Z`).getUTCDay() || 7;
+}

@@ -4,9 +4,38 @@ import { LEAD_STATUS_LABELS, type UpdateLeadInput } from "@/lib/schemas";
 
 export const DEFAULT_FOLLOW_UP_DAYS = 3;
 
+/** The columns of a won or lost deal, and the sale's stage. */
+type OutcomeFields = Pick<
+  Lead,
+  | "closedAt"
+  | "dealValueCents"
+  | "dealService"
+  | "lossReason"
+  | "lossNote"
+  | "lostAt"
+  | "salesStage"
+>;
+
 type Patch = Partial<
   Pick<Lead, "status" | "notes" | "contactedAt" | "followUpOn" | "discardReason" | "discardedAt">
->;
+> &
+  Partial<OutcomeFields>;
+
+const WON_CLEARED = { closedAt: null, dealValueCents: null, dealService: null } as const;
+const LOST_CLEARED = { lossReason: null, lossNote: null, lostAt: null } as const;
+
+/**
+ * What a lead moving to `status` must forget: a won deal unless it is closed, a lost one unless
+ * it is discarded, and the sale's stage once it is back before a reply. Reopening a lead (or a
+ * reply bringing a lost one back) never leaves an old outcome behind.
+ */
+export function outcomeReset(status: LeadStatus): Partial<OutcomeFields> {
+  return {
+    ...(status === "closed" ? {} : WON_CLEARED),
+    ...(status === "discarded" ? {} : LOST_CLEARED),
+    ...(status === "new" || status === "contacted" ? { salesStage: null } : {}),
+  };
+}
 
 /**
  * Status changes a person can make, mirroring the lead detail actions: contact a new lead,
@@ -23,6 +52,8 @@ export const LEAD_TRANSITIONS: Record<LeadStatus, readonly LeadStatus[]> = {
 
 /** Statuses that lead to (more) outreach; never allowed once the lead unsubscribed. */
 export const OUTREACH_STATUSES: readonly LeadStatus[] = ["new", "contacted", "replied"];
+
+export const LEAD_CHANGED_MESSAGE = "O lead mudou enquanto isso. Atualize e tente de novo.";
 
 export const UNSUBSCRIBED_MESSAGE =
   "Este lead pediu para não receber contato e não pode voltar para a fila.";
@@ -69,7 +100,7 @@ export function leadPatch(
   { anyStatus = false } = {},
 ): Patch {
   if (!anyStatus) assertTransition(current, changes.status);
-  const patch: Patch = { ...changes };
+  const patch: Patch = { ...changes, ...(changes.status ? outcomeReset(changes.status) : {}) };
   if (changes.status === "contacted") {
     patch.contactedAt = current.contactedAt ?? now;
     if (changes.followUpOn === undefined && !current.followUpOn) {

@@ -9,7 +9,6 @@ import { getAnalyzer } from "@/lib/ai";
 import { getMailer, mailConfigured } from "@/lib/mail";
 import { splitQuoted } from "@/lib/mail/quoted";
 import {
-  closeConversation as closeLeadConversation,
   cancelQueuedEmail as cancelQueued,
   closeSnapshotSchema,
   conversationDraft,
@@ -33,10 +32,12 @@ import {
   sendDue,
   sendEmail,
 } from "./mail-flow";
+import { requestUserId } from "./request-user";
 import { runSendJob, trackJob, watchSends } from "./job-runs";
 import { loadSettings } from "./settings-store";
 import { DAILY_LIMIT_ERROR } from "@/lib/email-errors";
 import { friendlyJobError } from "@/lib/system-status";
+import { salesEmailsEnabled } from "@/lib/sales-email";
 import { DISPATCH_LIMIT, idSchema, TEXT_LIMITS } from "@/lib/schemas";
 
 const id = idSchema;
@@ -45,6 +46,7 @@ const MAIL_NOT_CONNECTED =
   "A caixa de e-mail ainda não foi conectada por quem administra o sistema.";
 const limit = () => mailDailyLimit(env.MAIL_DAILY_LIMIT);
 const fromAddress = () => (env.MAIL_ADDRESS ?? "").toLowerCase();
+const salesEmails = () => salesEmailsEnabled(env.SALES_EMAILS_ENABLED);
 
 /** Writes (or reuses) a draft for each selected lead and returns them for review. */
 export const prepareEmails = createServerFn({ method: "POST" })
@@ -120,7 +122,10 @@ export const removeDraft = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
-/** Queues the reviewed drafts, one every few minutes; the first goes out right away. */
+/**
+ * Queues the reviewed drafts in score order, one every few minutes inside the send window; the
+ * first goes out right away when the window is open and the run is not paused.
+ */
 export const dispatchEmails = createServerFn({ method: "POST" })
   .validator(z.object({ ids: z.array(id).min(1).max(DISPATCH_LIMIT) }))
   .handler(async ({ data }) => {
@@ -128,7 +133,7 @@ export const dispatchEmails = createServerFn({ method: "POST" })
     const db = getDb();
     const queued = await queueDrafts(db, data.ids);
     const watch = watchSends(getMailer(env));
-    await sendDue({ db, mailer: watch.mailer, limit: limit() });
+    await sendDue({ db, mailer: watch.mailer, limit: limit(), salesEmails: salesEmails() });
     await watch.record(db);
     return { queued };
   });
@@ -142,9 +147,13 @@ export const checkMailNow = createServerFn({ method: "POST" }).handler(async () 
   if (!mailConfigured(env)) throw new Error(MAIL_NOT_CONNECTED);
   const db = getDb();
   const mailer = getMailer(env);
-  const sent = await runSendJob({ db, mailer, limit: limit() }, new Date(), {
-    verifyWhenIdle: true,
-  }).catch(() => 0);
+  const sent = await runSendJob(
+    { db, mailer, limit: limit(), salesEmails: salesEmails() },
+    new Date(),
+    {
+      verifyWhenIdle: true,
+    },
+  ).catch(() => 0);
   try {
     const received = await trackJob(db, "inbox", () =>
       pollInbox({ db, mailer, analyzer: getAnalyzer(env) }),
@@ -307,7 +316,12 @@ export const sendReply = createServerFn({ method: "POST" })
     const lead = await db.query.leads.findFirst({ where: eq(leads.id, data.leadId) });
     if (!lead?.email) throw new Error("Este lead não tem e-mail.");
     const lastIn = await db.query.emails.findFirst({
-      where: and(eq(emails.leadId, lead.id), eq(emails.direction, "in")),
+      // The lead's own last message: an out-of-office is never what we answer.
+      where: and(
+        eq(emails.leadId, lead.id),
+        eq(emails.direction, "in"),
+        eq(emails.automatic, false),
+      ),
       orderBy: [desc(emails.createdAt)],
     });
     const lastAny = await db.query.emails.findFirst({
@@ -350,9 +364,14 @@ export const sendReply = createServerFn({ method: "POST" })
       .returning();
     if (!email) throw new Error("Não foi possível criar o e-mail");
     const watch = watchSends(mailer);
-    const result = await sendEmail({ db, mailer: watch.mailer, limit: limit() }, email, now, {
-      claimed: true,
-    });
+    const result = await sendEmail(
+      { db, mailer: watch.mailer, limit: limit(), salesEmails: salesEmails() },
+      email,
+      now,
+      {
+        claimed: true,
+      },
+    );
     await watch.record(db, now);
     if (result === "limit") {
       // Not left queued: a retry from the page would otherwise send it twice tomorrow.
@@ -383,16 +402,11 @@ export const setConversationAi = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
-/** Ends a conversation as won (closed) or lost (discarded); returns what undo needs. */
-export const closeConversation = createServerFn({ method: "POST" })
-  .validator(z.object({ leadId: id, outcome: z.enum(["closed", "discarded"]) }))
-  .handler(({ data }) => closeLeadConversation(getDb(), data.leadId, data.outcome));
-
-/** Undoes `closeConversation` from the snapshot it returned. */
+/** Undoes "Fechar negócio" or "Encerrar sem negócio" from the snapshot it returned. */
 export const undoCloseConversation = createServerFn({ method: "POST" })
   .validator(closeSnapshotSchema.extend({ leadId: id }))
-  .handler(({ data: { leadId, ...snapshot } }) =>
-    undoCloseLeadConversation(getDb(), leadId, snapshot),
+  .handler(async ({ data: { leadId, ...snapshot } }) =>
+    undoCloseLeadConversation(getDb(), leadId, snapshot, { userId: await requestUserId() }),
   );
 
 /** Sends a failed e-mail again; it goes through the queue (limit and gap) like any other. */
@@ -402,9 +416,12 @@ export const retryEmail = createServerFn({ method: "POST" })
     if (!mailConfigured(env)) throw new Error(MAIL_NOT_CONNECTED);
     const db = getDb();
     const mailer = getMailer(env);
-    await retryFailedEmail(db, data.emailId, { fromAddress: mailer.address });
+    await retryFailedEmail(db, data.emailId, {
+      fromAddress: mailer.address,
+      salesEmails: salesEmails(),
+    });
     const watch = watchSends(mailer);
-    await sendDue({ db, mailer: watch.mailer, limit: limit() });
+    await sendDue({ db, mailer: watch.mailer, limit: limit(), salesEmails: salesEmails() });
     await watch.record(db);
     return { ok: true as const };
   });

@@ -21,16 +21,22 @@ import {
   ExternalLink,
   ExternalMark,
   IconTile,
-  InfoTip,
-  ProgressRing,
   SaveStatus,
   TONE_TEXT,
   type Tone,
 } from "@/components/apple-ui";
 import { InlineEdit } from "@/components/inline-edit";
 import { useReportUnsavedEdits } from "@/components/unsaved-edits";
-import { GLOSSARY } from "@/lib/help";
-import { followUpTone, StatusBadge, TIER_TONE } from "@/components/lead-badges";
+import { DealActions } from "@/components/lead/deal-actions";
+import { LeadHistory } from "@/components/lead/lead-history";
+import { LeadMeetings } from "@/components/lead/lead-meetings";
+import { LeadStage } from "@/components/lead/lead-stage";
+import { OwnerChip } from "@/components/lead/owner-chip";
+import { SalesActions } from "@/components/lead/sales-actions";
+import { ScoreRing } from "@/components/lead/score-ring";
+import { followUpTone, StatusBadge } from "@/components/lead-badges";
+import { useLeadDeal } from "@/hooks/use-lead-deal";
+import { useLeadSales, type LeadSales } from "@/hooks/use-lead-sales";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -54,18 +60,24 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import type { Analysis, Lead, LeadStatus, SiteStatus } from "@/db/schema";
 import { useAutosave } from "@/lib/autosave";
+import type { LostDeal, WonDeal } from "@/lib/deal-form";
+import { historyLines } from "@/lib/lead-history";
+import { isPriceHandoff } from "@/lib/lead-stage";
+import { formatCents } from "@/lib/money";
 import { addDays, formatDate, localDay, relativeDay } from "@/lib/format";
 import { CONTACT_LIMITS, type ContactField } from "@/lib/lead-contact";
 import { MANUAL_SEARCH_ID } from "@/lib/searches";
 import { whatsappLink } from "@/lib/phone";
-import { conversationQuery, leadQuery, providerStatusQuery } from "@/lib/queries";
+import {
+  conversationQuery,
+  invalidateLeadScreens,
+  leadQuery,
+  providerStatusQuery,
+} from "@/lib/queries";
 import {
   isCalendarDay,
   LEAD_NOT_FOUND,
-  LEAD_STATUS_LABELS,
-  LEAD_STATUS_VALUES,
-  SCORE_TIERS,
-  scoreTier,
+  LOSS_REASON_LABELS,
   type UpdateLeadInput,
 } from "@/lib/schemas";
 import { cn, safeHttpUrl } from "@/lib/utils";
@@ -117,12 +129,7 @@ export function LeadDetail({
   const queryClient = useQueryClient();
   const today = useToday();
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["lead", leadId] });
-  const refreshAll = () =>
-    Promise.all([
-      refresh(),
-      queryClient.invalidateQueries({ queryKey: ["leads"] }),
-      queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
-    ]);
+  const refreshAll = () => Promise.all([refresh(), invalidateLeadScreens(queryClient)]);
 
   const update = useMutation({
     mutationFn: (changes: LeadUpdate) => updateLead({ data: { id: leadId, ...changes } }),
@@ -132,6 +139,8 @@ export function LeadDetail({
     },
     onError: errorToast("Não foi possível atualizar o lead"),
   });
+  const deal = useLeadDeal(leadId, { onChanged: refreshAll, onStatusChanged });
+  const sales = useLeadSales(leadId, { onChanged: refreshAll });
 
   if (!data && error) {
     return (
@@ -144,7 +153,7 @@ export function LeadDetail({
     );
   }
   if (!data) return <DetailSkeleton toolbar={toolbar} />;
-  const { lead, analysis, search } = data;
+  const { lead, analysis, search, owner, events, me } = data;
   const facts = [
     search?.id === MANUAL_SEARCH_ID
       ? "Adicionado manualmente"
@@ -167,6 +176,13 @@ export function LeadDetail({
             <SheetDescription>{facts.join(" · ")}</SheetDescription>
             <div className="mt-1 flex flex-wrap items-center gap-1.5">
               <StatusBadge status={lead.status} />
+              <OwnerChip
+                ownerName={owner?.name ?? null}
+                mine={Boolean(me) && lead.ownerId === me}
+                busy={deal.changingOwner}
+                onTake={deal.take}
+                onRelease={deal.release}
+              />
               {lead.followUpOn && (lead.status === "contacted" || lead.status === "replied") ? (
                 <Badge variant={followUpTone(lead.followUpOn, today)} dot>
                   Retorno {relativeDay(lead.followUpOn, today)}
@@ -174,15 +190,18 @@ export function LeadDetail({
               ) : null}
             </div>
           </div>
-          <div className="flex shrink-0 flex-col items-center gap-1.5">
-            <ScoreRingLarge score={lead.score} pending={lead.analysisStatus === "pending"} />
-            <InfoTip side="bottom">{GLOSSARY.score.text}</InfoTip>
-          </div>
+          <ScoreRing score={lead.score} pending={lead.analysisStatus === "pending"} />
         </div>
-        {lead.discardReason ? (
+        {lead.discardReason && !lead.lossReason ? (
           <p className="text-[12.5px] text-red">Descartado pela IA: {lead.discardReason}</p>
         ) : null}
         <QuickActions lead={lead} />
+        <LeadStage lead={lead} busy={deal.movingStage} onSelectStage={deal.setStage} />
+        {lead.status === "replied" && isPriceHandoff(lead.handoffReason) ? (
+          <p className="text-[12.5px] text-orange">
+            A IA não cita preço. Responda com a proposta da tabela de serviços.
+          </p>
+        ) : null}
       </SheetHeader>
 
       <div className="flex flex-col gap-6 px-5 pb-6">
@@ -193,7 +212,21 @@ export function LeadDetail({
           busy={update.isPending}
           onUpdate={(changes, options) => update.mutate(changes, options)}
           onChanged={refreshAll}
+          closing={deal.closing}
+          onWon={deal.closeWon}
+          onLost={deal.closeLost}
+          sales={sales}
         />
+        {sales.meetings.length > 0 ? (
+          <Section title="Reuniões">
+            <LeadMeetings
+              meetings={sales.meetings}
+              today={today}
+              busy={sales.cancelling}
+              onCancel={sales.cancel}
+            />
+          </Section>
+        ) : null}
         <AnalysisSection lead={lead} analysis={analysis} />
         <div className="grid gap-6 sm:grid-cols-[1.2fr_1fr]">
           <ContactSection lead={lead} onChanged={refreshAll} />
@@ -203,13 +236,10 @@ export function LeadDetail({
             onSave={(notes) => update.mutateAsync({ notes })}
           />
         </div>
-        <Footer
-          lead={lead}
-          analysis={analysis}
-          busy={update.isPending}
-          onStatus={(status) => update.mutate({ status })}
-          onChanged={refreshAll}
-        />
+        <Section title="Histórico">
+          <LeadHistory lines={historyLines(events)} />
+        </Section>
+        <Footer lead={lead} analysis={analysis} onChanged={refreshAll} />
       </div>
     </div>
   );
@@ -278,6 +308,12 @@ type StepProps = {
   /** `onSuccess` runs once the server accepted the change (a toast must not promise earlier). */
   onUpdate: (changes: LeadUpdate, options?: { onSuccess?: () => void }) => void;
   onChanged: () => Promise<unknown>;
+  /** A deal being closed (won or lost) right now. */
+  closing: boolean;
+  onWon: (deal: WonDeal) => void;
+  onLost: (deal: LostDeal) => void;
+  /** Meetings, proposals and the latest proposal "Fechar negócio" starts from. */
+  sales: LeadSales;
 };
 
 function NextStep(props: StepProps) {
@@ -311,17 +347,20 @@ function NextStep(props: StepProps) {
                 <ExternalLink href={whatsappLink(lead.phoneE164)}>Abrir conversa</ExternalLink>
               </Button>
             ) : null}
-            <Button disabled={busy} onClick={() => onUpdate({ status: "closed" })}>
-              Fechar negócio
-            </Button>
-            <Button
-              variant="ghost"
-              className="ml-auto"
-              disabled={busy}
-              onClick={() => onUpdate({ status: "discarded" })}
-            >
-              Encerrar sem negócio
-            </Button>
+            <SalesActions
+              key={`sales:${lead.id}`}
+              lead={lead}
+              sales={props.sales}
+              today={props.today}
+            />
+            <DealActions
+              key={lead.id}
+              today={props.today}
+              proposal={props.sales.proposal}
+              busy={busy || props.closing}
+              onWon={props.onWon}
+              onLost={props.onLost}
+            />
           </CardFooter>
         </Card>
       );
@@ -330,6 +369,7 @@ function NextStep(props: StepProps) {
         <Card className={STEP_CARD}>
           <CardHeader>
             <CardTitle>Negócio fechado</CardTitle>
+            <DealSummary lead={lead} />
           </CardHeader>
           <CardFooter>
             <Button
@@ -346,7 +386,8 @@ function NextStep(props: StepProps) {
       return (
         <Card className={STEP_CARD}>
           <CardHeader>
-            <CardTitle>Descartado</CardTitle>
+            <CardTitle>{lead.lossReason ? "Encerrado sem negócio" : "Descartado"}</CardTitle>
+            <LossSummary lead={lead} />
           </CardHeader>
           <CardFooter>
             <Button variant="outline" disabled={busy} onClick={() => onUpdate({ status: "new" })}>
@@ -695,9 +736,11 @@ function EmailStep({ lead, busy, onUpdate, onChanged }: StepProps) {
 }
 
 /** Leads with an e-mail thread: the latest messages and a way into Conversas. */
-function ConversationStep({ lead }: StepProps) {
+function ConversationStep({ lead, today, closing, onWon, onLost, sales }: StepProps) {
   const { data } = useQuery(conversationQuery(lead.id));
   const last = data?.messages.slice(-2) ?? [];
+  // A deal can be closed (won or lost) once the lead was contacted.
+  const open = lead.status === "contacted" || lead.status === "replied";
   const label =
     data?.state === "needsYou"
       ? `A IA parou: ${lead.handoffReason ?? "respondeu"}. A conversa é sua.`
@@ -711,6 +754,8 @@ function ConversationStep({ lead }: StepProps) {
       <CardHeader>
         <CardTitle>Conversa por e-mail</CardTitle>
         <CardDescription>{label}</CardDescription>
+        {lead.status === "closed" ? <DealSummary lead={lead} /> : null}
+        {lead.status === "discarded" ? <LossSummary lead={lead} /> : null}
       </CardHeader>
       <CardContent className="grid gap-3">
         {last.map((message) => (
@@ -729,12 +774,25 @@ function ConversationStep({ lead }: StepProps) {
           </div>
         ))}
       </CardContent>
-      <CardFooter>
-        <Button asChild>
+      <CardFooter className="flex-wrap gap-2">
+        <Button asChild variant={open ? "outline" : "default"}>
           <Link to="/conversas" search={{ lead: lead.id }}>
             Abrir conversa
           </Link>
         </Button>
+        {lead.status === "replied" ? (
+          <SalesActions key={`sales:${lead.id}`} lead={lead} sales={sales} today={today} />
+        ) : null}
+        {open ? (
+          <DealActions
+            key={lead.id}
+            today={today}
+            proposal={sales.proposal}
+            busy={closing}
+            onWon={onWon}
+            onLost={onLost}
+          />
+        ) : null}
       </CardFooter>
     </Card>
   );
@@ -984,14 +1042,10 @@ function NotesSection({
 function Footer({
   lead,
   analysis,
-  busy,
-  onStatus,
   onChanged,
 }: {
   lead: Lead;
   analysis: Analysis | null;
-  busy: boolean;
-  onStatus: (status: LeadStatus) => void;
   onChanged: () => Promise<unknown>;
 }) {
   const analyzing = lead.analysisStatus === "pending";
@@ -1002,29 +1056,7 @@ function Footer({
   });
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border/70 pt-4 text-sm text-muted-foreground">
-      <div className="flex items-center gap-2">
-        Status
-        <Select
-          value={lead.status}
-          disabled={busy}
-          onValueChange={(next) => {
-            const status = LEAD_STATUS_VALUES.find((item) => item === next);
-            if (status) onStatus(status);
-          }}
-        >
-          <SelectTrigger size="sm" className="w-36" aria-label="Status do lead">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {LEAD_STATUS_VALUES.map((status) => (
-              <SelectItem key={status} value={status}>
-                {LEAD_STATUS_LABELS[status]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+    <div className="flex flex-wrap items-center justify-end gap-4 border-t border-border/70 pt-4 text-sm text-muted-foreground">
       <div className="flex flex-wrap items-center gap-3">
         {analysis ? (
           <span className="text-[11.5px] font-light text-tertiary">
@@ -1043,6 +1075,28 @@ function Footer({
         </Button>
       </div>
     </div>
+  );
+}
+
+/** "R$ 1.490 · Site institucional · 03/11/2026" of a won deal. */
+function DealSummary({ lead }: { lead: Lead }) {
+  const parts = [
+    lead.dealValueCents !== null ? formatCents(lead.dealValueCents) : null,
+    lead.dealService,
+    lead.closedAt ? formatDate(lead.closedAt) : null,
+  ].filter(Boolean);
+  if (parts.length === 0) return null;
+  return <CardDescription className="tabular-nums">{parts.join(" · ")}</CardDescription>;
+}
+
+/** The loss reason and its note, when the deal was lost (not an AI discard). */
+function LossSummary({ lead }: { lead: Lead }) {
+  if (!lead.lossReason) return null;
+  return (
+    <CardDescription>
+      {LOSS_REASON_LABELS[lead.lossReason]}
+      {lead.lossNote ? `: ${lead.lossNote}` : ""}
+    </CardDescription>
   );
 }
 
@@ -1151,30 +1205,6 @@ function QuickAction(
     <a className={className} {...rest}>
       {body}
     </a>
-  );
-}
-
-/** Score inside a large ring, colored by tier. */
-function ScoreRingLarge({ score, pending }: { score: number | null; pending: boolean }) {
-  if (score === null) {
-    return pending ? (
-      <Badge variant="purple">
-        <SparklesIcon />
-        analisando
-      </Badge>
-    ) : (
-      <Badge variant="gray">sem nota</Badge>
-    );
-  }
-  const tier = scoreTier(score);
-  const tone = TIER_TONE[tier];
-  return (
-    <ProgressRing value={score} tone={tone} size={60} thickness={5} track="var(--popover)">
-      <span className={cn("grid justify-items-center leading-none", TONE_TEXT[tone])}>
-        <b className="text-lg font-medium tabular-nums">{score}</b>
-        <small className="text-[11px] font-medium">{SCORE_TIERS[tier].label}</small>
-      </span>
-    </ProgressRing>
   );
 }
 

@@ -2,6 +2,7 @@ import { env } from "cloudflare:workers";
 import type { z } from "zod";
 import { getDb } from "@/db/client";
 import { fieldErrors, LOGIN_ERRORS } from "@/lib/login";
+import { flagOn } from "@/lib/team";
 import { jsonResponse, safeNext, type AuthDeps, type AuthResult } from "./auth";
 
 /**
@@ -102,6 +103,7 @@ export async function handleAuthPost<S extends z.ZodType<{ next?: string | undef
       db: getDb(),
       secret: env.APP_PASSWORD,
       ip: request.headers.get("CF-Connecting-IP") ?? "local",
+      inviteOnly: flagOn(env.INVITE_ONLY_SIGNUP),
     },
     parsed.data,
   );

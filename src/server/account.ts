@@ -1,16 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
-import { getRequest } from "@tanstack/react-start/server";
-import { env } from "cloudflare:workers";
 import { eq } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { users } from "@/db/schema";
 import { avatarInputSchema } from "@/lib/schemas";
-import { readSession, sessionLookup } from "./auth";
-
-async function currentUserId() {
-  const session = await readSession(getRequest(), env.APP_PASSWORD, sessionLookup(getDb()));
-  return session?.userId ?? null;
-}
+import { currentUserId } from "./session-user.server";
 
 /** The signed-in account, for the Conta page. */
 export const getAccount = createServerFn({ method: "GET" }).handler(async () => {

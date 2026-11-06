@@ -11,7 +11,7 @@ import {
   type JobReason,
   type JobState,
 } from "@/lib/system-status";
-import { sendDue } from "./mail-flow";
+import { sendDue, type SendDeps } from "./mail-flow";
 import { loadConfig, type StoredConfig } from "./settings-store";
 
 export type JobOutcome =
@@ -90,7 +90,7 @@ export async function trackJob<T>(
  * and there is nothing to send, so a fixed password turns it green.
  */
 export async function runSendJob(
-  deps: { db: Db; mailer: Mailer; limit: number },
+  deps: SendDeps,
   now = new Date(),
   { verifyWhenIdle = false } = {},
 ): Promise<number> {
