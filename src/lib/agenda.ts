@@ -1,15 +1,19 @@
 import { z } from "zod";
-import { addDays, dayMonth, isoWeekday, sharePercent, weekdayName } from "./format";
-import { idSchema, MEETING_KIND_LABELS, type MeetingKind } from "./schemas";
-
-/** Days the Agenda lists, today included. */
-export const AGENDA_DAYS = 14;
+import { addDays, dayDiff, dayMonth, weekdayName } from "./format";
+import { daySchema, idSchema, MEETING_KIND_LABELS, type MeetingKind } from "./schemas";
 
 /** Rows of "Agenda de hoje" on the Visão geral. */
 export const TODAY_AGENDA_LIMIT = 5;
 
-/** The Agenda's filter: everyone, or one person of the team. */
-export const agendaFilterSchema = z.object({ owner: idSchema.nullable() });
+/** The longest span the Agenda asks for at once: the 6 weeks of the Month grid. */
+export const AGENDA_MAX_DAYS = 42;
+
+/** The Agenda's request: everyone or one person of the team, from one day to another. */
+export const agendaRangeSchema = z
+  .object({ owner: idSchema.nullable(), from: daySchema, to: daySchema })
+  .refine(({ from, to }) => from <= to && dayDiff(from, to) < AGENDA_MAX_DAYS, {
+    message: "Período inválido",
+  });
 
 /**
  * One row of the agenda: a meeting (with its time) or a follow-up day of a lead (no time).
@@ -23,6 +27,7 @@ export type AgendaEntry = {
   day: string;
   time: string | null;
   meetingKind: MeetingKind | null;
+  ownerId: string | null;
   ownerName: string | null;
   note: string;
 };
@@ -84,78 +89,4 @@ export function agendaWhen(entry: AgendaEntry, today: string): string {
 export function agendaDetail(entry: AgendaEntry): string {
   const what = entry.meetingKind ? MEETING_KIND_LABELS[entry.meetingKind] : "Retornar o contato";
   return [what, entry.ownerName, entry.note].filter(Boolean).join(" · ");
-}
-
-/** The last day (Sunday) of today's week. */
-export function weekEnd(today: string): string {
-  return addDays(today, 7 - isoWeekday(today));
-}
-
-/**
- * Rows due today (overdue follow-ups included, as in Leads → "Retornar hoje") and due until
- * Sunday, for the summary tiles and the sidebar badge.
- */
-export function agendaCounts(entries: readonly AgendaEntry[], today: string) {
-  const end = weekEnd(today);
-  return {
-    today: entries.filter((entry) => entry.day <= today).length,
-    week: entries.filter((entry) => entry.day <= end).length,
-  };
-}
-
-/** "40%" of the leads with a meeting that closed, or "—" without any meeting yet. */
-export function closedAfterMeetingLabel(closed: number, withMeeting: number): string {
-  const percent = sharePercent(closed, withMeeting);
-  return percent === null ? "—" : `${percent}%`;
-}
-
-export type AgendaTile = {
-  label: string;
-  value: string;
-  caption: string;
-  tone?: "blue" | "orange";
-};
-
-export type AgendaSummary = {
-  proposalsToPresent: number;
-  leadsWithMeeting: number;
-  closedAfterMeeting: number;
-};
-
-const plural = (count: number, one: string, many: string) => (count === 1 ? one : many);
-
-/** Hoje, Esta semana, Propostas a apresentar and Fecharam após reunião. */
-export function agendaTiles(
-  entries: readonly AgendaEntry[],
-  summary: AgendaSummary,
-  today: string,
-): AgendaTile[] {
-  const counts = agendaCounts(entries, today);
-  return [
-    {
-      label: "Hoje",
-      value: String(counts.today),
-      caption: plural(counts.today, "compromisso", "compromissos"),
-      tone: counts.today > 0 ? "blue" : undefined,
-    },
-    {
-      label: "Esta semana",
-      value: String(counts.week),
-      caption: "até domingo",
-    },
-    {
-      label: "Propostas a apresentar",
-      value: String(summary.proposalsToPresent),
-      caption: plural(summary.proposalsToPresent, "lead em Proposta", "leads em Proposta"),
-      tone: summary.proposalsToPresent > 0 ? "orange" : undefined,
-    },
-    {
-      label: "Fecharam após reunião",
-      value: closedAfterMeetingLabel(summary.closedAfterMeeting, summary.leadsWithMeeting),
-      caption:
-        summary.leadsWithMeeting > 0
-          ? `${summary.closedAfterMeeting} de ${summary.leadsWithMeeting} com reunião`
-          : "nenhuma reunião ainda",
-    },
-  ];
 }

@@ -1,9 +1,11 @@
-import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { ChevronLeftIcon, PlusIcon } from "lucide-react";
+import { useState } from "react";
 import { z } from "zod";
-import { AgendaDays } from "@/components/agenda/agenda-days";
-import { AgendaTiles } from "@/components/agenda/agenda-tiles";
+import { AgendaBoard } from "@/components/agenda/agenda-board";
+import type { MeetingTarget } from "@/components/agenda/meeting-dialog";
 import { Page } from "@/components/app-shell";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -11,65 +13,86 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
-import { agendaTiles, groupAgenda } from "@/lib/agenda";
+import {
+  useAgendaCalendar,
+  type AgendaCalendar,
+  type AgendaSearch,
+} from "@/hooks/use-agenda-calendar";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { calendarRange, calendarViewSchema, firstFreeSlot } from "@/lib/calendar";
+import { localDay } from "@/lib/format";
 import { pageTitle } from "@/lib/page-title";
 import { agendaQuery } from "@/lib/queries";
-import { idSchema, lenientSearch } from "@/lib/schemas";
-import type { Agenda } from "@/server/agenda";
+import { daySchema, idSchema, lenientSearch } from "@/lib/schemas";
 
-const searchSchema = lenientSearch(z.object({ owner: idSchema.optional() }));
+const searchSchema = lenientSearch(
+  z.object({
+    owner: idSchema.optional(),
+    view: calendarViewSchema.optional(),
+    date: daySchema.optional(),
+  }),
+);
 
 const EVERYONE = "all";
 
 export const Route = createFileRoute("/agenda")({
   head: () => ({ meta: [{ title: pageTitle("Agenda") }] }),
   validateSearch: searchSchema,
-  loaderDeps: ({ search }) => ({ owner: search.owner ?? null }),
-  loader: ({ context, deps }) => context.queryClient.prefetchQuery(agendaQuery(deps.owner)),
+  loaderDeps: ({ search }) => ({
+    owner: search.owner ?? null,
+    view: search.view ?? "semana",
+    date: search.date ?? localDay(new Date()),
+  }),
+  loader: ({ context, deps }) => {
+    const range = calendarRange(deps.view, deps.date);
+    return context.queryClient.prefetchQuery(agendaQuery(deps.owner, range.from, range.to));
+  },
   component: AgendaPage,
 });
 
 function AgendaPage() {
-  const { owner } = Route.useSearch();
+  const search = Route.useSearch();
   const navigate = useNavigate({ from: Route.fullPath });
-  const { data, isError } = useQuery(agendaQuery(owner ?? null));
-  const setOwner = (value: string) =>
-    void navigate({ search: { owner: value === EVERYONE ? undefined : value }, replace: true });
+  const isMobile = useIsMobile();
+  const setSearch = (next: AgendaSearch) => void navigate({ search: next, replace: true });
+  const calendar = useAgendaCalendar(search, setSearch, isMobile);
+  const [target, setTarget] = useState<MeetingTarget | null>(null);
+
+  const bookNow = () => {
+    const from = calendar.anchor < calendar.today ? calendar.today : calendar.anchor;
+    const slot = firstFreeSlot(from, calendar.entries, calendar.today, calendar.now);
+    setTarget({ mode: "book", day: slot.day, time: slot.time, leadId: "" });
+  };
 
   return (
     <Page
       title="Agenda"
-      description="Reuniões e retornos de hoje até as próximas duas semanas, em horário de Brasília."
-      actions={
-        <OwnerFilter value={owner ?? EVERYONE} team={data?.team ?? []} onChange={setOwner} />
-      }
+      description="Reuniões e retornos da equipe, em horário de Brasília."
+      actions={<HeaderActions calendar={calendar} onBook={bookNow} />}
     >
-      <AgendaBody data={data} failed={isError} />
+      <AgendaBoard calendar={calendar} isMobile={isMobile} target={target} onTarget={setTarget} />
     </Page>
   );
 }
 
-function AgendaBody({ data, failed }: { data: Agenda | undefined; failed: boolean }) {
-  if (!data && failed) {
-    return (
-      <p className="text-sm font-light text-red">
-        Não foi possível carregar a agenda. Atualize a página.
-      </p>
-    );
-  }
-  if (!data) {
-    return (
-      <>
-        <Skeleton className="h-28 rounded-[20px]" />
-        <Skeleton className="h-64 rounded-[20px]" />
-      </>
-    );
-  }
+function HeaderActions({ calendar, onBook }: { calendar: AgendaCalendar; onBook: () => void }) {
   return (
     <>
-      <AgendaTiles tiles={agendaTiles(data.entries, data.summary, data.today)} />
-      <AgendaDays days={groupAgenda(data.entries, data.today)} today={data.today} />
+      {calendar.backLabel ? (
+        <Button variant="ghost" size="sm" onClick={calendar.goBack} className="max-sm:hidden">
+          <ChevronLeftIcon />
+          {calendar.backLabel}
+        </Button>
+      ) : null}
+      <OwnerFilter
+        value={calendar.owner ?? EVERYONE}
+        team={calendar.team}
+        onChange={(value) => calendar.setOwner(value === EVERYONE ? null : value)}
+      />
+      <Button size="sm" onClick={onBook} aria-label="Marcar reunião">
+        <PlusIcon />
+        <span className="max-sm:hidden">Marcar reunião</span>
+      </Button>
     </>
   );
 }
@@ -88,7 +111,7 @@ function OwnerFilter({
       <SelectTrigger size="sm" className="w-40" aria-label="De quem">
         <SelectValue />
       </SelectTrigger>
-      <SelectContent>
+      <SelectContent className="shadow-none">
         <SelectItem value={EVERYONE}>Todos</SelectItem>
         {team.map((member) => (
           <SelectItem key={member.id} value={member.id}>

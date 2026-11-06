@@ -1,4 +1,4 @@
-import { and, asc, countDistinct, eq, gte, inArray, isNull, lt, lte, ne, sql } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, isNull, lt, lte, ne, notInArray, sql } from "drizzle-orm";
 import type { Db } from "@/db/client";
 import { leads, meetings, users } from "@/db/schema";
 import type { AgendaEntry } from "@/lib/agenda";
@@ -6,6 +6,9 @@ import { addDays, brazilInstant, localDay, localTime } from "@/lib/format";
 
 /** Who a meeting belongs to: the lead's owner, or who booked it while the lead was free. */
 const meetingOwner = sql<string | null>`coalesce(${leads.ownerId}, ${meetings.createdBy})`;
+
+/** How many leads the "Lead" picker lists; the search narrows them by name. */
+const BOOKABLE_LEADS_LIMIT = 2000;
 
 /** Leads waiting for a follow-up, the same ones as "Retornar hoje" in Leads. */
 const FOLLOW_UP_STATUSES = ["contacted", "replied"] as const;
@@ -21,6 +24,7 @@ async function meetingEntries(db: Db, { from, to, ownerId }: Range): Promise<Age
       startsAt: meetings.startsAt,
       kind: meetings.kind,
       note: meetings.note,
+      ownerId: meetingOwner,
       ownerName: users.name,
     })
     .from(meetings)
@@ -45,6 +49,7 @@ async function meetingEntries(db: Db, { from, to, ownerId }: Range): Promise<Age
     day: localDay(row.startsAt),
     time: localTime(row.startsAt),
     meetingKind: row.kind,
+    ownerId: row.ownerId,
     ownerName: row.ownerName,
     note: row.note,
   }));
@@ -56,7 +61,13 @@ async function meetingEntries(db: Db, { from, to, ownerId }: Range): Promise<Age
  */
 async function followUpEntries(db: Db, { to, ownerId }: Range): Promise<AgendaEntry[]> {
   const rows = await db
-    .select({ id: leads.id, name: leads.name, day: leads.followUpOn, ownerName: users.name })
+    .select({
+      id: leads.id,
+      name: leads.name,
+      day: leads.followUpOn,
+      ownerId: leads.ownerId,
+      ownerName: users.name,
+    })
     .from(leads)
     .leftJoin(users, eq(users.id, leads.ownerId))
     .where(
@@ -77,6 +88,7 @@ async function followUpEntries(db: Db, { to, ownerId }: Range): Promise<AgendaEn
             day: row.day,
             time: null,
             meetingKind: null,
+            ownerId: row.ownerId,
             ownerName: row.ownerName,
             note: "",
           },
@@ -98,28 +110,26 @@ export async function agendaEntries(db: Db, range: Range): Promise<AgendaEntry[]
 }
 
 /**
- * The tiles that do not come from the list: leads at Proposta (a proposal to present) and how
- * many of the leads with a meeting closed a deal.
+ * Leads a meeting can still be booked for (not closed or discarded), by name, for the picker,
+ * with whether the invite could go to them by e-mail.
  */
-export async function agendaSummary(db: Db, ownerId: string | null) {
-  const leadOwner = ownerId ? eq(leads.ownerId, ownerId) : undefined;
-  const meetingOwnerIs = ownerId ? sql`${meetingOwner} = ${ownerId}` : undefined;
-  const [proposalsToPresent, conversion] = await Promise.all([
-    db.$count(leads, and(eq(leads.status, "replied"), eq(leads.salesStage, "proposal"), leadOwner)),
-    db
-      .select({
-        withMeeting: countDistinct(leads.id),
-        closed: countDistinct(sql`case when ${leads.status} = 'closed' then ${leads.id} end`),
-      })
-      .from(meetings)
-      .innerJoin(leads, eq(leads.id, meetings.leadId))
-      .where(and(isNull(meetings.cancelledAt), meetingOwnerIs)),
-  ]);
-  return {
-    proposalsToPresent,
-    leadsWithMeeting: conversion[0]?.withMeeting ?? 0,
-    closedAfterMeeting: conversion[0]?.closed ?? 0,
-  };
+export async function bookableLeads(db: Db) {
+  const rows = await db
+    .select({
+      id: leads.id,
+      name: leads.name,
+      email: leads.email,
+      unsubscribedAt: leads.unsubscribedAt,
+    })
+    .from(leads)
+    .where(notInArray(leads.status, ["closed", "discarded"]))
+    .orderBy(asc(leads.name))
+    .limit(BOOKABLE_LEADS_LIMIT);
+  return rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    hasEmail: Boolean(row.email) && row.unsubscribedAt === null,
+  }));
 }
 
 /** The people who can own a lead, for the Agenda's filter. */

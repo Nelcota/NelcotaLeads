@@ -1,17 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
-  agendaCounts,
+  AGENDA_MAX_DAYS,
   agendaDayLabel,
   agendaDetail,
-  agendaTiles,
   agendaWhen,
-  closedAfterMeetingLabel,
   dueToday,
   groupAgenda,
   OVERDUE_DAY,
-  weekEnd,
+  agendaRangeSchema,
   type AgendaEntry,
 } from "./agenda";
+import { addDays } from "./format";
 
 // Tuesday.
 const today = "2026-11-03";
@@ -24,6 +23,7 @@ const entry = (overrides: Partial<AgendaEntry>): AgendaEntry => ({
   day: today,
   time: "10:00",
   meetingKind: "video",
+  ownerId: "u1",
   ownerName: "Haniel",
   note: "",
   ...overrides,
@@ -62,7 +62,6 @@ describe("groupAgenda", () => {
     ]);
     expect(days[0]?.entries.map((item) => item.id)).toEqual(["fri", "mon"]);
     expect(dueToday(entries, today).map((item) => item.id)).toEqual(["fri", "mon", "today"]);
-    expect(agendaCounts(entries, today)).toEqual({ today: 3, week: 4 });
     expect(agendaWhen(entry({ ...followup, day: "2026-10-30" }), today)).toBe("30/10");
     expect(agendaWhen(entry({ ...followup }), today)).toBe("dia todo");
     expect(agendaWhen(entry({}), today)).toBe("10:00");
@@ -88,36 +87,19 @@ describe("labels", () => {
       "Retornar o contato",
     );
   });
-
-  it("shows the closing share, or a dash without meetings", () => {
-    expect(closedAfterMeetingLabel(2, 5)).toBe("40%");
-    expect(closedAfterMeetingLabel(0, 0)).toBe("—");
-  });
 });
 
-describe("counts and tiles", () => {
-  it("counts today and the rest of the week until Sunday", () => {
-    expect(weekEnd(today)).toBe("2026-11-08");
-    expect(weekEnd("2026-11-08")).toBe("2026-11-08");
-    const entries = [entry({}), entry({ day: "2026-11-08" }), entry({ day: "2026-11-09" })];
-    expect(agendaCounts(entries, today)).toEqual({ today: 1, week: 2 });
+describe("agendaRangeSchema", () => {
+  const range = (from: string, to: string) =>
+    agendaRangeSchema.safeParse({ owner: null, from, to }).success;
+
+  it("accepts one day and the 42 days of the Month grid", () => {
+    expect(range(today, today)).toBe(true);
+    expect(range(today, addDays(today, AGENDA_MAX_DAYS - 1))).toBe(true);
   });
 
-  it("builds the four tiles", () => {
-    const tiles = agendaTiles(
-      [entry({})],
-      {
-        proposalsToPresent: 2,
-        leadsWithMeeting: 0,
-        closedAfterMeeting: 0,
-      },
-      today,
-    );
-    expect(tiles.map((tile) => [tile.label, tile.value])).toEqual([
-      ["Hoje", "1"],
-      ["Esta semana", "1"],
-      ["Propostas a apresentar", "2"],
-      ["Fecharam após reunião", "—"],
-    ]);
+  it("refuses a range that ends before it starts or is longer than 42 days", () => {
+    expect(range(today, addDays(today, -1))).toBe(false);
+    expect(range(today, addDays(today, AGENDA_MAX_DAYS))).toBe(false);
   });
 });

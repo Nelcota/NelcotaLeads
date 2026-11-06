@@ -3,15 +3,17 @@ import { env } from "cloudflare:workers";
 import { z } from "zod";
 import { getDb } from "@/db/client";
 import { mailConfigured } from "@/lib/mail";
-import { meetingCancelSchema, meetingInputSchema } from "@/lib/meetings";
+import { meetingCancelSchema, meetingInputSchema, meetingRescheduleSchema } from "@/lib/meetings";
 import { proposalInputSchema } from "@/lib/proposal";
 import { salesEmailsEnabled } from "@/lib/sales-email";
 import { idSchema } from "@/lib/schemas";
 import {
   cancelMeeting as cancelStoredMeeting,
+  rescheduleMeeting as rescheduleStoredMeeting,
   scheduleMeeting as scheduleStoredMeeting,
   upcomingMeetings,
 } from "./meeting-store";
+import { bookableLeads } from "./agenda-store";
 import { latestProposal, saveProposal as saveStoredProposal } from "./proposal-store";
 import { requestUserId } from "./request-user";
 import type { SalesMailDeps } from "./sales-mail";
@@ -41,6 +43,15 @@ export const getLeadSales = createServerFn({ method: "GET" })
     };
   });
 
+/** The leads "Marcar reunião" on the Agenda can pick from, and whether invites can be e-mailed. */
+export const getBookableLeads = createServerFn({ method: "GET" }).handler(async () => {
+  const deps = salesMailDeps();
+  return {
+    leads: await bookableLeads(getDb()),
+    emailsEnabled: deps.emailsEnabled && deps.fromAddress !== "",
+  };
+});
+
 /** "Agendar reunião". */
 export const scheduleMeeting = createServerFn({ method: "POST" })
   .validator(meetingInputSchema)
@@ -52,6 +63,11 @@ export const scheduleMeeting = createServerFn({ method: "POST" })
 export const cancelMeeting = createServerFn({ method: "POST" })
   .validator(meetingCancelSchema)
   .handler(async ({ data }) => cancelStoredMeeting(getDb(), data.id, await requestUserId()));
+
+/** "Remarcar" or a drag on the Agenda: the meeting's new day and time. */
+export const rescheduleMeeting = createServerFn({ method: "POST" })
+  .validator(meetingRescheduleSchema)
+  .handler(async ({ data }) => rescheduleStoredMeeting(getDb(), data, await requestUserId()));
 
 /** "Salvar proposta" and "Enviar proposta por e-mail". */
 export const saveProposal = createServerFn({ method: "POST" })
