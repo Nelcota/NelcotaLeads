@@ -80,6 +80,34 @@ describe("bulkUpdateLeads", () => {
     });
   });
 
+  it("undo brings back a lost deal's reason, note, date and stage", async () => {
+    await db.insert(leads).values({
+      id: "lost",
+      searchId: "s",
+      placeId: "p6",
+      name: "F",
+      status: "discarded",
+      salesStage: "proposal",
+      lossReason: "price",
+      lossNote: "Achou caro",
+      lostAt: now,
+      discardReason: "Preço alto",
+      discardedAt: now,
+    });
+    const { previous } = await bulkUpdateLeads(db, ["lost"], "new", now);
+    expect(await lead("lost")).toMatchObject({ status: "new", lossReason: null, salesStage: null });
+    expect(await undoBulkUpdate(db, "new", previous)).toEqual({ restored: 1 });
+    expect(await lead("lost")).toMatchObject({
+      status: "discarded",
+      salesStage: "proposal",
+      lossReason: "price",
+      lossNote: "Achou caro",
+      lostAt: now,
+      discardReason: "Preço alto",
+      discardedAt: now,
+    });
+  });
+
   it("leaves alone leads that moved or opted out since the bulk change", async () => {
     const { previous } = await bulkUpdateLeads(db, ["new", "contacted"], "discarded", now);
     await db.update(leads).set({ status: "new" }).where(eq(leads.id, "new"));

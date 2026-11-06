@@ -129,15 +129,34 @@ export class Backend {
 }
 
 /**
- * Cron instants for `tick`, in order and 10 minutes apart: far enough ahead of the real clock
- * that anything queued during the test is due, past the 8-minute send gap of the previous one,
- * on a minute that reads the inbox (% 5) and never on the hour (autopilot, auto dispatch).
+ * Tomorrow (UTC) at `hour`:`minute` UTC. Brazil is UTC-3, so 11:00–20:59 UTC is inside the
+ * default send window (6h–18h Brazil): cold e-mails go out whatever the real clock says.
+ */
+function tomorrowAt(hour: number, minute: number): Date {
+  const at = new Date();
+  at.setUTCDate(at.getUTCDate() + 1);
+  at.setUTCHours(hour, minute, 0, 0);
+  return at;
+}
+
+/**
+ * Cron instants for `tick`, in order and 10 minutes apart: tomorrow from 09:05 Brazil time,
+ * so far enough ahead of the real clock that anything queued during the test is due (a cold
+ * e-mail queued at night waits for the window's opening), inside the default send window,
+ * past the 8-minute send gap of the previous one, on a minute that reads the inbox (% 5) and
+ * never on the hour (autopilot, auto dispatch).
  */
 export function tickTimes(count: number): Date[] {
-  const start = new Date();
-  start.setUTCDate(start.getUTCDate() + 1);
-  start.setUTCMinutes(5, 0, 0);
+  const start = tomorrowAt(12, 5);
   return Array.from({ length: count }, (_, i) => new Date(start.getTime() + i * 10 * 60_000));
+}
+
+/**
+ * A tick before every `tickTimes` instant (and more than the send gap before the first), for
+ * sending a first e-mail that was queued outside the send window.
+ */
+export function firstSendTime(): Date {
+  return tomorrowAt(11, 45);
 }
 
 /** Console errors seen in the page; the test may allow the ones it provokes on purpose. */

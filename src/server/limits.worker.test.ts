@@ -113,7 +113,7 @@ describe("lists past D1's 100 bound parameters", () => {
     }));
     for (let i = 0; i < pending.length; i += 5)
       await db.insert(emails).values(pending.slice(i, i + 5));
-    const snapshot = await closeConversation(db, id, "discarded");
+    const snapshot = await closeConversation(db, id, "discarded", new Date(), { automatic: true });
     expect(snapshot.cancelledIds.queued).toHaveLength(120);
     await undoCloseConversation(db, id, snapshot);
     expect(await db.$count(emails, eq(emails.status, "queued"))).toBe(120);

@@ -3,24 +3,29 @@ import { env } from "cloudflare:workers";
 import { and, desc, eq, isNull, lt, ne, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { getDb, type Db } from "@/db/client";
-import { analyses, leads, searches } from "@/db/schema";
+import { analyses, leads, searches, users } from "@/db/schema";
 import {
   BULK_LIMIT,
   bulkSnapshotSchema,
+  closeLostSchema,
+  closeWonSchema,
   idSchema,
   LEAD_NOT_FOUND,
   LEAD_STATUS_VALUES,
   leadFiltersSchema,
+  ownerInputSchema,
+  salesStageInputSchema,
   updateLeadSchema,
   updateMessageSchema,
 } from "@/lib/schemas";
 import { getAnalyzer } from "@/lib/ai";
 import { CONTACT_FIELDS, CONTACT_LIMITS } from "@/lib/lead-contact";
-import { localDay } from "@/lib/format";
+import { requestUserId } from "./request-user";
 import { bulkUpdateLeads as bulkUpdate, undoBulkUpdate } from "./lead-bulk";
-import { editLeadContact } from "./lead-edit";
+import { changeOwner, changeSalesStage, closeLostDeal, closeWonDeal } from "./lead-deal";
+import { editLead, editLeadContact } from "./lead-edit";
+import { leadHistory } from "./lead-events";
 import { createManualLead } from "./manual-lead";
-import { leadPatch } from "./lead-status";
 import { countLeads, LIST_LIMIT, queryLeadsCapped } from "./leads-query";
 import { CLAIM_TIMEOUT_MS, writeMessageForLead } from "./process-lead";
 import { enqueueLeads, type LeadJob } from "./queue";
@@ -40,14 +45,30 @@ export const getLead = createServerFn({ method: "GET" })
     const db = getDb();
     const lead = await db.query.leads.findFirst({ where: eq(leads.id, data.id) });
     if (!lead) throw new Error(LEAD_NOT_FOUND);
-    const [analysis, search] = await Promise.all([
+    const [analysis, search, owner, events, me] = await Promise.all([
       db.query.analyses.findFirst({
         where: eq(analyses.leadId, lead.id),
         orderBy: [desc(analyses.createdAt), desc(analyses.id)],
       }),
       db.query.searches.findFirst({ where: eq(searches.id, lead.searchId) }),
+      lead.ownerId
+        ? db.query.users.findFirst({
+            where: eq(users.id, lead.ownerId),
+            columns: { id: true, name: true },
+          })
+        : undefined,
+      leadHistory(db, lead.id),
+      requestUserId(),
     ]);
-    return { lead, analysis: analysis ?? null, search: search ?? null };
+    return {
+      lead,
+      analysis: analysis ?? null,
+      search: search ?? null,
+      owner: owner ?? null,
+      events,
+      // The signed-in person, so the panel can tell "Assumir" from "Liberar".
+      me,
+    };
   });
 
 /** For old /leads/<id> links: whether that lead still exists. */
@@ -57,25 +78,27 @@ export const leadExists = createServerFn({ method: "GET" })
 
 export const updateLead = createServerFn({ method: "POST" })
   .validator(updateLeadSchema)
-  .handler(async ({ data }) => {
-    const db = getDb();
-    const current = await db.query.leads.findFirst({
-      where: eq(leads.id, data.id),
-      columns: { status: true, unsubscribedAt: true, contactedAt: true, followUpOn: true },
-    });
-    if (!current) throw new Error("Lead não encontrado");
-    const now = new Date();
-    const patch = leadPatch(current, data, now, localDay(now));
-    // Only applies if nobody (e.g. the mail flow) changed the status since it was checked.
-    const updated = await db
-      .update(leads)
-      .set(patch)
-      .where(and(eq(leads.id, data.id), eq(leads.status, current.status)))
-      .returning({ id: leads.id });
-    if (updated.length === 0)
-      throw new Error("O lead mudou enquanto isso. Atualize e tente de novo.");
-    return { ok: true as const };
-  });
+  .handler(async ({ data }) => editLead(getDb(), data, await requestUserId()));
+
+/** "Fechar negócio": closed with the value, the day it closed and the service sold. */
+export const closeWon = createServerFn({ method: "POST" })
+  .validator(closeWonSchema)
+  .handler(async ({ data }) => closeWonDeal(getDb(), data, await requestUserId()));
+
+/** "Encerrar sem negócio": discarded with one of the loss reasons and an optional note. */
+export const closeLost = createServerFn({ method: "POST" })
+  .validator(closeLostSchema)
+  .handler(async ({ data }) => closeLostDeal(getDb(), data, await requestUserId()));
+
+/** Reunião or Proposta for a replied lead (null goes back to just replied). */
+export const setSalesStage = createServerFn({ method: "POST" })
+  .validator(salesStageInputSchema)
+  .handler(async ({ data }) => changeSalesStage(getDb(), data, await requestUserId()));
+
+/** "Assumir" or "Liberar" a lead. */
+export const setOwner = createServerFn({ method: "POST" })
+  .validator(ownerInputSchema)
+  .handler(async ({ data }) => changeOwner(getDb(), data, await requestUserId()));
 
 /** One contact field (nome, e-mail, telefone, site) edited in the lead panel. */
 export const updateLeadContact = createServerFn({ method: "POST" })
@@ -103,7 +126,11 @@ export const createLead = createServerFn({ method: "POST" })
 /** "Mudar status" and "Descartar" on the selection bar. */
 export const bulkUpdateLeads = createServerFn({ method: "POST" })
   .validator(
-    z.object({ ids: z.array(idSchema).min(1).max(BULK_LIMIT), status: z.enum(LEAD_STATUS_VALUES) }),
+    z.object({
+      ids: z.array(idSchema).min(1).max(BULK_LIMIT),
+      // A won deal needs its value and service: it is closed one lead at a time.
+      status: z.enum(LEAD_STATUS_VALUES).exclude(["closed"]),
+    }),
   )
   .handler(({ data }) => bulkUpdate(getDb(), data.ids, data.status));
 

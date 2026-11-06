@@ -19,6 +19,7 @@ import {
   toBase64Url,
   verifyPassword,
 } from "@/lib/password";
+import { acceptInvite, hasAnyUser, hasPendingInvite } from "./team-store";
 import { releaseRequest, reserveRequest } from "./usage";
 
 export { hashPassword, verifyPassword };
@@ -323,10 +324,10 @@ export type AuthResult =
   /** Signed in with `cookie`; or, without one, done with `notice` to show on the page. */
   | { ok: true; cookie: string; notice?: undefined }
   | { ok: true; cookie: null; notice: string }
-  | { ok: false; status: 401 | 409 | 429 | 503; code: LoginErrorCode; error: string };
+  | { ok: false; status: 401 | 403 | 409 | 429 | 503; code: LoginErrorCode; error: string };
 
 const failure = (
-  status: 401 | 409 | 429 | 503,
+  status: 401 | 403 | 409 | 429 | 503,
   code: LoginErrorCode,
   error: string = LOGIN_ERRORS[code],
 ): AuthResult => ({ ok: false, status, code, error });
@@ -357,7 +358,17 @@ export function ipBucket(ip: string): string {
     .join(":")}::/64`;
 }
 
-export type AuthDeps = { db: Db; secret: string | undefined; ip: string };
+/**
+ * `inviteOnly` (INVITE_ONLY_SIGNUP, off by default): sign-up also needs a pending invite for
+ * the e-mail, except for the very first account.
+ */
+export type AuthDeps = { db: Db; secret: string | undefined; ip: string; inviteOnly?: boolean };
+
+/** Whether this e-mail may create an account under the invite-only rule. */
+async function invitedOrFirst(db: Db, email: string): Promise<boolean> {
+  const [anyone, invited] = await Promise.all([hasAnyUser(db), hasPendingInvite(db, email)]);
+  return invited || !anyone;
+}
 
 /** One failure counter: its api_usage key, its limit, and when it resets (null: tomorrow). */
 type Counter = { key: string; limit: number; resetsAt: Date | null };
@@ -441,6 +452,9 @@ export async function attemptSignUp(
   );
   if (result.outcome === "limited") return tooMany(result.resetsAt, now);
   if (result.outcome === "failed") return failure(401, "codigo");
+  if (deps.inviteOnly && !(await invitedOrFirst(deps.db, input.email))) {
+    return failure(403, "sem-convite");
+  }
 
   const [user] = await deps.db
     .insert(users)
@@ -453,6 +467,7 @@ export async function attemptSignUp(
     .onConflictDoNothing({ target: users.email })
     .returning();
   if (!user) return failure(409, "email-em-uso");
+  await acceptInvite(deps.db, user.email, now);
   return signedIn(secret, user, now);
 }
 

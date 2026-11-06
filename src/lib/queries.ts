@@ -1,13 +1,21 @@
-import { queryOptions } from "@tanstack/react-query";
+import { queryOptions, type QueryClient } from "@tanstack/react-query";
+import type { OverviewPeriod } from "@/lib/period";
 import { LEAD_NOT_FOUND, type LeadFilters } from "@/lib/schemas";
 import { getAccount } from "@/server/account";
+import { getAgenda, getTodayAgenda } from "@/server/agenda";
 import { getAttentionCount, getDashboard } from "@/server/dashboard";
+import { getSendWindow } from "@/server/dispatch";
+import { getMonthlyGoal } from "@/server/goals";
 import { getConversation, listConversations } from "@/server/mail";
 import { getLead, getLeadCounts, listLeads } from "@/server/leads";
 import { getProviderStatus, listSearches } from "@/server/searches";
-import { listNiches } from "@/server/niches";
+import { listNicheMetrics, listNiches } from "@/server/niches";
+import { getOverviewMetrics } from "@/server/overview-metrics";
+import { getBookableLeads, getLeadSales } from "@/server/sales";
+import { getServiceTable } from "@/server/services";
 import { getQuickReplies } from "@/server/settings";
 import { getSystemStatus } from "@/server/system-status";
+import { getTeam } from "@/server/team";
 
 const isRunning = (status: string) => status === "collecting" || status === "analyzing";
 
@@ -29,6 +37,12 @@ export const accountQuery = queryOptions({
   queryKey: ["account"],
   queryFn: () => getAccount(),
   staleTime: Infinity,
+});
+
+/** The hours first e-mails and follow-ups go out (Configurações → E-mail). */
+export const sendWindowQuery = queryOptions({
+  queryKey: ["send-window"],
+  queryFn: () => getSendWindow(),
 });
 
 export const providerStatusQuery = queryOptions({
@@ -102,3 +116,91 @@ export const systemStatusQuery = queryOptions({
   queryFn: () => getSystemStatus(),
   refetchInterval: 60_000,
 });
+
+/** "Serviços e preços": what proposals are built from. */
+export const serviceTableQuery = queryOptions({
+  queryKey: ["service-table"],
+  queryFn: () => getServiceTable(),
+});
+
+/** The lead's upcoming meetings and latest proposal, under ["lead", id] so it refreshes with it. */
+export const leadSalesQuery = (leadId: string) =>
+  queryOptions({
+    queryKey: ["lead", leadId, "sales"],
+    queryFn: () => getLeadSales({ data: { leadId } }),
+  });
+
+/** The Agenda from one day to another, for everyone (null) or one person of the team. */
+export const agendaQuery = (owner: string | null, from: string, to: string) =>
+  queryOptions({
+    queryKey: ["agenda", owner, from, to],
+    queryFn: () => getAgenda({ data: { owner, from, to } }),
+    refetchInterval: 60_000,
+    // While a new range loads, keep the last one on screen, but never another owner's agenda.
+    placeholderData: (previous, previousQuery) =>
+      previousQuery?.queryKey[1] === owner ? previous : undefined,
+  });
+
+/** The leads "Marcar reunião" on the Agenda can pick from. */
+export const bookableLeadsQuery = queryOptions({
+  queryKey: ["leads", "bookable"],
+  queryFn: () => getBookableLeads(),
+});
+
+/** Today's meetings and follow-ups: the sidebar badge and "Agenda de hoje". */
+export const todayAgendaQuery = queryOptions({
+  queryKey: ["agenda", "today"],
+  queryFn: () => getTodayAgenda(),
+  refetchInterval: 60_000,
+});
+
+/** "Meta do mês" on the Visão geral. */
+export const monthlyGoalQuery = queryOptions({
+  queryKey: ["monthly-goal"],
+  queryFn: () => getMonthlyGoal(),
+  refetchInterval: 60_000,
+});
+
+/** The Visão geral metrics of a period (?period=). */
+export const overviewMetricsQuery = (period: OverviewPeriod) =>
+  queryOptions({
+    queryKey: ["overview-metrics", period],
+    queryFn: () => getOverviewMetrics({ data: { period } }),
+    refetchInterval: 60_000,
+  });
+
+/** "Por nicho" on the Visão geral, for a period. */
+export const nicheMetricsQuery = (period: OverviewPeriod) =>
+  queryOptions({
+    queryKey: ["niches", "metrics", period],
+    queryFn: () => listNicheMetrics({ data: { period } }),
+    refetchInterval: 60_000,
+  });
+
+/** "Equipe": accounts, pending invites and whether invites are e-mailed. */
+export const teamQuery = queryOptions({
+  queryKey: ["team"],
+  queryFn: () => getTeam(),
+});
+
+/**
+ * Every screen a lead's status, deal, meeting or proposal shows up on: the lists, the
+ * Visão geral (goal, metrics, niches, all periods), the Agenda (and its today badge) and the
+ * Conversas (with its attention badge). Prefix keys, so the period- and owner-keyed ones match.
+ */
+export const LEAD_SCREEN_KEYS = [
+  ["leads"],
+  ["dashboard"],
+  ["agenda"],
+  ["monthly-goal"],
+  ["overview-metrics"],
+  ["niches"],
+  ["conversations"],
+] as const;
+
+/** Refetches every screen in LEAD_SCREEN_KEYS after a lead changed. */
+export function invalidateLeadScreens(queryClient: QueryClient) {
+  return Promise.all(
+    LEAD_SCREEN_KEYS.map((queryKey) => queryClient.invalidateQueries({ queryKey })),
+  );
+}

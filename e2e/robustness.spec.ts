@@ -33,7 +33,7 @@ test.describe("queued e-mails", () => {
     await page.getByRole("dialog").getByRole("button", { name: "Disparar 2 e-mails" }).click();
     await expect(page.getByText("2 e-mails na fila")).toBeVisible();
 
-    // The first goes out at once; the other waits for its slot.
+    // Inside the send window the first goes out at once; the other (outside it, both) waits.
     const [first] = await backend.sent();
     const waiting = first?.to === "contato@alfa.test" ? "Clínica Beta" : "Clínica Alfa";
     await page.getByRole("checkbox", { name: `Selecionar ${waiting}` }).check();

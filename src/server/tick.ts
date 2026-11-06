@@ -1,6 +1,7 @@
 import { getDb, type Db } from "@/db/client";
 import { getAnalyzer } from "@/lib/ai";
 import { getMailer, mailConfigured } from "@/lib/mail";
+import { salesEmailsEnabled } from "@/lib/sales-email";
 import type { Job } from "@/lib/system-status";
 import { autopilotDeps, runAutopilot } from "./autopilot";
 import { runSendJob, trackJob } from "./job-runs";
@@ -28,15 +29,19 @@ export async function runStep<T>(
  * The per-minute cron. Every minute: send the next queued e-mail. Every 5 minutes: read
  * replies and queue follow-ups. On the hour: daily searches and automatic dispatch.
  */
-export async function runTick(env: Env, now = new Date()) {
+export async function runTick(
+  env: Env & Pick<Cloudflare.Env, "SALES_EMAILS_ENABLED">,
+  now = new Date(),
+) {
   const db = getDb(env.DB);
   const minute = now.getUTCMinutes();
   const limit = mailDailyLimit(env.MAIL_DAILY_LIMIT);
+  const salesEmails = salesEmailsEnabled(env.SALES_EMAILS_ENABLED);
 
   if (mailConfigured(env)) {
     const mailer = getMailer(env);
     try {
-      await runSendJob({ db, mailer, limit }, now);
+      await runSendJob({ db, mailer, limit, salesEmails }, now);
     } catch {
       // Recorded by runSendJob.
     }

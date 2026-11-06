@@ -10,11 +10,14 @@ import { createFakeMailer, incoming } from "../../test/fake-mailer";
 import { resetDb } from "../../test/reset-db";
 import {
   autoDispatch,
+  BOUNCED_REASON,
   CLOSED_REASON,
+  coldDailyLimit,
   DISCARDED_REASON,
   EMAIL_OPT_OUT,
   ensureOptOut,
   EMAIL_PROVIDER,
+  findBouncedEmail,
   handleInbound,
   isUnsubscribeRequest,
   outgoingIssues,
@@ -22,11 +25,16 @@ import {
   prepareDrafts,
   queueDrafts,
   queueFollowUps,
+  replyTarget,
   sendDue,
+  sendEmail,
+  thread,
 } from "./mail-flow";
 import { saveReplyDraft } from "./conversation";
+import { periodFunnel } from "./metrics-store";
+import { queryNiches } from "./niches";
 import { DEFAULT_SETTINGS, storeSettings } from "./settings-store";
-import { requestsToday } from "./usage";
+import { requestsToday, reserveRequest } from "./usage";
 
 const db = getDb(env.DB);
 const analyzer = createFakeAnalyzer();
@@ -697,5 +705,283 @@ describe("ensureOptOut", () => {
     const body = ensureOptOut("Texto todo reescrito.");
     expect(body.endsWith(EMAIL_OPT_OUT)).toBe(true);
     expect(ensureOptOut(body)).toBe(body);
+  });
+});
+
+const report = (overrides: Partial<NonNullable<IncomingEmail["bounce"]>>) => ({
+  messageIds: [],
+  recipients: [],
+  ...overrides,
+});
+const bounceFrom = (bounce: IncomingEmail["bounce"]) =>
+  incoming({ from: "mailer-daemon@mx.provedor.test", automatic: true, bounce, text: "falhou" });
+
+describe("bounces", () => {
+  beforeEach(async () => {
+    await resetDb();
+    await seed();
+  });
+
+  it("marks the e-mail whose Message-ID the report quotes, without storing a reply", async () => {
+    const { mailer, messageId } = await sentFirstEmail();
+    const now = new Date("2026-10-11T13:00:00Z");
+    expect(
+      await handleInbound(
+        { db, mailer, analyzer },
+        bounceFrom(report({ messageIds: [messageId] })),
+        now,
+      ),
+    ).toBe(true);
+    const rows = await leadEmails("a");
+    expect(rows.find((e) => e.messageId === messageId)?.bouncedAt).toEqual(now);
+    // Not a message from the lead: nothing inbound, and the lead stays as it was.
+    expect(rows.some((e) => e.direction === "in")).toBe(false);
+    expect(await lead("a")).toMatchObject({ status: "contacted", aiMode: true });
+    // Read again by an overlapping poll: the first time is kept.
+    expect(
+      await handleInbound(
+        { db, mailer, analyzer },
+        bounceFrom(report({ messageIds: [messageId] })),
+        new Date("2026-10-11T14:00:00Z"),
+      ),
+    ).toBe(false);
+    expect((await leadEmails("a")).find((e) => e.messageId === messageId)?.bouncedAt).toEqual(now);
+  });
+
+  it("stops all further mail to the dead address", async () => {
+    const { mailer, messageId } = await sentFirstEmail();
+    const later = new Date("2026-10-14T12:00:00Z");
+    expect(await queueFollowUps({ db, analyzer, fromAddress: FROM }, later)).toBe(1);
+    await handleInbound(
+      { db, mailer, analyzer },
+      bounceFrom(report({ messageIds: [messageId] })),
+      later,
+    );
+    expect((await leadEmails("a")).find((e) => e.status === "cancelled")?.error).toBe(
+      BOUNCED_REASON,
+    );
+
+    // A lead whose first e-mail bounced gets no follow-up drafted at all.
+    await db.delete(emails).where(eq(emails.status, "cancelled"));
+    await db
+      .update(leads)
+      .set({ emailFollowUps: 0, followUpOn: "2026-10-14" })
+      .where(eq(leads.id, "a"));
+    expect(await queueFollowUps({ db, analyzer, fromAddress: FROM }, later)).toBe(0);
+  });
+
+  it("clears the follow-up date when the first e-mail bounces", async () => {
+    const { mailer, messageId } = await sentFirstEmail();
+    expect((await lead("a"))?.followUpOn).toBe("2026-10-14");
+    await handleInbound({ db, mailer, analyzer }, bounceFrom(report({ messageIds: [messageId] })));
+    expect((await lead("a"))?.followUpOn).toBeNull();
+  });
+
+  it("falls back to the latest e-mail sent to the failed address", async () => {
+    const { mailer, messageId } = await sentFirstEmail();
+    const matched = await findBouncedEmail(db, {
+      inReplyTo: null,
+      references: [],
+      bounce: report({ recipients: ["contato@clinica.com.br"] }),
+    });
+    expect(matched?.messageId).toBe(messageId);
+    // A queued (unsent) e-mail to the same address is not what bounced.
+    expect(
+      await findBouncedEmail(db, {
+        inReplyTo: null,
+        references: [],
+        bounce: report({ recipients: ["outro@x.com"] }),
+      }),
+    ).toBeUndefined();
+    await handleInbound(
+      { db, mailer, analyzer },
+      bounceFrom(report({ recipients: ["contato@clinica.com.br"] })),
+    );
+    expect((await leadEmails("a")).find((e) => e.messageId === messageId)?.bouncedAt).toBeTruthy();
+  });
+
+  it("matches the In-Reply-To of a bounce that quotes no id", async () => {
+    const { messageId } = await sentFirstEmail();
+    const matched = await findBouncedEmail(db, {
+      inReplyTo: messageId,
+      references: [],
+      bounce: report({}),
+    });
+    expect(matched?.messageId).toBe(messageId);
+  });
+
+  it("is not a bounce without a report", async () => {
+    await sentFirstEmail();
+    expect(
+      await findBouncedEmail(db, { inReplyTo: null, references: [], bounce: null }),
+    ).toBeUndefined();
+  });
+});
+
+describe("automatic messages", () => {
+  beforeEach(async () => {
+    await resetDb();
+    await seed();
+  });
+
+  it("keeps an out-of-office out of the replies, the AI thread and the reply target", async () => {
+    const { mailer, messageId } = await sentFirstEmail();
+    await handleInbound(
+      { db, mailer, analyzer },
+      incoming({ inReplyTo: messageId, automatic: true, messageId: "<ooo@clinica.com.br>" }),
+      new Date("2026-10-11T13:00:00Z"),
+    );
+    const stored = (await leadEmails("a")).find((e) => e.direction === "in");
+    expect(stored?.automatic).toBe(true);
+    expect((await thread(db, "a")).some((e) => e.direction === "in")).toBe(false);
+
+    const range = { from: new Date("2026-10-01T03:00:00Z"), to: new Date("2026-11-01T03:00:00Z") };
+    expect(await periodFunnel(db, range)).toMatchObject({ contacted: 1, replied: 0 });
+    expect((await queryNiches(db))[0]).toMatchObject({ contacted: 1, replied: 0 });
+
+    // The user's answer threads on the lead's own message, never on the out-of-office.
+    const draft = await saveReplyDraft(db, { leadId: "a", body: "Oi", fromAddress: FROM });
+    expect(draft).toMatchObject({ inReplyTo: null });
+  });
+});
+
+describe("AI replies without a Message-ID", () => {
+  beforeEach(async () => {
+    await resetDb();
+    await seed();
+  });
+
+  it("threads on the newest id the message answers", () => {
+    const message = { messageId: null, inReplyTo: null, references: ["<a@x>", "<b@x>"] };
+    expect(replyTarget(message)).toBe("<b@x>");
+    expect(replyTarget({ ...message, inReplyTo: "<c@x>" })).toBe("<c@x>");
+    expect(replyTarget({ ...message, references: [] })).toBeNull();
+  });
+
+  it("queues the answer as part of the conversation, not as cold outreach", async () => {
+    const { mailer, messageId } = await sentFirstEmail();
+    await handleInbound(
+      { db, mailer, analyzer },
+      incoming({ inReplyTo: messageId, messageId: null, text: "Pode explicar melhor?" }),
+      new Date("2026-10-11T13:00:00Z"),
+    );
+    const reply = (await leadEmails("a")).find((e) => e.status === "queued");
+    expect(reply).toMatchObject({ author: "ai", inReplyTo: messageId });
+  });
+
+  it("sends a marked conversation answer outside the window", async () => {
+    await sentFirstEmail();
+    await db.insert(emails).values({
+      id: "marked",
+      leadId: "a",
+      direction: "out",
+      status: "queued",
+      author: "ai",
+      fromAddress: FROM,
+      toAddress: "contato@clinica.com.br",
+      subject: "Re: Assunto",
+      body: "Resposta",
+      conversationReply: true,
+      sendAfter: at("01:00"),
+    });
+    // 01:00Z is 22:00 in Brazil: cold e-mails wait, answers go.
+    const { mailer } = createFakeMailer();
+    expect(await sendDue({ db, mailer, limit: 30 }, at("01:00"))).toBe(1);
+  });
+});
+
+describe("daily limit reserve", () => {
+  beforeEach(async () => {
+    await resetDb();
+    await seed();
+  });
+
+  it("keeps 10 e-mails, or 20% of a small limit, for conversations", () => {
+    expect(coldDailyLimit(100)).toBe(90);
+    expect(coldDailyLimit(30)).toBe(24);
+    expect(coldDailyLimit(1)).toBe(1);
+    expect(coldDailyLimit(0)).toBe(0);
+  });
+
+  it("stops cold outreach at its share but still sends answers", async () => {
+    const now = new Date("2026-10-11T12:00:00Z");
+    const { drafts } = await prepareDrafts({ db, analyzer, fromAddress: FROM }, ["a"]);
+    await queueDrafts(
+      db,
+      drafts.map((d) => d.id),
+      now,
+    );
+    // Limit 10 keeps 2 for conversations: after 8 sends the first e-mail waits.
+    for (let index = 0; index < 8; index += 1) await reserveRequest(db, EMAIL_PROVIDER, 10, now);
+    const { mailer } = createFakeMailer();
+    expect(await sendDue({ db, mailer, limit: 10 }, now)).toBe(0);
+    await db.insert(emails).values({
+      id: "answer",
+      leadId: "a",
+      direction: "out",
+      status: "queued",
+      author: "ai",
+      fromAddress: FROM,
+      toAddress: "contato@clinica.com.br",
+      subject: "Re: Assunto",
+      body: "Resposta",
+      inReplyTo: "<lead@clinica.com.br>",
+      sendAfter: now,
+    });
+    expect(await sendDue({ db, mailer, limit: 10 }, now)).toBe(1);
+    expect((await db.query.emails.findFirst({ where: eq(emails.id, "answer") }))?.status).toBe(
+      "sent",
+    );
+  });
+
+  it("leaves no room for the automatic dispatch once cold outreach used its share", async () => {
+    await db.update(settingsTable).set({ autoDispatch: true });
+    const now = new Date("2026-10-11T12:00:00Z");
+    for (let index = 0; index < 24; index += 1) await reserveRequest(db, EMAIL_PROVIDER, 30, now);
+    expect(await autoDispatch({ db, analyzer, fromAddress: FROM, limit: 30 }, now)).toBe(0);
+    expect(await leadEmails("a")).toEqual([]);
+  });
+});
+
+describe("follow-ups and failed sends", () => {
+  beforeEach(async () => {
+    await resetDb();
+    await seed();
+  });
+
+  it("drafts no follow-up while the run is paused", async () => {
+    await sentFirstEmail();
+    await db.update(settingsTable).set({ dispatchPausedAt: new Date("2026-10-14T11:00:00Z") });
+    const later = new Date("2026-10-14T12:00:00Z");
+    expect(await queueFollowUps({ db, analyzer, fromAddress: FROM }, later)).toBe(0);
+    expect((await lead("a"))?.emailFollowUps).toBe(0);
+  });
+
+  it("dates a failed send with the attempt, so today's counts show it", async () => {
+    await sentFirstEmail();
+    const yesterday = new Date("2026-10-11T12:00:00Z");
+    await db.insert(emails).values({
+      id: "carried",
+      leadId: "a",
+      direction: "out",
+      status: "queued",
+      author: "user",
+      fromAddress: FROM,
+      toAddress: "contato@clinica.com.br",
+      subject: "Re: Assunto",
+      body: "Oi",
+      sendAfter: yesterday,
+    });
+    const today = new Date("2026-10-12T13:00:00Z");
+    const fake = createFakeMailer();
+    fake.failNext();
+    const row = await db.query.emails.findFirst({ where: eq(emails.id, "carried") });
+    if (!row) throw new Error("missing row");
+    expect(await sendEmail({ db, mailer: fake.mailer, limit: 30 }, row, today)).toBe("failed");
+    expect(await db.query.emails.findFirst({ where: eq(emails.id, "carried") })).toMatchObject({
+      status: "failed",
+      sendAfter: today,
+      sentAt: null,
+    });
   });
 });

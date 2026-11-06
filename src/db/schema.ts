@@ -10,6 +10,10 @@ import {
 } from "drizzle-orm/sqlite-core";
 import {
   LEAD_STATUS_VALUES,
+  LOSS_REASONS,
+  MEETING_KINDS,
+  SALES_STAGES,
+  type ProposalItem,
   type AutopilotTarget,
   type ScoringCriterion,
   type SiteData,
@@ -49,6 +53,13 @@ export const settings = sqliteTable("settings", {
   // IMAP position: messages above this UID in this mailbox were not read yet.
   mailUidValidity: integer("mail_uid_validity").notNull().default(0),
   mailLastUid: integer("mail_last_uid").notNull().default(0),
+  // Sending window (Brazil hours): e-mails go out from sendWindowStart:00 until sendWindowEnd:00.
+  sendWindowStart: integer("send_window_start").notNull().default(6),
+  sendWindowEnd: integer("send_window_end").notNull().default(18),
+  // Set while the day's run is paused: queued e-mails wait until someone resumes it.
+  dispatchPausedAt: integer("dispatch_paused_at", { mode: "timestamp" }),
+  // Brazil day (YYYY-MM-DD) whose cold run "Cancelar disparo" stopped; another day ignores it.
+  dispatchCancelledOn: text("dispatch_cancelled_on"),
   updatedAt: integer("updated_at", { mode: "timestamp" })
     .notNull()
     .default(sql`(unixepoch())`),
@@ -142,6 +153,18 @@ export const leads = sqliteTable(
     // Set when the AI discarded the lead during triage.
     discardReason: text("discard_reason"),
     discardedAt: integer("discarded_at", { mode: "timestamp" }),
+    // Where a replied lead is in the sale: a meeting booked, then a proposal sent.
+    salesStage: text("sales_stage", { enum: SALES_STAGES }),
+    // Who took the lead; null while it is free.
+    ownerId: text("owner_id").references(() => users.id, { onDelete: "set null" }),
+    // A won deal: when, how much and what was sold.
+    closedAt: integer("closed_at", { mode: "timestamp" }),
+    dealValueCents: integer("deal_value_cents"),
+    dealService: text("deal_service"),
+    // A lost deal: the reason from the fixed list, an optional note and when.
+    lossReason: text("loss_reason", { enum: LOSS_REASONS }),
+    lossNote: text("loss_note"),
+    lostAt: integer("lost_at", { mode: "timestamp" }),
     ...timestamps,
   },
   (t) => [
@@ -208,6 +231,13 @@ export const emails = sqliteTable(
     sendAfter: integer("send_after", { mode: "timestamp" }),
     sentAt: integer("sent_at", { mode: "timestamp" }),
     error: text("error"),
+    // The provider sent it back (a bounce report matched this e-mail): it never arrived.
+    bouncedAt: integer("bounced_at", { mode: "timestamp" }),
+    // Received from a machine (out-of-office, auto-reply, unmatched bounce): kept in the thread,
+    // but never counted as a reply nor answered.
+    automatic: integer("automatic", { mode: "boolean" }).notNull().default(false),
+    // An AI answer in a conversation whose message had no id to thread on: never cold outreach.
+    conversationReply: integer("conversation_reply", { mode: "boolean" }).notNull().default(false),
     ...timestamps,
   },
   (t) => [
@@ -289,6 +319,131 @@ export const jobRuns = sqliteTable("job_runs", {
   consecutiveFailures: integer("consecutive_failures").notNull().default(0),
 });
 
+/**
+ * What happened to a lead and when: status and stage changes, who took it, the deal won or
+ * lost, meetings and proposals. The source for the history in the lead and the metrics.
+ */
+export const LEAD_EVENT_KINDS = [
+  "status",
+  "stage",
+  "owner",
+  "won",
+  "lost",
+  "meeting",
+  "proposal",
+] as const;
+export type LeadEventKind = (typeof LEAD_EVENT_KINDS)[number];
+
+export const leadEvents = sqliteTable(
+  "lead_events",
+  {
+    id: text("id").primaryKey(),
+    leadId: text("lead_id")
+      .notNull()
+      .references(() => leads.id, { onDelete: "cascade" }),
+    kind: text("kind", { enum: LEAD_EVENT_KINDS }).notNull(),
+    fromValue: text("from_value"),
+    toValue: text("to_value"),
+    userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
+    ...timestamps,
+  },
+  (t) => [
+    index("lead_events_lead_idx").on(t.leadId, t.createdAt),
+    index("lead_events_kind_idx").on(t.kind, t.createdAt),
+  ],
+);
+
+/** Meetings booked with a lead; the Agenda and "Agenda de hoje" read them. */
+export const meetings = sqliteTable(
+  "meetings",
+  {
+    id: text("id").primaryKey(),
+    leadId: text("lead_id")
+      .notNull()
+      .references(() => leads.id, { onDelete: "cascade" }),
+    startsAt: integer("starts_at", { mode: "timestamp" }).notNull(),
+    kind: text("kind", { enum: MEETING_KINDS }).notNull(),
+    note: text("note").notNull().default(""),
+    // The invite e-mail queued for the lead, when one was sent.
+    inviteEmailId: text("invite_email_id"),
+    createdBy: text("created_by").references(() => users.id, { onDelete: "set null" }),
+    cancelledAt: integer("cancelled_at", { mode: "timestamp" }),
+    ...timestamps,
+  },
+  (t) => [index("meetings_starts_idx").on(t.startsAt), index("meetings_lead_idx").on(t.leadId)],
+);
+
+/** The fixed service table proposals are built from. Prices in cents (R$). */
+export const services = sqliteTable("services", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  detail: text("detail").notNull().default(""),
+  priceCents: integer("price_cents").notNull(),
+  // Days to deliver; null for monthly services.
+  deadlineDays: integer("deadline_days"),
+  monthly: integer("monthly", { mode: "boolean" }).notNull().default(false),
+  position: integer("position").notNull(),
+  archivedAt: integer("archived_at", { mode: "timestamp" }),
+  ...timestamps,
+});
+
+/** Priced extras offered with any service in a proposal. */
+export const serviceAddons = sqliteTable("service_addons", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  scope: text("scope").notNull().default("Todos os sites"),
+  priceCents: integer("price_cents").notNull(),
+  monthly: integer("monthly", { mode: "boolean" }).notNull().default(false),
+  position: integer("position").notNull(),
+  archivedAt: integer("archived_at", { mode: "timestamp" }),
+  ...timestamps,
+});
+
+/**
+ * A proposal sent to a lead. The items are copied from the table when it is built, so a
+ * later price change does not rewrite what the client received.
+ */
+export const proposals = sqliteTable(
+  "proposals",
+  {
+    id: text("id").primaryKey(),
+    leadId: text("lead_id")
+      .notNull()
+      .references(() => leads.id, { onDelete: "cascade" }),
+    items: text("items", { mode: "json" }).$type<ProposalItem[]>().notNull(),
+    totalCents: integer("total_cents").notNull(),
+    validDays: integer("valid_days").notNull().default(15),
+    emailId: text("email_id"),
+    sentAt: integer("sent_at", { mode: "timestamp" }),
+    createdBy: text("created_by").references(() => users.id, { onDelete: "set null" }),
+    ...timestamps,
+  },
+  (t) => [index("proposals_lead_idx").on(t.leadId, t.createdAt)],
+);
+
+/** The team's goal for one month (`YYYY-MM`); a month keeps the goal it had. */
+export const monthlyGoals = sqliteTable("monthly_goals", {
+  month: text("month").primaryKey(),
+  deals: integer("deals").notNull(),
+  revenueCents: integer("revenue_cents").notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(unixepoch())`),
+});
+
+/** E-mails allowed to create an account; only invited addresses can join the team. */
+export const invites = sqliteTable(
+  "invites",
+  {
+    id: text("id").primaryKey(),
+    email: text("email").notNull(),
+    invitedBy: text("invited_by").references(() => users.id, { onDelete: "set null" }),
+    acceptedAt: integer("accepted_at", { mode: "timestamp" }),
+    ...timestamps,
+  },
+  (t) => [uniqueIndex("invites_email_idx").on(t.email)],
+);
+
 export type Settings = typeof settings.$inferSelect;
 export type Search = typeof searches.$inferSelect;
 export type Lead = typeof leads.$inferSelect;
@@ -297,3 +452,10 @@ export type Email = typeof emails.$inferSelect;
 export type User = typeof users.$inferSelect;
 export type QuickReply = typeof quickReplies.$inferSelect;
 export type JobRun = typeof jobRuns.$inferSelect;
+export type LeadEvent = typeof leadEvents.$inferSelect;
+export type Meeting = typeof meetings.$inferSelect;
+export type Service = typeof services.$inferSelect;
+export type ServiceAddon = typeof serviceAddons.$inferSelect;
+export type Proposal = typeof proposals.$inferSelect;
+export type MonthlyGoal = typeof monthlyGoals.$inferSelect;
+export type Invite = typeof invites.$inferSelect;
