@@ -163,7 +163,10 @@ export function scoreReasons(lead: Pick<LeadRowFacts, "score" | "signals">): str
 export function siteHost(url: string | null): string | null {
   if (!url) return null;
   try {
-    return new URL(url).hostname.replace(/^www\./, "");
+    const parsed = new URL(url);
+    if ((parsed.protocol !== "http:" && parsed.protocol !== "https:") || !parsed.hostname)
+      return null;
+    return parsed.hostname.replace(/^www\./, "");
   } catch {
     return null;
   }

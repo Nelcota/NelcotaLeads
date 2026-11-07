@@ -6,6 +6,7 @@ import {
   nextStatus,
   nextStep,
   scoreReasons,
+  siteHost,
   type LeadRowFacts,
 } from "./lead-row";
 
@@ -106,5 +107,11 @@ describe("lead row helpers", () => {
   it("gives the score with its two main reasons", () => {
     expect(scoreReasons(lead({ score: 71 }))).toBe("Nota 71 · Sem site · Poucas avaliações");
     expect(scoreReasons(lead({ score: null }))).toBeUndefined();
+  });
+
+  it("only derives a favicon host from a valid web URL", () => {
+    expect(siteHost("https://www.example.com/page")).toBe("example.com");
+    expect(siteHost("javascript:alert(1)")).toBeNull();
+    expect(siteHost("https://")).toBeNull();
   });
 });

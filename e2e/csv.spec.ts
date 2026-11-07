@@ -12,7 +12,7 @@ test.describe("CSV export", () => {
     const downloadPromise = page.waitForEvent("download");
     await page.getByRole("link", { name: "Exportar CSV" }).click();
     const download = await downloadPromise;
-    expect(download.suggestedFilename()).toMatch(/^leads-\d{4}-\d{2}-\d{2}\.csv$/);
+    expect(download.suggestedFilename()).toMatch(/^leads-todos-\d{4}-\d{2}-\d{2}\.csv$/);
 
     const bytes = await readFile(await download.path());
     // UTF-8 BOM, so spreadsheet apps read the accents right.

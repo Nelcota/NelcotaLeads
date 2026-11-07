@@ -49,6 +49,7 @@ import { whatsappLink } from "@/lib/phone";
 import { leadCountsQuery, leadsQuery } from "@/lib/queries";
 import {
   EXPORT_LIMIT,
+  DISPATCH_LIMIT,
   leadFiltersSchema,
   lenientSearch,
   type LeadFilters,
@@ -145,10 +146,8 @@ function LeadsPage() {
   const pageRows = loaded.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
   const readyIds = loaded.filter(isReadyToDispatch).map((lead) => lead.id);
   const selectedRows = loaded.filter((lead) => selection.selected.has(lead.id));
-  // Only new leads with an address get a first e-mail (the server skips the rest).
-  const sendable = selectedRows
-    .filter((lead) => lead.status === "new" && lead.email && !lead.unsubscribedAt)
-    .map((lead) => lead.id);
+  // Keep the count and the enabled state aligned with the actual dispatch rules.
+  const sendable = selectedRows.filter(isReadyToDispatch).map((lead) => lead.id);
   const pendingInList = loaded.filter((lead) => lead.analysisStatus === "pending").length;
 
   const statusChange = useLeadStatusChange(selection.clear);
@@ -205,7 +204,7 @@ function LeadsPage() {
     selection.selected.size > 0
       ? {
           label: `Disparar ${sendable.length} ${sendable.length === 1 ? "selecionado" : "selecionados"}`,
-          disabled: sendable.length === 0,
+          disabled: sendable.length === 0 || sendable.length > DISPATCH_LIMIT,
           onClick: () => setDispatching(true),
         }
       : {

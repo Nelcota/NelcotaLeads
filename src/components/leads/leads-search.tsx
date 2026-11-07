@@ -1,5 +1,5 @@
 import { SearchIcon, XIcon } from "lucide-react";
-import { forwardRef } from "react";
+import { forwardRef, useRef } from "react";
 import { Kbd } from "@/components/apple-ui";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -28,6 +28,7 @@ export const LeadsSearch = forwardRef<
     onShortcutsOpenChange: (open: boolean) => void;
   }
 >(function LeadsSearch({ value: urlValue, onCommit, shortcutsOpen, onShortcutsOpenChange }, ref) {
+  const inputRef = useRef<HTMLInputElement>(null);
   const box = useUrlSearchBox(urlValue, onCommit);
   const q = box.value;
 
@@ -35,7 +36,11 @@ export const LeadsSearch = forwardRef<
     <div className="relative w-full sm:w-[420px]">
       <SearchIcon className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-tertiary" />
       <Input
-        ref={ref}
+        ref={(node) => {
+          inputRef.current = node;
+          if (typeof ref === "function") ref(node);
+          else if (ref) ref.current = node;
+        }}
         type="search"
         aria-label="Buscar por nome, e-mail, telefone ou endereço"
         placeholder="Buscar por nome, e-mail, telefone ou bairro"
@@ -54,7 +59,10 @@ export const LeadsSearch = forwardRef<
           <button
             type="button"
             aria-label="Limpar busca"
-            onClick={box.clear}
+            onClick={() => {
+              box.clear();
+              inputRef.current?.focus();
+            }}
             className="grid size-6 place-items-center rounded-full text-muted-foreground hover:bg-fill hover:text-foreground"
           >
             <XIcon className="size-3.5" />
