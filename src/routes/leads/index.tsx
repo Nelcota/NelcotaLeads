@@ -1,105 +1,62 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
-  ArrowDownWideNarrowIcon,
-  ArrowRightLeftIcon,
-  ArrowUpDownIcon,
-  ArrowUpNarrowWideIcon,
-  CheckIcon,
-  ChevronsUpDownIcon,
   DownloadIcon,
   EllipsisIcon,
-  FilterXIcon,
   InboxIcon,
   PlusIcon,
-  SearchIcon,
   SendIcon,
-  StarIcon,
-  Trash2Icon,
+  UserIcon,
   UserPlusIcon,
-  XIcon,
 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
-import {
-  Avatar,
-  DisabledReason,
-  EmptyState,
-  FloatingBar,
-  Hint,
-  InfoTip,
-  TONE_TEXT,
-  toneVar,
-  type Tone,
-} from "@/components/apple-ui";
-import { GLOSSARY } from "@/lib/help";
+import { EmptyState, Hint } from "@/components/apple-ui";
 import { Page, Stat, useOpenNewSearch } from "@/components/app-shell";
-import { followUpTone, ScoreBadge, StatusBadge, TIER_TONE } from "@/components/lead-badges";
 import { AddLeadSheet } from "@/components/add-lead-sheet";
 import { DispatchSheet } from "@/components/dispatch-sheet";
 import { LeadSheet } from "@/components/lead-sheet";
-import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
+import { DiscardConfirm, DISCARD_CONFIRM_FROM } from "@/components/leads/discard-confirm";
+import { FilterChips, FiltersButton, useFilterChips } from "@/components/leads/leads-filters";
+import { LeadsFooter, PAGE_SIZE } from "@/components/leads/leads-footer";
+import { LeadsMobileList } from "@/components/leads/leads-mobile-list";
+import { LeadsSearch } from "@/components/leads/leads-search";
+import {
+  EMPTY_VIEW_TEXT,
+  LeadsTable,
+  type EmptyInfo,
+  type SortKey,
+  type SortState,
+} from "@/components/leads/leads-table";
+import { LeadsTabs } from "@/components/leads/leads-tabs";
+import { SelectionBar } from "@/components/leads/selection-bar";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { LeadStatus } from "@/db/schema";
-import { relativeDay } from "@/lib/format";
-import { leadCountsQuery, leadsQuery, nichesQuery, searchesQuery } from "@/lib/queries";
+import { useLeadStatusChange } from "@/hooks/use-lead-status-change";
+import { useLeadsHotkeys } from "@/hooks/use-leads-hotkeys";
+import { useListSelection } from "@/hooks/use-list-selection";
+import { clean, hasFilters, NO_FILTERS, popoverFilterCount } from "@/lib/lead-filters";
+import { isReadyToDispatch } from "@/lib/lead-row";
+import { pageTitle } from "@/lib/page-title";
+import { whatsappLink } from "@/lib/phone";
+import { leadCountsQuery, leadsQuery } from "@/lib/queries";
 import {
-  BULK_LIMIT,
-  type BulkSnapshot,
-  DISPATCH_LIMIT,
   EXPORT_LIMIT,
-  LEAD_STATUS_LABELS,
-  LEAD_STATUS_VALUES,
-  LEAD_VIEW_LABELS,
-  LEAD_VIEWS,
   leadFiltersSchema,
   lenientSearch,
-  SCORE_TIERS,
   type LeadFilters,
   type LeadView,
-  type ScoreTier,
 } from "@/lib/schemas";
-import { useUrlSearchBox } from "@/hooks/use-url-search-box";
-import { errorToast } from "@/lib/mutation-toasts";
 import { useNotFoundToast } from "@/lib/not-found-toast";
-import { searchLabel } from "@/lib/searches";
 import { useToday } from "@/lib/today";
 import { cn } from "@/lib/utils";
-import { bulkUpdateLeads, undoBulkUpdateLeads } from "@/server/leads";
-import type { LeadRow } from "@/server/leads-query";
-import { pageTitle } from "@/lib/page-title";
 
 // `lead` (the open side sheet) and `missing` (a link to a lead that is gone) are UI state,
 // kept out of the data filters.
@@ -107,47 +64,12 @@ const searchSchema = lenientSearch(
   leadFiltersSchema.extend({
     lead: z.string().max(64).optional(),
     missing: z.boolean().optional(),
+    // "Disparar prontos" from another tab: select the ready leads once A contatar loads.
+    pick: z.literal("ready").optional(),
   }),
 );
 
 const DEFAULT_VIEW: LeadView = "todo";
-const NO_SELECTION: ReadonlySet<string> = new Set();
-/**
- * "Mudar status" for a selection: never "Fechado" (a won deal needs its value and service, so it
- * is closed one lead at a time) nor "Descartado" (it has its own item).
- */
-const BULK_STATUSES = LEAD_STATUS_VALUES.filter(
-  (status): status is Exclude<LeadStatus, "closed" | "discarded"> =>
-    status !== "closed" && status !== "discarded",
-);
-
-export const Route = createFileRoute("/leads/")({
-  head: () => ({ meta: [{ title: pageTitle("Leads") }] }),
-  validateSearch: searchSchema,
-  loaderDeps: ({ search: { lead: _lead, missing: _missing, ...filters } }) => withView(filters),
-  loader: ({ context, deps }) =>
-    Promise.all([
-      context.queryClient.ensureQueryData(leadsQuery(deps)),
-      context.queryClient.ensureQueryData(leadCountsQuery(deps)),
-    ]),
-  component: LeadsPage,
-});
-
-const TIERS = ["high", "medium", "low"] as const satisfies readonly ScoreTier[];
-const TIER_RANGES: Record<ScoreTier, Pick<LeadFilters, "minScore" | "maxScore">> = {
-  high: { minScore: SCORE_TIERS.high.min, maxScore: undefined },
-  medium: { minScore: SCORE_TIERS.medium.min, maxScore: SCORE_TIERS.medium.max },
-  low: { minScore: undefined, maxScore: SCORE_TIERS.low.max },
-};
-const NO_FILTERS: Partial<LeadFilters> = {
-  q: undefined,
-  hasEmail: undefined,
-  minScore: undefined,
-  maxScore: undefined,
-  noWebsite: undefined,
-  searchId: undefined,
-  niche: undefined,
-};
 
 // Which statuses still belong to each view after a status change.
 const VIEW_STATUSES: Record<LeadView, LeadStatus[] | null> = {
@@ -160,45 +82,37 @@ const VIEW_STATUSES: Record<LeadView, LeadStatus[] | null> = {
   all: null,
 };
 
-// Queue counters that ask for attention get the status color.
-const VIEW_TONE: Partial<Record<LeadView, Tone>> = {
-  followup: "orange",
-  talking: "orange",
-  closed: "green",
-};
+/** The order a column starts in when clicked: names A→Z, numbers highest first. */
+const SORT_START: Record<SortKey, "asc" | "desc"> = { name: "asc", score: "desc", rating: "desc" };
 
-const SORTS = [
-  { value: "auto", label: "Maior nota" },
-  { value: "reviewCount", label: "Mais avaliações" },
-  { value: "name", label: "Nome" },
-  { value: "createdAt", label: "Mais recentes" },
-] as const;
-type SortValue = (typeof SORTS)[number]["value"];
-const SORT_PATCH: Record<SortValue, Pick<LeadFilters, "sort" | "dir">> = {
-  auto: { sort: undefined, dir: undefined },
-  reviewCount: { sort: "reviewCount", dir: "desc" },
-  name: { sort: "name", dir: "asc" },
-  createdAt: { sort: "createdAt", dir: "desc" },
-};
-
-// macOS pop-up button look for the filter triggers.
-const POPUP =
-  "press inline-flex h-9 shrink-0 sm:h-7 items-center gap-1.5 rounded-[8px] bg-fill-2 px-3 text-[14px] font-medium whitespace-nowrap transition-colors hover:bg-fill aria-pressed:bg-green/16 aria-pressed:text-green [&_svg]:size-3";
+export const Route = createFileRoute("/leads/")({
+  head: () => ({ meta: [{ title: pageTitle("Leads") }] }),
+  validateSearch: searchSchema,
+  loaderDeps: ({ search: { lead: _lead, missing: _missing, pick: _pick, ...filters } }) =>
+    withView(filters),
+  loader: ({ context, deps }) =>
+    Promise.all([
+      context.queryClient.ensureQueryData(leadsQuery(deps)),
+      context.queryClient.ensureQueryData(leadCountsQuery(deps)),
+    ]),
+  component: LeadsPage,
+});
 
 function withView(filters: LeadFilters): LeadFilters {
   return { ...filters, view: filters.view ?? DEFAULT_VIEW };
 }
 
-function activeTier(filters: LeadFilters): ScoreTier | undefined {
-  return TIERS.find(
-    (tier) =>
-      TIER_RANGES[tier].minScore === filters.minScore &&
-      TIER_RANGES[tier].maxScore === filters.maxScore,
-  );
+function sortState(filters: LeadFilters): SortState {
+  const key =
+    filters.sort === "name" || filters.sort === "score" || filters.sort === "rating"
+      ? filters.sort
+      : null;
+  if (!key) return null;
+  return { key, dir: filters.dir ?? SORT_START[key] };
 }
 
 function LeadsPage() {
-  const { lead: openLeadId, missing, ...search } = Route.useSearch();
+  const { lead: openLeadId, missing, pick, ...search } = Route.useSearch();
   const filters = withView(search);
   const view = filters.view ?? DEFAULT_VIEW;
   const navigate = useNavigate({ from: "/leads/" });
@@ -208,47 +122,113 @@ function LeadsPage() {
     () => void navigate({ search: (prev) => ({ ...prev, missing: undefined }), replace: true }),
   );
   const { data: list } = useQuery(leadsQuery(filters));
-  const data = list?.rows;
+  const rows = list?.rows;
   const { data: counts } = useQuery(leadCountsQuery(filters));
   const openNewSearch = useOpenNewSearch();
-  // The selection belongs to one list: another tab, filter, search or sort starts it over.
-  const listKey = JSON.stringify(clean(filters));
-  const [selection, setSelection] = useState({ key: listKey, ids: NO_SELECTION });
-  const selected = selection.key === listKey ? selection.ids : NO_SELECTION;
-  const setSelected = (update: (current: ReadonlySet<string>) => ReadonlySet<string>) =>
-    setSelection((current) => ({
-      key: listKey,
-      ids: update(current.key === listKey ? current.ids : NO_SELECTION),
-    }));
-  const clearSelection = () => setSelected(() => NO_SELECTION);
+  const today = useToday();
+  const [now] = useState(() => new Date());
+  const searchRef = useRef<HTMLInputElement>(null);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [dispatching, setDispatching] = useState(false);
   const [adding, setAdding] = useState(false);
-  const selectedRows = (data ?? []).filter((lead) => selected.has(lead.id));
-  const sendable = selectedRows
-    .filter((lead) => lead.email && !lead.unsubscribedAt)
-    .map((lead) => lead.id);
-  const withoutEmail = selectedRows.length - sendable.length;
-  const readyIds = (data ?? [])
-    .filter((lead) => lead.email && !lead.unsubscribedAt && lead.analysisStatus === "done")
-    .map((lead) => lead.id);
+  const [discarding, setDiscarding] = useState({ open: false, ids: [] as string[] });
+  // The tab change remounts the page, so the request rides in the URL (`pick`), not in state.
+  const [pickDone, setPickDone] = useState(false);
 
-  const toggle = (ids: string[], on: boolean) =>
-    setSelected((current) => {
-      const next = new Set(current);
-      for (const id of ids) {
-        if (on) {
-          next.add(id);
-          continue;
-        }
-        next.delete(id);
-      }
-      return next;
-    });
+  // The selection and the page belong to one list: another tab, filter, search or order resets them.
+  const listKey = JSON.stringify(clean(filters));
+  const selection = useListSelection(listKey);
+  const [paging, setPaging] = useState({ key: listKey, page: 0 });
+  const page = paging.key === listKey ? paging.page : 0;
+
+  const loaded = rows ?? [];
+  const pageRows = loaded.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  const readyIds = loaded.filter(isReadyToDispatch).map((lead) => lead.id);
+  const selectedRows = loaded.filter((lead) => selection.selected.has(lead.id));
+  // Only new leads with an address get a first e-mail (the server skips the rest).
+  const sendable = selectedRows
+    .filter((lead) => lead.status === "new" && lead.email && !lead.unsubscribedAt)
+    .map((lead) => lead.id);
+  const pendingInList = loaded.filter((lead) => lead.analysisStatus === "pending").length;
+
+  const statusChange = useLeadStatusChange(selection.clear);
+  const chips = useFilterChips(filters);
+  const filtered = hasFilters(filters);
+
+  // Adjusted during render: once A contatar has loaded, select its ready leads.
+  if (pick === "ready" && !pickDone && view === "todo" && rows !== undefined) {
+    setPickDone(true);
+    selection.replace(readyIds);
+  }
+  // Then drop `pick` from the address, so Back or a reload does not select again.
+  useEffect(() => {
+    if (!pick || !pickDone) return;
+    void navigate({ search: (prev) => ({ ...prev, pick: undefined }), replace: true });
+  }, [pick, pickDone, navigate]);
 
   const setFilters = (patch: Partial<LeadFilters>) =>
     void navigate({ search: (prev) => clean({ ...prev, ...patch }), replace: true });
   const selectLead = (id: string | undefined) =>
     void navigate({ search: (prev) => clean({ ...prev, lead: id }), replace: true });
+
+  const sort = sortState(filters);
+  const onSort = (key: SortKey) => {
+    const dir = sort?.key === key ? (sort.dir === "asc" ? "desc" : "asc") : SORT_START[key];
+    setFilters({ sort: key, dir });
+  };
+
+  const askDiscard = (ids: string[]) => {
+    if (ids.length >= DISCARD_CONFIRM_FROM) {
+      setDiscarding({ open: true, ids });
+      return;
+    }
+    statusChange.mutate({ ids, status: "discarded" });
+  };
+
+  const openWhatsApp = (id: string) => {
+    const lead = loaded.find((item) => item.id === id);
+    if (!lead?.phoneE164) {
+      toast("Este lead não tem telefone.");
+      return;
+    }
+    window.open(whatsappLink(lead.phoneE164), "_blank", "noopener,noreferrer");
+  };
+
+  useLeadsHotkeys(!openLeadId && !dispatching, {
+    onSearch: () => searchRef.current?.focus(),
+    onToggle: (id) => selection.toggle([id], !selection.selected.has(id)),
+    onWriteEmail: selectLead,
+    onWhatsApp: openWhatsApp,
+  });
+
+  const primary =
+    selection.selected.size > 0
+      ? {
+          label: `Disparar ${sendable.length} ${sendable.length === 1 ? "selecionado" : "selecionados"}`,
+          disabled: sendable.length === 0,
+          onClick: () => setDispatching(true),
+        }
+      : {
+          label:
+            view === "todo"
+              ? `Disparar ${readyIds.length} ${readyIds.length === 1 ? "pronto" : "prontos"}`
+              : "Disparar prontos",
+          disabled: view === "todo" && readyIds.length === 0,
+          onClick: () => {
+            if (view === "todo") {
+              selection.replace(readyIds);
+              toast(
+                `${readyIds.length} ${readyIds.length === 1 ? "lead pronto marcado" : "leads prontos marcados"}. Confira e clique em Disparar.`,
+              );
+              return;
+            }
+            void navigate({
+              search: (prev) =>
+                clean({ ...prev, view: "todo", sort: undefined, dir: undefined, pick: "ready" }),
+              replace: true,
+            });
+          },
+        };
 
   const exportHref = `/api/leads.csv?${new URLSearchParams(
     Object.entries(clean(filters)).map(([key, value]) => [key, String(value)]),
@@ -256,8 +236,8 @@ function LeadsPage() {
 
   const actions = (
     <>
-      {data && data.length > 0 ? (
-        <Button asChild variant="outline" className="hidden sm:inline-flex">
+      {loaded.length > 0 ? (
+        <Button asChild variant="outline" className="hidden border border-border sm:inline-flex">
           <a
             href={exportHref}
             download
@@ -274,14 +254,24 @@ function LeadsPage() {
           </a>
         </Button>
       ) : null}
-      <Button variant="outline" onClick={openNewSearch} aria-label="Nova busca">
+      <Button
+        variant="outline"
+        className="border border-border"
+        onClick={openNewSearch}
+        aria-label="Nova busca"
+      >
         <PlusIcon />
         <span className="max-sm:hidden">Nova busca</span>
       </Button>
       <DropdownMenu>
         <Hint label="Mais ações">
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="icon" aria-label="Mais ações">
+            <Button
+              variant="outline"
+              size="icon"
+              className="border border-border"
+              aria-label="Mais ações"
+            >
               <EllipsisIcon />
             </Button>
           </DropdownMenuTrigger>
@@ -293,19 +283,23 @@ function LeadsPage() {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+      <Button disabled={primary.disabled} onClick={primary.onClick} aria-label={primary.label}>
+        <SendIcon />
+        <span className="max-sm:hidden">{primary.label}</span>
+      </Button>
     </>
   );
   const addLead = (
     <AddLeadSheet open={adding} onOpenChange={setAdding} onOpenLead={(id) => selectLead(id)} />
   );
 
-  if (counts?.byView.all === 0 && !hasFilters(filters)) {
+  if (counts?.byView.all === 0 && !filtered && !filters.mine) {
     return (
       <Page title="Leads" actions={actions}>
         <EmptyState
           icon={InboxIcon}
-          tone="green"
-          className="grouped mx-auto w-full max-w-lg"
+          tone="blue"
+          className="mx-auto w-full max-w-lg rounded-[20px] border border-border bg-card"
           title="Nenhum lead ainda"
           description="Ligue a busca diária para receber leads todo dia, ou faça uma nova busca."
         >
@@ -324,6 +318,28 @@ function LeadsPage() {
     );
   }
 
+  const empty: EmptyInfo = filtered
+    ? {
+        title: "Nenhum lead com esses filtros.",
+        action: { label: "Limpar filtros", onClick: () => setFilters(NO_FILTERS) },
+      }
+    : filters.mine
+      ? {
+          title:
+            'Nenhum lead seu nesta aba. Use "Assumir" no painel do lead para ele aparecer aqui.',
+          action: { label: "Ver todos os leads", onClick: () => setFilters({ mine: undefined }) },
+        }
+      : { title: EMPTY_VIEW_TEXT[view] };
+
+  const handlers = {
+    onToggle: selection.toggle,
+    onOpen: selectLead,
+    onWriteEmail: selectLead,
+    onMove: (id: string, status: "contacted" | "replied") =>
+      statusChange.mutate({ ids: [id], status }),
+    onDiscard: (id: string) => askDiscard([id]),
+  };
+
   return (
     <Page
       title="Leads"
@@ -335,824 +351,133 @@ function LeadsPage() {
             {counts.byView.todo > 0 ? (
               <>
                 {" · "}
-                <Stat value={counts.byView.todo} tone="blue">
-                  a contatar
-                </Stat>
+                <Stat value={counts.byView.todo}>a contatar</Stat>
               </>
             ) : null}
             {counts.pending > 0 ? (
               <>
                 {" · "}
-                <Stat value={counts.pending} tone="purple">
-                  em análise
-                </Stat>
+                <Stat value={counts.pending}>em análise</Stat>
               </>
             ) : null}
           </>
         ) : null
       }
     >
-      <div className="enter grid grid-cols-[minmax(0,1fr)] gap-3.5">
-        <Tabs
-          value={view}
-          onValueChange={(value) => {
-            const next = LEAD_VIEWS.find((item) => item === value);
-            if (next) setFilters({ view: next, sort: undefined, dir: undefined });
-          }}
-        >
-          <div className="no-scrollbar -mx-4 overflow-x-auto px-4 lg:mx-0 lg:px-0">
-            <TabsList>
-              {LEAD_VIEWS.map((item) => {
-                const count = counts?.byView[item];
-                const tone = VIEW_TONE[item];
-                return (
-                  <TabsTrigger key={item} value={item} className="gap-1.5">
-                    {LEAD_VIEW_LABELS[item]}
-                    <span
-                      className={cn(
-                        "text-[13px] tabular-nums",
-                        tone && count ? TONE_TEXT[tone] : "opacity-60",
-                      )}
-                    >
-                      {count ?? ""}
-                    </span>
-                  </TabsTrigger>
-                );
-              })}
-            </TabsList>
-          </div>
-        </Tabs>
+      <LeadsTabs
+        view={view}
+        counts={counts}
+        onSelect={(next) => setFilters({ view: next, sort: undefined, dir: undefined })}
+      />
 
-        <Toolbar
-          filters={filters}
-          view={view}
-          onChange={setFilters}
-          onReset={() => setFilters(NO_FILTERS)}
-        />
-      </div>
-
-      {view === "todo" && selected.size === 0 && readyIds.length > 0 ? (
-        <div
-          className="grouped enter -mt-2 flex items-center gap-3 px-4 py-2.5"
-          style={{ animationDelay: "40ms" }}
-        >
-          <SendIcon className="size-4 shrink-0 text-blue" />
-          <p className="min-w-0 flex-1 text-sm">
-            <b className="font-medium tabular-nums">{readyIds.length}</b>{" "}
-            {readyIds.length === 1 ? "lead pronto" : "leads prontos"} para disparo
-            <span className="font-light text-muted-foreground max-sm:hidden">
-              {" "}
-              (com e-mail e já analisados)
-            </span>
-          </p>
-          <Button size="sm" onClick={() => setSelected(() => new Set(readyIds))}>
-            Selecionar {readyIds.length === 1 ? "" : "todos"}
-          </Button>
-        </div>
-      ) : null}
-
-      <div className="grouped enter -mt-2 overflow-x-auto" style={{ animationDelay: "80ms" }}>
-        <LeadsList
-          data={data}
-          view={view}
-          filtered={hasFilters(filters)}
-          selected={selected}
-          onToggle={toggle}
-          onOpen={selectLead}
-          onReset={() => setFilters(NO_FILTERS)}
-        />
-        <LeadsTable
-          data={data}
-          view={view}
-          filtered={hasFilters(filters)}
-          selected={selected}
-          onToggle={toggle}
-          onOpen={selectLead}
-          onReset={() => setFilters(NO_FILTERS)}
-        />
-        <div
-          className="flex items-center justify-between gap-4 border-t border-border/70 px-4 py-3 text-xs text-tertiary"
-          aria-live="polite"
-        >
-          <span>
-            {data && list?.truncated ? (
-              <>
-                Mostrando{" "}
-                <b className="font-medium text-muted-foreground tabular-nums">
-                  {formatCount(data.length)}
-                </b>
-                {counts ? ` de ${formatCount(counts.byView[view])}` : null}. Refine os filtros para
-                ver o resto.
-              </>
-            ) : data ? (
-              <>
-                <b className="font-medium text-muted-foreground tabular-nums">{data.length}</b>{" "}
-                {data.length === 1 ? "lead" : "leads"}
-              </>
-            ) : null}
-            {counts?.pending ? (
-              <span className="text-purple"> · {counts.pending} em análise</span>
-            ) : null}
-          </span>
-          <span className="hidden sm:inline">J e K navegam no lead aberto</span>
-        </div>
-      </div>
-
-      {selected.size > 0 ? (
-        <FloatingBar>
-          <span className="font-medium">
-            {selected.size} {selected.size === 1 ? "selecionado" : "selecionados"}
-          </span>
-          {withoutEmail > 0 ? (
-            <span className="text-[14px] text-orange">
-              {withoutEmail} sem e-mail {withoutEmail === 1 ? "fica" : "ficam"} de fora
-            </span>
-          ) : null}
+      <section
+        className="enter -mt-2 rounded-[20px] border border-border bg-card"
+        aria-label="Lista de leads"
+      >
+        <div className="flex flex-wrap items-center gap-2.5 border-b border-border px-4 py-3">
+          <LeadsSearch
+            ref={searchRef}
+            value={filters.q ?? ""}
+            onCommit={(next) => setFilters({ q: next || undefined })}
+            shortcutsOpen={shortcutsOpen}
+            onShortcutsOpenChange={setShortcutsOpen}
+          />
           <Button
-            variant="secondary"
-            size="sm"
-            className="max-sm:ml-auto"
-            aria-label="Limpar seleção"
-            onClick={clearSelection}
+            variant="outline"
+            aria-pressed={filters.mine ?? false}
+            onClick={() => setFilters({ mine: filters.mine ? undefined : true })}
+            className={cn(
+              "h-9 border border-border",
+              filters.mine &&
+                "border-transparent bg-sidebar-accent text-sidebar-accent-foreground hover:bg-sidebar-accent [&_svg]:text-current",
+            )}
           >
-            <XIcon className="sm:hidden" />
-            <span className="max-sm:hidden">Limpar</span>
+            <UserIcon />
+            Meus leads
           </Button>
-          <SelectionMenu ids={[...selected]} onDone={clearSelection} />
-          <DisabledReason
-            reason={
-              sendable.length === 0
-                ? "Nenhum lead selecionado tem e-mail"
-                : sendable.length > DISPATCH_LIMIT
-                  ? `Selecione até ${DISPATCH_LIMIT} leads com e-mail por disparo`
-                  : false
-            }
-            side="top"
-          >
-            <Button
-              size="sm"
-              disabled={sendable.length === 0 || sendable.length > DISPATCH_LIMIT}
-              onClick={() => setDispatching(true)}
-            >
-              <SendIcon />
-              Disparar e-mail
-            </Button>
-          </DisabledReason>
-        </FloatingBar>
+          <div className="ml-auto">
+            <FiltersButton
+              filters={filters}
+              count={popoverFilterCount(filters)}
+              shown={rows === undefined ? undefined : loaded.length}
+              onChange={setFilters}
+              onReset={() => setFilters(NO_FILTERS)}
+            />
+          </div>
+          <FilterChips chips={chips} onChange={setFilters} onReset={() => setFilters(NO_FILTERS)} />
+        </div>
+
+        <div className="overflow-hidden rounded-b-[20px]">
+          <LeadsMobileList
+            rows={pageRows}
+            loading={rows === undefined}
+            empty={empty}
+            selected={selection.selected}
+            onToggle={selection.toggle}
+            onOpen={selectLead}
+          />
+          <LeadsTable
+            rows={pageRows}
+            loading={rows === undefined}
+            view={view}
+            empty={empty}
+            selected={selection.selected}
+            sort={sort}
+            onSort={onSort}
+            handlers={handlers}
+            busy={statusChange.isPending}
+            today={today}
+            now={now}
+          />
+          {rows !== undefined && loaded.length > 0 ? (
+            <LeadsFooter
+              total={loaded.length}
+              pending={pendingInList}
+              truncatedOf={list?.truncated ? (counts?.byView[view] ?? null) : null}
+              page={page}
+              onPage={(next) => setPaging({ key: listKey, page: next })}
+            />
+          ) : null}
+        </div>
+      </section>
+
+      {selection.selected.size > 0 ? (
+        <SelectionBar
+          ids={[...selection.selected]}
+          sendable={sendable.length}
+          busy={statusChange.isPending}
+          onDispatch={() => setDispatching(true)}
+          onMove={(status) => statusChange.mutate({ ids: [...selection.selected], status })}
+          onDiscard={() => askDiscard([...selection.selected])}
+          onClear={selection.clear}
+        />
       ) : null}
+
+      <DiscardConfirm
+        open={discarding.open}
+        count={discarding.ids.length}
+        onCancel={() => setDiscarding((current) => ({ ...current, open: false }))}
+        onConfirm={() => {
+          statusChange.mutate({ ids: discarding.ids, status: "discarded" });
+          setDiscarding((current) => ({ ...current, open: false }));
+        }}
+      />
 
       <DispatchSheet
         leadIds={sendable}
         open={dispatching}
         onOpenChange={setDispatching}
-        onDispatched={clearSelection}
+        onDispatched={selection.clear}
       />
 
       {addLead}
 
       <LeadSheet
         leadId={openLeadId}
-        ids={data?.map((lead) => lead.id) ?? []}
+        ids={loaded.map((lead) => lead.id)}
         onSelect={selectLead}
         keepsLead={(status) => VIEW_STATUSES[view]?.includes(status) ?? true}
       />
     </Page>
   );
-}
-
-/** Same bound as the CSV route's selection export. */
-const EXPORT_SELECTION_LIMIT = 1000;
-
-/**
- * The selection bar's "…": change the status, discard (with undo) or export the selected
- * leads. "Disparar e-mail" stays the one primary action next to it.
- */
-function SelectionMenu({ ids, onDone }: { ids: string[]; onDone: () => void }) {
-  const queryClient = useQueryClient();
-  const exportForm = useRef<HTMLFormElement>(null);
-  const refresh = () =>
-    Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["leads"] }),
-      queryClient.invalidateQueries({ queryKey: ["lead"] }),
-      queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
-      // The niche funnel counts leads by status.
-      queryClient.invalidateQueries({ queryKey: ["niches"] }),
-    ]);
-  const undo = async (status: LeadStatus, previous: BulkSnapshot[]) => {
-    try {
-      await undoBulkUpdateLeads({ data: { status, previous } });
-      await refresh();
-    } catch (error) {
-      errorToast("Não foi possível desfazer")(error);
-    }
-  };
-  const update = useMutation({
-    mutationFn: (status: Exclude<LeadStatus, "closed">) =>
-      ids.length > BULK_LIMIT
-        ? // Refused rather than cut: a partial change would look like the whole selection moved.
-          Promise.reject(new Error(`Selecione até ${BULK_LIMIT} leads por vez.`))
-        : bulkUpdateLeads({ data: { ids, status } }),
-    onSuccess: async (result, status) => {
-      await refresh();
-      onDone();
-      const skipped =
-        result.skipped > 0
-          ? `${result.skipped} não ${result.skipped === 1 ? "mudou" : "mudaram"}: o status atual não permite.`
-          : undefined;
-      if (result.changed === 0) {
-        toast.error("Nenhum lead mudou", { description: skipped });
-        return;
-      }
-      const count = `${result.changed} ${result.changed === 1 ? "lead" : "leads"}`;
-      toast(
-        status === "discarded"
-          ? `${count} ${result.changed === 1 ? "descartado" : "descartados"}`
-          : `${count} em ${LEAD_STATUS_LABELS[status]}`,
-        {
-          description: skipped,
-          duration: 8000,
-          action: { label: "Desfazer", onClick: () => void undo(status, result.previous) },
-        },
-      );
-    },
-    onError: errorToast("Não foi possível mudar os leads"),
-  });
-
-  return (
-    <>
-      <DropdownMenu>
-        <Hint label="Mais ações">
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="secondary"
-              size="icon-sm"
-              aria-label="Mais ações para a seleção"
-              disabled={update.isPending}
-            >
-              <EllipsisIcon />
-            </Button>
-          </DropdownMenuTrigger>
-        </Hint>
-        <DropdownMenuContent align="end" side="top" className="w-auto min-w-48">
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger>
-              <ArrowRightLeftIcon />
-              Mudar status
-            </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent>
-              {BULK_STATUSES.map((status) => (
-                <DropdownMenuItem key={status} onSelect={() => update.mutate(status)}>
-                  {LEAD_STATUS_LABELS[status]}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuSubContent>
-          </DropdownMenuSub>
-          <DropdownMenuItem onSelect={() => exportForm.current?.requestSubmit()}>
-            <DownloadIcon />
-            Exportar seleção
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem variant="destructive" onSelect={() => update.mutate("discarded")}>
-            <Trash2Icon />
-            Descartar
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-      {/* Posted, not a link: a long selection does not fit in a URL. */}
-      <form ref={exportForm} method="post" action="/api/leads.csv" hidden>
-        <input type="hidden" name="ids" value={ids.slice(0, EXPORT_SELECTION_LIMIT).join(",")} />
-      </form>
-    </>
-  );
-}
-
-function Toolbar({
-  filters,
-  view,
-  onChange,
-  onReset,
-}: {
-  filters: LeadFilters;
-  view: LeadView;
-  onChange: (patch: Partial<LeadFilters>) => void;
-  onReset: () => void;
-}) {
-  const searchRef = useRef<HTMLInputElement>(null);
-  // Debounced, so each keystroke does not hit the server; the box wins while it has focus.
-  const searchBox = useUrlSearchBox(filters.q ?? "", (next) => onChange({ q: next || undefined }));
-  const q = searchBox.value;
-  const clearSearch = searchBox.clear;
-
-  const { data: searches } = useQuery(searchesQuery);
-  const tier = activeTier(filters);
-  const activeSearch = searches?.find((item) => item.id === filters.searchId);
-  const { data: niches } = useQuery(nichesQuery);
-  const activeNiche = niches?.find((item) => item.key === filters.niche);
-  const sortValue: SortValue =
-    filters.sort === "reviewCount" || filters.sort === "name" || filters.sort === "createdAt"
-      ? filters.sort
-      : "auto";
-  const datedView = view === "followup" || view === "waiting";
-  const direction = filters.dir ?? defaultDirection(sortValue, datedView);
-  const directionLabel = direction === "asc" ? "Crescente" : "Decrescente";
-
-  return (
-    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-      <div className="relative w-full sm:w-60">
-        <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-tertiary" />
-        <Input
-          ref={searchRef}
-          type="search"
-          aria-label="Buscar empresa"
-          placeholder="Buscar empresa"
-          className={cn("h-10 rounded-full pl-8 sm:h-8", q && "pr-9")}
-          {...searchBox.inputProps}
-          onKeyDown={(event) => {
-            if (event.key !== "Escape" || !q) return;
-            // Only the search: Esc doesn't also close what is around it.
-            event.preventDefault();
-            event.stopPropagation();
-            clearSearch();
-          }}
-        />
-        {q ? (
-          <Hint label="Limpar busca">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Limpar busca"
-              className="absolute top-1/2 right-1.5 -translate-y-1/2 sm:right-0.5"
-              onClick={() => {
-                clearSearch();
-                searchRef.current?.focus();
-              }}
-            >
-              <XIcon />
-            </Button>
-          </Hint>
-        ) : null}
-      </div>
-
-      <div className="no-scrollbar -mx-4 flex items-center gap-2 overflow-x-auto px-4 sm:mx-0 sm:flex-1 sm:flex-wrap sm:overflow-visible sm:px-0">
-        <DropdownMenu>
-          <DropdownMenuTrigger className={POPUP}>
-            Nota
-            <span
-              className={cn(
-                "font-normal",
-                tier ? TONE_TEXT[TIER_TONE[tier]] : "text-muted-foreground",
-              )}
-            >
-              {tier ? SCORE_TIERS[tier].label : "todas"}
-            </span>
-            <ChevronsUpDownIcon className="text-tertiary" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="min-w-40">
-            <DropdownMenuRadioGroup
-              value={tier ?? "all"}
-              onValueChange={(value) => {
-                const next = TIERS.find((item) => item === value);
-                onChange(next ? TIER_RANGES[next] : { minScore: undefined, maxScore: undefined });
-              }}
-            >
-              <DropdownMenuRadioItem value="all">
-                <span aria-hidden className="size-2 shrink-0" />
-                Todas
-              </DropdownMenuRadioItem>
-              {TIERS.map((item) => (
-                <DropdownMenuRadioItem key={item} value={item}>
-                  <span
-                    aria-hidden
-                    className="size-2 shrink-0 rounded-full"
-                    style={{ background: toneVar(TIER_TONE[item]) }}
-                  />
-                  <span className="whitespace-nowrap">{SCORE_TIERS[item].label}</span>
-                </DropdownMenuRadioItem>
-              ))}
-            </DropdownMenuRadioGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <DropdownMenu>
-          <DropdownMenuTrigger className={cn(POPUP, "max-w-full")}>
-            Nicho
-            <span className="truncate font-normal text-muted-foreground">
-              {activeNiche?.label ?? filters.niche ?? "todos"}
-            </span>
-            <ChevronsUpDownIcon className="text-tertiary" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="max-h-80">
-            <DropdownMenuRadioGroup
-              value={filters.niche ?? "all"}
-              onValueChange={(value) => onChange({ niche: value === "all" ? undefined : value })}
-            >
-              <DropdownMenuRadioItem value="all">Todos</DropdownMenuRadioItem>
-              {niches?.map((item) => (
-                <DropdownMenuRadioItem key={item.key} value={item.key}>
-                  <span className="truncate">{item.label}</span>
-                  <span className="ml-auto pl-3 text-xs text-tertiary tabular-nums">
-                    {item.leads}
-                  </span>
-                </DropdownMenuRadioItem>
-              ))}
-            </DropdownMenuRadioGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <DropdownMenu>
-          <DropdownMenuTrigger className={cn(POPUP, "max-w-full")}>
-            Busca
-            <span className="truncate font-normal text-muted-foreground">
-              {activeSearch ? searchLabel(activeSearch) : filters.searchId ? "oculta" : "todas"}
-            </span>
-            <ChevronsUpDownIcon className="text-tertiary" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="max-h-80">
-            <DropdownMenuRadioGroup
-              value={filters.searchId ?? "all"}
-              onValueChange={(value) => onChange({ searchId: value === "all" ? undefined : value })}
-            >
-              <DropdownMenuRadioItem value="all">Todas</DropdownMenuRadioItem>
-              {searches?.map((item) => (
-                <DropdownMenuRadioItem key={item.id} value={item.id}>
-                  {searchLabel(item)}
-                </DropdownMenuRadioItem>
-              ))}
-            </DropdownMenuRadioGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <button
-          type="button"
-          className={POPUP}
-          aria-pressed={filters.noWebsite ?? false}
-          onClick={() => onChange({ noWebsite: filters.noWebsite ? undefined : true })}
-        >
-          {filters.noWebsite ? <CheckIcon /> : null}
-          Sem site
-        </button>
-
-        <button
-          type="button"
-          className={POPUP}
-          aria-pressed={filters.hasEmail ?? false}
-          onClick={() => onChange({ hasEmail: filters.hasEmail ? undefined : true })}
-        >
-          {filters.hasEmail ? <CheckIcon /> : null}
-          Com e-mail
-        </button>
-
-        {hasFilters(filters) ? (
-          <button type="button" className={cn(POPUP, "bg-transparent text-blue")} onClick={onReset}>
-            <FilterXIcon />
-            Limpar filtros
-          </button>
-        ) : null}
-
-        <Select
-          value={sortValue}
-          onValueChange={(next) => {
-            const item = SORTS.find((sort) => sort.value === next);
-            if (item) onChange(SORT_PATCH[item.value]);
-          }}
-        >
-          <SelectTrigger
-            size="sm"
-            className="ml-auto w-auto shrink-0 max-sm:h-9"
-            aria-label="Ordenar"
-          >
-            <ArrowUpDownIcon className="size-3 text-tertiary" />
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent align="end">
-            {SORTS.map((sort) => (
-              <SelectItem key={sort.value} value={sort.value}>
-                {sort.value === "auto" && datedView ? "Data de retorno" : sort.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Hint label={directionLabel}>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="shrink-0 max-sm:size-9"
-            aria-label={`Ordem ${directionLabel.toLowerCase()}`}
-            onClick={() => onChange({ dir: direction === "asc" ? "desc" : "asc" })}
-          >
-            {direction === "asc" ? <ArrowUpNarrowWideIcon /> : <ArrowDownWideNarrowIcon />}
-          </Button>
-        </Hint>
-      </div>
-    </div>
-  );
-}
-
-/** The order a sort starts in: by name A→Z, return days soonest first, the rest highest first. */
-function defaultDirection(sort: SortValue, datedView: boolean): "asc" | "desc" {
-  if (sort === "auto") return datedView ? "asc" : "desc";
-  return SORT_PATCH[sort].dir ?? "desc";
-}
-
-const EMPTY_VIEW_TEXT: Record<LeadView, string> = {
-  todo: "Nenhum lead novo para contatar.",
-  followup: "Nada para retornar hoje.",
-  waiting: "Ninguém aguardando resposta.",
-  talking: "Nenhuma conversa em andamento.",
-  closed: "Nenhum negócio fechado ainda.",
-  discarded: "Nenhum lead descartado.",
-  all: "Nenhum lead.",
-};
-
-function LeadsTable({
-  data,
-  view,
-  filtered,
-  selected,
-  onToggle,
-  onOpen,
-  onReset,
-}: {
-  data: LeadRow[] | undefined;
-  view: LeadView;
-  filtered: boolean;
-  selected: ReadonlySet<string>;
-  onToggle: (ids: string[], on: boolean) => void;
-  onOpen: (id: string) => void;
-  onReset: () => void;
-}) {
-  const today = useToday();
-  const showStatus = view === "all";
-  const showFollowUp = view === "followup" || view === "waiting" || view === "talking";
-  const columns = 6 + (showStatus ? 1 : 0) + (showFollowUp ? 1 : 0);
-  const ids = data?.map((lead) => lead.id) ?? [];
-  const allSelected = ids.length > 0 && ids.every((id) => selected.has(id));
-  const someSelected = !allSelected && ids.some((id) => selected.has(id));
-
-  return (
-    <Table className="max-sm:hidden">
-      <TableHeader>
-        <TableRow className="hover:bg-transparent!">
-          <TableHead className="w-12 pl-4">
-            <Checkbox
-              aria-label="Selecionar todos"
-              checked={allSelected ? true : someSelected ? "indeterminate" : false}
-              onCheckedChange={(checked) => onToggle(ids, checked === true)}
-            />
-          </TableHead>
-          <TableHead>Empresa</TableHead>
-          <TableHead className="w-24">
-            <span className="inline-flex items-center gap-1.5">
-              Nota
-              <InfoTip>{GLOSSARY.score.text}</InfoTip>
-            </span>
-          </TableHead>
-          {showStatus ? <TableHead className="hidden sm:table-cell">Status</TableHead> : null}
-          {showFollowUp ? <TableHead>Retorno</TableHead> : null}
-          <TableHead className="hidden md:table-cell">E-mail</TableHead>
-          <TableHead className="hidden sm:table-cell">Telefone</TableHead>
-          <TableHead className="hidden lg:table-cell">Google</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {data === undefined ? (
-          Array.from({ length: 5 }, (_, i) => (
-            <TableRow key={i}>
-              <TableCell colSpan={columns}>
-                <Skeleton className="h-8 w-full" />
-              </TableCell>
-            </TableRow>
-          ))
-        ) : data.length === 0 ? (
-          <TableRow className="hover:bg-transparent!">
-            <TableCell colSpan={columns} className="h-auto">
-              <EmptyState
-                icon={filtered ? FilterXIcon : InboxIcon}
-                title={filtered ? "Nenhum lead com esses filtros." : EMPTY_VIEW_TEXT[view]}
-                className="py-10"
-              >
-                {filtered ? (
-                  <Button variant="outline" size="sm" onClick={onReset}>
-                    Limpar filtros
-                  </Button>
-                ) : null}
-              </EmptyState>
-            </TableCell>
-          </TableRow>
-        ) : (
-          data.map((lead) => {
-            const hintText = hint(lead);
-            return (
-              <TableRow
-                key={lead.id}
-                tabIndex={0}
-                data-state={selected.has(lead.id) ? "selected" : undefined}
-                className="group/row cursor-pointer outline-none focus-visible:bg-fill-2 focus-visible:shadow-[inset_0_0_0_2px_color-mix(in_srgb,var(--ring)_75%,transparent)]"
-                onClick={() => onOpen(lead.id)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") onOpen(lead.id);
-                }}
-              >
-                <TableCell className="pl-4" onClick={(event) => event.stopPropagation()}>
-                  <Checkbox
-                    aria-label={`Selecionar ${lead.name}`}
-                    checked={selected.has(lead.id)}
-                    onCheckedChange={(checked) => onToggle([lead.id], checked === true)}
-                  />
-                </TableCell>
-                <TableCell className="max-w-80">
-                  <div className="flex items-center gap-3">
-                    <Avatar name={lead.name} />
-                    <div className="min-w-0">
-                      <p className="truncate font-medium text-foreground">{lead.name}</p>
-                      <p
-                        className={cn(
-                          "truncate text-xs",
-                          hintText.tone
-                            ? cn("font-medium", TONE_TEXT[hintText.tone])
-                            : "font-light text-muted-foreground",
-                        )}
-                      >
-                        {hintText.text}
-                      </p>
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <ScoreBadge score={lead.score} pending={lead.analysisStatus === "pending"} />
-                </TableCell>
-                {showStatus ? (
-                  <TableCell className="hidden sm:table-cell">
-                    <StatusBadge status={lead.status} />
-                  </TableCell>
-                ) : null}
-                {showFollowUp ? (
-                  <TableCell>
-                    {lead.followUpOn ? (
-                      <Badge variant={followUpTone(lead.followUpOn, today)} dot>
-                        {relativeDay(lead.followUpOn, today)}
-                      </Badge>
-                    ) : (
-                      <span className="text-tertiary">sem data</span>
-                    )}
-                  </TableCell>
-                ) : null}
-                <TableCell className="hidden max-w-56 truncate md:table-cell">
-                  {lead.unsubscribedAt ? (
-                    <span className="text-tertiary">descadastrado</span>
-                  ) : (
-                    (lead.email ?? <span className="text-tertiary">sem e-mail</span>)
-                  )}
-                </TableCell>
-                <TableCell className="hidden tabular-nums sm:table-cell">
-                  {lead.phone ?? <span className="text-tertiary">sem telefone</span>}
-                </TableCell>
-                <TableCell className="hidden tabular-nums lg:table-cell">
-                  {lead.rating !== null ? (
-                    <span className="inline-flex items-center gap-1.5">
-                      <StarIcon className="size-3 fill-yellow text-yellow" />
-                      {lead.rating.toFixed(1).replace(".", ",")}
-                      <span className="text-tertiary">({lead.reviewCount ?? 0})</span>
-                    </span>
-                  ) : (
-                    <span className="text-tertiary">sem avaliações</span>
-                  )}
-                </TableCell>
-              </TableRow>
-            );
-          })
-        )}
-      </TableBody>
-    </Table>
-  );
-}
-
-/** The leads as a touch list on phones, where the table has no room. */
-function LeadsList({
-  data,
-  view,
-  filtered,
-  selected,
-  onToggle,
-  onOpen,
-  onReset,
-}: {
-  data: LeadRow[] | undefined;
-  view: LeadView;
-  filtered: boolean;
-  selected: ReadonlySet<string>;
-  onToggle: (ids: string[], on: boolean) => void;
-  onOpen: (id: string) => void;
-  onReset: () => void;
-}) {
-  const today = useToday();
-  const dated = view === "followup" || view === "waiting" || view === "talking";
-  if (data === undefined) {
-    return (
-      <div className="grid gap-2 p-3 sm:hidden">
-        {Array.from({ length: 4 }, (_, i) => (
-          <Skeleton key={i} className="h-12 w-full" />
-        ))}
-      </div>
-    );
-  }
-  if (data.length === 0) {
-    return (
-      <EmptyState
-        icon={filtered ? FilterXIcon : InboxIcon}
-        title={filtered ? "Nenhum lead com esses filtros." : EMPTY_VIEW_TEXT[view]}
-        className="py-10 sm:hidden"
-      >
-        {filtered ? (
-          <Button variant="outline" size="sm" onClick={onReset}>
-            Limpar filtros
-          </Button>
-        ) : null}
-      </EmptyState>
-    );
-  }
-  return (
-    <ul className="sm:hidden">
-      {data.map((lead) => {
-        const hintText = hint(lead);
-        const checked = selected.has(lead.id);
-        return (
-          <li
-            key={lead.id}
-            data-state={checked ? "selected" : undefined}
-            className="grouped-row flex min-h-[60px] items-center [--inset:52px] data-[state=selected]:bg-green/8"
-          >
-            <label className="grid h-[60px] w-12 shrink-0 cursor-pointer place-items-center">
-              <Checkbox
-                aria-label={`Selecionar ${lead.name}`}
-                checked={checked}
-                onCheckedChange={(value) => onToggle([lead.id], value === true)}
-              />
-            </label>
-            <button
-              type="button"
-              onClick={() => onOpen(lead.id)}
-              className="flex min-w-0 flex-1 items-center gap-3 py-2 pr-4 text-left"
-            >
-              <span className="min-w-0 flex-1">
-                <span className="block truncate font-medium">{lead.name}</span>
-                <span
-                  className={cn(
-                    "block truncate text-xs",
-                    hintText.tone
-                      ? cn("font-medium", TONE_TEXT[hintText.tone])
-                      : "font-light text-muted-foreground",
-                  )}
-                >
-                  {dated && lead.followUpOn
-                    ? `Retorno ${relativeDay(lead.followUpOn, today)}`
-                    : hintText.text}
-                </span>
-              </span>
-              <ScoreBadge score={lead.score} pending={lead.analysisStatus === "pending"} />
-            </button>
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
-
-/** Second line under the name: whatever helps decide what to do with the lead. */
-function hint(lead: LeadRow): { text: string; tone?: Tone } {
-  if (lead.analysisStatus === "pending") return { text: "Analisando…", tone: "purple" };
-  if (lead.analysisStatus === "error") return { text: "Falha na análise", tone: "red" };
-  if (lead.analysisStatus === "skipped") return { text: "Não analisado" };
-  const signal = lead.signals?.[0];
-  if (signal) return { text: signal };
-  return lead.website ? { text: hostOf(lead.website) } : { text: "Sem site", tone: "orange" };
-}
-
-const COUNT_FORMAT = new Intl.NumberFormat("pt-BR");
-
-function formatCount(value: number) {
-  return COUNT_FORMAT.format(value);
-}
-
-function hasFilters(filters: LeadFilters) {
-  const { sort: _sort, dir: _dir, view: _view, ...rest } = clean(filters);
-  return Object.keys(rest).length > 0;
-}
-
-function clean<T extends Record<string, unknown>>(values: T): T {
-  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- same keys, only empties removed
-  return Object.fromEntries(
-    Object.entries(values).filter(
-      ([, value]) => value !== undefined && value !== "" && value !== false,
-    ),
-  ) as T;
-}
-
-function hostOf(url: string) {
-  try {
-    return new URL(url).hostname.replace(/^www\./, "");
-  } catch {
-    return url;
-  }
 }

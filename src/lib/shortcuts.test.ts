@@ -20,7 +20,16 @@ describe("isSendChord", () => {
 });
 
 describe("SHORTCUTS", () => {
-  it("lists J, K, Esc and the send chord once each", () => {
-    expect(SHORTCUTS.map((item) => item.keys.join("+"))).toEqual(["J", "K", "Esc", "Mod+Enter"]);
+  it("lists J, K, Esc, the send chord and the Leads keys once each", () => {
+    expect(SHORTCUTS.map((item) => item.keys.join("+"))).toEqual([
+      "J",
+      "K",
+      "Esc",
+      "Mod+Enter",
+      "/",
+      "X",
+      "E",
+      "W",
+    ]);
   });
 });
