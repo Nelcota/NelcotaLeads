@@ -1,5 +1,5 @@
 import { BellIcon } from "lucide-react";
-import { useState, type ComponentProps, type ReactNode } from "react";
+import { useState, useSyncExternalStore, type ComponentProps, type ReactNode } from "react";
 import { Hint } from "@/components/apple-ui";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
@@ -10,6 +10,9 @@ import { cn } from "@/lib/utils";
 import { NotificationCenterPanel } from "./notification-center";
 
 const PANEL_HEADING = "text-base font-semibold tracking-[-0.01em]";
+const noUpdates = () => () => {};
+const clientHydrated = () => true;
+const serverHydrated = () => false;
 
 /** The sheet's accessible title (phone). */
 function SheetHeading({ children }: { children: ReactNode }) {
@@ -130,7 +133,10 @@ function keepOpenForToast(event: { target: EventTarget | null; preventDefault: (
 export function NotificationBell() {
   const center = useNotifications();
   const isMobile = useIsMobile();
-  if (!center) return null;
+  // The query may resolve in the browser before hydration while SSR still rendered no bell.
+  // Mounting it after hydration keeps the first server and client trees identical.
+  const hydrated = useSyncExternalStore(noUpdates, clientHydrated, serverHydrated);
+  if (!hydrated || !center) return null;
   if (isMobile) return <PhoneBell center={center} />;
   return <DesktopBell center={center} />;
 }

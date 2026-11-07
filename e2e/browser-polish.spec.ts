@@ -24,6 +24,8 @@ test.describe("browser chrome", () => {
 
   test("icon buttons show the app tooltip on hover and focus", async ({ page }) => {
     await visit(page, "/conversas");
+    // The flag-enabled bell mounts after hydration and shifts the adjacent action button.
+    await expect(page.getByRole("button", { name: /^Notificações/ })).toBeVisible();
     const check = page.getByRole("button", { name: "Verificar e-mails" });
     await expect(check).not.toHaveAttribute("title");
 

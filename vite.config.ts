@@ -48,6 +48,7 @@ function writeE2eWranglerConfig(): string {
       DEEPSEEK_API_KEY: "fake",
       MAIL_ADDRESS: "eu@nelcota.test",
       MAIL_PASSWORD: "fake",
+      NOTIFICATIONS_ENABLED: "true",
     },
     d1_databases: rawConfig.d1_databases?.map((database: Record<string, unknown>) => ({
       ...database,
