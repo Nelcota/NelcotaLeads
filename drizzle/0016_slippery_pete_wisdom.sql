@@ -1,0 +1,1 @@
+ALTER TABLE `notification_reads` ADD `dismissed_at` integer;

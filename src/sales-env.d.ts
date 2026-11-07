@@ -7,5 +7,7 @@ declare namespace Cloudflare {
     TEAM_INVITE_EMAILS_ENABLED?: string;
     /** "true" lets only invited e-mails create an account (the first account excepted). */
     INVITE_ONLY_SIGNUP?: string;
+    /** "true" shows the notification center (bell, panel, preferences); unset keeps it off. */
+    NOTIFICATIONS_ENABLED?: string;
   }
 }

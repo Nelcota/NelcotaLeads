@@ -41,6 +41,7 @@ import { LeadAvatar } from "@/components/leads/lead-avatar";
 import { StageLabel } from "@/components/leads/stage-label";
 import { leadStage } from "@/lib/lead-row";
 import { useLeadDeal } from "@/hooks/use-lead-deal";
+import { useReadLeadReplies } from "@/hooks/use-read-lead-replies";
 import { useLeadSales, type LeadSales } from "@/hooks/use-lead-sales";
 import { Button } from "@/components/ui/button";
 import {
@@ -743,6 +744,7 @@ function EmailStep({ lead, busy, onUpdate, onChanged }: StepProps) {
 /** Leads with an e-mail thread: the latest messages and a way into Conversas. */
 function ConversationStep({ lead, today, closing, onWon, onLost, sales }: StepProps) {
   const { data } = useQuery(conversationQuery(lead.id));
+  useReadLeadReplies(lead.id, data?.messages);
   const last = data?.messages.slice(-2) ?? [];
   // A deal can be closed (won or lost) once the lead was contacted.
   const open = lead.status === "contacted" || lead.status === "replied";
