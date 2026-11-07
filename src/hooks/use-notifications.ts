@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import { errorToast } from "@/lib/mutation-toasts";
 import {
   splitNotifications,
@@ -12,6 +13,7 @@ import { notificationsQuery } from "@/lib/queries";
 import {
   dismissNotificationsFn,
   markNotificationsReadFn,
+  restoreNotificationsFn,
   saveNotificationPrefs,
   type NotificationsData,
 } from "@/server/notifications";
@@ -53,9 +55,31 @@ function useMarkRead() {
   });
 }
 
-/** "Limpar": removes notifications from the panel at once, then on the server. */
+/** One toast for every clear, so repeated clicks replace it instead of stacking. */
+const CLEARED_TOAST = "notifications-cleared";
+
+function clearedMessage(count: number): string {
+  return count === 1 ? "Notificação limpa" : `${count} notificações limpas`;
+}
+
+/** "Desfazer": brings cleared notifications back. */
+function useRestore() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (cleared: { keys: string[]; unreadKeys: string[] }) =>
+      restoreNotificationsFn({ data: cleared }),
+    onError: errorToast("Não foi possível desfazer"),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: notificationsQuery.queryKey }),
+  });
+}
+
+/**
+ * "Limpar": removes notifications from the panel at once, then on the server, with a
+ * "Desfazer" toast, since clearing cannot be undone from the panel itself.
+ */
 function useDismiss() {
   const queryClient = useQueryClient();
+  const restore = useRestore();
   return useMutation({
     mutationFn: (keys: string[]) => dismissNotificationsFn({ data: { keys } }),
     onMutate: async (keys) => {
@@ -67,6 +91,17 @@ function useDismiss() {
     onError: (error, _keys, context) => {
       queryClient.setQueryData(notificationsQuery.queryKey, context?.previous);
       errorToast("Não foi possível limpar")(error);
+    },
+    onSuccess: (_result, keys, context) => {
+      const before = context?.previous?.enabled ? context.previous.items : [];
+      const cleared = new Set(keys);
+      const unreadKeys = before
+        .filter((item) => cleared.has(item.key) && item.unread)
+        .map((item) => item.key);
+      toast.success(clearedMessage(keys.length), {
+        id: CLEARED_TOAST,
+        action: { label: "Desfazer", onClick: () => restore.mutate({ keys, unreadKeys }) },
+      });
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: notificationsQuery.queryKey }),
   });
@@ -101,6 +136,8 @@ export type NotificationCenter = {
   sections: ReturnType<typeof splitNotifications>;
   /** Every key on screen (both sections), for "Limpar tudo". */
   shownKeys: string[];
+  /** Notifications the "Meus leads" filter hides (0 under "Todos"), for the empty state. */
+  hiddenByFilter: number;
   markRead: (keys: string[]) => void;
   dismiss: (keys: string[]) => void;
   savePrefs: (prefs: NotificationPrefs) => void;
@@ -124,7 +161,9 @@ export function useNotifications(): NotificationCenter | null {
     if (!enabled) return null;
     const mine = visibleNotifications(enabled.items, enabled.prefs, enabled.prefs.scope, enabled.userId);
     const shown = visibleNotifications(enabled.items, enabled.prefs, filter, enabled.userId);
+    const everyone = visibleNotifications(enabled.items, enabled.prefs, "all", enabled.userId);
     return {
+      hiddenByFilter: everyone.length - shown.length,
       unreadCount: mine.filter((item: NotificationItem) => item.unread).length,
       sections: splitNotifications(shown),
       shownKeys: shown.map((item) => item.key),
@@ -139,6 +178,7 @@ export function useNotifications(): NotificationCenter | null {
     setFilter,
     sections: derived.sections,
     shownKeys: derived.shownKeys,
+    hiddenByFilter: derived.hiddenByFilter,
     markRead: (keys) => {
       if (keys.length === 0) return;
       markRead.mutate(keys);

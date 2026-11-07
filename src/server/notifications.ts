@@ -5,6 +5,7 @@ import { getDb } from "@/db/client";
 import {
   notificationKeysSchema,
   notificationPrefsSchema,
+  restoreKeysSchema,
   notificationsEnabled,
 } from "@/lib/notifications";
 import { idSchema } from "@/lib/schemas";
@@ -14,6 +15,7 @@ import {
   loadNotifications,
   markLeadRepliesRead,
   markNotificationsRead,
+  restoreNotifications,
   storeNotificationPrefs,
 } from "./notification-store";
 import { requestUserId } from "./request-user";
@@ -55,6 +57,14 @@ export const dismissNotificationsFn = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     if (!isEnabled()) return { ok: true as const };
     await dismissNotifications(getDb(), await signedInUser(), data.keys);
+    return { ok: true as const };
+  });
+
+export const restoreNotificationsFn = createServerFn({ method: "POST" })
+  .validator(restoreKeysSchema)
+  .handler(async ({ data }) => {
+    if (!isEnabled()) return { ok: true as const };
+    await restoreNotifications(getDb(), await signedInUser(), data.keys, data.unreadKeys);
     return { ok: true as const };
   });
 

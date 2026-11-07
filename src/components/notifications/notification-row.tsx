@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { TriangleAlertIcon, XIcon } from "lucide-react";
-import type { ReactNode } from "react";
+import type { MouseEvent, ReactNode } from "react";
 import { whenLabel, type NotificationHref, type NotificationItem } from "@/lib/notifications";
 import { cn } from "@/lib/utils";
 import { CategoryChip } from "./category-chip";
@@ -72,7 +72,7 @@ export function NotificationRow({
   item: NotificationItem;
   now: number;
   onOpen: (item: NotificationItem) => void;
-  onDismiss: (item: NotificationItem) => void;
+  onDismiss: (item: NotificationItem, event: MouseEvent<HTMLButtonElement>) => void;
 }) {
   const when = whenLabel(item, now);
   const detail = detailLine(item);
@@ -114,13 +114,15 @@ export function NotificationRow({
                 strokeWidth={2}
               />
             ) : null}
-            <span className="min-w-0 truncate">{detail}</span>
+            <span className="min-w-0 truncate" title={detail}>
+              {detail}
+            </span>
           </span>
         </span>
       </OriginLink>
       <button
         type="button"
-        onClick={() => onDismiss(item)}
+        onClick={(event) => onDismiss(item, event)}
         aria-label={`Limpar notificação de ${item.title}`}
         title="Limpar"
         className="absolute top-1/2 right-1.5 grid size-7.5 -translate-y-1/2 place-items-center rounded-full text-muted-foreground opacity-0 transition-[opacity,background-color] duration-150 outline-none group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-fill-2 hover:text-foreground focus-visible:opacity-100 focus-visible:ring-3 focus-visible:ring-ring/40 pointer-coarse:opacity-100 pointer-coarse:after:absolute pointer-coarse:after:-inset-1.5"

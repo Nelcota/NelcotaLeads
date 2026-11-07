@@ -11,7 +11,13 @@ type View = "list" | "prefs";
 
 function CloseButton({ onClose }: { onClose: () => void }) {
   return (
-    <Button variant="ghost" size="icon-lg" onClick={onClose} aria-label="Fechar notificações">
+    <Button
+      variant="ghost"
+      size="icon-lg"
+      onClick={onClose}
+      aria-label="Fechar notificações"
+      className="size-11"
+    >
       <XIcon aria-hidden />
     </Button>
   );
@@ -34,6 +40,8 @@ export function NotificationCenterPanel({
   onClose: () => void;
 }) {
   const [view, setView] = useState<View>("list");
+  // Back from the preferences, focus returns to the button that opened them.
+  const [cameBack, setCameBack] = useState(false);
 
   const open = (item: NotificationItem) => {
     if (item.unread) center.markRead([item.key]);
@@ -47,7 +55,11 @@ export function NotificationCenterPanel({
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => setView("list")}
+            autoFocus
+            onClick={() => {
+              setCameBack(true);
+              setView("list");
+            }}
             aria-label="Voltar para notificações"
           >
             <ChevronLeftIcon aria-hidden />
@@ -83,6 +95,7 @@ export function NotificationCenterPanel({
           <Button
             variant="ghost"
             size="icon"
+            autoFocus={cameBack}
             onClick={() => setView("prefs")}
             aria-label="Preferências de notificação"
           >
@@ -95,6 +108,7 @@ export function NotificationCenterPanel({
         sections={center.sections}
         now={center.data.now}
         filter={center.filter}
+        hiddenByFilter={center.hiddenByFilter}
         onFilterChange={center.setFilter}
         onOpen={open}
         onDismiss={(item) => center.dismiss([item.key])}

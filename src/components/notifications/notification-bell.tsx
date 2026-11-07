@@ -1,5 +1,6 @@
 import { BellIcon } from "lucide-react";
 import { useState, type ComponentProps, type ReactNode } from "react";
+import { Hint } from "@/components/apple-ui";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -30,7 +31,6 @@ function BellButton({ count, open, className, ref, ...props }: BellButtonProps) 
       ref={ref}
       type="button"
       aria-label={label}
-      title="Notificações"
       className={cn(
         "relative grid size-10 shrink-0 place-items-center rounded-full border border-border text-foreground outline-none transition-[background-color,transform] duration-150 hover:bg-fill-2 focus-visible:ring-3 focus-visible:ring-ring/40 active:scale-[0.96] pointer-coarse:after:absolute pointer-coarse:after:-inset-1",
         open && "bg-fill-2",
@@ -59,7 +59,10 @@ function PhoneBell({ center }: { center: NotificationCenter }) {
       <SheetContent
         side="right"
         showCloseButton={false}
-        className="inset-0! w-full! max-w-none! gap-0 overflow-y-auto overscroll-contain rounded-none! border-0 bg-background shadow-none!"
+        data-notification-panel
+        tabIndex={-1}
+        onOpenAutoFocus={focusPanel}
+        className="inset-0! w-full! max-w-none! gap-0 overflow-y-auto overscroll-contain rounded-none! border-0 bg-background shadow-none! outline-none"
       >
         <SheetDescription className="sr-only">
           Respostas, retornos, agenda e buscas concluídas
@@ -79,15 +82,21 @@ function DesktopBell({ center }: { center: NotificationCenter }) {
   const [open, setOpen] = useState(false);
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <BellButton count={center.unreadCount} open={open} aria-haspopup="dialog" />
-      </PopoverTrigger>
+      <Hint label="Notificações">
+        <PopoverTrigger asChild>
+          <BellButton count={center.unreadCount} open={open} aria-haspopup="dialog" />
+        </PopoverTrigger>
+      </Hint>
       <PopoverContent
+        data-notification-panel
+        tabIndex={-1}
+        onOpenAutoFocus={focusPanel}
+        onInteractOutside={keepOpenForToast}
         align="end"
         sideOffset={8}
         collisionPadding={16}
         aria-label="Notificações"
-        className="flex max-h-[min(480px,calc(100svh-96px))] w-[360px] flex-col overflow-y-auto overscroll-contain rounded-[24px] border border-border bg-popover p-0 shadow-none!"
+        className="flex max-h-[min(480px,calc(100svh-96px))] w-[360px] flex-col overflow-y-auto overscroll-contain rounded-[24px] border border-border bg-popover p-0 shadow-none! outline-none"
       >
         <NotificationCenterPanel
           center={center}
@@ -98,6 +107,20 @@ function DesktopBell({ center }: { center: NotificationCenter }) {
       </PopoverContent>
     </Popover>
   );
+}
+
+/** The panel itself takes focus on open: never "Limpar tudo", which one Enter would trigger. */
+function focusPanel(event: Event) {
+  event.preventDefault();
+  const panel = document.querySelector<HTMLElement>("[data-notification-panel]");
+  panel?.focus();
+}
+
+/** A click on a toast (its "Desfazer") is not a click outside the panel. */
+function keepOpenForToast(event: { target: EventTarget | null; preventDefault: () => void }) {
+  if (event.target instanceof Element && event.target.closest("[data-sonner-toaster]")) {
+    event.preventDefault();
+  }
 }
 
 /**

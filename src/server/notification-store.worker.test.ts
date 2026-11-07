@@ -1,4 +1,5 @@
 import { env } from "cloudflare:test";
+import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import { getDb } from "@/db/client";
 import { emails, leads, meetings, notificationReads, searches, users } from "@/db/schema";
@@ -10,6 +11,7 @@ import {
   loadNotifications,
   markLeadRepliesRead,
   markNotificationsRead,
+  restoreNotifications,
   storeNotificationPrefs,
 } from "./notification-store";
 
@@ -165,6 +167,29 @@ describe("notification store", () => {
     const theirs = await loadNotifications(db, "u2", now);
     expect(theirs.find((item) => item.key === "reply:e1")?.unread).toBe(true);
     expect(theirs.find((item) => item.key === "search:s1")).toBeDefined();
+  });
+
+  it("brings cleared notifications back as they were with Desfazer", async () => {
+    await markNotificationsRead(db, "u1", ["followup:l2:2026-11-05"], now);
+    const keys = ["search:s1", "followup:l2:2026-11-05"];
+    await dismissNotifications(db, "u1", keys, now);
+    await restoreNotifications(db, "u1", keys, ["search:s1"]);
+    const items = await loadNotifications(db, "u1", now);
+    expect(items.find((item) => item.key === "search:s1")?.unread).toBe(true);
+    expect(items.find((item) => item.key === "followup:l2:2026-11-05")?.unread).toBe(false);
+  });
+
+  it("shows a reply waiting more than a day once, as the late alert", async () => {
+    await db
+      .update(leads)
+      .set({ aiMode: false, lastEmailAt: minutes(-30 * 60) })
+      .where(eq(leads.id, "l1"));
+    await db.insert(emails).values(reply("e1", "l1", minutes(-30 * 60)));
+    const items = await loadNotifications(db, "u1", now);
+    const forLead = items.filter((item) => item.title === "Odonto Sorriso BH");
+    expect(forLead.map((item) => item.key.split(":")[0])).toEqual(["late"]);
+    expect(forLead[0]?.warning).toBe("Sem resposta há 30 h");
+    expect(forLead[0]).not.toHaveProperty("leadId");
   });
 
   it("stores the preferences and falls back to the defaults", async () => {

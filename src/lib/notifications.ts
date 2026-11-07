@@ -163,7 +163,10 @@ export function newUnreadKeys(previous: ReadonlySet<string>, items: readonly Not
 /** The read mark of a reply lives on the e-mail; every other one in notification_reads. */
 export const REPLY_KEY_PREFIX = "reply:";
 
+const keyList = z.array(z.string().min(1).max(160)).max(200);
+
 /** The keys a read or clear action applies to. */
-export const notificationKeysSchema = z.object({
-  keys: z.array(z.string().min(1).max(160)).min(1).max(200),
-});
+export const notificationKeysSchema = z.object({ keys: keyList.min(1) });
+
+/** "Desfazer": the cleared keys, and which of them were unread before clearing. */
+export const restoreKeysSchema = z.object({ keys: keyList.min(1), unreadKeys: keyList });

@@ -29,7 +29,8 @@ const READ_INSERT_CHUNK = 30;
 /** A cleared row binds four values. */
 const DISMISS_CHUNK = 20;
 
-type Draft = Omit<NotificationItem, "unread">;
+/** A notification before the read marks, with the lead it belongs to (for de-duplication). */
+type Draft = Omit<NotificationItem, "unread"> & { leadId: string | null };
 
 const PREVIEW_LENGTH = 140;
 
@@ -75,6 +76,7 @@ async function replyItems(db: Db, now: Date): Promise<{ drafts: Draft[]; unread:
     .limit(PER_CATEGORY_LIMIT);
   const drafts = rows.map((row) => ({
     key: `${REPLY_KEY_PREFIX}${row.id}`,
+    leadId: row.leadId,
     category: "replies" as const,
     title: row.leadName,
     text: replyPreview(row.body),
@@ -120,6 +122,7 @@ async function followUpItems(db: Db, now: Date): Promise<Draft[]> {
     return [
       {
         key: `followup:${row.id}:${row.day}`,
+        leadId: row.id,
         category: "followUps" as const,
         title: row.name,
         text: isToday ? "Retornar o contato hoje" : "Retornar o contato",
@@ -153,9 +156,10 @@ async function lateReplyItems(db: Db, now: Date): Promise<Draft[]> {
     const inboundAt = new Date(row.inboundAt * 1000);
     return {
       key: `late:${row.id}:${row.inboundAt}`,
+      leadId: row.id,
       category: "followUps" as const,
       title: row.name,
-      text: "Respondeu e ninguém da equipe respondeu ainda",
+      text: "Respondeu e ninguém da equipe respondeu",
       warning: `Sem resposta ${waitingLabel(inboundAt, now)}`,
       at: inboundAt.getTime(),
       dueAt: null,
@@ -172,6 +176,7 @@ const meetingOwner = sql<string | null>`coalesce(${leads.ownerId}, ${meetings.cr
 
 type MeetingRow = {
   id: string;
+  leadId: string;
   leadName: string;
   startsAt: Date;
   kind: keyof typeof MEETING_KIND_LABELS;
@@ -186,6 +191,7 @@ function meetingItem(row: MeetingRow, now: Date): Draft {
   const soon = minutesLeft <= SOON_MINUTES;
   const what = MEETING_KIND_LABELS[row.kind];
   const base = {
+    leadId: row.leadId,
     category: "agenda" as const,
     title: row.leadName,
     warning: null,
@@ -219,6 +225,7 @@ async function agendaItems(db: Db, now: Date): Promise<Draft[]> {
   const rows = await db
     .select({
       id: meetings.id,
+      leadId: meetings.leadId,
       leadName: leads.name,
       startsAt: meetings.startsAt,
       kind: meetings.kind,
@@ -275,6 +282,7 @@ async function searchItems(db: Db, now: Date): Promise<Draft[]> {
     .limit(PER_CATEGORY_LIMIT);
   return rows.map((row) => ({
     key: `search:${row.id}`,
+    leadId: null,
     category: "searches" as const,
     title: capitalize(`${row.niche} em ${row.city}`),
     text: searchText(row.foundCount, row.origin),
@@ -315,16 +323,21 @@ export async function loadNotifications(db: Db, userId: string, now = new Date()
     agendaItems(db, now),
     searchItems(db, now),
   ]);
+  // A reply waiting more than a day shows once, as the late alert, not twice.
+  const lateLeads = new Set(late.map((item) => item.leadId));
+  const replyDrafts = replies.drafts.filter((item) => !lateLeads.has(item.leadId));
   const others = [...followUps, ...late, ...agenda, ...found];
   const marks = await personMarks(db, userId, [
-    ...replies.drafts.map((item) => item.key),
+    ...replyDrafts.map((item) => item.key),
     ...others.map((item) => item.key),
   ]);
-  const items: NotificationItem[] = [
-    ...replies.drafts.map((item) => ({ ...item, unread: replies.unread.has(item.key) })),
+  const items = [
+    ...replyDrafts.map((item) => ({ ...item, unread: replies.unread.has(item.key) })),
     ...others.map((item) => ({ ...item, unread: !marks.read.has(item.key) })),
   ];
-  return items.filter((item) => !marks.dismissed.has(item.key));
+  return items
+    .filter((item) => !marks.dismissed.has(item.key))
+    .map(({ leadId: _leadId, ...item }): NotificationItem => item);
 }
 
 export async function loadNotificationPrefs(db: Db, userId: string): Promise<NotificationPrefs> {
@@ -387,6 +400,32 @@ export async function dismissNotifications(
         target: [notificationReads.userId, notificationReads.key],
         set: { dismissedAt: now },
       });
+  }
+}
+
+/**
+ * "Desfazer" after clearing: the notifications come back to this person's panel as they were.
+ * Clearing also recorded them as read, so the ones that were unread lose that row again
+ * (a reply's read mark is on the e-mail and was never touched).
+ */
+export async function restoreNotifications(
+  db: Db,
+  userId: string,
+  keys: readonly string[],
+  unreadKeys: readonly string[],
+) {
+  const wasUnread = new Set(unreadKeys.filter((key) => !key.startsWith(REPLY_KEY_PREFIX)));
+  const toDelete = keys.filter((key) => wasUnread.has(key));
+  const toReopen = keys.filter((key) => !wasUnread.has(key));
+  const mine = eq(notificationReads.userId, userId);
+  if (toDelete.length > 0) {
+    await db.delete(notificationReads).where(and(mine, inList(notificationReads.key, toDelete)));
+  }
+  if (toReopen.length > 0) {
+    await db
+      .update(notificationReads)
+      .set({ dismissedAt: null })
+      .where(and(mine, inList(notificationReads.key, toReopen)));
   }
 }
 
