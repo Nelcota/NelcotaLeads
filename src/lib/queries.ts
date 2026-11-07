@@ -11,6 +11,7 @@ import { getLead, getLeadCounts, listLeads } from "@/server/leads";
 import { getProviderStatus, listSearches } from "@/server/searches";
 import { listNicheMetrics, listNiches } from "@/server/niches";
 import { getOverviewMetrics } from "@/server/overview-metrics";
+import { getNotifications } from "@/server/notifications";
 import { getBookableLeads, getLeadSales } from "@/server/sales";
 import { getServiceTable } from "@/server/services";
 import { getQuickReplies } from "@/server/settings";
@@ -177,6 +178,14 @@ export const nicheMetricsQuery = (period: OverviewPeriod) =>
     refetchInterval: 60_000,
   });
 
+/** The bell: refreshed every 30 s, so a reply or a meeting about to start shows up quickly. */
+export const notificationsQuery = queryOptions({
+  queryKey: ["notifications"],
+  queryFn: () => getNotifications(),
+  refetchInterval: 30_000,
+  refetchIntervalInBackground: true,
+});
+
 /** "Equipe": accounts, pending invites and whether invites are e-mailed. */
 export const teamQuery = queryOptions({
   queryKey: ["team"],
@@ -185,8 +194,9 @@ export const teamQuery = queryOptions({
 
 /**
  * Every screen a lead's status, deal, meeting or proposal shows up on: the lists, the
- * Visão geral (goal, metrics, niches, all periods), the Agenda (and its today badge) and the
- * Conversas (with its attention badge). Prefix keys, so the period- and owner-keyed ones match.
+ * Visão geral (goal, metrics, niches, all periods), the Agenda (and its today badge), the
+ * Conversas (with its attention badge) and the notification bell. Prefix keys, so the period- and
+ * owner-keyed ones match.
  */
 export const LEAD_SCREEN_KEYS = [
   ["leads"],
@@ -196,6 +206,7 @@ export const LEAD_SCREEN_KEYS = [
   ["overview-metrics"],
   ["niches"],
   ["conversations"],
+  ["notifications"],
 ] as const;
 
 /** Refetches every screen in LEAD_SCREEN_KEYS after a lead changed. */

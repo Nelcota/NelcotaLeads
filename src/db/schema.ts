@@ -18,6 +18,7 @@ import {
   type ScoringCriterion,
   type SiteData,
 } from "@/lib/schemas";
+import type { NotificationPrefs } from "@/lib/notifications";
 
 const timestamps = {
   createdAt: integer("created_at", { mode: "timestamp" })
@@ -238,6 +239,9 @@ export const emails = sqliteTable(
     automatic: integer("automatic", { mode: "boolean" }).notNull().default(false),
     // An AI answer in a conversation whose message had no id to thread on: never cold outreach.
     conversationReply: integer("conversation_reply", { mode: "boolean" }).notNull().default(false),
+    // A received reply someone on the team opened (the bell or the conversation); null = unread.
+    // Shared by the notification center and the bold unread replies in Leads.
+    readAt: integer("read_at", { mode: "timestamp" }),
     ...timestamps,
   },
   (t) => [
@@ -278,6 +282,8 @@ export const users = sqliteTable(
     /** Profile photo as a small `data:image/...` URL, resized in the browser before upload. */
     avatar: text("avatar"),
     sessionVersion: integer("session_version").notNull().default(1),
+    /** Notification center choices (scope, categories, sound); null = the defaults. */
+    notificationPrefs: text("notification_prefs", { mode: "json" }).$type<NotificationPrefs>(),
     ...timestamps,
   },
   (t) => [uniqueIndex("users_email_idx").on(t.email)],
@@ -351,6 +357,25 @@ export const leadEvents = sqliteTable(
     index("lead_events_lead_idx").on(t.leadId, t.createdAt),
     index("lead_events_kind_idx").on(t.kind, t.createdAt),
   ],
+);
+
+/**
+ * Notifications a person already saw, other than replies (those are read on the e-mail, for the
+ * whole team). The key names what it points to and when (`followup:<lead>:<day>`), so a moved
+ * follow-up or a rescheduled meeting notifies again.
+ */
+export const notificationReads = sqliteTable(
+  "notification_reads",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    key: text("key").notNull(),
+    readAt: integer("read_at", { mode: "timestamp" })
+      .notNull()
+      .default(sql`(unixepoch())`),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.key] })],
 );
 
 /** Meetings booked with a lead; the Agenda and "Agenda de hoje" read them. */

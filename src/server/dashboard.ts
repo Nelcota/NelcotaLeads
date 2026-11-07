@@ -76,7 +76,8 @@ export function lateReply(now: Date) {
   return sql`(${lastInboundAt} < ${cutoff} and not ${answeredSinceInbound})`;
 }
 
-const needsYou = and(
+/** A conversation waiting for a person: the lead replied and the AI handed it over. */
+export const needsYou = and(
   eq(leads.status, "replied"),
   eq(leads.aiMode, false),
   isNull(leads.unsubscribedAt),

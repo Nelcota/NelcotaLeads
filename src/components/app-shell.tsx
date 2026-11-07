@@ -18,6 +18,7 @@ import {
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { Avatar, Hint, TONE_TEXT, toneVar, type Tone } from "@/components/apple-ui";
 import { HelpSheet } from "@/components/help-sheet";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 import { NewSearchDialog } from "@/components/new-search-dialog";
 import {
   Sidebar,
@@ -38,6 +39,8 @@ import {
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { useNotificationAlerts } from "@/hooks/use-notification-alerts";
+import { useNotifications } from "@/hooks/use-notifications";
 import { GLOSSARY, isHelpKey } from "@/lib/help";
 import { withAttentionCount } from "@/lib/page-title";
 import { accountQuery, attentionQuery, providerStatusQuery, todayAgendaQuery } from "@/lib/queries";
@@ -115,6 +118,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const openHelp = useCallback(() => setHelpOpen(true), []);
   useAttentionTitle();
   useHelpKey(openHelp);
+  useNotificationAlerts(useNotifications());
   return (
     <NewSearchContext value={() => setNewSearchOpen(true)}>
       <HelpContext value={openHelp}>
@@ -434,6 +438,7 @@ export function Page({
           {title}
         </h1>
         {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
+        <NotificationBell />
       </header>
       {bleed ? (
         <div className="flex min-h-0 flex-1 flex-col">{children}</div>

@@ -86,6 +86,7 @@ import { splitQuoted } from "@/lib/mail/quoted";
 import { QuickReplyPicker } from "@/components/quick-reply-picker";
 import { useListHotkeys } from "@/hooks/use-list-hotkeys";
 import { useLeadDeal } from "@/hooks/use-lead-deal";
+import { useReadLeadReplies } from "@/hooks/use-read-lead-replies";
 import { CloseDealDialog, type CloseDealMode } from "@/components/lead/close-deal-dialog";
 
 const FILTERS = ["all", "needsYou", "aiTalking", "waiting", "closed"] as const;
@@ -437,6 +438,7 @@ function ConversationsPage() {
 
 function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
   const { data } = useQuery(conversationQuery(leadId));
+  useReadLeadReplies(leadId, data?.messages);
   const refresh = useRefresh();
   const queryClient = useQueryClient();
   const today = useToday();

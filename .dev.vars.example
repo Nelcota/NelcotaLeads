@@ -17,3 +17,5 @@ TEAM_INVITE_EMAILS_ENABLED=false
 # With true, only invited e-mails can create an account (the very first account excepted).
 # Off by default: anyone with the access code can sign up, as before.
 INVITE_ONLY_SIGNUP=false
+# The notification center (bell on every page) shows only with this set to true. Off by default.
+NOTIFICATIONS_ENABLED=false
