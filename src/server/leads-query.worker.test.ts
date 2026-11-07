@@ -1,7 +1,7 @@
 import { env } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
 import { getDb } from "@/db/client";
-import { leads, searches } from "@/db/schema";
+import { leads, searches, users } from "@/db/schema";
 import { resetDb } from "../../test/reset-db";
 import { countLeads, queryLeads, queryLeadsCapped } from "./leads-query";
 
@@ -58,6 +58,8 @@ describe("countLeads", () => {
       },
       byTier: { high: 1, medium: 1, low: 1 },
       pending: 1,
+      // B's follow-up day (10/10) is before today (11/10).
+      overdue: 1,
     });
   });
 
@@ -115,5 +117,81 @@ describe("queryLeads search", () => {
   it("exports only the selected leads, whatever else is filtered", async () => {
     const rows = await queryLeads(db, { ids: ["2", "4", "nope"], sort: "name", dir: "asc" });
     expect(rows.map((lead) => lead.id)).toEqual(["4", "2"]);
+  });
+});
+
+describe("queryLeads redesign filters", () => {
+  const now = new Date("2026-11-07T15:00:00Z");
+
+  beforeEach(async () => {
+    await resetDb();
+    await db.insert(searches).values({ id: "s", niche: "x", city: "y", maxResults: 5 });
+    await db
+      .insert(users)
+      .values({ id: "u1", name: "Haniel", email: "haniel@nelcota.test", passwordHash: "x" });
+    const base = { searchId: "s", siteStatus: "none" as const, analysisStatus: "done" as const };
+    await db.insert(leads).values([
+      {
+        ...base,
+        id: "1",
+        placeId: "1",
+        name: "Clínica Lumière",
+        email: "ola@lumiere.test",
+        phone: "(31) 3335-6610",
+        address: "Rua A, Lourdes",
+        score: 70,
+        status: "replied",
+        ownerId: "u1",
+        createdAt: new Date("2026-10-01T12:00:00Z"),
+      },
+      {
+        ...base,
+        id: "2",
+        placeId: "2",
+        name: "Dental Prime",
+        phone: "(31) 3014-8870",
+        address: "Rua B, Savassi",
+        score: 90,
+        status: "new",
+        createdAt: new Date("2026-11-07T10:00:00Z"),
+      },
+      {
+        ...base,
+        id: "3",
+        placeId: "3",
+        name: "Ortoclin",
+        score: 60,
+        status: "contacted",
+        createdAt: new Date("2026-10-02T12:00:00Z"),
+      },
+    ]);
+  });
+
+  const ids = async (filters: Parameters<typeof queryLeads>[1]) =>
+    (await queryLeads(db, filters, "2026-11-07", 100, now)).map((lead) => lead.id);
+
+  it("searches the e-mail, the address and the phone digits", async () => {
+    expect(await ids({ q: "lumiere.test" })).toEqual(["1"]);
+    expect(await ids({ q: "Savassi" })).toEqual(["2"]);
+    expect(await ids({ q: "3014-8870" })).toEqual(["2"]);
+    expect(await ids({ q: "30148870" })).toEqual(["2"]);
+  });
+
+  it("'Meus leads' keeps the owner's leads and shows nothing without one", async () => {
+    expect(await ids({ mine: true, ownerId: "u1" })).toEqual(["1"]);
+    expect(await ids({ mine: true, ownerId: null })).toEqual([]);
+  });
+
+  it("'Chegaram hoje' keeps leads created in the last 24 hours", async () => {
+    expect(await ids({ fresh: true })).toEqual(["2"]);
+  });
+
+  it("joins the owner's name for the row", async () => {
+    const [row] = await queryLeads(db, { ids: ["1"] }, "2026-11-07", 100, now);
+    expect(row?.ownerName).toBe("Haniel");
+  });
+
+  it("'Todos' follows the order of the tabs, then the score", async () => {
+    expect(await ids({ view: "all" })).toEqual(["2", "3", "1"]);
   });
 });
