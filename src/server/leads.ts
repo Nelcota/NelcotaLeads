@@ -33,11 +33,21 @@ import { enqueueLeads, type LeadJob } from "./queue";
 /** The table's rows, and whether more leads matched than it shows (LIST_LIMIT). */
 export const listLeads = createServerFn({ method: "GET" })
   .validator(leadFiltersSchema)
-  .handler(({ data }) => queryLeadsCapped(getDb(), data, LIST_LIMIT));
+  .handler(async ({ data }) =>
+    queryLeadsCapped(getDb(), { ...data, ownerId: await mineOwnerId(data.mine) }, LIST_LIMIT),
+  );
 
 export const getLeadCounts = createServerFn({ method: "GET" })
   .validator(leadFiltersSchema)
-  .handler(({ data }) => countLeads(getDb(), data));
+  .handler(async ({ data }) =>
+    countLeads(getDb(), { ...data, ownerId: await mineOwnerId(data.mine) }),
+  );
+
+/** "Meus leads" filters by the signed-in person; only looked up when the filter is on. */
+async function mineOwnerId(mine: boolean | undefined): Promise<string | null> {
+  if (!mine) return null;
+  return requestUserId();
+}
 
 export const getLead = createServerFn({ method: "GET" })
   .validator(z.object({ id: idSchema }))

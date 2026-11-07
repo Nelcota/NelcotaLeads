@@ -1,11 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type ComponentType, type ReactNode } from "react";
 import { toast } from "sonner";
 import { errorToast } from "@/lib/mutation-toasts";
 import {
   ChevronRightIcon,
   CircleAlertIcon,
+  ClockIcon,
+  MailIcon,
   CopyIcon,
   GlobeIcon,
   MapPinIcon,
@@ -16,7 +18,6 @@ import {
   SparklesIcon,
 } from "lucide-react";
 import {
-  Avatar,
   EmptyState,
   ExternalLink,
   ExternalMark,
@@ -34,10 +35,13 @@ import { LeadStage } from "@/components/lead/lead-stage";
 import { OwnerChip } from "@/components/lead/owner-chip";
 import { SalesActions } from "@/components/lead/sales-actions";
 import { ScoreRing } from "@/components/lead/score-ring";
-import { followUpTone, StatusBadge } from "@/components/lead-badges";
+import { followUpTone } from "@/components/lead-badges";
+import { WhatsAppMark } from "@/components/brand-marks";
+import { LeadAvatar } from "@/components/leads/lead-avatar";
+import { StageLabel } from "@/components/leads/stage-label";
+import { leadStage } from "@/lib/lead-row";
 import { useLeadDeal } from "@/hooks/use-lead-deal";
 import { useLeadSales, type LeadSales } from "@/hooks/use-lead-sales";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -170,12 +174,17 @@ export function LeadDetail({
       <SheetHeader className="gap-4 px-5 pt-3.5 pb-4">
         {toolbar}
         <div className="flex items-center gap-3.5">
-          <Avatar name={lead.name} size={52} square />
+          <LeadAvatar
+            name={lead.name}
+            website={lead.website}
+            size={52}
+            className="rounded-[14px]"
+          />
           <div className="grid min-w-0 flex-1 gap-1">
             <SheetTitle className="leading-snug">{lead.name}</SheetTitle>
             <SheetDescription>{facts.join(" · ")}</SheetDescription>
             <div className="mt-1 flex flex-wrap items-center gap-1.5">
-              <StatusBadge status={lead.status} />
+              <StageLabel stage={leadStage(lead)} className="mr-1.5 text-[14px]" />
               <OwnerChip
                 ownerName={owner?.name ?? null}
                 mine={Boolean(me) && lead.ownerId === me}
@@ -184,9 +193,13 @@ export function LeadDetail({
                 onRelease={deal.release}
               />
               {lead.followUpOn && (lead.status === "contacted" || lead.status === "replied") ? (
-                <Badge variant={followUpTone(lead.followUpOn, today)} dot>
+                <span className="inline-flex items-center gap-1.5 text-[14px] font-medium">
+                  <ClockIcon
+                    className={cn("size-3.5", TONE_TEXT[followUpTone(lead.followUpOn, today)])}
+                    strokeWidth={1.9}
+                  />
                   Retorno {relativeDay(lead.followUpOn, today)}
-                </Badge>
+                </span>
               ) : null}
             </div>
           </div>
@@ -261,7 +274,7 @@ function QuickActions({ lead }: { lead: Lead }) {
           <QuickAction
             href={whatsappLink(lead.phoneE164)}
             external
-            icon={MessageCircleIcon}
+            icon={WhatsAppMark}
             tone="green"
           >
             WhatsApp
@@ -457,11 +470,7 @@ function FirstContactStep({ lead, analysis, today, busy, onUpdate, onChanged }: 
         <div className="flex items-center gap-2.5">
           <IconTile icon={MessageCircleIcon} tone="green" size={26} />
           <CardTitle>Primeira mensagem</CardTitle>
-          {hasMessage ? (
-            <Badge variant="purple" className="ml-auto">
-              Escrito pela IA
-            </Badge>
-          ) : null}
+          {hasMessage ? <WrittenByAi /> : null}
         </div>
         <CardDescription>
           {hasMessage
@@ -519,7 +528,7 @@ function FirstContactStep({ lead, analysis, today, busy, onUpdate, onChanged }: 
             onClick={() => generate.mutate()}
             disabled={generate.isPending}
           >
-            <SparklesIcon className="text-purple" />
+            <SparklesIcon />
             {generate.isPending ? "Escrevendo…" : hasMessage ? "Gerar outra" : "Gerar mensagem"}
           </Button>
         ) : null}
@@ -665,13 +674,9 @@ function EmailStep({ lead, busy, onUpdate, onChanged }: StepProps) {
     <Card className={STEP_CARD}>
       <CardHeader>
         <div className="flex items-center gap-2.5">
-          <IconTile icon={SparklesIcon} tone="purple" size={26} />
+          <IconTile icon={MailIcon} tone="blue" size={26} />
           <CardTitle>Primeiro e-mail</CardTitle>
-          {draft ? (
-            <Badge variant="purple" className="ml-auto">
-              Escrito pela IA
-            </Badge>
-          ) : null}
+          {draft ? <WrittenByAi /> : null}
         </div>
         <CardDescription>Para {lead.email}. A IA escreve, você revisa e envia.</CardDescription>
       </CardHeader>
@@ -711,7 +716,7 @@ function EmailStep({ lead, busy, onUpdate, onChanged }: StepProps) {
               disabled={rewrite.isPending || !value}
               onClick={() => value && rewrite.mutate({ id: draft.id, previous: value })}
             >
-              <SparklesIcon className="text-purple" />
+              <SparklesIcon />
               {rewrite.isPending ? "Reescrevendo…" : "Gerar outro"}
             </Button>
             <SaveStatus state={autosave.state} className="self-center" />
@@ -841,7 +846,7 @@ function AnalysisSection({ lead, analysis }: { lead: Lead; analysis: Analysis | 
   const { data: status } = useQuery(providerStatusQuery);
   if (!analysis) {
     return (
-      <Section title="Análise" tone="purple">
+      <Section title="Análise" ai>
         <p className="text-sm font-light text-muted-foreground">
           {lead.analysisStatus === "error"
             ? `A análise falhou: ${lead.analysisError ?? "erro desconhecido"}. Tente reanalisar.`
@@ -854,7 +859,7 @@ function AnalysisSection({ lead, analysis }: { lead: Lead; analysis: Analysis | 
   }
   const hasLists = analysis.signals.length > 0 || analysis.painPoints.length > 0;
   return (
-    <Section title="Análise" tone="purple">
+    <Section title="Análise" ai>
       <div className="grouped grid gap-4 px-4 py-3.5">
         <p className="text-base leading-relaxed">{analysis.summary}</p>
         {hasLists ? (
@@ -1100,14 +1105,27 @@ function LossSummary({ lead }: { lead: Lead }) {
   );
 }
 
+/** "Escrito pela IA", as the badge standard draws it: a line icon, then neutral text. */
+function WrittenByAi() {
+  return (
+    <span className="ml-auto inline-flex items-center gap-1.5 text-[13px] font-medium text-muted-foreground">
+      <SparklesIcon className="size-3.5 text-blue" strokeWidth={1.9} />
+      Escrito pela IA
+    </span>
+  );
+}
+
 function Section({
   title,
   tone,
+  ai = false,
   status,
   children,
 }: {
   title: string;
   tone?: Tone;
+  /** An AI section: a sparkles icon before the neutral title. */
+  ai?: boolean;
   /** Quiet feedback after the title, e.g. "Salvo". */
   status?: ReactNode;
   children: ReactNode;
@@ -1120,7 +1138,7 @@ function Section({
           tone && TONE_TEXT[tone],
         )}
       >
-        {tone === "purple" ? <SparklesIcon className="size-4" /> : null}
+        {ai ? <SparklesIcon className="size-4 text-muted-foreground" strokeWidth={1.9} /> : null}
         {title}
         {status}
       </h3>
@@ -1166,19 +1184,26 @@ function Term({ label, children }: { label: string; children: ReactNode }) {
 
 /** Contacts-style action: a round colored tile with the label under it. */
 function QuickAction(
-  props: { icon: typeof PhoneIcon; tone: Tone; children: ReactNode } & (
+  props: {
+    icon: ComponentType<{ className?: string; strokeWidth?: number }>;
+    tone: Tone;
+    children: ReactNode;
+  } & (
     | ({ as?: undefined; external?: boolean } & React.ComponentProps<"a">)
     | ({ as: "button" } & React.ComponentProps<"button">)
   ),
 ) {
   const className = cn(
-    "press grid min-w-[84px] flex-1 justify-items-center gap-1.5 rounded-[14px] bg-fill-3 px-2 py-2.5 text-[13px] font-medium whitespace-nowrap transition-colors hover:bg-fill-2",
+    "press grid min-w-[84px] flex-1 justify-items-center gap-1.5 rounded-[14px] border border-border bg-fill-3 px-2 py-3 text-[13px] font-medium whitespace-nowrap transition-colors hover:bg-fill-2",
     TONE_TEXT[props.tone],
   );
+  const Icon = props.icon;
+  // Icon standard: a bare line icon in its tone (brand mark for WhatsApp), no colored chip.
+  const icon = <Icon className="size-[22px]" strokeWidth={1.8} />;
   const body = (
     <>
-      <IconTile icon={props.icon} tone={props.tone} size={34} round />
-      {props.children}
+      {icon}
+      <span className="text-foreground">{props.children}</span>
     </>
   );
   if (props.as === "button") {
@@ -1193,8 +1218,8 @@ function QuickAction(
   if (external) {
     return (
       <ExternalLink className={className} indicator={false} {...rest}>
-        <IconTile icon={props.icon} tone={props.tone} size={34} round />
-        <span className="inline-flex items-center gap-0.5">
+        {icon}
+        <span className="inline-flex items-center gap-0.5 text-foreground">
           {children}
           <ExternalMark />
         </span>

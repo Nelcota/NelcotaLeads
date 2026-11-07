@@ -62,7 +62,9 @@ test.describe("e-mail conversations", () => {
     await expect(row).toContainText("IA conversando");
     await row.click();
     await expect(page).toHaveURL(new RegExp(`lead=${id}`));
-    await expect(page.getByText("Oi! Pode me contar mais sobre isso?")).toBeVisible();
+    await expect(
+      page.getByRole("article").filter({ hasText: "Oi! Pode me contar mais sobre isso?" }),
+    ).toBeVisible();
     await expect(page.getByRole("switch", { name: /IA/ })).toBeChecked();
 
     // The AI reply waits a couple of minutes and skips the gap between first e-mails.
@@ -257,11 +259,10 @@ test.describe("e-mail conversations", () => {
     // The lead is out of every send: no checkbox can make it go.
     await visit(page, "/leads?view=all");
     const row = page.getByRole("row").filter({ hasText: LEAD.name });
-    await expect(row).toContainText("descadastrado");
     await expect(row).toContainText("Descartado");
     await page.getByRole("checkbox", { name: `Selecionar ${LEAD.name}` }).check();
-    await expect(page.getByText("1 sem e-mail fica de fora")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Disparar e-mail" })).toBeDisabled();
+    await expect(page.getByText("1 fica de fora do disparo")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Disparar 0 selecionados" })).toBeDisabled();
 
     await backend.tick(later);
     expect(await backend.sent()).toHaveLength(1);

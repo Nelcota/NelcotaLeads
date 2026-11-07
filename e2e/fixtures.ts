@@ -199,6 +199,14 @@ export const test = base.extend<{ backend: Backend; consoleErrors: ConsoleErrors
   consoleErrors: [
     async ({ page }, use) => {
       const errors = new ConsoleErrors();
+      // Lead logos come from third-party sites. Keep the browser tests offline and exercise
+      // the initials fallback without turning fake domains into unrelated console failures.
+      await page.route(/^https:\/\/[^/]+\/favicon\.ico$/, (route) =>
+        route.fulfill({
+          contentType: "image/svg+xml",
+          body: '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>',
+        }),
+      );
       page.on("console", (message) => {
         if (message.type() === "error") errors.seen.push(message.text());
       });

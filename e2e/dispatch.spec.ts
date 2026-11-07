@@ -28,10 +28,12 @@ test.describe("e-mail dispatch", () => {
     const [t1, t2, t3, t4, t5] = tickTimes(5);
 
     await visit(page, "/leads");
-    await expect(page.getByText(/3\s+leads prontos para disparo/)).toBeVisible();
-    await page.getByRole("button", { name: "Selecionar todos" }).click();
-    await expect(page.getByText("3 selecionados")).toBeVisible();
-    await page.getByRole("button", { name: "Disparar e-mail" }).click();
+    await page.getByRole("button", { name: "Disparar 3 prontos" }).click();
+    await expect(page.getByText("3 selecionados", { exact: true })).toBeVisible();
+    await page
+      .getByRole("region", { name: "Ações da seleção" })
+      .getByRole("button", { name: "Disparar" })
+      .click();
 
     const sheet = page.getByRole("dialog", { name: "Disparar 3 e-mails" });
     await expect(sheet).toBeVisible();
@@ -97,12 +99,12 @@ Para não receber mais e-mails, responda com "sair".`,
     for (const name of [edited, untouched]) {
       await page.getByRole("checkbox", { name: `Selecionar ${name}` }).check();
     }
-    await page.getByRole("button", { name: "Disparar e-mail" }).click();
-    const again = page.getByRole("dialog", { name: "Disparar 0 e-mails" });
-    await expect(again.getByText("Nenhum e-mail para revisar.")).toBeVisible();
-    await expect(again.getByText(`${edited}: já recebeu e-mail`)).toBeVisible();
-    await expect(again.getByText(`${untouched}: já recebeu e-mail`)).toBeVisible();
-    await expect(again.getByRole("button", { name: /^Disparar 0 e-mails$/ })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Disparar 0 selecionados" })).toBeDisabled();
+    await expect(
+      page
+        .getByRole("region", { name: "Ações da seleção" })
+        .getByRole("button", { name: "Disparar" }),
+    ).toBeDisabled();
 
     await backend.tick(t4);
     await backend.tick(t5);
@@ -117,8 +119,11 @@ Para não receber mais e-mails, responda com "sair".`,
     if (!lead) throw new Error("no lead");
     await backend.lead(lead);
     await visit(page, "/leads");
-    await page.getByRole("button", { name: "Selecionar", exact: true }).click();
-    await page.getByRole("button", { name: "Disparar e-mail" }).click();
+    await page.getByRole("button", { name: "Disparar 1 pronto" }).click();
+    await page
+      .getByRole("region", { name: "Ações da seleção" })
+      .getByRole("button", { name: "Disparar" })
+      .click();
 
     const sheet = page.getByRole("dialog", { name: "Disparar 1 e-mail" });
     const body = sheet.getByLabel("Mensagem");
@@ -137,7 +142,10 @@ Para não receber mais e-mails, responda com "sair".`,
     await sheet.getByLabel("Assunto").fill("Assunto que eu escrevi");
     await page.keyboard.press("Escape");
     await expect(sheet).toBeHidden();
-    await page.getByRole("button", { name: "Disparar e-mail" }).click();
+    await page
+      .getByRole("region", { name: "Ações da seleção" })
+      .getByRole("button", { name: "Disparar" })
+      .click();
     const again = page.getByRole("dialog", { name: "Disparar 1 e-mail" });
     await expect(again.getByLabel("Assunto")).toHaveValue("Assunto que eu escrevi");
     await expect(again.getByLabel("Mensagem")).toHaveValue(/^Texto que eu escrevi\./);

@@ -4,6 +4,10 @@ export const SHORTCUTS = [
   { keys: ["K"], label: "Conversa ou lead anterior" },
   { keys: ["Esc"], label: "Fechar a conversa (celular)" },
   { keys: ["Mod", "Enter"], label: "Enviar a resposta" },
+  { keys: ["/"], label: "Buscar na lista de leads" },
+  { keys: ["X"], label: "Marcar o lead em foco (Leads)" },
+  { keys: ["E"], label: "Escrever e-mail para o lead em foco (Leads)" },
+  { keys: ["W"], label: "Abrir o WhatsApp do lead em foco (Leads)" },
 ] as const;
 
 let apple: boolean | undefined;

@@ -28,17 +28,23 @@ test.describe("queued e-mails", () => {
     const [t1, t2] = tickTimes(2);
 
     await visit(page, "/leads");
-    await page.getByRole("button", { name: "Selecionar todos" }).click();
-    await page.getByRole("button", { name: "Disparar e-mail" }).click();
+    await page.getByRole("button", { name: "Disparar 2 prontos" }).click();
+    await page
+      .getByRole("region", { name: "Ações da seleção" })
+      .getByRole("button", { name: "Disparar" })
+      .click();
     await page.getByRole("dialog").getByRole("button", { name: "Disparar 2 e-mails" }).click();
     await expect(page.getByText("2 e-mails na fila")).toBeVisible();
 
     // Inside the send window the first goes out at once; the other (outside it, both) waits.
     const [first] = await backend.sent();
     const waiting = first?.to === "contato@alfa.test" ? "Clínica Beta" : "Clínica Alfa";
+    await visit(page, "/leads?view=all");
     await page.getByRole("checkbox", { name: `Selecionar ${waiting}` }).check();
-    await page.getByRole("button", { name: "Mais ações para a seleção" }).click();
-    await page.getByRole("menuitem", { name: "Descartar" }).click();
+    await page
+      .getByRole("region", { name: "Ações da seleção" })
+      .getByRole("button", { name: "Descartar" })
+      .click();
     await expect(page.getByText(/descartado/)).toBeVisible();
 
     await backend.tick(t1);
@@ -64,7 +70,9 @@ test.describe("browser defaults", () => {
     await expect(page.getByLabel("Buscar conversa")).toHaveAttribute("autocomplete", "off");
 
     await visit(page, "/leads");
-    await expect(page.getByLabel("Buscar empresa")).toHaveAttribute("autocomplete", "off");
+    await expect(
+      page.getByRole("searchbox", { name: "Buscar por nome, e-mail, telefone ou endereço" }),
+    ).toHaveAttribute("autocomplete", "off");
 
     const resize = await page.evaluate(() => {
       const textarea = document.createElement("textarea");

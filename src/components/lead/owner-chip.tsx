@@ -1,4 +1,4 @@
-import { Badge } from "@/components/ui/badge";
+import { UserIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 /**
@@ -20,9 +20,14 @@ export function OwnerChip({
 }) {
   return (
     <span className="inline-flex items-center gap-1">
-      <Badge variant={ownerName ? "blue" : "gray"}>
+      {/* Badge standard: a line icon in the status color, then neutral text. */}
+      <span className="inline-flex items-center gap-1.5 text-[14px] font-medium">
+        <UserIcon
+          className={ownerName ? "size-3.5 text-blue" : "size-3.5 text-gray"}
+          strokeWidth={1.9}
+        />
         {ownerName ? `Com ${ownerName}` : "Livre"}
-      </Badge>
+      </span>
       <Button
         variant="ghost"
         size="xs"

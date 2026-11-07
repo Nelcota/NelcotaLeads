@@ -287,6 +287,10 @@ export const leadFiltersSchema = z.object({
   maxScore: z.coerce.number().int().min(0).max(100).optional(),
   noWebsite: z.preprocess((value) => value === true || value === "true", z.boolean()).optional(),
   hasEmail: z.preprocess((value) => value === true || value === "true", z.boolean()).optional(),
+  // "Meus leads": only the signed-in person's leads (resolved to an owner id on the server).
+  mine: z.preprocess((value) => value === true || value === "true", z.boolean()).optional(),
+  // "Chegaram hoje": leads created in the last 24 hours.
+  fresh: z.preprocess((value) => value === true || value === "true", z.boolean()).optional(),
   sort: z.enum(LEAD_SORT_FIELDS).optional(),
   dir: z.enum(["asc", "desc"]).optional(),
 });
