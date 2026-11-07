@@ -78,7 +78,7 @@ function RequestLinkForm() {
       method="post"
       action="/api/forgot-password"
       noValidate
-      className="grid gap-4"
+      className="grid gap-5"
       onSubmit={(event) => void form.onSubmit(event)}
       onBlurCapture={form.onBlurCapture}
     >
@@ -121,7 +121,7 @@ function NewPasswordForm({ token }: { token: string }) {
       method="post"
       action="/api/reset-password"
       noValidate
-      className="grid gap-4"
+      className="grid gap-5"
       onSubmit={(event) => void form.onSubmit(event)}
       onBlurCapture={form.onBlurCapture}
     >
