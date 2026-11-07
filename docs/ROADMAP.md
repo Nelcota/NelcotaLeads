@@ -17,8 +17,8 @@ The steps, in this order: (1) Visão geral with the new layout on today's data; 
 
 - Agenda calendar, phase 1: Month, Week and Day views on the `/agenda` page, opening on Week, over the meetings and follow-ups the agenda v1 already stores (PR #23). Create a meeting by clicking a free slot and reschedule by dragging. No e-mail. Mockup first, approved by the user before any code; built in its own worktree on top of `feat/nelcota-identity`. (2026-11-05, chosen by the user) One migration added on 2026-11-06: a meeting reason column (fixed list plus "Outro" with free text), so guard rule 7 applies to that step. The rest of the scope is in the 2026-11-06 decision below.
 - Agenda reminders, phase 2: in-app reminders for the team only ("começa em 15 min"), no e-mail to the lead. (2026-11-05, chosen by the user)
-- Sign-in card: no drop shadow, wider card (480px) and larger text on the login, sign-up and password-reset screens, plus a light/dark theme toggle. Applies the "no drop shadows" item below to these screens only. (2026-11-07, asked by the user and approved on localhost)
 - Notification center: a bell with an unread count on every page, a panel grouped by category, optional sound. Mockup first, approved by the user before any code. (2026-11-07, asked by the user: "repasse esta opção a um novo chat e vamos criar esta função")
+- Sign-in card: no drop shadow, wider card (480px) and larger text on the login, sign-up and password-reset screens, plus a light/dark theme toggle. Applies the "no drop shadows" item below to these screens only. (2026-11-07, asked by the user and approved on localhost)
 
 ## Next
 
@@ -52,6 +52,11 @@ The steps, in this order: (1) Visão geral with the new layout on today's data; 
 
 ## Decisions
 
+### 2026-11-06: dependabot PRs do not count toward the open-PR limit
+
+- **Decision:** guard rule 6 (at most seven open PRs across all repositories) counts only PRs the user or Claude open. Dependabot's automatic dependency PRs do not count.
+- **Why:** the user's answer when the agenda calendar PR was ready and nine dependabot PRs were open.
+
 ### 2026-11-07: notification center moves to Now
 
 - **Decision:** a notification center (bell with an unread count on every page, a panel grouped by category, optional sound) goes to Now. It absorbs the Next item "Alert for interested leads left without an answer": that alert becomes one category of the center instead of a single card on the Visão geral. A mockup comes before any code; the unread marker is a migration, so guard rule 7 applies to that step.
@@ -60,11 +65,6 @@ The steps, in this order: (1) Visão geral with the new layout on today's data; 
 - **Answers (2026-11-07, the user):** the bell sits at the top right of the main area on every page; first categories are Respostas, Retornos e atrasados (includes the interested-lead alert), Agenda and Buscas concluídas; sound and the system notification start off and each person turns them on per category (the system notification only when the tab is in the background); each person chooses "only my leads" (default; a lead without owner and finished searches reach all three partners) or "all leads"; clicking a notification opens the lead in the Leads panel (meeting: the Agenda detail; search: the search) and marks it read.
 - **Approved (2026-11-07):** after the canvas review (clicking a notification takes you to its origin), the user asked to build it on localhost, review UI/UX and fix what is found ("envie ao nosso localhost e faça uma revisão detalhada de ui e ux"). Built in `.claude/worktrees/notifications-center-948873` behind `NOTIFICATIONS_ENABLED` (off by default), local database only; nothing is pushed until the user says so, and it is split into one PR per step before review.
 - **Data (proposal, to confirm with the mockup):** notifications are computed from data the app already stores (inbound e-mails, `leads.followUpOn`, `meetings.startsAt`, `searches`), with no notifications table and no scheduled job. One new column `emails.read_at` marks a reply as read and serves both the bell and the bold unread replies in the Leads redesign. Read marks for the other categories and each person's preferences come in later steps.
-
-### 2026-11-06: dependabot PRs do not count toward the open-PR limit
-
-- **Decision:** guard rule 6 (at most seven open PRs across all repositories) counts only PRs the user or Claude open. Dependabot's automatic dependency PRs do not count.
-- **Why:** the user's answer when the agenda calendar PR was ready and nine dependabot PRs were open.
 
 ### 2026-11-05: dark theme by default, toggle on the sign-in screens
 
