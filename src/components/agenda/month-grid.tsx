@@ -116,7 +116,7 @@ function DayCell({
         onClick={() => onOpenDay(day)}
         aria-label={`Abrir ${label}`}
         className={cn(
-          "relative z-[1] inline-grid h-7 min-w-7 place-items-center self-start rounded-full px-1.5 text-[13px] font-semibold transition-colors",
+          "relative z-[1] inline-grid h-7 min-w-7 place-items-center self-start rounded-full px-1.5 text-[14px] font-semibold transition-colors",
           day === today ? "bg-primary text-primary-foreground" : "hover:bg-fill",
           day !== today && !inMonth ? "text-tertiary" : "",
         )}
@@ -129,7 +129,7 @@ function DayCell({
           type="button"
           onClick={() => onPick(entry)}
           title={entry.minutes === null ? `Retornar o contato · ${entry.leadName}` : entry.leadName}
-          className="relative z-[1] flex min-h-[22px] min-w-0 items-center gap-[5px] rounded-md bg-fill-2 px-1.5 text-left text-[11.5px] font-medium transition-colors hover:bg-fill"
+          className="relative z-[1] flex min-h-[22px] min-w-0 items-center gap-[5px] rounded-md bg-fill-2 px-1.5 text-left text-[13px] font-medium transition-colors hover:bg-fill"
         >
           <EntryIcon kind={entry.meetingKind} className="size-3" />
           {entry.minutes === null ? null : (

@@ -43,7 +43,7 @@ export function LeadPicker({
           id="meeting-lead"
           aria-invalid={invalid || undefined}
           className={cn(
-            "flex h-10 w-full items-center gap-1.5 rounded-full border bg-transparent pr-2.5 pl-3.5 text-left text-[15px] font-medium transition-colors hover:bg-fill-2 aria-expanded:bg-fill-2",
+            "flex h-10 w-full items-center gap-1.5 rounded-full border bg-transparent pr-2.5 pl-3.5 text-left text-[16px] font-medium transition-colors hover:bg-fill-2 aria-expanded:bg-fill-2",
             invalid ? "border-red" : "border-border",
           )}
         >
@@ -96,7 +96,7 @@ export function LeadPicker({
             </button>
           ))}
           {matches.length === 0 ? (
-            <p className="p-2.5 text-[13px] text-muted-foreground">Nenhum lead com esse nome.</p>
+            <p className="p-2.5 text-[14px] text-muted-foreground">Nenhum lead com esse nome.</p>
           ) : null}
         </div>
       </PopoverContent>

@@ -367,7 +367,7 @@ function DispatchReview({
             {/* The global setting, not one for this batch: said so, since it sits in a send. */}
             <label htmlFor="dispatch-ai" className="grid flex-1 gap-0.5 py-2">
               <span className="font-medium">IA responde sozinha até haver interesse</span>
-              <span className="text-[12.5px] font-light text-muted-foreground">
+              <span className="text-[14px] font-light text-muted-foreground">
                 Vale para todas as conversas, não só para este disparo.
               </span>
             </label>

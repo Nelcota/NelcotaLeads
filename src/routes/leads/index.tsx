@@ -183,7 +183,7 @@ const SORT_PATCH: Record<SortValue, Pick<LeadFilters, "sort" | "dir">> = {
 
 // macOS pop-up button look for the filter triggers.
 const POPUP =
-  "press inline-flex h-9 shrink-0 sm:h-7 items-center gap-1.5 rounded-[8px] bg-fill-2 px-3 text-[12.5px] font-medium whitespace-nowrap transition-colors hover:bg-fill aria-pressed:bg-green/16 aria-pressed:text-green [&_svg]:size-3";
+  "press inline-flex h-9 shrink-0 sm:h-7 items-center gap-1.5 rounded-[8px] bg-fill-2 px-3 text-[14px] font-medium whitespace-nowrap transition-colors hover:bg-fill aria-pressed:bg-green/16 aria-pressed:text-green [&_svg]:size-3";
 
 function withView(filters: LeadFilters): LeadFilters {
   return { ...filters, view: filters.view ?? DEFAULT_VIEW };
@@ -370,7 +370,7 @@ function LeadsPage() {
                     {LEAD_VIEW_LABELS[item]}
                     <span
                       className={cn(
-                        "text-[11.5px] tabular-nums",
+                        "text-[13px] tabular-nums",
                         tone && count ? TONE_TEXT[tone] : "opacity-60",
                       )}
                     >
@@ -464,7 +464,7 @@ function LeadsPage() {
             {selected.size} {selected.size === 1 ? "selecionado" : "selecionados"}
           </span>
           {withoutEmail > 0 ? (
-            <span className="text-[12.5px] text-orange">
+            <span className="text-[14px] text-orange">
               {withoutEmail} sem e-mail {withoutEmail === 1 ? "fica" : "ficam"} de fora
             </span>
           ) : null}

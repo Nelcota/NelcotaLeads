@@ -13,9 +13,9 @@ export function MetricBlocks({ blocks, caption }: { blocks: MetricBlock[]; capti
           className="grouped enter flex flex-col gap-3 p-5"
           style={{ animationDelay: `${index * 40}ms` }}
         >
-          <h2 className="flex items-baseline justify-between gap-2 text-[15px] font-semibold text-muted-foreground">
+          <h2 className="flex items-baseline justify-between gap-2 text-[16px] font-semibold text-muted-foreground">
             {block.title}
-            <span className="text-[12.5px] font-normal text-tertiary">{caption}</span>
+            <span className="text-[14px] font-normal text-tertiary">{caption}</span>
           </h2>
           <p className="flex items-baseline gap-2 border-b border-border/60 pb-3">
             <span className="text-3xl leading-none font-semibold tracking-[-0.03em] tabular-nums">
@@ -27,7 +27,7 @@ export function MetricBlocks({ blocks, caption }: { blocks: MetricBlock[]; capti
             {block.rows.map((row) => (
               <div
                 key={row.label}
-                className="flex items-baseline justify-between gap-3 text-[14px]"
+                className="flex items-baseline justify-between gap-3 text-[15px]"
               >
                 <dt className="text-muted-foreground">{row.label}</dt>
                 <dd className={cn("font-semibold tabular-nums", row.tone && TONE_CLASS[row.tone])}>

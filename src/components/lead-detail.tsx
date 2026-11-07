@@ -193,12 +193,12 @@ export function LeadDetail({
           <ScoreRing score={lead.score} pending={lead.analysisStatus === "pending"} />
         </div>
         {lead.discardReason && !lead.lossReason ? (
-          <p className="text-[12.5px] text-red">Descartado pela IA: {lead.discardReason}</p>
+          <p className="text-[14px] text-red">Descartado pela IA: {lead.discardReason}</p>
         ) : null}
         <QuickActions lead={lead} />
         <LeadStage lead={lead} busy={deal.movingStage} onSelectStage={deal.setStage} />
         {lead.status === "replied" && isPriceHandoff(lead.handoffReason) ? (
-          <p className="text-[12.5px] text-orange">
+          <p className="text-[14px] text-orange">
             A IA não cita preço. Responda com a proposta da tabela de serviços.
           </p>
         ) : null}
@@ -1059,7 +1059,7 @@ function Footer({
     <div className="flex flex-wrap items-center justify-end gap-4 border-t border-border/70 pt-4 text-sm text-muted-foreground">
       <div className="flex flex-wrap items-center gap-3">
         {analysis ? (
-          <span className="text-[11.5px] font-light text-tertiary">
+          <span className="text-[13px] font-light text-tertiary">
             {analysis.model} · US$ {analysis.costEstimate.toFixed(4)} ·{" "}
             {formatDate(analysis.createdAt, true)}
           </span>
@@ -1172,7 +1172,7 @@ function QuickAction(
   ),
 ) {
   const className = cn(
-    "press grid min-w-[84px] flex-1 justify-items-center gap-1.5 rounded-[14px] bg-fill-3 px-2 py-2.5 text-[11.5px] font-medium whitespace-nowrap transition-colors hover:bg-fill-2",
+    "press grid min-w-[84px] flex-1 justify-items-center gap-1.5 rounded-[14px] bg-fill-3 px-2 py-2.5 text-[13px] font-medium whitespace-nowrap transition-colors hover:bg-fill-2",
     TONE_TEXT[props.tone],
   );
   const body = (

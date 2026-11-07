@@ -10,7 +10,7 @@ export function NeedsYou({ data, now }: { data: Dashboard; now: Date }) {
   return (
     <section aria-labelledby="needs-you" className="grouped enter">
       <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 px-5 pt-4 pb-2">
-        <h2 id="needs-you" className="text-[17px] font-semibold text-orange">
+        <h2 id="needs-you" className="text-[18px] font-semibold text-orange">
           Precisa de você
         </h2>
         <span className="rounded-full bg-orange/16 px-2 py-px text-xs font-bold text-orange tabular-nums">
@@ -22,7 +22,7 @@ export function NeedsYou({ data, now }: { data: Dashboard; now: Date }) {
         <Link
           to="/conversas"
           search={{ filter: "needsYou" }}
-          className="text-[13.5px] font-semibold text-blue hover:underline"
+          className="text-[15px] font-semibold text-blue hover:underline"
         >
           Ver todas
         </Link>
@@ -41,7 +41,7 @@ export function NeedsYou({ data, now }: { data: Dashboard; now: Date }) {
             <Avatar name={lead.name} size={36} square />
             <span className="grid min-w-0 flex-1">
               <span className="truncate font-semibold">{lead.name}</span>
-              <span className="truncate text-[13px] text-muted-foreground">
+              <span className="truncate text-[14px] text-muted-foreground">
                 {lead.handoffReason ?? "Respondeu"}
                 {where ? ` · ${where}` : ""}
               </span>
@@ -49,14 +49,14 @@ export function NeedsYou({ data, now }: { data: Dashboard; now: Date }) {
             {lead.lastInboundAt ? (
               <span
                 className={cn(
-                  "shrink-0 rounded-full px-2.5 py-0.5 text-[12.5px] font-semibold tabular-nums",
+                  "shrink-0 rounded-full px-2.5 py-0.5 text-[14px] font-semibold tabular-nums",
                   late ? "bg-red/14 text-red" : "bg-fill-2 text-muted-foreground",
                 )}
               >
                 {waitingLabel(lead.lastInboundAt, now)}
               </span>
             ) : null}
-            <span className="shrink-0 text-[13.5px] font-semibold text-blue max-sm:hidden">
+            <span className="shrink-0 text-[15px] font-semibold text-blue max-sm:hidden">
               Responder
             </span>
           </Link>

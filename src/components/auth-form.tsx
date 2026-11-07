@@ -39,13 +39,13 @@ export function AuthShell({
         <h1 className="mt-5 text-center text-[22px] leading-tight font-semibold tracking-[-0.02em]">
           {title}
         </h1>
-        <p className="mt-1.5 max-w-[32ch] text-center text-[13.5px] leading-snug font-light text-muted-foreground">
+        <p className="mt-1.5 max-w-[32ch] text-center text-[15px] leading-snug font-light text-muted-foreground">
           {subtitle}
         </p>
         <div className="mt-7 w-full rounded-[20px] bg-card p-5 shadow-[inset_0_0_0_1px_var(--border),var(--shadow-panel)] sm:p-6">
           {children}
         </div>
-        <p className="mt-6 text-center text-[13px] text-muted-foreground">{footer}</p>
+        <p className="mt-6 text-center text-[14px] text-muted-foreground">{footer}</p>
       </div>
     </main>
   );
@@ -94,16 +94,16 @@ export function Field({ label, error, hint, aside, children }: FieldProps) {
   return (
     <div className="grid gap-1.5">
       <div className="flex items-baseline justify-between gap-3">
-        <label htmlFor={id} className="text-[13px] font-medium text-foreground/90">
+        <label htmlFor={id} className="text-[14px] font-medium text-foreground/90">
           {label}
         </label>
-        {aside ? <span className="text-[12.5px]">{aside}</span> : null}
+        {aside ? <span className="text-[14px]">{aside}</span> : null}
       </div>
       {children({ id, describedBy: note ? noteId : undefined })}
       {note ? (
         <p
           id={noteId}
-          className={cn("text-[12.5px] leading-snug", error ? "text-red" : "text-tertiary")}
+          className={cn("text-[14px] leading-snug", error ? "text-red" : "text-tertiary")}
         >
           {note}
         </p>
@@ -112,7 +112,7 @@ export function Field({ label, error, hint, aside, children }: FieldProps) {
   );
 }
 
-const fieldClass = "h-11 rounded-[12px] px-3.5 text-[15px] md:text-[15px]";
+const fieldClass = "h-11 rounded-[12px] px-3.5 text-[16px] md:text-[16px]";
 
 export function AuthInput({ className, ...props }: ComponentProps<typeof Input>) {
   return <Input {...props} className={cn(fieldClass, className)} />;
@@ -178,7 +178,7 @@ export function SubmitButton({ pending, children }: { pending: boolean; children
       type="submit"
       disabled={pending}
       aria-busy={pending || undefined}
-      className="press mt-1 flex h-11 w-full items-center justify-center gap-2 rounded-full bg-primary text-[15px] font-medium text-primary-foreground transition-opacity focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none disabled:opacity-70"
+      className="press mt-1 flex h-11 w-full items-center justify-center gap-2 rounded-full bg-primary text-[16px] font-medium text-primary-foreground transition-opacity focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none disabled:opacity-70"
     >
       {pending ? <Loader2Icon className="size-4 animate-spin" /> : null}
       {children}
@@ -307,7 +307,7 @@ export function FormError({ message, notice }: { message: string | null; notice?
     <p
       role="alert"
       className={cn(
-        "-mb-1 text-center text-[13px] leading-snug empty:hidden",
+        "-mb-1 text-center text-[14px] leading-snug empty:hidden",
         message ? "text-red" : "text-tertiary",
       )}
     >

@@ -51,7 +51,7 @@ export function MeetingDetail({
         <button
           type="button"
           onClick={onBack}
-          className="-mt-1.5 -ml-2 inline-flex h-8 items-center gap-1 self-start rounded-full pr-3 pl-1.5 text-[13px] font-semibold text-primary transition-colors hover:bg-fill-2"
+          className="-mt-1.5 -ml-2 inline-flex h-8 items-center gap-1 self-start rounded-full pr-3 pl-1.5 text-[14px] font-semibold text-primary transition-colors hover:bg-fill-2"
         >
           <ChevronLeftIcon aria-hidden className="size-4" />
           {backLabel}
@@ -60,7 +60,7 @@ export function MeetingDetail({
           <div className="grid min-w-0 flex-1 gap-0.5">
             <span
               className={cn(
-                "inline-flex items-center gap-1.5 text-[13px] font-semibold",
+                "inline-flex items-center gap-1.5 text-[14px] font-semibold",
                 when.today ? "text-primary" : "text-muted-foreground",
               )}
             >
@@ -78,7 +78,7 @@ export function MeetingDetail({
         </div>
         <div className="grid gap-1 rounded-[14px] border border-border bg-card px-3.5 py-3">
           <p className="text-base font-semibold">{entry.leadName}</p>
-          <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-muted-foreground">
+          <span className="inline-flex items-center gap-1.5 text-[14px] font-medium text-muted-foreground">
             <EntryIcon kind={entry.meetingKind} />
             {kind}
           </span>

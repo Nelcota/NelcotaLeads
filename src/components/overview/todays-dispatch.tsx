@@ -87,7 +87,7 @@ export function TodaysDispatch({ data }: { data: Dashboard }) {
     >
       <div className="flex min-w-0 flex-col gap-4">
         <div className="flex items-center gap-2.5">
-          <h2 id="todays-dispatch" className="text-[17px] font-semibold">
+          <h2 id="todays-dispatch" className="text-[18px] font-semibold">
             Disparo de hoje
           </h2>
           <Badge variant={state.variant}>● {state.label}</Badge>
@@ -120,7 +120,7 @@ export function TodaysDispatch({ data }: { data: Dashboard }) {
           <DispatchControls paused={mail.paused} cancellable={mail.cancellable} />
         ) : null}
         <DispatchActions data={data} />
-        <p className="border-t border-border/60 pt-3 text-[12.5px] text-tertiary">
+        <p className="border-t border-border/60 pt-3 text-[14px] text-tertiary">
           Ordem: nota mais alta primeiro · das {mail.windowStart}h às {mail.windowEnd}h · um e-mail
           a cada {SEND_GAP_MINUTES} min · IA responde sozinha{" "}
           {mail.aiAutoReply ? "ligada" : "desligada"} · disparo automático{" "}
@@ -132,8 +132,8 @@ export function TodaysDispatch({ data }: { data: Dashboard }) {
       </div>
       <div className="flex min-w-0 flex-col">
         <div className="flex items-center gap-2 pb-2">
-          <h3 className="flex-1 text-[15px] font-semibold">Últimos envios</h3>
-          <Link to="/conversas" className="text-[13.5px] font-semibold text-blue hover:underline">
+          <h3 className="flex-1 text-[16px] font-semibold">Últimos envios</h3>
+          <Link to="/conversas" className="text-[15px] font-semibold text-blue hover:underline">
             Ver conversas
           </Link>
         </div>
@@ -149,10 +149,10 @@ export function TodaysDispatch({ data }: { data: Dashboard }) {
               search={{ lead: row.leadId }}
               className="grid min-h-[50px] grid-cols-[52px_minmax(0,1fr)_auto] items-center gap-3 border-t border-border/60 transition-colors outline-none hover:bg-fill-3 focus-visible:bg-fill-2"
             >
-              <span className="text-[13px] text-tertiary tabular-nums">{row.time}</span>
+              <span className="text-[14px] text-tertiary tabular-nums">{row.time}</span>
               <span className="grid min-w-0">
                 <span className="truncate font-semibold">{row.name}</span>
-                <span className="truncate text-[12.5px] text-tertiary">{row.detail}</span>
+                <span className="truncate text-[14px] text-tertiary">{row.detail}</span>
               </span>
               <Badge variant={STATUS_VARIANT[row.status]}>{row.status}</Badge>
             </Link>
@@ -176,7 +176,7 @@ function Counter({
 }) {
   return (
     <div className="rounded-[14px] bg-card-2 px-3 py-2.5">
-      <dt className="text-[12.5px] text-muted-foreground">{label}</dt>
+      <dt className="text-[14px] text-muted-foreground">{label}</dt>
       <dd className={cn("text-xl font-semibold tabular-nums", tone && COUNTER_TONE[tone])}>
         {value}
       </dd>

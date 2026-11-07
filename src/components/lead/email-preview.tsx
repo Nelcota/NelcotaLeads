@@ -26,9 +26,7 @@ export function EmailPreview({
           <CopyIcon />
           Copiar texto
         </Button>
-        {emailsEnabled ? null : (
-          <span className="text-[12.5px] text-orange">{SALES_EMAILS_OFF}</span>
-        )}
+        {emailsEnabled ? null : <span className="text-[14px] text-orange">{SALES_EMAILS_OFF}</span>}
       </div>
     </div>
   );
