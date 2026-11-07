@@ -1,4 +1,4 @@
-import { ChevronLeftIcon, SlidersHorizontalIcon, XIcon } from "lucide-react";
+import { BrushCleaningIcon, ChevronLeftIcon, SlidersHorizontalIcon, XIcon } from "lucide-react";
 import { useState, type ComponentType, type ReactNode } from "react";
 import { Hint } from "@/components/apple-ui";
 import { Button } from "@/components/ui/button";
@@ -34,7 +34,6 @@ export function NotificationCenterPanel({
   onClose: () => void;
 }) {
   const [view, setView] = useState<View>("list");
-  const allUnread = center.groups.flatMap((group) => group.unreadKeys);
 
   const open = (item: NotificationItem) => {
     if (item.unread) center.markRead([item.key]);
@@ -44,10 +43,10 @@ export function NotificationCenterPanel({
   if (view === "prefs") {
     return (
       <>
-        <div className="flex items-center gap-1.5 pt-3.5 pr-3 pb-2 pl-2.5">
+        <div className="flex items-center gap-1 pt-2.5 pr-2 pb-1.5 pl-1.5">
           <Button
             variant="ghost"
-            size="icon-lg"
+            size="icon"
             onClick={() => setView("list")}
             aria-label="Voltar para notificações"
           >
@@ -65,19 +64,25 @@ export function NotificationCenterPanel({
 
   return (
     <>
-      <div className="flex items-center gap-1 pt-4 pr-3 pb-2 pl-5">
+      <div className="flex items-center gap-0.5 pt-3 pr-2 pb-1.5 pl-4">
         <div className="flex-1">
           <Heading>Notificações</Heading>
         </div>
-        {allUnread.length > 0 ? (
-          <Button variant="link" size="sm" onClick={() => center.markRead(allUnread)}>
-            Marcar todas como lidas
+        {center.shownKeys.length > 0 ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => center.dismiss(center.shownKeys)}
+            className="text-blue hover:text-blue"
+          >
+            <BrushCleaningIcon aria-hidden />
+            Limpar tudo
           </Button>
         ) : null}
         <Hint label="Preferências de notificação">
           <Button
             variant="ghost"
-            size="icon-lg"
+            size="icon"
             onClick={() => setView("prefs")}
             aria-label="Preferências de notificação"
           >
@@ -87,12 +92,12 @@ export function NotificationCenterPanel({
         {showClose ? <CloseButton onClose={onClose} /> : null}
       </div>
       <NotificationList
-        groups={center.groups}
+        sections={center.sections}
         now={center.data.now}
         filter={center.filter}
         onFilterChange={center.setFilter}
         onOpen={open}
-        onMarkRead={center.markRead}
+        onDismiss={(item) => center.dismiss([item.key])}
       />
     </>
   );

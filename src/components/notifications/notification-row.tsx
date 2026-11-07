@@ -1,12 +1,12 @@
 import { Link } from "@tanstack/react-router";
-import { ChevronRightIcon, TriangleAlertIcon, UserIcon } from "lucide-react";
+import { TriangleAlertIcon, XIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { whenLabel, type NotificationHref, type NotificationItem } from "@/lib/notifications";
 import { cn } from "@/lib/utils";
 import { CategoryChip } from "./category-chip";
 
 const ROW_CLASS =
-  "group flex w-full items-start gap-3 px-5 py-2.5 text-left outline-none transition-colors duration-150 hover:bg-fill-3 focus-visible:bg-fill-2 focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring/40";
+  "flex min-h-13 w-full items-center gap-2.5 py-1.5 pr-10 pl-4 text-left outline-none focus-visible:bg-fill-2 focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring/40";
 
 /** The link to where a notification came from: the conversation, the lead, the day or the search. */
 function OriginLink({
@@ -53,72 +53,80 @@ const DESTINATION: Record<NotificationHref["to"], string> = {
   "/searches/$searchId": "abre a busca",
 };
 
-function ownerLabel(item: NotificationItem): string {
-  if (item.category === "searches") return "Equipe";
-  return item.ownerName ?? "Sem responsável";
+/** The second line: the warning first when there is one ("Atrasado 2 dias · Retornar o contato"). */
+function detailLine(item: NotificationItem): string {
+  if (!item.warning) return item.text;
+  return `${item.warning} · ${item.text}`;
 }
 
-/** One notification: bold while unread; clicking marks it read and goes to its origin. */
+/**
+ * One notification, compact: title and time, then one line of text. Bold while unread; clicking
+ * marks it read and goes to its origin; the X clears it from the panel.
+ */
 export function NotificationRow({
   item,
   now,
   onOpen,
+  onDismiss,
 }: {
   item: NotificationItem;
   now: number;
   onOpen: (item: NotificationItem) => void;
+  onDismiss: (item: NotificationItem) => void;
 }) {
   const when = whenLabel(item, now);
+  const detail = detailLine(item);
   const state = item.unread ? "Não lida. " : "";
-  const label = `${state}${item.title}: ${item.text}. ${when}, ${DESTINATION[item.href.to]}`;
+  const label = `${state}${item.title}: ${detail}. ${when}, ${DESTINATION[item.href.to]}`;
   return (
-    <OriginLink href={item.href} label={label} onOpen={() => onOpen(item)}>
-      <CategoryChip category={item.category} />
-      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="flex items-baseline gap-2">
-          <span
-            className={cn(
-              "min-w-0 flex-1 truncate text-[15px]",
-              item.unread ? "font-bold text-foreground" : "font-medium text-muted-foreground",
-            )}
-          >
-            {item.title}
-          </span>
-          <span
-            className={cn(
-              "shrink-0 text-[12.5px] tabular-nums",
-              item.unread ? "font-semibold text-blue" : "text-tertiary",
-            )}
-          >
-            {when}
-          </span>
-        </span>
-        <span
-          className={cn(
-            "line-clamp-2 text-sm leading-snug",
-            item.unread ? "text-foreground" : "text-muted-foreground",
-          )}
-        >
-          {item.text}
-        </span>
-        <span className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px] text-muted-foreground">
-          {item.warning ? (
-            <span className="inline-flex items-center gap-1.5">
-              <TriangleAlertIcon aria-hidden className="size-3.5 text-red" strokeWidth={2} />
-              {item.warning}
+    <div className="group relative transition-colors duration-150 hover:bg-fill-3">
+      <OriginLink href={item.href} label={label} onOpen={() => onOpen(item)}>
+        <CategoryChip category={item.category} size={28} className="rounded-[8px]" />
+        <span className="flex min-w-0 flex-1 flex-col gap-px">
+          <span className="flex items-baseline gap-2">
+            <span
+              className={cn(
+                "min-w-0 flex-1 truncate text-sm",
+                item.unread ? "font-bold text-foreground" : "font-medium text-muted-foreground",
+              )}
+            >
+              {item.title}
             </span>
-          ) : null}
-          <span className="inline-flex items-center gap-1.5">
-            <UserIcon aria-hidden className="size-3.5" strokeWidth={1.8} />
-            {ownerLabel(item)}
+            <span
+              className={cn(
+                "shrink-0 text-xs tabular-nums",
+                item.unread ? "font-semibold text-blue" : "text-tertiary",
+              )}
+            >
+              {when}
+            </span>
+          </span>
+          <span
+            className={cn(
+              "flex min-w-0 items-center gap-1.5 text-[13px]",
+              item.unread ? "text-foreground" : "text-muted-foreground",
+            )}
+          >
+            {item.warning ? (
+              <TriangleAlertIcon
+                aria-hidden
+                className="size-3.25 shrink-0 text-red"
+                strokeWidth={2}
+              />
+            ) : null}
+            <span className="min-w-0 truncate">{detail}</span>
           </span>
         </span>
-      </span>
-      <ChevronRightIcon
-        aria-hidden
-        className="size-4 shrink-0 self-center text-tertiary transition-transform duration-150 group-hover:translate-x-0.5"
-        strokeWidth={1.8}
-      />
-    </OriginLink>
+      </OriginLink>
+      <button
+        type="button"
+        onClick={() => onDismiss(item)}
+        aria-label={`Limpar notificação de ${item.title}`}
+        title="Limpar"
+        className="absolute top-1/2 right-1.5 grid size-7.5 -translate-y-1/2 place-items-center rounded-full text-muted-foreground opacity-0 transition-[opacity,background-color] duration-150 outline-none group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-fill-2 hover:text-foreground focus-visible:opacity-100 focus-visible:ring-3 focus-visible:ring-ring/40 pointer-coarse:opacity-100 pointer-coarse:after:absolute pointer-coarse:after:-inset-1.5"
+      >
+        <XIcon aria-hidden className="size-3.5" strokeWidth={2} />
+      </button>
+    </div>
   );
 }

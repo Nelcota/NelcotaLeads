@@ -2,9 +2,14 @@ import { createServerFn } from "@tanstack/react-start";
 import { env } from "cloudflare:workers";
 import { z } from "zod";
 import { getDb } from "@/db/client";
-import { markReadSchema, notificationPrefsSchema, notificationsEnabled } from "@/lib/notifications";
+import {
+  notificationKeysSchema,
+  notificationPrefsSchema,
+  notificationsEnabled,
+} from "@/lib/notifications";
 import { idSchema } from "@/lib/schemas";
 import {
+  dismissNotifications,
   loadNotificationPrefs,
   loadNotifications,
   markLeadRepliesRead,
@@ -38,10 +43,18 @@ export const getNotifications = createServerFn({ method: "GET" }).handler(async 
 export type NotificationsData = Awaited<ReturnType<typeof getNotifications>>;
 
 export const markNotificationsReadFn = createServerFn({ method: "POST" })
-  .validator(markReadSchema)
+  .validator(notificationKeysSchema)
   .handler(async ({ data }) => {
     if (!isEnabled()) return { ok: true as const };
     await markNotificationsRead(getDb(), await signedInUser(), data.keys);
+    return { ok: true as const };
+  });
+
+export const dismissNotificationsFn = createServerFn({ method: "POST" })
+  .validator(notificationKeysSchema)
+  .handler(async ({ data }) => {
+    if (!isEnabled()) return { ok: true as const };
+    await dismissNotifications(getDb(), await signedInUser(), data.keys);
     return { ok: true as const };
   });
 

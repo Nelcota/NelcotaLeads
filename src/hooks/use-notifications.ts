@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { errorToast } from "@/lib/mutation-toasts";
 import {
-  groupNotifications,
+  splitNotifications,
   visibleNotifications,
   type NotificationItem,
   type NotificationPrefs,
@@ -10,6 +10,7 @@ import {
 } from "@/lib/notifications";
 import { notificationsQuery } from "@/lib/queries";
 import {
+  dismissNotificationsFn,
   markNotificationsReadFn,
   saveNotificationPrefs,
   type NotificationsData,
@@ -21,6 +22,11 @@ function withRead(data: NotificationsData | undefined, keys: ReadonlySet<string>
   if (!data?.enabled) return data;
   const items = data.items.map((item) => (keys.has(item.key) ? { ...item, unread: false } : item));
   return { ...data, items };
+}
+
+function without(data: NotificationsData | undefined, keys: ReadonlySet<string>) {
+  if (!data?.enabled) return data;
+  return { ...data, items: data.items.filter((item) => !keys.has(item.key)) };
 }
 
 function withPrefs(data: NotificationsData | undefined, prefs: NotificationPrefs) {
@@ -42,6 +48,25 @@ function useMarkRead() {
     onError: (error, _keys, context) => {
       queryClient.setQueryData(notificationsQuery.queryKey, context?.previous);
       errorToast("Não foi possível marcar como lida")(error);
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: notificationsQuery.queryKey }),
+  });
+}
+
+/** "Limpar": removes notifications from the panel at once, then on the server. */
+function useDismiss() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (keys: string[]) => dismissNotificationsFn({ data: { keys } }),
+    onMutate: async (keys) => {
+      await queryClient.cancelQueries({ queryKey: notificationsQuery.queryKey });
+      const previous = queryClient.getQueryData(notificationsQuery.queryKey);
+      queryClient.setQueryData(notificationsQuery.queryKey, without(previous, new Set(keys)));
+      return { previous };
+    },
+    onError: (error, _keys, context) => {
+      queryClient.setQueryData(notificationsQuery.queryKey, context?.previous);
+      errorToast("Não foi possível limpar")(error);
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: notificationsQuery.queryKey }),
   });
@@ -73,8 +98,11 @@ export type NotificationCenter = {
   /** The panel's filter ("Meus leads" / "Todos"); starts at the saved scope. */
   filter: NotificationScope;
   setFilter: (scope: NotificationScope) => void;
-  groups: ReturnType<typeof groupNotifications>;
+  sections: ReturnType<typeof splitNotifications>;
+  /** Every key on screen (both sections), for "Limpar tudo". */
+  shownKeys: string[];
   markRead: (keys: string[]) => void;
+  dismiss: (keys: string[]) => void;
   savePrefs: (prefs: NotificationPrefs) => void;
 };
 
@@ -86,6 +114,7 @@ export function useNotifications(): NotificationCenter | null {
   const { data } = useQuery(notificationsQuery);
   const [filterChoice, setFilter] = useState<NotificationScope | null>(null);
   const markRead = useMarkRead();
+  const dismiss = useDismiss();
   const savePrefs = useSavePrefs();
 
   const enabled = data?.enabled ? data : null;
@@ -97,7 +126,8 @@ export function useNotifications(): NotificationCenter | null {
     const shown = visibleNotifications(enabled.items, enabled.prefs, filter, enabled.userId);
     return {
       unreadCount: mine.filter((item: NotificationItem) => item.unread).length,
-      groups: groupNotifications(shown),
+      sections: splitNotifications(shown),
+      shownKeys: shown.map((item) => item.key),
     };
   }, [enabled, filter]);
 
@@ -107,10 +137,15 @@ export function useNotifications(): NotificationCenter | null {
     unreadCount: derived.unreadCount,
     filter,
     setFilter,
-    groups: derived.groups,
+    sections: derived.sections,
+    shownKeys: derived.shownKeys,
     markRead: (keys) => {
       if (keys.length === 0) return;
       markRead.mutate(keys);
+    },
+    dismiss: (keys) => {
+      if (keys.length === 0) return;
+      dismiss.mutate(keys);
     },
     savePrefs: (prefs) => {
       setFilter(null);

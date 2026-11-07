@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_NOTIFICATION_PREFS,
-  groupNotifications,
+  splitNotifications,
   isForMe,
   newUnreadKeys,
   notificationsEnabled,
@@ -84,16 +84,23 @@ describe("visibleNotifications", () => {
   });
 });
 
-describe("groupNotifications", () => {
-  it("follows the fixed category order and lists the unread keys", () => {
-    const groups = groupNotifications([
+describe("splitNotifications", () => {
+  it("puts unread above read, keeps the order and mixes the types", () => {
+    const sections = splitNotifications([
       item({ key: "search:s1", category: "searches" }),
       item({ key: "reply:a", unread: false }),
       item({ key: "reply:b" }),
     ]);
-    expect(groups.map((group) => group.category)).toEqual(["replies", "searches"]);
-    expect(groups[0]?.unreadKeys).toEqual(["reply:b"]);
-    expect(groups[0]?.label).toBe("Respostas");
+    expect(sections.map((section) => section.label)).toEqual(["Novas", "Anteriores"]);
+    expect(sections[0]?.items.map((entry) => entry.key)).toEqual(["search:s1", "reply:b"]);
+    expect(sections[1]?.items.map((entry) => entry.key)).toEqual(["reply:a"]);
+  });
+
+  it("leaves out an empty section", () => {
+    expect(splitNotifications([item({ unread: false })]).map((s) => s.label)).toEqual([
+      "Anteriores",
+    ]);
+    expect(splitNotifications([])).toEqual([]);
   });
 });
 

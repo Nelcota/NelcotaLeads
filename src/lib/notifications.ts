@@ -106,27 +106,18 @@ export function visibleNotifications(
     .toSorted((a, b) => b.at - a.at);
 }
 
-export type NotificationGroup = {
-  category: NotificationCategory;
-  label: string;
-  items: NotificationItem[];
-  unreadKeys: string[];
-};
+export type NotificationSection = { label: "Novas" | "Anteriores"; items: NotificationItem[] };
 
-/** The panel's sections: one per category that has something, in the fixed order. */
-export function groupNotifications(items: readonly NotificationItem[]): NotificationGroup[] {
-  return NOTIFICATION_CATEGORIES.flatMap((category) => {
-    const inGroup = items.filter((item) => item.category === category);
-    if (inGroup.length === 0) return [];
-    return [
-      {
-        category,
-        label: CATEGORY_LABELS[category],
-        items: inGroup,
-        unreadKeys: inGroup.filter((item) => item.unread).map((item) => item.key),
-      },
-    ];
-  });
+/**
+ * The panel: one list ordered by time, split only into unread ("Novas") and read ("Anteriores");
+ * the colored icon of each row tells the type. Empty sections are left out.
+ */
+export function splitNotifications(items: readonly NotificationItem[]): NotificationSection[] {
+  const sections: NotificationSection[] = [
+    { label: "Novas", items: items.filter((item) => item.unread) },
+    { label: "Anteriores", items: items.filter((item) => !item.unread) },
+  ];
+  return sections.filter((section) => section.items.length > 0);
 }
 
 /** The bell's number: "9+" past nine, nothing at zero. */
@@ -172,6 +163,7 @@ export function newUnreadKeys(previous: ReadonlySet<string>, items: readonly Not
 /** The read mark of a reply lives on the e-mail; every other one in notification_reads. */
 export const REPLY_KEY_PREFIX = "reply:";
 
-export const markReadSchema = z.object({
+/** The keys a read or clear action applies to. */
+export const notificationKeysSchema = z.object({
   keys: z.array(z.string().min(1).max(160)).min(1).max(200),
 });

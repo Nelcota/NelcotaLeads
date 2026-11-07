@@ -14,9 +14,12 @@ export function SegmentedControl<Value extends string>({
   value,
   options,
   onChange,
+  size = "default",
   className,
 }: {
   label: string;
+  /** "sm" for the compact notification panel. */
+  size?: "default" | "sm";
   value: Value;
   options: readonly Option<Value>[];
   onChange: (value: Value) => void;
@@ -39,7 +42,11 @@ export function SegmentedControl<Value extends string>({
       role="radiogroup"
       aria-label={label}
       onKeyDown={onKeyDown}
-      className={cn("flex gap-0.5 rounded-full bg-fill-2 p-[3px]", className)}
+      className={cn(
+        "flex gap-0.5 rounded-full bg-fill-2",
+        size === "sm" ? "p-0.5" : "p-[3px]",
+        className,
+      )}
     >
       {options.map((option) => {
         const selected = option.value === value;
@@ -52,7 +59,8 @@ export function SegmentedControl<Value extends string>({
             tabIndex={selected ? 0 : -1}
             onClick={() => onChange(option.value)}
             className={cn(
-              "h-8 flex-1 rounded-full px-3 text-[13px] font-medium transition-colors duration-150 outline-none focus-visible:ring-3 focus-visible:ring-ring/40",
+              "flex-1 rounded-full px-3 font-medium transition-colors duration-150 outline-none focus-visible:ring-3 focus-visible:ring-ring/40",
+              size === "sm" ? "h-7 text-[12.5px]" : "h-8 text-[13px]",
               selected
                 ? "bg-card font-semibold text-foreground shadow-[inset_0_0_0_1px_var(--border)] dark:bg-[#3a3a40]"
                 : "text-muted-foreground hover:bg-fill hover:text-foreground",

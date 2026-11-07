@@ -360,8 +360,8 @@ export const leadEvents = sqliteTable(
 );
 
 /**
- * Notifications a person already saw, other than replies (those are read on the e-mail, for the
- * whole team). The key names what it points to and when (`followup:<lead>:<day>`), so a moved
+ * Notifications a person already saw or cleared. A reply's read mark lives on the e-mail, for the
+ * whole team; clearing it is per person, here. The key names what it points to and when (`followup:<lead>:<day>`), so a moved
  * follow-up or a rescheduled meeting notifies again.
  */
 export const notificationReads = sqliteTable(
@@ -374,6 +374,8 @@ export const notificationReads = sqliteTable(
     readAt: integer("read_at", { mode: "timestamp" })
       .notNull()
       .default(sql`(unixepoch())`),
+    // "Limpar": the notification left this person's panel for good (replies included).
+    dismissedAt: integer("dismissed_at", { mode: "timestamp" }),
   },
   (t) => [primaryKey({ columns: [t.userId, t.key] })],
 );

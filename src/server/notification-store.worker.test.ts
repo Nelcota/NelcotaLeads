@@ -5,6 +5,7 @@ import { emails, leads, meetings, notificationReads, searches, users } from "@/d
 import { DEFAULT_NOTIFICATION_PREFS } from "@/lib/notifications";
 import { resetDb } from "../../test/reset-db";
 import {
+  dismissNotifications,
   loadNotificationPrefs,
   loadNotifications,
   markLeadRepliesRead,
@@ -152,6 +153,20 @@ describe("notification store", () => {
     });
   });
 
+  it("clears notifications for one person only, and a cleared reply stays unread for the team", async () => {
+    await db.insert(emails).values(reply("e1", "l1", minutes(-5)));
+    await markNotificationsRead(db, "u1", ["search:s1"], now);
+    await dismissNotifications(db, "u1", ["reply:e1", "search:s1"], now);
+
+    const mine = await loadNotifications(db, "u1", now);
+    expect(mine.map((item) => item.key)).not.toContain("reply:e1");
+    expect(mine.map((item) => item.key)).not.toContain("search:s1");
+
+    const theirs = await loadNotifications(db, "u2", now);
+    expect(theirs.find((item) => item.key === "reply:e1")?.unread).toBe(true);
+    expect(theirs.find((item) => item.key === "search:s1")).toBeDefined();
+  });
+
   it("stores the preferences and falls back to the defaults", async () => {
     expect(await loadNotificationPrefs(db, "u1")).toEqual(DEFAULT_NOTIFICATION_PREFS);
     const prefs = { ...DEFAULT_NOTIFICATION_PREFS, scope: "all" as const };
@@ -163,7 +178,9 @@ describe("notification store", () => {
     const keys = Array.from({ length: 120 }, (_, index) => `search:s${index}`);
     await markNotificationsRead(db, "u1", keys, now);
     await markNotificationsRead(db, "u1", keys, now);
+    await dismissNotifications(db, "u1", keys, now);
     const rows = await db.select().from(notificationReads);
     expect(rows).toHaveLength(120);
+    expect(rows.every((row) => row.dismissedAt !== null)).toBe(true);
   });
 });

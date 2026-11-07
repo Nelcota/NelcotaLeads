@@ -8,7 +8,7 @@ import { unreadBadge } from "@/lib/notifications";
 import { cn } from "@/lib/utils";
 import { NotificationCenterPanel } from "./notification-center";
 
-const PANEL_HEADING = "text-[17px] font-semibold tracking-[-0.01em]";
+const PANEL_HEADING = "text-base font-semibold tracking-[-0.01em]";
 
 /** The sheet's accessible title (phone). */
 function SheetHeading({ children }: { children: ReactNode }) {
@@ -87,7 +87,7 @@ function DesktopBell({ center }: { center: NotificationCenter }) {
         sideOffset={8}
         collisionPadding={16}
         aria-label="Notificações"
-        className="flex max-h-[min(680px,calc(100svh-96px))] w-[440px] flex-col overflow-y-auto overscroll-contain rounded-[28px] border border-border bg-popover p-0 shadow-none!"
+        className="flex max-h-[min(480px,calc(100svh-96px))] w-[360px] flex-col overflow-y-auto overscroll-contain rounded-[24px] border border-border bg-popover p-0 shadow-none!"
       >
         <NotificationCenterPanel
           center={center}

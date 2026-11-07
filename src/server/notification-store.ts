@@ -26,6 +26,8 @@ const MEETING_GRACE_MINUTES = 60;
 const FOLLOW_UP_STATUSES = ["contacted", "replied"] as const;
 /** D1 accepts at most 100 bound values per statement; a read row binds three. */
 const READ_INSERT_CHUNK = 30;
+/** A cleared row binds four values. */
+const DISMISS_CHUNK = 20;
 
 type Draft = Omit<NotificationItem, "unread">;
 
@@ -286,17 +288,25 @@ async function searchItems(db: Db, now: Date): Promise<Draft[]> {
   }));
 }
 
-/** Which of the given keys this person already read (replies excluded). */
-async function readKeys(db: Db, userId: string, keys: readonly string[]): Promise<Set<string>> {
-  if (keys.length === 0) return new Set();
+type PersonMarks = { read: Set<string>; dismissed: Set<string> };
+
+/**
+ * This person's marks on the given keys: which they read (a row means read; replies are read on
+ * the e-mail instead) and which they cleared.
+ */
+async function personMarks(db: Db, userId: string, keys: readonly string[]): Promise<PersonMarks> {
+  if (keys.length === 0) return { read: new Set(), dismissed: new Set() };
   const rows = await db
-    .select({ key: notificationReads.key })
+    .select({ key: notificationReads.key, dismissedAt: notificationReads.dismissedAt })
     .from(notificationReads)
     .where(and(eq(notificationReads.userId, userId), inList(notificationReads.key, keys)));
-  return new Set(rows.map((row) => row.key));
+  return {
+    read: new Set(rows.map((row) => row.key)),
+    dismissed: new Set(rows.filter((row) => row.dismissedAt !== null).map((row) => row.key)),
+  };
 }
 
-/** Every notification of the team, with the read mark of this person. */
+/** Every notification of the team this person did not clear, with their read marks. */
 export async function loadNotifications(db: Db, userId: string, now = new Date()) {
   const [replies, followUps, late, agenda, found] = await Promise.all([
     replyItems(db, now),
@@ -306,16 +316,15 @@ export async function loadNotifications(db: Db, userId: string, now = new Date()
     searchItems(db, now),
   ]);
   const others = [...followUps, ...late, ...agenda, ...found];
-  const read = await readKeys(
-    db,
-    userId,
-    others.map((item) => item.key),
-  );
+  const marks = await personMarks(db, userId, [
+    ...replies.drafts.map((item) => item.key),
+    ...others.map((item) => item.key),
+  ]);
   const items: NotificationItem[] = [
     ...replies.drafts.map((item) => ({ ...item, unread: replies.unread.has(item.key) })),
-    ...others.map((item) => ({ ...item, unread: !read.has(item.key) })),
+    ...others.map((item) => ({ ...item, unread: !marks.read.has(item.key) })),
   ];
-  return items;
+  return items.filter((item) => !marks.dismissed.has(item.key));
 }
 
 export async function loadNotificationPrefs(db: Db, userId: string): Promise<NotificationPrefs> {
@@ -360,6 +369,24 @@ export async function markNotificationsRead(
       .insert(notificationReads)
       .values(chunk.map((key) => ({ userId, key, readAt: now })))
       .onConflictDoNothing();
+  }
+}
+
+/** "Limpar": the notifications leave this person's panel; a reply stays unread for the team. */
+export async function dismissNotifications(
+  db: Db,
+  userId: string,
+  keys: readonly string[],
+  now = new Date(),
+) {
+  for (const chunk of chunks(keys, DISMISS_CHUNK)) {
+    await db
+      .insert(notificationReads)
+      .values(chunk.map((key) => ({ userId, key, readAt: now, dismissedAt: now })))
+      .onConflictDoUpdate({
+        target: [notificationReads.userId, notificationReads.key],
+        set: { dismissedAt: now },
+      });
   }
 }
 
