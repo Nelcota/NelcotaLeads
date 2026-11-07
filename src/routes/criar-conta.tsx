@@ -45,7 +45,7 @@ function SignUpPage() {
         method="post"
         action="/api/signup"
         noValidate
-        className="grid gap-4"
+        className="grid gap-5"
         onSubmit={(event) => void form.onSubmit(event)}
         onBlurCapture={form.onBlurCapture}
       >

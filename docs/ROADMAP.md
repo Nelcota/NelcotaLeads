@@ -17,6 +17,7 @@ The steps, in this order: (1) Visão geral with the new layout on today's data; 
 
 - Agenda calendar, phase 1: Month, Week and Day views on the `/agenda` page, opening on Week, over the meetings and follow-ups the agenda v1 already stores (PR #23). Create a meeting by clicking a free slot and reschedule by dragging. No e-mail. Mockup first, approved by the user before any code; built in its own worktree on top of `feat/nelcota-identity`. (2026-11-05, chosen by the user) One migration added on 2026-11-06: a meeting reason column (fixed list plus "Outro" with free text), so guard rule 7 applies to that step. The rest of the scope is in the 2026-11-06 decision below.
 - Agenda reminders, phase 2: in-app reminders for the team only ("começa em 15 min"), no e-mail to the lead. (2026-11-05, chosen by the user)
+- Sign-in card: no drop shadow, wider card (480px) and larger text on the login, sign-up and password-reset screens, plus a light/dark theme toggle. Applies the "no drop shadows" item below to these screens only. (2026-11-07, asked by the user and approved on localhost)
 
 ## Next
 
