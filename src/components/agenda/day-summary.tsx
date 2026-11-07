@@ -28,14 +28,14 @@ export function DaySummary({
           Hoje
         </span>
       ) : null}
-      <span className="text-[13px] font-medium text-muted-foreground">
+      <span className="text-[14px] font-medium text-muted-foreground">
         {countLabel(meetings.length, ofDay.length - meetings.length)}
       </span>
       {next ? (
         <button
           type="button"
           onClick={() => onPick(next)}
-          className="ml-auto inline-flex h-[30px] max-w-full items-center gap-1.5 rounded-full border border-border px-3 text-[13px] transition-colors hover:bg-fill-2"
+          className="ml-auto inline-flex h-[30px] max-w-full items-center gap-1.5 rounded-full border border-border px-3 text-[14px] transition-colors hover:bg-fill-2"
         >
           <span className="font-semibold text-primary">{isToday ? "Próxima" : "Primeira"}</span>
           <span className="font-semibold tabular-nums">

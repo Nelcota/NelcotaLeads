@@ -67,7 +67,7 @@ export function LeadSheet({
               }}
               toolbar={
                 position >= 0 ? (
-                  <div className="flex items-center gap-2.5 pr-10 text-[12.5px] font-medium text-muted-foreground">
+                  <div className="flex items-center gap-2.5 pr-10 text-[14px] font-medium text-muted-foreground">
                     <div className="flex rounded-full bg-fill-2 p-0.5">
                       <Hint label="Anterior (K)">
                         <Button
@@ -96,10 +96,10 @@ export function LeadSheet({
                       {position + 1} de {ids.length}
                     </span>
                     <span className="hidden gap-1 sm:flex" aria-hidden>
-                      <kbd className="grid h-[18px] min-w-[18px] place-items-center rounded-[5px] bg-fill-2 px-1 text-[10.5px] text-muted-foreground">
+                      <kbd className="grid h-[18px] min-w-[18px] place-items-center rounded-[5px] bg-fill-2 px-1 text-[12px] text-muted-foreground">
                         K
                       </kbd>
-                      <kbd className="grid h-[18px] min-w-[18px] place-items-center rounded-[5px] bg-fill-2 px-1 text-[10.5px] text-muted-foreground">
+                      <kbd className="grid h-[18px] min-w-[18px] place-items-center rounded-[5px] bg-fill-2 px-1 text-[12px] text-muted-foreground">
                         J
                       </kbd>
                     </span>

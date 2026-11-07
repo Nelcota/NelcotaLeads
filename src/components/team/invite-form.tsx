@@ -51,14 +51,14 @@ export function InviteForm({
             </Button>
           </div>
           {error ? (
-            <p role="alert" className="text-[12.5px] text-red">
+            <p role="alert" className="text-[14px] text-red">
               {error}
             </p>
           ) : null}
         </div>
         {emailsEnabled ? null : (
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-border/60 pt-3">
-            <p className="min-w-0 flex-1 basis-60 text-[13px] text-muted-foreground">
+            <p className="min-w-0 flex-1 basis-60 text-[14px] text-muted-foreground">
               {INVITE_EMAILS_OFF}
             </p>
             <Button type="button" variant="outline" size="sm" onClick={onCopyLink}>

@@ -312,7 +312,7 @@ function ConversationsPage() {
                         {FILTER_LABELS[item]}
                         <span
                           className={cn(
-                            "text-[11.5px] tabular-nums",
+                            "text-[13px] tabular-nums",
                             tone && count > 0 ? TONE_TEXT[tone] : "opacity-60",
                           )}
                         >
@@ -396,7 +396,7 @@ function ConversationsPage() {
                           >
                             {row.name}
                           </span>
-                          <span className="shrink-0 text-[11.5px] text-tertiary tabular-nums">
+                          <span className="shrink-0 text-[13px] text-tertiary tabular-nums">
                             {row.lastEmailAt ? shortTime(row.lastEmailAt) : ""}
                           </span>
                         </span>
@@ -635,7 +635,7 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
           {!closed ? (
             <label
               htmlFor="ai-mode"
-              className="flex shrink-0 cursor-pointer items-center gap-2.5 rounded-full bg-fill-2 py-1 pr-1 pl-3 text-[12.5px] font-medium whitespace-nowrap text-purple"
+              className="flex shrink-0 cursor-pointer items-center gap-2.5 rounded-full bg-fill-2 py-1 pr-1 pl-3 text-[14px] font-medium whitespace-nowrap text-purple"
             >
               <SparklesIcon className="size-3.5" />
               <span className="max-sm:hidden">IA no comando</span>
@@ -747,9 +747,9 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
         {!closed && lead.email ? (
           <div className="px-4 pb-4 sm:px-5">
             <div className="@container rounded-[18px] bg-card shadow-[inset_0_1px_0_rgb(255_255_255/0.1),inset_0_0_0_1px_rgb(255_255_255/0.06),0_16px_36px_rgb(0_0_0/0.4)] [:root:not(.dark)_&]:shadow-[0_0_0_1px_rgb(0_0_0/0.06),0_8px_24px_rgb(0_0_0/0.08)]">
-              <div className="flex min-w-0 items-center gap-2 px-4 pt-3 text-[12.5px] text-muted-foreground">
+              <div className="flex min-w-0 items-center gap-2 px-4 pt-3 text-[14px] text-muted-foreground">
                 Para
-                <span className="min-w-0 truncate rounded-full bg-fill-2 px-2.5 py-0.5 text-[11.5px] font-medium text-foreground">
+                <span className="min-w-0 truncate rounded-full bg-fill-2 px-2.5 py-0.5 text-[13px] font-medium text-foreground">
                   {lead.email}
                 </span>
                 {draft?.author === "ai" && text === null ? (

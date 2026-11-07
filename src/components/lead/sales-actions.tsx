@@ -56,7 +56,7 @@ export function SalesActions({
   return (
     <>
       {sales.proposal ? (
-        <p className="w-full text-[12.5px] text-muted-foreground">
+        <p className="w-full text-[14px] text-muted-foreground">
           {proposalStatusLine(sales.proposal)}
         </p>
       ) : null}

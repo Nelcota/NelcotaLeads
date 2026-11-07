@@ -329,7 +329,7 @@ export function GroupedRow({
         {subtitle ? (
           <div
             className={cn(
-              "truncate text-[12.5px]",
+              "truncate text-[14px]",
               subtitleTone
                 ? cn("font-medium", TONE_TEXT[subtitleTone])
                 : "font-light text-muted-foreground",
@@ -434,7 +434,7 @@ export function Kbd({ className, ...props }: ComponentProps<"kbd">) {
   return (
     <kbd
       className={cn(
-        "inline-grid h-[20px] min-w-[20px] place-items-center rounded-[5px] bg-fill-2 px-1.5 text-[11px] font-medium text-muted-foreground shadow-[inset_0_-1px_0_rgb(0_0_0/0.12)]",
+        "inline-grid h-[20px] min-w-[20px] place-items-center rounded-[5px] bg-fill-2 px-1.5 text-[12px] font-medium text-muted-foreground shadow-[inset_0_-1px_0_rgb(0_0_0/0.12)]",
         className,
       )}
       {...props}

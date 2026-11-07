@@ -56,11 +56,11 @@ export function GoalForm({ values, error, saving, onChange, onSubmit, onCancel }
           </div>
         </div>
       </div>
-      <p className="text-[12.5px] text-muted-foreground">
+      <p className="text-[14px] text-muted-foreground">
         Vale a partir deste mês. Os meses anteriores mantêm a meta que tinham.
       </p>
       {error ? (
-        <p role="alert" className="text-[12.5px] text-red">
+        <p role="alert" className="text-[14px] text-red">
           {error}
         </p>
       ) : null}

@@ -97,7 +97,7 @@ export function MeetingDialog({
               <DialogTitle className="text-lg font-semibold">
                 {rescheduling ? "Remarcar reunião" : "Nova reunião"}
               </DialogTitle>
-              <DialogDescription className="text-[13px] text-muted-foreground">
+              <DialogDescription className="text-[14px] text-muted-foreground">
                 {longDay(form.day)} · 30 min
               </DialogDescription>
             </div>
@@ -149,7 +149,7 @@ export function MeetingDialog({
               />
             </>
           )}
-          {error ? <p className="text-[12.5px] text-red">{error}</p> : null}
+          {error ? <p className="text-[14px] text-red">{error}</p> : null}
           <div className="flex gap-2">
             <Button type="submit" disabled={actions.booking || actions.moving}>
               {rescheduling ? "Salvar" : "Marcar reunião"}
@@ -181,7 +181,7 @@ function KindChips({
           aria-checked={value === kind}
           onClick={() => onChange(kind)}
           className={cn(
-            "inline-flex h-8 items-center gap-1.5 rounded-full pr-3.5 pl-3 text-[13px] font-medium transition-colors",
+            "inline-flex h-8 items-center gap-1.5 rounded-full pr-3.5 pl-3 text-[14px] font-medium transition-colors",
             value === kind ? "bg-primary text-primary-foreground" : "bg-fill-2 hover:bg-fill",
           )}
         >
@@ -208,7 +208,7 @@ function InviteCheck({
   return (
     <label
       className={cn(
-        "flex min-h-8 items-center gap-2.5 text-[13px]",
+        "flex min-h-8 items-center gap-2.5 text-[14px]",
         disabled && "text-muted-foreground",
       )}
       title={disabled ? "Só sai com os e-mails de venda ligados e um lead com e-mail." : undefined}

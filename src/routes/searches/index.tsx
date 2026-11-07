@@ -221,7 +221,7 @@ function SearchCard({ search, index }: { search: Search; index: number }) {
             <span className="truncate text-base font-medium">
               {search.niche} em {search.city}
             </span>
-            <span className="rounded-full bg-fill-2 px-2 py-px text-[11.5px] font-medium text-muted-foreground tabular-nums">
+            <span className="rounded-full bg-fill-2 px-2 py-px text-[13px] font-medium text-muted-foreground tabular-nums">
               {search.foundCount} {search.foundCount === 1 ? "lead" : "leads"}
             </span>
           </p>
@@ -355,7 +355,7 @@ function SearchCard({ search, index }: { search: Search; index: number }) {
           <Step state="pending" title="Concluída" />
         </div>
       ) : (
-        <p className="flex items-center gap-2 border-t border-border/70 px-4 py-2.5 pl-[58px] text-[12.5px] font-light text-muted-foreground">
+        <p className="flex items-center gap-2 border-t border-border/70 px-4 py-2.5 pl-[58px] text-[14px] font-light text-muted-foreground">
           {search.status === "cancelled" ? (
             <XIcon className="size-3.5 text-gray" strokeWidth={2.6} />
           ) : (
@@ -503,7 +503,7 @@ function Step({
       {children ? (
         <p
           className={cn(
-            "text-[12.5px] font-light [&_b]:font-medium [&_b]:text-foreground",
+            "text-[14px] font-light [&_b]:font-medium [&_b]:text-foreground",
             state === "error" ? "text-red" : "text-muted-foreground",
           )}
         >

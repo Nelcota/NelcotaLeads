@@ -50,7 +50,7 @@ export function EventCard({
       className={cn(
         cardClass,
         canDrag ? "cursor-grab" : "cursor-pointer",
-        compact && "px-1.5 text-[11px] leading-[14px]",
+        compact && "px-1.5 text-[12px] leading-[14px]",
       )}
     >
       <EntryIcon kind={entry.meetingKind} className={cn(compact && "size-3", narrowHidden)} />
@@ -84,7 +84,7 @@ export function GroupCard({
       onClick={() => onPick(entries)}
       title={`${entries.map((entry) => entry.leadName).join(" · ")} · clique para ver`}
       style={style}
-      className={cn(cardClass, "cursor-pointer", compact && "px-1.5 text-[11px] leading-[14px]")}
+      className={cn(cardClass, "cursor-pointer", compact && "px-1.5 text-[12px] leading-[14px]")}
     >
       <LayersIcon
         aria-hidden

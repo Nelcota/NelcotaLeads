@@ -10,7 +10,7 @@ export function LossReasonsCard({ losses, caption }: { losses: LossCount[]; capt
       className="grouped enter flex min-w-0 flex-col gap-3 p-5"
     >
       <div className="flex flex-wrap items-baseline gap-2">
-        <h2 id="loss-reasons" className="text-[17px] font-semibold">
+        <h2 id="loss-reasons" className="text-[18px] font-semibold">
           Por que não fecharam
         </h2>
         <span className="text-sm text-muted-foreground">
@@ -26,7 +26,7 @@ export function LossReasonsCard({ losses, caption }: { losses: LossCount[]; capt
           {bars.map((bar) => (
             <li
               key={bar.reason}
-              className="grid grid-cols-[minmax(0,150px)_minmax(0,1fr)_72px] items-center gap-3 text-[14px] sm:grid-cols-[minmax(0,190px)_minmax(0,1fr)_80px]"
+              className="grid grid-cols-[minmax(0,150px)_minmax(0,1fr)_72px] items-center gap-3 text-[15px] sm:grid-cols-[minmax(0,190px)_minmax(0,1fr)_80px]"
             >
               <span className="truncate text-muted-foreground">{bar.label}</span>
               <ProgressBar share={bar.share} tone="red" label={`${bar.label}: ${bar.count}`} />
@@ -34,7 +34,7 @@ export function LossReasonsCard({ losses, caption }: { losses: LossCount[]; capt
                 <span className={bar.count === 0 ? "text-tertiary" : "font-semibold"}>
                   {bar.count}
                 </span>
-                <span className="ml-1 text-[12px] text-tertiary">{bar.percent}%</span>
+                <span className="ml-1 text-[13px] text-tertiary">{bar.percent}%</span>
               </span>
             </li>
           ))}

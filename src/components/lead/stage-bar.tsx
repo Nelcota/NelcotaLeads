@@ -59,7 +59,7 @@ function StageStep({
       />
       <span
         className={cn(
-          "truncate text-[11px]",
+          "truncate text-[12px]",
           state === "current" ? "font-semibold text-blue" : "font-medium text-muted-foreground",
           state === "ahead" && "text-tertiary",
         )}

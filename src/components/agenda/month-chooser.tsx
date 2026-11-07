@@ -43,7 +43,7 @@ export function MonthChooser({
             aria-checked={value === year}
             onClick={() => onYear(value)}
             className={cn(
-              "h-[30px] rounded-full text-[13px] transition-colors",
+              "h-[30px] rounded-full text-[14px] transition-colors",
               value === year
                 ? "bg-primary font-semibold text-primary-foreground"
                 : "font-medium hover:bg-fill",
@@ -66,7 +66,7 @@ export function MonthChooser({
               aria-label={`${capitalize(name)} de ${year}`}
               onClick={() => onMonth(first)}
               className={cn(
-                "h-11 rounded-full text-[13px] transition-colors",
+                "h-11 rounded-full text-[14px] transition-colors",
                 chosen ? "bg-primary font-semibold text-primary-foreground" : "hover:bg-fill-2",
                 current && !chosen
                   ? "font-bold text-primary ring-[1.5px] ring-primary ring-inset"

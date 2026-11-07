@@ -11,7 +11,7 @@ export function ReplyHoursCard({ data }: { data: Dashboard }) {
       className="grouped enter flex min-w-0 flex-col gap-4 p-5"
     >
       <div className="flex flex-wrap items-baseline gap-2">
-        <h2 id="reply-hours" className="text-[17px] font-semibold">
+        <h2 id="reply-hours" className="text-[18px] font-semibold">
           Quando os leads respondem
         </h2>
         <span className="text-sm text-muted-foreground">
@@ -41,13 +41,13 @@ export function ReplyHoursCard({ data }: { data: Dashboard }) {
                 }
                 style={{ height: `${Math.max(4, bar.share * 110)}px` }}
               />
-              <span className="text-[11px] text-tertiary">{bar.hour}h</span>
+              <span className="text-[12px] text-tertiary">{bar.hour}h</span>
             </div>
           ))}
         </div>
       )}
       {chart.total > 0 ? (
-        <p className="mt-auto border-t border-border/60 pt-3 text-[12.5px] text-tertiary">
+        <p className="mt-auto border-t border-border/60 pt-3 text-[14px] text-tertiary">
           {chart.outsidePercent}% das respostas chegam fora da janela das {windowStart}h às{" "}
           {windowEnd}h.
         </p>

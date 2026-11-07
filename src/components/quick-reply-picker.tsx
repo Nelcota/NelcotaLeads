@@ -106,7 +106,7 @@ export function QuickReplyPicker({
           <Link
             to="/settings"
             hash="respostas"
-            className="flex h-8 items-center rounded-lg px-2 text-[12.5px] font-medium text-blue hover:bg-fill-3"
+            className="flex h-8 items-center rounded-lg px-2 text-[14px] font-medium text-blue hover:bg-fill-3"
           >
             {data?.length ? "Editar modelos" : "Criar modelos em Configurações"}
           </Link>

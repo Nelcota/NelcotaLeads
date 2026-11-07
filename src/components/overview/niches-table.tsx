@@ -45,7 +45,7 @@ function Cell({
         {value}
       </span>
       {of !== undefined ? (
-        <span className="ml-1 text-[12px] text-tertiary">
+        <span className="ml-1 text-[13px] text-tertiary">
           {percent !== null ? `${percent}%` : "–"}
         </span>
       ) : null}
@@ -57,7 +57,7 @@ function Tag({ tone, children }: { tone: "green" | "red"; children: string }) {
   return (
     <span
       className={cn(
-        "shrink-0 rounded-full px-2 py-px text-[11.5px] font-semibold",
+        "shrink-0 rounded-full px-2 py-px text-[13px] font-semibold",
         tone === "green" ? "bg-green/16 text-green" : "bg-red/16 text-red",
       )}
     >
@@ -68,7 +68,7 @@ function Tag({ tone, children }: { tone: "green" | "red"; children: string }) {
 
 function Header() {
   return (
-    <div className={cn(GRID, "py-2 text-[12.5px] font-semibold text-tertiary")}>
+    <div className={cn(GRID, "py-2 text-[14px] font-semibold text-tertiary")}>
       <span>Nicho</span>
       <span className="text-right max-lg:hidden">Leads</span>
       <span className="text-right max-sm:hidden">Contatados</span>
@@ -110,7 +110,7 @@ function NicheRow({ niche, tags }: { niche: NicheMetricRow; tags: ReturnType<typ
           <span className="text-tertiary">—</span>
         )}
       </span>
-      <span className="truncate text-[13.5px] text-muted-foreground max-lg:hidden">
+      <span className="truncate text-[15px] text-muted-foreground max-lg:hidden">
         {niche.topLossReason ? LOSS_REASON_LABELS[niche.topLossReason] : "—"}
       </span>
     </Link>
@@ -126,7 +126,7 @@ export function NichesTable({ period, caption }: { period: OverviewPeriod; capti
   return (
     <section aria-labelledby="niches" className="grouped enter min-w-0 py-4">
       <div className="flex flex-wrap items-baseline gap-2 px-5 pb-2">
-        <h2 id="niches" className="text-[17px] font-semibold">
+        <h2 id="niches" className="text-[18px] font-semibold">
           Por nicho
         </h2>
         <span className="text-sm text-muted-foreground">

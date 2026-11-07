@@ -10,20 +10,21 @@
 
 @theme {
   --font-sans: "Urbanist", system-ui, sans-serif;
-  --text-xs: 0.75rem;
-  --text-xs--line-height: 1rem;
-  --text-sm: 0.8125rem;
+  /* One step above the old scale so nothing reads below 12px. */
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: 1.125rem;
+  --text-sm: 0.875rem;
   --text-sm--line-height: 1.25rem;
-  --text-base: 0.875rem;
+  --text-base: 0.9375rem;
   --text-base--line-height: 1.5rem;
-  --text-lg: 1rem;
-  --text-lg--line-height: 1.5rem;
-  --text-xl: 1.3125rem;
+  --text-lg: 1.0625rem;
+  --text-lg--line-height: 1.625rem;
+  --text-xl: 1.375rem;
   --text-xl--line-height: 1.75rem;
-  --text-2xl: 1.625rem;
-  --text-2xl--line-height: 2rem;
-  --text-3xl: 2.25rem;
-  --text-3xl--line-height: 2.5rem;
+  --text-2xl: 1.75rem;
+  --text-2xl--line-height: 2.125rem;
+  --text-3xl: 2.375rem;
+  --text-3xl--line-height: 2.75rem;
   --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
 }
 

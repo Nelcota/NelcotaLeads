@@ -32,12 +32,10 @@ export function AgendaRow({ entry, today }: { entry: AgendaEntry; today: string 
       </span>
       <span className="grid min-w-0 flex-1">
         <span className="truncate font-semibold">{entry.leadName}</span>
-        <span className="truncate text-[13px] text-muted-foreground">{agendaDetail(entry)}</span>
+        <span className="truncate text-[14px] text-muted-foreground">{agendaDetail(entry)}</span>
       </span>
       <Badge variant={meeting ? "blue" : "orange"}>{meeting ? "Reunião" : "Retorno"}</Badge>
-      <span className="shrink-0 text-[13.5px] font-semibold text-blue max-sm:hidden">
-        Abrir lead
-      </span>
+      <span className="shrink-0 text-[15px] font-semibold text-blue max-sm:hidden">Abrir lead</span>
     </Link>
   );
 }

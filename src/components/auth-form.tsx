@@ -99,13 +99,13 @@ export function Field({ label, error, hint, aside, children }: FieldProps) {
         <label htmlFor={id} className="text-[14px] font-medium text-foreground/90">
           {label}
         </label>
-        {aside ? <span className="text-[13.5px]">{aside}</span> : null}
+        {aside ? <span className="text-[14px]">{aside}</span> : null}
       </div>
       {children({ id, describedBy: note ? noteId : undefined })}
       {note ? (
         <p
           id={noteId}
-          className={cn("text-[13px] leading-snug", error ? "text-red" : "text-tertiary")}
+          className={cn("text-[14px] leading-snug", error ? "text-red" : "text-tertiary")}
         >
           {note}
         </p>

@@ -155,7 +155,7 @@ function MailCard() {
           {mail?.configured ? (
             <>
               <p className="truncate font-medium">{mail.address}</p>
-              <p className="text-[12.5px] font-medium text-green">
+              <p className="text-[14px] font-medium text-green">
                 Conectado · {mail.sentToday} de {mail.limit} enviados hoje
               </p>
             </>
@@ -323,7 +323,7 @@ function AutopilotForm() {
               <IconTile icon={item.icon} tone={item.tone} size={30} />
               <div className="grid min-w-0 flex-1 gap-0.5">
                 <Label htmlFor={`auto-${item.name}`}>{item.label}</Label>
-                <p className="text-[12.5px] font-light text-muted-foreground">{item.hint}</p>
+                <p className="text-[14px] font-light text-muted-foreground">{item.hint}</p>
               </div>
               <Controller
                 control={form.control}
@@ -346,7 +346,7 @@ function AutopilotForm() {
         </div>
 
         <div className="grid gap-2 border-t border-border/70 px-4 pt-3.5 pb-4">
-          <p className="text-[13px] font-medium text-muted-foreground">O que buscar</p>
+          <p className="text-[14px] font-medium text-muted-foreground">O que buscar</p>
           {targets.fields.map((field, index) => (
             <div key={field.id} className="flex items-center gap-2">
               <div className="grid flex-1 grid-cols-[1fr_auto_1fr] items-center gap-2">
@@ -655,7 +655,7 @@ function SettingsForm({ defaults }: { defaults: SettingsInput }) {
                 "Ainda não informados"}
             </p>
           </div>
-          <Link to="/conta" className="text-[12.5px] font-medium text-blue hover:underline">
+          <Link to="/conta" className="text-[14px] font-medium text-blue hover:underline">
             Editar em Conta
           </Link>
         </div>

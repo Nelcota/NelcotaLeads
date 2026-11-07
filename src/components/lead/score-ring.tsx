@@ -40,8 +40,8 @@ function ScoreValue({ score, pending }: { score: number | null; pending: boolean
         title={`Nota ${score} de 100`}
         className={cn("grid justify-items-center leading-none", TONE_TEXT[tone])}
       >
-        <b className="text-[15px] font-semibold">{scoreLabel(score)}</b>
-        <small className="mt-0.5 text-[10.5px] font-medium text-muted-foreground">Nota</small>
+        <b className="text-[16px] font-semibold">{scoreLabel(score)}</b>
+        <small className="mt-0.5 text-[12px] font-medium text-muted-foreground">Nota</small>
       </span>
     </ProgressRing>
   );

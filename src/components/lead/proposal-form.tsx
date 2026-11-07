@@ -140,7 +140,7 @@ export function ProposalForm({
         />
       ) : null}
       {error ? (
-        <p role="alert" className="text-[12.5px] text-red">
+        <p role="alert" className="text-[14px] text-red">
           {error}
         </p>
       ) : null}
@@ -165,7 +165,7 @@ export function ProposalForm({
         </Button>
       </div>
       {canEmail ? null : (
-        <p className="text-[12.5px] text-orange">
+        <p className="text-[14px] text-orange">
           {hasEmail ? SALES_EMAILS_OFF : "Este lead não tem e-mail"}: a proposta fica salva e o
           texto pode ser copiado.
         </p>

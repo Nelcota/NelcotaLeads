@@ -161,13 +161,13 @@ function AppSidebar() {
           </Link>
         </SidebarMenuButton>
         {item.to === "/conversas" && attention > 0 ? (
-          <SidebarMenuBadge className="top-1.5! h-[18px] min-w-0 rounded-full bg-orange px-1.5 text-[11px] text-[#1b1000] tabular-nums">
+          <SidebarMenuBadge className="top-1.5! h-[18px] min-w-0 rounded-full bg-orange px-1.5 text-[12px] text-[#1b1000] tabular-nums">
             {attention}
             <span className="sr-only"> precisam de você</span>
           </SidebarMenuBadge>
         ) : null}
         {item.to === "/agenda" && todayCount > 0 ? (
-          <SidebarMenuBadge className="top-1.5! h-[18px] min-w-0 rounded-full bg-blue px-1.5 text-[11px] text-white tabular-nums">
+          <SidebarMenuBadge className="top-1.5! h-[18px] min-w-0 rounded-full bg-blue px-1.5 text-[12px] text-white tabular-nums">
             {todayCount}
             <span className="sr-only"> hoje</span>
           </SidebarMenuBadge>
@@ -194,12 +194,12 @@ function AppSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild className="hover:bg-transparent">
               <Link to="/">
-                <span className="grid aspect-square size-[30px] shrink-0 place-items-center rounded-[9px] bg-primary text-[13px] font-bold text-primary-foreground">
+                <span className="grid aspect-square size-[30px] shrink-0 place-items-center rounded-[9px] bg-primary text-[14px] font-bold text-primary-foreground">
                   N
                 </span>
                 <span className="grid flex-1 text-left leading-tight">
-                  <span className="truncate text-[13.5px] font-medium">Nelcota Leads</span>
-                  <span className="truncate text-[11.5px] font-light text-muted-foreground">
+                  <span className="truncate text-[15px] font-medium">Nelcota Leads</span>
+                  <span className="truncate text-[13px] font-light text-muted-foreground">
                     Prospecção B2B
                   </span>
                 </span>
@@ -210,7 +210,7 @@ function AppSidebar() {
         <button
           type="button"
           onClick={openNewSearch}
-          className="press flex h-[30px] items-center gap-2 rounded-[9px] bg-fill-2 px-2.5 text-[12.5px] text-tertiary transition-colors hover:bg-fill hover:text-muted-foreground group-data-[collapsible=icon]:hidden"
+          className="press flex h-[30px] items-center gap-2 rounded-[9px] bg-fill-2 px-2.5 text-[14px] text-tertiary transition-colors hover:bg-fill hover:text-muted-foreground group-data-[collapsible=icon]:hidden"
         >
           <SearchIcon className="size-3.5" />
           Nova busca
@@ -218,7 +218,7 @@ function AppSidebar() {
       </SidebarHeader>
       <SidebarContent className="px-0.5">
         <SidebarGroup className="py-1">
-          <SidebarGroupLabel className="h-7 text-[11.5px] font-medium text-tertiary">
+          <SidebarGroupLabel className="h-7 text-[13px] font-medium text-tertiary">
             Prospecção
           </SidebarGroupLabel>
           <SidebarGroupContent>
@@ -226,7 +226,7 @@ function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
         <SidebarGroup className="py-1">
-          <SidebarGroupLabel className="h-7 text-[11.5px] font-medium text-tertiary">
+          <SidebarGroupLabel className="h-7 text-[13px] font-medium text-tertiary">
             Sistema
           </SidebarGroupLabel>
           <SidebarGroupContent>
@@ -266,7 +266,7 @@ function UsageMeter() {
         <Link
           to="/settings"
           hash="email"
-          className="flex items-center gap-2.5 text-[12.5px] font-medium text-orange"
+          className="flex items-center gap-2.5 text-[14px] font-medium text-orange"
         >
           <span className="size-2 rounded-full bg-orange" />
           E-mail não conectado
@@ -306,7 +306,7 @@ function MeterRow({
         ? { tabIndex: 0, role: "group", "aria-label": `${used} de ${limit} ${label}` }
         : {})}
     >
-      <div className="flex items-baseline justify-between gap-2 text-[12.5px] leading-tight">
+      <div className="flex items-baseline justify-between gap-2 text-[14px] leading-tight">
         <span className="text-muted-foreground first-letter:uppercase">{label}</span>
         <span className="font-semibold tabular-nums">
           {used} de {limit}
@@ -362,10 +362,10 @@ function AccountRow() {
           <>
             <Avatar name={name} src={account?.avatar} size={28} />
             <div className="min-w-0 flex-1 leading-tight group-data-[collapsible=icon]:hidden">
-              <p className="truncate text-[12.5px] font-medium">{name}</p>
+              <p className="truncate text-[14px] font-medium">{name}</p>
               <p
                 className={cn(
-                  "flex min-w-0 items-center gap-1.5 text-[11.5px]",
+                  "flex min-w-0 items-center gap-1.5 text-[13px]",
                   address ? "text-green" : "text-orange",
                 )}
               >
@@ -439,7 +439,7 @@ export function Page({
         <div className="flex min-h-0 flex-1 flex-col">{children}</div>
       ) : (
         <div className="scroll-fade min-h-0 flex-1 overflow-y-auto overscroll-contain">
-          <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-6 px-4 pt-1 pb-12 lg:px-6">
+          <div className="mx-auto flex w-full max-w-[1800px] flex-col gap-6 px-4 pt-1 pb-12 lg:px-6">
             {description ? (
               <p className="-mt-1 text-base font-light text-muted-foreground">{description}</p>
             ) : null}

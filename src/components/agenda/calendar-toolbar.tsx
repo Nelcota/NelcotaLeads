@@ -87,7 +87,7 @@ function PeriodPicker({
           >
             <span
               aria-live="polite"
-              className="truncate text-[17px] font-semibold tracking-[-0.01em]"
+              className="truncate text-[18px] font-semibold tracking-[-0.01em]"
             >
               {rangeLabel(view, anchor)}
             </span>
@@ -159,7 +159,7 @@ function ViewSwitch({ calendar }: { calendar: AgendaCalendar }) {
             aria-pressed={active}
             onClick={() => calendar.goTo(option, calendar.anchor)}
             className={cn(
-              "h-[30px] rounded-full px-3.5 text-[13px] transition-colors duration-150",
+              "h-[30px] rounded-full px-3.5 text-[14px] transition-colors duration-150",
               active
                 ? "bg-primary font-semibold text-primary-foreground"
                 : "font-medium hover:bg-fill",

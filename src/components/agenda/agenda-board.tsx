@@ -227,10 +227,10 @@ function columnOpener(
 function EmptyNote({ view }: { view: "semana" | "dia" }) {
   return (
     <div className="pointer-events-none absolute top-[45%] left-1/2 z-[6] grid w-[340px] max-w-[calc(100%-32px)] -translate-x-1/2 -translate-y-1/2 justify-items-center gap-2 rounded-[20px] border border-border bg-card p-6 text-center">
-      <h3 className="text-[15px] font-semibold">
+      <h3 className="text-[16px] font-semibold">
         {view === "semana" ? "Nada marcado nesta semana" : "Nada marcado neste dia"}
       </h3>
-      <p className="text-[13px] text-muted-foreground">
+      <p className="text-[14px] text-muted-foreground">
         Clique num horário vago para marcar uma reunião.
       </p>
     </div>

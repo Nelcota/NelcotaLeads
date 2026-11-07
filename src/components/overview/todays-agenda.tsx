@@ -15,14 +15,14 @@ export function TodaysAgenda() {
   return (
     <section aria-labelledby="todays-agenda" className="grouped enter">
       <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 px-5 pt-4 pb-2">
-        <h2 id="todays-agenda" className="text-[17px] font-semibold">
+        <h2 id="todays-agenda" className="text-[18px] font-semibold">
           Agenda de hoje
         </h2>
         <span className="rounded-full bg-fill-2 px-2 py-px text-xs font-bold text-muted-foreground tabular-nums">
           {entries.length}
         </span>
         <span className="min-w-0 flex-1" />
-        <Link to="/agenda" className="text-[13.5px] font-semibold text-blue hover:underline">
+        <Link to="/agenda" className="text-[15px] font-semibold text-blue hover:underline">
           Abrir agenda
         </Link>
       </div>

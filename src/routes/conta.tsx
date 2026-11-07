@@ -164,7 +164,7 @@ function AvatarPicker({ name, src }: { name: string; src?: string | null }) {
         className="press group relative overflow-hidden rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       >
         <Avatar name={name} src={src} size={72} />
-        <span className="absolute inset-x-0 bottom-0 grid h-6 place-items-center bg-black/55 text-[10.5px] font-medium text-white opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100">
+        <span className="absolute inset-x-0 bottom-0 grid h-6 place-items-center bg-black/55 text-[12px] font-medium text-white opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100">
           {src ? "Editar" : "Adicionar"}
         </span>
       </button>
