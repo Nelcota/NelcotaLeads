@@ -11,6 +11,7 @@ import {
 } from "react";
 import { flushSync } from "react-dom";
 import { z } from "zod";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { Input } from "@/components/ui/input";
 import { fieldErrors, LOGIN_ERRORS, type LoginErrorCode } from "@/lib/login";
 import { cn } from "@/lib/utils";
@@ -28,24 +29,25 @@ export function AuthShell({
   footer: ReactNode;
 }) {
   return (
-    <main className="grid min-h-svh place-items-center bg-window px-4 py-10">
-      <div className="enter flex w-full max-w-[380px] flex-col items-center">
+    <main className="relative grid min-h-svh place-items-center bg-window px-4 py-10">
+      <ThemeToggle className="absolute top-4 right-4 sm:top-6 sm:right-6" />
+      <div className="enter flex w-full max-w-[480px] flex-col items-center">
         <span
           aria-hidden
-          className="grid size-14 place-items-center rounded-[16px] bg-primary text-[22px] font-bold text-primary-foreground"
+          className="grid size-16 place-items-center rounded-[18px] bg-primary text-[26px] font-bold text-primary-foreground"
         >
           N
         </span>
-        <h1 className="mt-5 text-center text-[22px] leading-tight font-semibold tracking-[-0.02em]">
+        <h1 className="mt-5 text-center text-[27px] leading-tight font-semibold tracking-[-0.02em]">
           {title}
         </h1>
-        <p className="mt-1.5 max-w-[32ch] text-center text-[13.5px] leading-snug font-light text-muted-foreground">
+        <p className="mt-2 max-w-[36ch] text-center text-[15px] leading-snug font-light text-muted-foreground">
           {subtitle}
         </p>
-        <div className="mt-7 w-full rounded-[20px] bg-card p-5 shadow-[inset_0_0_0_1px_var(--border),var(--shadow-panel)] sm:p-6">
+        <div className="mt-6 w-full rounded-[24px] bg-card p-6 shadow-[inset_0_0_0_1px_var(--border)] sm:p-8">
           {children}
         </div>
-        <p className="mt-6 text-center text-[13px] text-muted-foreground">{footer}</p>
+        <p className="mt-6 text-center text-[14px] text-muted-foreground">{footer}</p>
       </div>
     </main>
   );
@@ -92,18 +94,18 @@ export function Field({ label, error, hint, aside, children }: FieldProps) {
   const noteId = `${id}-note`;
   const note = error ?? hint;
   return (
-    <div className="grid gap-1.5">
+    <div className="grid gap-2">
       <div className="flex items-baseline justify-between gap-3">
-        <label htmlFor={id} className="text-[13px] font-medium text-foreground/90">
+        <label htmlFor={id} className="text-[14px] font-medium text-foreground/90">
           {label}
         </label>
-        {aside ? <span className="text-[12.5px]">{aside}</span> : null}
+        {aside ? <span className="text-[13.5px]">{aside}</span> : null}
       </div>
       {children({ id, describedBy: note ? noteId : undefined })}
       {note ? (
         <p
           id={noteId}
-          className={cn("text-[12.5px] leading-snug", error ? "text-red" : "text-tertiary")}
+          className={cn("text-[13px] leading-snug", error ? "text-red" : "text-tertiary")}
         >
           {note}
         </p>
@@ -112,7 +114,11 @@ export function Field({ label, error, hint, aside, children }: FieldProps) {
   );
 }
 
-const fieldClass = "h-11 rounded-[12px] px-3.5 text-[15px] md:text-[15px]";
+const fieldClass = "h-12 rounded-[14px] px-4 text-[16px] md:text-[16px]";
+
+// Urbanist draws the password bullet as a tiny dot; the system font draws a full-size one.
+const maskedClass =
+  "[font-family:system-ui,sans-serif] tracking-[0.18em] text-[18px] md:text-[18px]";
 
 export function AuthInput({ className, ...props }: ComponentProps<typeof Input>) {
   return <Input {...props} className={cn(fieldClass, className)} />;
@@ -154,7 +160,7 @@ export function PasswordInput({
           onCapsLock?.(false);
           props.onBlur?.(event);
         }}
-        className={cn(fieldClass, "pr-12", className)}
+        className={cn(fieldClass, "pr-14", !shown && maskedClass, className)}
       />
       <button
         type="button"
@@ -164,9 +170,9 @@ export function PasswordInput({
         // Keeps the caret in the field when toggled with the mouse.
         onMouseDown={(event) => event.preventDefault()}
         onClick={toggle}
-        className="press absolute inset-y-0 right-1.5 my-auto grid size-8 place-items-center rounded-full text-tertiary transition-colors hover:bg-fill-2 hover:text-muted-foreground focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none"
+        className="press absolute inset-y-0 right-2 my-auto grid size-9 place-items-center rounded-full text-tertiary transition-colors hover:bg-fill-2 hover:text-muted-foreground focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none"
       >
-        {shown ? <EyeOffIcon className="size-4" /> : <EyeIcon className="size-4" />}
+        {shown ? <EyeOffIcon className="size-[18px]" /> : <EyeIcon className="size-[18px]" />}
       </button>
     </div>
   );
@@ -178,7 +184,7 @@ export function SubmitButton({ pending, children }: { pending: boolean; children
       type="submit"
       disabled={pending}
       aria-busy={pending || undefined}
-      className="press mt-1 flex h-11 w-full items-center justify-center gap-2 rounded-full bg-primary text-[15px] font-medium text-primary-foreground transition-opacity focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none disabled:opacity-70"
+      className="press mt-1 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-primary text-[16px] font-medium text-primary-foreground transition-opacity focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none disabled:opacity-70"
     >
       {pending ? <Loader2Icon className="size-4 animate-spin" /> : null}
       {children}
@@ -307,7 +313,7 @@ export function FormError({ message, notice }: { message: string | null; notice?
     <p
       role="alert"
       className={cn(
-        "-mb-1 text-center text-[13px] leading-snug empty:hidden",
+        "-mb-1 text-center text-[14px] leading-snug empty:hidden",
         message ? "text-red" : "text-tertiary",
       )}
     >
