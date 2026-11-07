@@ -1,4 +1,3 @@
-import { SparklesIcon } from "lucide-react";
 import { InfoTip, ProgressRing, TONE_TEXT } from "@/components/apple-ui";
 import { TIER_TONE } from "@/components/lead-badges";
 import { Badge } from "@/components/ui/badge";
@@ -18,10 +17,20 @@ export function ScoreRing({ score, pending }: { score: number | null; pending: b
 function ScoreValue({ score, pending }: { score: number | null; pending: boolean }) {
   if (score === null) {
     return pending ? (
-      <Badge variant="purple">
-        <SparklesIcon />
-        analisando
-      </Badge>
+      <span className="grid justify-items-center gap-1 text-[12px] font-medium text-muted-foreground">
+        <svg width="44" height="44" viewBox="0 0 44 44" aria-hidden>
+          <circle
+            cx="22"
+            cy="22"
+            r="19"
+            fill="none"
+            stroke="var(--fill)"
+            strokeWidth="5"
+            strokeDasharray="6 6"
+          />
+        </svg>
+        Analisando
+      </span>
     ) : (
       <Badge variant="gray">sem nota</Badge>
     );

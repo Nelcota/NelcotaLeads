@@ -61,7 +61,9 @@ test.describe("lead search", () => {
     await backend.lead({ name: "Padaria Sol" });
     await backend.lead({ name: "Padaria Lua" });
     await visit(page, "/leads?view=all");
-    const search = page.getByLabel("Buscar empresa");
+    const search = page.getByRole("searchbox", {
+      name: "Buscar por nome, e-mail, telefone ou endereço",
+    });
     const clear = page.getByRole("button", { name: "Limpar busca" });
     await expect(clear).toBeHidden();
 

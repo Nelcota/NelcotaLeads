@@ -93,16 +93,22 @@ test.describe("leads actions", () => {
     for (const name of ["Padaria Sol", "Padaria Lua", "Padaria Mar"]) {
       await page.getByRole("checkbox", { name: `Selecionar ${name}` }).check();
     }
-    await expect(page.getByText("3 selecionados")).toBeVisible();
+    await expect(page.getByText("3 selecionados", { exact: true })).toBeVisible();
     // Nobody selected has an e-mail: the primary action says why it is off.
-    await expect(page.getByRole("button", { name: "Disparar e-mail" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Disparar 0 selecionados" })).toBeDisabled();
 
-    await page.getByRole("button", { name: "Mais ações para a seleção" }).click();
-    await page.getByRole("menuitem", { name: "Descartar" }).click();
+    await page
+      .getByRole("region", { name: "Ações da seleção" })
+      .getByRole("button", { name: "Descartar" })
+      .click();
+    await page
+      .getByRole("alertdialog", { name: "Descartar 3 leads?" })
+      .getByRole("button", { name: "Descartar 3" })
+      .click();
     await expect(page.getByText("3 leads descartados")).toBeVisible();
     await expect(rowOf(page, "Padaria Sol")).toHaveCount(0);
     await expect(rowOf(page, "Padaria Céu")).toBeVisible();
-    await expect(page.getByText("3 selecionados")).toHaveCount(0);
+    await expect(page.getByText("3 selecionados", { exact: true })).toHaveCount(0);
 
     await page.getByRole("button", { name: "Desfazer" }).click();
     for (const name of ["Padaria Sol", "Padaria Lua", "Padaria Mar"]) {
@@ -114,9 +120,9 @@ test.describe("leads actions", () => {
     await backend.lead({ name: "Padaria Sol" });
     await visit(page, "/leads");
     await page.getByRole("checkbox", { name: "Selecionar Padaria Sol" }).check();
-    await expect(page.getByText("1 selecionado")).toBeVisible();
+    await expect(page.getByText("1 selecionado", { exact: true })).toBeVisible();
     await page.getByRole("tab", { name: /Todos/ }).click();
-    await expect(page.getByText("1 selecionado")).toHaveCount(0);
+    await expect(page.getByText("1 selecionado", { exact: true })).toHaveCount(0);
   });
 
   test("adds an e-mail in place, and it survives a reload", async ({ page, backend }) => {
