@@ -11,7 +11,7 @@ Only what is in **Now** gets built. Every decision below is dated.
 
 Icon standard for the whole app: icons inside actions (buttons, action cards, contact shortcuts, add and remove controls) are bare line icons in their tone, with the official WhatsApp and Google Maps marks; icons in card titles and list rows keep the tinted chip. (2026-11-05, chosen by the user over "bare everywhere")
 
-Card action button standard for the whole app: a button in a card that edits or configures something (Editar meta, Editar in Serviços, Ajustar in Disparo de hoje) is a solid blue button (`Button` default variant; `size="sm"` in card headers, `size="xs"` in table rows), not ghost text or a plain link; Cancelar and Voltar stay ghost, and links that only open another page (Abrir agenda, Ver conversas) stay blue text. (2026-11-08, asked by the user after approving the blue "Editar meta") **Revised on 2026-11-08 for the Visão geral:** each card has at most one solid blue button, its main action (Abrir agenda, Ver conversas, Ver leads; "Editar meta" only while no goal is set); settings actions in a card ("Editar meta" once a goal exists, "Ajustar") are gray (`variant="outline"`). Chosen by the user when asked about visual friction.
+Card action button standard: use `size="sm"` for actions in card headers and table rows (the button standard removed `xs`). Each card in Visão geral has at most one solid blue main action: Abrir agenda, Ver conversas, Ver leads, or Editar meta while no goal is set. Once a goal exists, Editar meta is gray (`variant="outline"`), as is Ajustar in Disparo de hoje. Cancelar and Voltar stay ghost. (2026-11-08, revised after the user chose less visual friction)
 
 Badge standard for the whole app: every status badge is a line icon in the status color followed by neutral text; no pill, no tinted fill, no dot. (2026-11-05, the user rejected the tinted pill "● Caixa não conectada" and chose "ícone de traço + texto" for all badges)
 
@@ -23,6 +23,7 @@ The steps, in this order: (1) Visão geral with the new layout on today's data; 
 - Sign-in card: no drop shadow, wider card (480px) and larger text on the login, sign-up and password-reset screens, plus a light/dark theme toggle. Applies the "no drop shadows" item below to these screens only. (2026-11-07, asked by the user and approved on localhost)
 - Leads page redesign, in the Visão geral language: mockup first, approved by the user before any code; built in `.claude/worktrees/leads-redesign`. Layout and actions, not only visuals; the choices are in the two 2026-11-07 Leads decisions below. No e-mail. No migration, except the unread-reply mark, which is its own step under guard rule 7. (2026-11-07, chosen by the user over six rounds of questions and the canvas review)
 - Integrated app shell, like Nelcota PRs: the sidebar and the content share one background (no rounded inset panel around the content), a wider sidebar (256px) with 44px items, the active item in solid blue, the Sistema group and a visible "Recolher menu" button at the bottom (moved here from Next), status badges in the 2026-11-05 standard. Changes every page, no change in behavior. Built in `.claude/worktrees/integrated-shell`. (2026-11-08, canvas approved by the user: "Aprovado", then "Colocar em Now")
+- One button standard for the whole app: a single pill design with five roles (primary, secondary, ghost, danger, link), three heights (32 compact, 40 default, 48 sign-in) and one selectable pill (`ChoicePill`) that replaces the seven filter/tab/segmented variants found in the 2026-11-08 audit. Mockup first, approved by the user before any code; built in `.claude/worktrees/button-standard`. Visual only, no change in behavior. The scope is in the 2026-11-08 decision below. (2026-11-08, chosen by the user: "Now + mockup")
 
 ## Next
 
@@ -55,6 +56,14 @@ The steps, in this order: (1) Visão geral with the new layout on today's data; 
 - Agenda, left out of the full model on 2026-11-05: meeting end time and attendees, events without a lead (team meeting, site delivery, blocked time), work hours, a public booking link for leads with an `.ics` invite, an e-mail reminder to the lead and recurring events. Each needs a migration or sends e-mail, so guard rule 7 applies. (2026-11-05; on 2026-11-06 the outcome and overlap warning moved to Next and the `.ics` feed was dropped)
 
 ## Decisions
+
+### 2026-11-08: one button standard for the whole app
+
+- **Decision:** every button is a solid pill (no gradient, no shadow) in Urbanist 14px with the same press feedback and focus ring. Roles: primary (solid blue, one per area), secondary (transparent with a 1px border), ghost (no border), danger (secondary with red text) and link (blue text, only to open another page). Heights: 40px default (page bars, filters, tabs), 32px compact (cards, tables, chips in forms), 48px only for the sign-in button; icon-only buttons are round in the same three sizes. A selectable pill is a secondary button when off and a primary button when on, with an optional count; one `ChoicePill` component replaces the Leads tabs, the Visão geral period, the agenda view and month choosers, the meeting kind, the choice chips and the notifications segmented control. No `className` on `Button` that changes height, color, border or radius; this joins the pre-PR checklist.
+- **Why:** the 2026-11-08 audit found seven pill implementations (28 to 44px, three different fills), four button heights side by side, icon buttons in five sizes, three "delete" styles, `outline` and `secondary` almost the same, and the Leads tabs with no keyboard focus ring.
+- **Discarded:** keeping the gray-track segmented control (iOS style) for the notifications panel, since its white active state is the only one in the app that is not blue; per-screen heights.
+- **Review if:** the mockup shows 40px is too tall for the agenda toolbar or the notifications panel.
+- Compatible with the 2026-11-08 card action button standard in Now (Editar in solid blue, Cancelar and Voltar as ghost).
 
 ### 2026-11-07: Leads page redesign, canvas review and 12 more choices
 

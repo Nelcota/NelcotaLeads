@@ -55,13 +55,12 @@ export function AddonList({
             </span>
             <span className="font-medium tabular-nums">+ {priceLabel(addon)}</span>
             <span className="flex items-center gap-1">
-              <Button size="xs" onClick={() => setEditing(addon.id)}>
+              <Button size="sm" onClick={() => setEditing(addon.id)}>
                 Editar
               </Button>
               <Button
-                variant="ghost"
-                size="xs"
-                className="hover:bg-red/15 hover:text-red"
+                variant="destructive"
+                size="sm"
                 disabled={archiving}
                 onClick={() => onArchive(addon.id)}
               >

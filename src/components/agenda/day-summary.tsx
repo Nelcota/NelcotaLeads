@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 import { byTime, clock, countLabel, duration, minutesOf, type CalendarEntry } from "@/lib/calendar";
 
 /**
@@ -32,10 +33,12 @@ export function DaySummary({
         {countLabel(meetings.length, ofDay.length - meetings.length)}
       </span>
       {next ? (
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="sm"
           onClick={() => onPick(next)}
-          className="ml-auto inline-flex h-[30px] max-w-full items-center gap-1.5 rounded-full border border-border px-3 text-[14px] transition-colors hover:bg-fill-2"
+          className="ml-auto max-w-full"
         >
           <span className="font-semibold text-primary">{isToday ? "Próxima" : "Primeira"}</span>
           <span className="font-semibold tabular-nums">
@@ -43,7 +46,7 @@ export function DaySummary({
             {isToday ? ` (em ${duration((next.minutes ?? 0) - minutesOf(now))})` : ""}
           </span>
           <span className="truncate text-muted-foreground">{next.leadName}</span>
-        </button>
+        </Button>
       ) : null}
     </div>
   );
