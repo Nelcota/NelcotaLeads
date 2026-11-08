@@ -1,5 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
+import { TrendingDownIcon, TrendingUpIcon } from "lucide-react";
+import { StatusLabel } from "@/components/status-label";
 import { formatCents } from "@/lib/money";
 import { nicheTags, ratePercent } from "@/lib/overview-metrics";
 import type { OverviewPeriod } from "@/lib/period";
@@ -55,14 +57,9 @@ function Cell({
 
 function Tag({ tone, children }: { tone: "green" | "red"; children: string }) {
   return (
-    <span
-      className={cn(
-        "shrink-0 rounded-full px-2 py-px text-[13px] font-semibold",
-        tone === "green" ? "bg-green/16 text-green" : "bg-red/16 text-red",
-      )}
-    >
+    <StatusLabel icon={tone === "green" ? TrendingUpIcon : TrendingDownIcon} tone={tone}>
       {children}
-    </span>
+    </StatusLabel>
   );
 }
 

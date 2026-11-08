@@ -2,13 +2,17 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   CalendarIcon,
+  CircleAlertIcon,
+  CircleCheckIcon,
   CircleHelpIcon,
   HistoryIcon,
   InboxIcon,
   LayoutGridIcon,
   MessageCircleIcon,
   MoonIcon,
-  SearchIcon,
+  PanelLeftCloseIcon,
+  PanelLeftOpenIcon,
+  PlusIcon,
   SettingsIcon,
   SunIcon,
   UserIcon,
@@ -36,6 +40,7 @@ import {
   SidebarProvider,
   SidebarRail,
   SidebarTrigger,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -68,6 +73,16 @@ const SYSTEM_NAV: NavItem[] = [
 ];
 
 const SYSTEM_ATTENTION = "Algo precisa de atenção";
+
+/** One look for every sidebar row: 44px tall, the active page in solid blue, centered in icon mode. */
+const ITEM_CLASS =
+  "h-11 gap-3 rounded-[12px] px-3.5 text-[15px] text-muted-foreground hover:bg-fill-2 hover:text-foreground active:bg-fill data-active:bg-primary data-active:font-semibold data-active:text-primary-foreground data-active:shadow-none data-active:hover:bg-primary data-active:hover:text-primary-foreground group-data-[collapsible=icon]:size-11! group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0!";
+
+/** Count badges centered on a 44px row. */
+const BADGE_CLASS =
+  "top-[13px]! right-2.5 h-[18px] min-w-0 rounded-full px-1.5 text-[12px] tabular-nums";
+
+const GROUP_LABEL_CLASS = "h-8 px-3.5 text-[13px] font-semibold text-tertiary";
 
 const NewSearchContext = createContext<() => void>(() => {});
 
@@ -125,7 +140,9 @@ export function AppShell({ children }: { children: ReactNode }) {
         <TooltipProvider delayDuration={300}>
           <SidebarProvider>
             <AppSidebar />
-            <SidebarInset className="h-svh overflow-hidden md:m-2.5 md:h-[calc(100svh-20px)] md:rounded-[28px] md:shadow-[inset_0_0_0_1px_var(--sidebar-border)]">
+            {/* Same background as the sidebar; a thin outline with a rounded top-left corner
+                frames the pages so the cards do not float, like Nelcota PRs. */}
+            <SidebarInset className="h-svh overflow-hidden md:mt-2.5 md:h-[calc(100svh-10px)] md:rounded-tl-[28px] md:border-t md:border-l md:border-border">
               {children}
             </SidebarInset>
           </SidebarProvider>
@@ -156,22 +173,27 @@ function AppSidebar() {
           asChild
           isActive={isActive(item.to)}
           tooltip={warn ? `${item.label} · ${SYSTEM_ATTENTION}` : item.label}
-          className="press h-9 gap-2.5 rounded-[12px] text-foreground hover:bg-fill-2 data-active:bg-sidebar-accent data-active:font-semibold data-active:text-sidebar-accent-foreground"
+          className={ITEM_CLASS}
         >
           <Link to={item.to}>
-            <item.icon aria-hidden className="size-4!" />
+            <item.icon aria-hidden className="size-[18px]!" />
             <span>{item.label}</span>
             {warn ? <span className="sr-only"> · {SYSTEM_ATTENTION}</span> : null}
           </Link>
         </SidebarMenuButton>
         {item.to === "/conversas" && attention > 0 ? (
-          <SidebarMenuBadge className="top-1.5! h-[18px] min-w-0 rounded-full bg-orange px-1.5 text-[12px] text-[#1b1000] tabular-nums">
+          <SidebarMenuBadge className={cn(BADGE_CLASS, "bg-orange text-[#1b1000]")}>
             {attention}
             <span className="sr-only"> precisam de você</span>
           </SidebarMenuBadge>
         ) : null}
         {item.to === "/agenda" && todayCount > 0 ? (
-          <SidebarMenuBadge className="top-1.5! h-[18px] min-w-0 rounded-full bg-blue px-1.5 text-[12px] text-white tabular-nums">
+          <SidebarMenuBadge
+            className={cn(
+              BADGE_CLASS,
+              "bg-blue text-white peer-data-active/menu-button:bg-white/25",
+            )}
+          >
             {todayCount}
             <span className="sr-only"> hoje</span>
           </SidebarMenuBadge>
@@ -180,7 +202,7 @@ function AppSidebar() {
           <Hint label={SYSTEM_ATTENTION} side="right">
             <SidebarMenuBadge
               data-testid="system-attention"
-              className="pointer-events-auto top-1.5!"
+              className="pointer-events-auto top-[13px]! right-2.5"
               aria-hidden
             >
               <span className="size-2 rounded-full bg-orange" />
@@ -192,18 +214,22 @@ function AppSidebar() {
   };
 
   return (
-    <Sidebar collapsible="icon" variant="floating">
-      <SidebarHeader className="gap-3 px-2.5 pt-3.5">
+    <Sidebar collapsible="icon" variant="sidebar" className="group-data-[side=left]:border-r-0">
+      <SidebarHeader className="gap-5 px-2.5 pt-5">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" asChild className="hover:bg-transparent">
+            <SidebarMenuButton
+              size="lg"
+              asChild
+              className="hover:bg-transparent group-data-[collapsible=icon]:size-11! group-data-[collapsible=icon]:p-1!"
+            >
               <Link to="/">
-                <span className="grid aspect-square size-[30px] shrink-0 place-items-center rounded-[9px] bg-primary text-[14px] font-bold text-primary-foreground">
+                <span className="grid aspect-square size-9 shrink-0 place-items-center rounded-[10px] bg-primary text-[16px] font-bold text-primary-foreground">
                   N
                 </span>
                 <span className="grid flex-1 text-left leading-tight">
-                  <span className="truncate text-[15px] font-medium">Nelcota Leads</span>
-                  <span className="truncate text-[13px] font-light text-muted-foreground">
+                  <span className="truncate text-[18px] font-bold">Nelcota Leads</span>
+                  <span className="truncate text-[13px] font-normal text-muted-foreground">
                     Prospecção B2B
                   </span>
                 </span>
@@ -214,36 +240,63 @@ function AppSidebar() {
         <button
           type="button"
           onClick={openNewSearch}
-          className="press flex h-[30px] items-center gap-2 rounded-[9px] bg-fill-2 px-2.5 text-[14px] text-tertiary transition-colors hover:bg-fill hover:text-muted-foreground group-data-[collapsible=icon]:hidden"
+          className="press flex h-11 items-center justify-center gap-2 rounded-full border border-border text-[15px] font-semibold text-foreground transition-colors hover:bg-fill-2 group-data-[collapsible=icon]:hidden"
         >
-          <SearchIcon className="size-3.5" />
+          <PlusIcon aria-hidden className="size-4" />
           Nova busca
         </button>
       </SidebarHeader>
       <SidebarContent className="px-0.5">
         <SidebarGroup className="py-1">
-          <SidebarGroupLabel className="h-7 text-[13px] font-medium text-tertiary">
-            Prospecção
-          </SidebarGroupLabel>
+          <SidebarGroupLabel className={GROUP_LABEL_CLASS}>Prospecção</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu className="gap-px">{NAV.map(renderItem)}</SidebarMenu>
+            <SidebarMenu className="gap-1">{NAV.map(renderItem)}</SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-        <SidebarGroup className="py-1">
-          <SidebarGroupLabel className="h-7 text-[13px] font-medium text-tertiary">
-            Sistema
-          </SidebarGroupLabel>
+        {/* Sistema sits at the bottom, next to the account, like Nelcota PRs. */}
+        <SidebarGroup className="mt-auto py-1">
+          <SidebarGroupLabel className={GROUP_LABEL_CLASS}>Sistema</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu className="gap-px">{SYSTEM_NAV.map(renderItem)}</SidebarMenu>
+            <SidebarMenu className="gap-1">{SYSTEM_NAV.map(renderItem)}</SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter className="gap-1.5 px-2.5 pb-2.5">
+      <SidebarFooter className="gap-3 px-2.5 pt-0 pb-3">
+        <CollapseMenuButton />
         <UsageMeter />
         <AccountRow />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
+  );
+}
+
+/**
+ * "Recolher menu" at the bottom of the desktop sidebar: toggles icon mode (also Ctrl+B).
+ * Outside the navigation, so screen readers do not read it as a page.
+ */
+function CollapseMenuButton() {
+  const { isMobile, state, toggleSidebar } = useSidebar();
+  if (isMobile) return null;
+  const collapsed = state === "collapsed";
+  const label = collapsed ? "Expandir menu" : "Recolher menu";
+  const Icon = collapsed ? PanelLeftOpenIcon : PanelLeftCloseIcon;
+  return (
+    <SidebarMenu>
+      <SidebarMenuItem>
+        <SidebarMenuButton
+          type="button"
+          onClick={toggleSidebar}
+          aria-expanded={!collapsed}
+          aria-keyshortcuts="Control+B Meta+B"
+          tooltip={label}
+          className={cn(ITEM_CLASS, "text-tertiary")}
+        >
+          <Icon aria-hidden className="size-[18px]!" />
+          <span>{label}</span>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    </SidebarMenu>
   );
 }
 
@@ -256,7 +309,7 @@ function UsageMeter() {
   if (!data) return null;
   const { mail, placesUsage } = data;
   return (
-    <div className="grid gap-3 rounded-[16px] bg-card p-3 shadow-[inset_0_0_0_1px_var(--sidebar-border)] group-data-[collapsible=icon]:hidden">
+    <div className="grid gap-3 border-t border-sidebar-border px-2 pt-3.5 group-data-[collapsible=icon]:hidden">
       {mail.configured ? (
         <MeterRow
           value={percent(mail.sentToday, mail.limit)}
@@ -270,9 +323,9 @@ function UsageMeter() {
         <Link
           to="/settings"
           hash="email"
-          className="flex items-center gap-2.5 text-[14px] font-medium text-orange"
+          className="flex items-center gap-2 text-[14px] font-semibold text-foreground"
         >
-          <span className="size-2 rounded-full bg-orange" />
+          <CircleAlertIcon aria-hidden className="size-4 shrink-0 text-orange" />
           E-mail não conectado
         </Link>
       )}
@@ -364,16 +417,15 @@ function AccountRow() {
           </div>
         ) : (
           <>
-            <Avatar name={name} src={account?.avatar} size={28} />
+            <Avatar name={name} src={account?.avatar} size={32} />
             <div className="min-w-0 flex-1 leading-tight group-data-[collapsible=icon]:hidden">
               <p className="truncate text-[14px] font-medium">{name}</p>
-              <p
-                className={cn(
-                  "flex min-w-0 items-center gap-1.5 text-[13px]",
-                  address ? "text-green" : "text-orange",
+              <p className="flex min-w-0 items-center gap-1.5 text-[13px] text-muted-foreground">
+                {address ? (
+                  <CircleCheckIcon aria-hidden className="size-3.5 shrink-0 text-green" />
+                ) : (
+                  <CircleAlertIcon aria-hidden className="size-3.5 shrink-0 text-orange" />
                 )}
-              >
-                <span className="size-1.5 shrink-0 rounded-full bg-current" />
                 <span className="truncate">{address ?? "Caixa não conectada"}</span>
               </p>
             </div>
@@ -387,7 +439,7 @@ function AccountRow() {
             onClick={openHelp}
             aria-label="Ajuda"
             aria-keyshortcuts="?"
-            className="press grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-fill-2 hover:text-foreground"
+            className="press relative grid size-9 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors after:absolute after:-inset-1 hover:bg-fill-2 hover:text-foreground"
           >
             <CircleHelpIcon className="size-3.5" />
           </button>
@@ -397,7 +449,7 @@ function AccountRow() {
             type="button"
             onClick={() => setTheme(dark ? "light" : "dark")}
             aria-label={dark ? "Tema claro" : "Tema escuro"}
-            className="press grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-fill-2 hover:text-foreground"
+            className="press relative grid size-9 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors after:absolute after:-inset-1 hover:bg-fill-2 hover:text-foreground"
           >
             {dark ? <SunIcon className="size-3.5" /> : <MoonIcon className="size-3.5" />}
           </button>
@@ -408,7 +460,7 @@ function AccountRow() {
 }
 
 /**
- * The standard page frame inside the floating content panel: a toolbar with the large title
+ * The standard page frame beside the sidebar, on the same background: a toolbar with the large title
  * and the page actions, an optional summary line, then the scrolling content.
  */
 export function Page({
@@ -427,7 +479,14 @@ export function Page({
 }) {
   return (
     <>
-      <header className="flex h-14 shrink-0 items-center gap-2 px-4 sm:h-16 lg:pr-5 lg:pl-6">
+      {/* The same scrollbar gutter as the content below, so the header actions end where the
+          cards end, whatever the scrollbar width. */}
+      <header
+        className={cn(
+          "flex h-14 shrink-0 items-center gap-2 px-4 sm:h-16 lg:px-6",
+          !bleed && "overflow-hidden [scrollbar-gutter:stable]",
+        )}
+      >
         <Hint label="Menu">
           <SidebarTrigger
             aria-label="Mostrar ou esconder o menu"
@@ -443,7 +502,7 @@ export function Page({
       {bleed ? (
         <div className="flex min-h-0 flex-1 flex-col">{children}</div>
       ) : (
-        <div className="scroll-fade min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        <div className="scroll-fade min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-gutter:stable]">
           <div className="mx-auto flex w-full max-w-[1800px] flex-col gap-6 px-4 pt-1 pb-12 lg:px-6">
             {description ? (
               <p className="-mt-1 text-base font-light text-muted-foreground">{description}</p>

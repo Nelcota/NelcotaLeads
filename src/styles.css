@@ -106,6 +106,8 @@
   --border: rgb(60 60 67 / 0.18);
   --input: rgb(60 60 67 / 0.2);
   --ring: #0a62e6;
+  /* Keyboard focus outline on buttons, links and tabs: neutral, never the blue accent. */
+  --focus: rgb(60 60 67 / 0.8);
   --fill: rgb(118 118 128 / 0.16);
   --fill-2: rgb(118 118 128 / 0.1);
   --fill-3: rgb(118 118 128 / 0.06);
@@ -116,7 +118,7 @@
   --sidebar-accent: rgb(10 98 230 / 0.09);
   --sidebar-accent-foreground: #0057d4;
   --sidebar-border: rgb(0 0 0 / 0.06);
-  --sidebar-ring: #0a62e6;
+  --sidebar-ring: var(--focus);
   --green: #146c33;
   --orange: #8c4a00;
   --red: #b8261b;
@@ -157,6 +159,7 @@
   --border: rgb(84 84 88 / 0.42);
   --input: rgb(255 255 255 / 0.08);
   --ring: #1a6cf5;
+  --focus: rgb(235 235 245 / 0.75);
   --fill: rgb(118 118 128 / 0.2);
   --fill-2: rgb(118 118 128 / 0.12);
   --fill-3: rgb(118 118 128 / 0.08);
@@ -167,7 +170,7 @@
   --sidebar-accent: rgb(26 115 255 / 0.16);
   --sidebar-accent-foreground: #6aa5ff;
   --sidebar-border: rgb(255 255 255 / 0.06);
-  --sidebar-ring: #1a6cf5;
+  --sidebar-ring: var(--focus);
   --green: #32d74b;
   --orange: #ffb340;
   --red: #ff7b73;
@@ -190,7 +193,7 @@
   /* One keyboard focus ring for the whole app, instead of the browser's own one. Components
      with their own ring set `outline-none` on :focus-visible, which wins over this. */
   :focus-visible {
-    outline: 2px solid color-mix(in srgb, var(--ring) 75%, transparent);
+    outline: 2px solid var(--focus);
     outline-offset: 2px;
   }
   html {
