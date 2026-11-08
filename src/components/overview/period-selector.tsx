@@ -1,4 +1,6 @@
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs as TabsPrimitive } from "radix-ui";
+import { ChoicePill } from "@/components/ui/choice-pill";
+import { Tabs, TabsList } from "@/components/ui/tabs";
 import {
   OVERVIEW_PERIODS,
   overviewPeriodSchema,
@@ -9,11 +11,10 @@ import {
 /** Separate pills on the page background, like Nelcota PRs, instead of a gray track. */
 const LIST_CLASS = "gap-2 bg-transparent p-0 group-data-horizontal/tabs:h-auto";
 
-/** 44px outlined pills; the chosen period in solid blue, like the active sidebar row. */
-const PILL_CLASS =
-  "h-11 flex-none rounded-full border-border px-4 hover:bg-fill-2 data-active:border-transparent data-active:bg-primary data-active:font-semibold data-active:text-primary-foreground data-active:hover:bg-primary dark:data-active:border-transparent dark:data-active:bg-primary dark:data-active:text-primary-foreground group-data-[variant=default]/tabs-list:data-active:shadow-none";
-
-/** "7 dias / 30 dias / Este mês": the window the metrics below are counted in. */
+/**
+ * "7 dias / 30 dias / Este mês": the window the metrics below are counted in. Radix keeps
+ * the tab semantics and arrow keys; each option is the app's standard choice pill.
+ */
 export function PeriodSelector({
   value,
   onChange,
@@ -29,9 +30,9 @@ export function PeriodSelector({
     <Tabs value={value} onValueChange={select}>
       <TabsList aria-label="Período das métricas" className={LIST_CLASS}>
         {OVERVIEW_PERIODS.map((period) => (
-          <TabsTrigger key={period} value={period} className={PILL_CLASS}>
-            {PERIOD_OPTION_LABELS[period]}
-          </TabsTrigger>
+          <TabsPrimitive.Trigger key={period} value={period} asChild>
+            <ChoicePill selected={period === value}>{PERIOD_OPTION_LABELS[period]}</ChoicePill>
+          </TabsPrimitive.Trigger>
         ))}
       </TabsList>
     </Tabs>

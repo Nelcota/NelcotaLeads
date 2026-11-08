@@ -90,7 +90,7 @@ export function LeadsMobileList({
             </button>
             {lead.phoneE164 ? (
               <span className="flex shrink-0 pr-2">
-                <Button asChild variant="ghost" size="icon-lg" className="size-11 text-green">
+                <Button asChild variant="ghost" size="icon" className="text-green">
                   <a
                     href={whatsappLink(lead.phoneE164)}
                     target="_blank"
@@ -100,7 +100,7 @@ export function LeadsMobileList({
                     <WhatsAppMark className="size-[18px]" />
                   </a>
                 </Button>
-                <Button asChild variant="ghost" size="icon-lg" className="size-11">
+                <Button asChild variant="ghost" size="icon">
                   <a href={`tel:${lead.phoneE164}`} aria-label={`Ligar para ${lead.phone ?? ""}`}>
                     <PhoneIcon strokeWidth={1.8} />
                   </a>

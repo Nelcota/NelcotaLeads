@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
+import { ChoicePill } from "@/components/ui/choice-pill";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -174,23 +175,20 @@ function KindChips({
   return (
     <div role="radiogroup" aria-label="Como" className="flex flex-wrap gap-1.5">
       {MEETING_KINDS.map((kind) => (
-        <button
+        <ChoicePill
           key={kind}
-          type="button"
+          size="sm"
           role="radio"
           aria-checked={value === kind}
+          selected={value === kind}
           onClick={() => onChange(kind)}
-          className={cn(
-            "inline-flex h-8 items-center gap-1.5 rounded-full pr-3.5 pl-3 text-[14px] font-medium transition-colors",
-            value === kind ? "bg-primary text-primary-foreground" : "bg-fill-2 hover:bg-fill",
-          )}
         >
           <EntryIcon
             kind={kind}
             className={value === kind ? "text-primary-foreground" : undefined}
           />
           {MEETING_KIND_LABELS[kind]}
-        </button>
+        </ChoicePill>
       ))}
     </div>
   );

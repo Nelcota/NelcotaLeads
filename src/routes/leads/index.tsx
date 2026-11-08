@@ -32,6 +32,7 @@ import {
 import { LeadsTabs } from "@/components/leads/leads-tabs";
 import { SelectionBar } from "@/components/leads/selection-bar";
 import { Button } from "@/components/ui/button";
+import { ChoicePill } from "@/components/ui/choice-pill";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -57,7 +58,6 @@ import {
 } from "@/lib/schemas";
 import { useNotFoundToast } from "@/lib/not-found-toast";
 import { useToday } from "@/lib/today";
-import { cn } from "@/lib/utils";
 
 // `lead` (the open side sheet) and `missing` (a link to a lead that is gone) are UI state,
 // kept out of the data filters.
@@ -236,7 +236,7 @@ function LeadsPage() {
   const actions = (
     <>
       {loaded.length > 0 ? (
-        <Button asChild variant="outline" className="hidden border border-border sm:inline-flex">
+        <Button asChild variant="outline" className="hidden sm:inline-flex">
           <a
             href={exportHref}
             download
@@ -253,24 +253,14 @@ function LeadsPage() {
           </a>
         </Button>
       ) : null}
-      <Button
-        variant="outline"
-        className="border border-border"
-        onClick={openNewSearch}
-        aria-label="Nova busca"
-      >
+      <Button variant="outline" onClick={openNewSearch} aria-label="Nova busca">
         <PlusIcon />
         <span className="max-sm:hidden">Nova busca</span>
       </Button>
       <DropdownMenu>
         <Hint label="Mais ações">
           <DropdownMenuTrigger asChild>
-            <Button
-              variant="outline"
-              size="icon"
-              className="border border-border"
-              aria-label="Mais ações"
-            >
+            <Button variant="outline" size="icon" aria-label="Mais ações">
               <EllipsisIcon />
             </Button>
           </DropdownMenuTrigger>
@@ -381,19 +371,14 @@ function LeadsPage() {
             shortcutsOpen={shortcutsOpen}
             onShortcutsOpenChange={setShortcutsOpen}
           />
-          <Button
-            variant="outline"
+          <ChoicePill
             aria-pressed={filters.mine ?? false}
+            selected={filters.mine ?? false}
             onClick={() => setFilters({ mine: filters.mine ? undefined : true })}
-            className={cn(
-              "h-9 border border-border",
-              filters.mine &&
-                "border-transparent bg-sidebar-accent text-sidebar-accent-foreground hover:bg-sidebar-accent [&_svg]:text-current",
-            )}
           >
             <UserIcon />
             Meus leads
-          </Button>
+          </ChoicePill>
           <div className="ml-auto">
             <FiltersButton
               filters={filters}

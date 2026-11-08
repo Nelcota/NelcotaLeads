@@ -1,8 +1,8 @@
 import { PencilIcon } from "lucide-react";
 import { useRef, useState, type ReactNode } from "react";
 import { Hint } from "@/components/apple-ui";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
 
 /**
  * A value that turns into a field where it is: click the value (or the pencil) to edit, Enter
@@ -118,16 +118,16 @@ export function InlineEdit({
       )}
       {value ? (
         <Hint label={`Editar ${label}`}>
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon-sm"
             onClick={start}
             aria-label={`Editar ${label}`}
-            className={cn(
-              "-my-1.5 grid size-8 shrink-0 place-items-center rounded-full text-tertiary transition-opacity hover:bg-fill-2 hover:text-foreground focus-visible:opacity-100 sm:opacity-0 sm:group-hover/edit:opacity-100",
-            )}
+            className="-my-1.5 focus-visible:opacity-100 sm:opacity-0 sm:group-hover/edit:opacity-100"
           >
             <PencilIcon className="size-3.5" />
-          </button>
+          </Button>
         </Hint>
       ) : null}
     </span>

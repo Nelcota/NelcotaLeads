@@ -48,14 +48,16 @@ export function MeetingDetail({
   return (
     <Dialog open onOpenChange={(open) => (open ? undefined : onClose())}>
       <DialogContent showCloseButton={false} className={AGENDA_DIALOG}>
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="sm"
           onClick={onBack}
-          className="-mt-1.5 -ml-2 inline-flex h-8 items-center gap-1 self-start rounded-full pr-3 pl-1.5 text-[14px] font-semibold text-primary transition-colors hover:bg-fill-2"
+          className="-mt-1.5 -ml-2 self-start"
         >
           <ChevronLeftIcon aria-hidden className="size-4" />
           {backLabel}
-        </button>
+        </Button>
         <div className="flex items-start gap-2">
           <div className="grid min-w-0 flex-1 gap-0.5">
             <span
@@ -101,14 +103,14 @@ export function MeetingDetail({
           </Button>
           {meeting ? (
             <>
-              <Button variant="secondary" disabled={busy} onClick={() => onReschedule(entry)}>
+              <Button variant="outline" disabled={busy} onClick={() => onReschedule(entry)}>
                 <CalendarPlusIcon />
                 Remarcar
               </Button>
               <CancelMeeting busy={busy} onConfirm={() => onCancel(entry)} />
             </>
           ) : (
-            <Button variant="secondary" onClick={() => onBook(entry)}>
+            <Button variant="outline" onClick={() => onBook(entry)}>
               Marcar reunião
             </Button>
           )}
@@ -121,10 +123,9 @@ export function MeetingDetail({
 /** "Cancelar reunião" asks once more before cancelling: it cannot be undone. */
 function CancelMeeting({ busy, onConfirm }: { busy: boolean; onConfirm: () => void }) {
   const [asking, setAsking] = useState(false);
-  const red = "text-red hover:bg-red/15 hover:text-red";
   if (!asking) {
     return (
-      <Button variant="ghost" className={red} disabled={busy} onClick={() => setAsking(true)}>
+      <Button variant="destructive" disabled={busy} onClick={() => setAsking(true)}>
         Cancelar reunião
       </Button>
     );
@@ -148,14 +149,16 @@ function CancelMeeting({ busy, onConfirm }: { busy: boolean; onConfirm: () => vo
 /** The outline close button of the Agenda's dialogs. */
 export function CloseButton({ onClose }: { onClose: () => void }) {
   return (
-    <button
+    <Button
       type="button"
+      variant="outline"
+      size="icon-sm"
       aria-label="Fechar"
       title="Fechar (Esc)"
       onClick={onClose}
-      className="-mt-1 -mr-1.5 grid size-9 shrink-0 place-items-center rounded-full border border-border text-foreground transition-[background-color,transform] duration-150 hover:bg-fill-2 active:scale-[0.94]"
+      className="-mt-1 -mr-1.5"
     >
       <XIcon aria-hidden className="size-3.5" strokeWidth={1.8} />
-    </button>
+    </Button>
   );
 }

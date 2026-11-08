@@ -1,4 +1,5 @@
 import type { KeyboardEvent } from "react";
+import { ChoicePill } from "@/components/ui/choice-pill";
 import { cn } from "@/lib/utils";
 
 type Option<Value extends string> = { value: Value; label: string };
@@ -6,7 +7,7 @@ type Option<Value extends string> = { value: Value; label: string };
 const STEP: Record<string, number> = { ArrowLeft: -1, ArrowUp: -1, ArrowRight: 1, ArrowDown: 1 };
 
 /**
- * A one-of-a-few choice drawn as a pill track, with radio semantics: Tab reaches the chosen
+ * A one-of-a-few choice drawn as standard choice pills, with radio semantics: Tab reaches the chosen
  * option and the arrow keys move the choice, like a native radio group.
  */
 export function SegmentedControl<Value extends string>({
@@ -42,32 +43,23 @@ export function SegmentedControl<Value extends string>({
       role="radiogroup"
       aria-label={label}
       onKeyDown={onKeyDown}
-      className={cn(
-        "flex gap-0.5 rounded-full bg-fill-2",
-        size === "sm" ? "p-0.5" : "p-[3px]",
-        className,
-      )}
+      className={cn("flex gap-1.5", className)}
     >
       {options.map((option) => {
         const selected = option.value === value;
         return (
-          <button
+          <ChoicePill
             key={option.value}
-            type="button"
+            size={size}
             role="radio"
             aria-checked={selected}
             tabIndex={selected ? 0 : -1}
+            selected={selected}
             onClick={() => onChange(option.value)}
-            className={cn(
-              "flex-1 rounded-full px-3 font-medium transition-colors duration-150 outline-none focus-visible:ring-3 focus-visible:ring-ring/40",
-              size === "sm" ? "h-7 text-[12.5px]" : "h-8 text-[13px]",
-              selected
-                ? "bg-card font-semibold text-foreground shadow-[inset_0_0_0_1px_var(--border)] dark:bg-[#3a3a40]"
-                : "text-muted-foreground hover:bg-fill hover:text-foreground",
-            )}
+            className="flex-1"
           >
             {option.label}
-          </button>
+          </ChoicePill>
         );
       })}
     </div>

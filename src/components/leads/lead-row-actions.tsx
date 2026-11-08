@@ -25,8 +25,6 @@ export type RowActionLead = {
   unsubscribedAt: Date | null;
 };
 
-const ICON_BUTTON = "size-8 rounded-[9px] text-muted-foreground hover:text-foreground";
-
 /** Clicks inside the actions never open the lead (the row's own click). */
 function stop(event: { stopPropagation: () => void }) {
   event.stopPropagation();
@@ -61,15 +59,10 @@ export function LeadRowActions({
 
   return (
     // oxlint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events -- only stops the row click from bubbling
-    <div className={cn("flex items-center justify-end gap-0.5", className)} onClick={stop}>
+    <div className={cn("flex items-center justify-end gap-1", className)} onClick={stop}>
       {lead.phoneE164 ? (
         <Hint label={`WhatsApp · ${phone}`}>
-          <Button
-            asChild
-            variant="ghost"
-            size="icon"
-            className={cn(ICON_BUTTON, "text-green hover:text-green")}
-          >
+          <Button asChild variant="ghost" size="icon-sm" className="text-green hover:text-green">
             <a
               href={whatsappLink(lead.phoneE164)}
               target="_blank"
@@ -82,13 +75,7 @@ export function LeadRowActions({
         </Hint>
       ) : (
         <DisabledReason reason="Sem telefone">
-          <Button
-            variant="ghost"
-            size="icon"
-            className={ICON_BUTTON}
-            disabled
-            aria-label="WhatsApp indisponível"
-          >
+          <Button variant="ghost" size="icon-sm" disabled aria-label="WhatsApp indisponível">
             <WhatsAppMark className="size-[17px]" />
           </Button>
         </DisabledReason>
@@ -96,7 +83,7 @@ export function LeadRowActions({
 
       {lead.phone ? (
         <Hint label={`Ligar · ${phone}`}>
-          <Button asChild variant="ghost" size="icon" className={ICON_BUTTON}>
+          <Button asChild variant="ghost" size="icon-sm">
             <a href={`tel:${lead.phoneE164 ?? lead.phone}`} aria-label={`Ligar para ${phone}`}>
               <PhoneIcon strokeWidth={1.8} />
             </a>
@@ -104,13 +91,7 @@ export function LeadRowActions({
         </Hint>
       ) : (
         <DisabledReason reason="Sem telefone">
-          <Button
-            variant="ghost"
-            size="icon"
-            className={ICON_BUTTON}
-            disabled
-            aria-label="Ligar indisponível"
-          >
+          <Button variant="ghost" size="icon-sm" disabled aria-label="Ligar indisponível">
             <PhoneIcon strokeWidth={1.8} />
           </Button>
         </DisabledReason>
@@ -120,8 +101,7 @@ export function LeadRowActions({
         <Hint label={`Escrever e-mail · ${lead.email ?? ""}`}>
           <Button
             variant="ghost"
-            size="icon"
-            className={ICON_BUTTON}
+            size="icon-sm"
             disabled={Boolean(mailReason)}
             aria-label={`Escrever e-mail para ${lead.name}`}
             onClick={() => onWriteEmail(lead.id)}
@@ -136,8 +116,7 @@ export function LeadRowActions({
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
-              size="icon"
-              className={ICON_BUTTON}
+              size="icon-sm"
               aria-label={`Mudar etapa de ${lead.name}`}
               disabled={busy}
             >
