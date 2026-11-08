@@ -5,6 +5,7 @@ import {
   costPerDeal,
   formatUsd,
   lossBreakdown,
+  nicheSteps,
   nicheTags,
   percentLabel,
   ratePercent,
@@ -116,5 +117,51 @@ describe("niche tags and reasons", () => {
     ]);
     expect(top.get("a")).toBe("price");
     expect(top.get("b")).toBe("has_provider");
+  });
+});
+
+describe("nicheSteps", () => {
+  const niche = {
+    key: "dentistas",
+    contacted: 30,
+    replied: 9,
+    won: 4,
+    lost: 2,
+    cohortWon: 3,
+    cohortLost: 2,
+  };
+
+  it("starts at the contacted base and shares the rest of it", () => {
+    const steps = nicheSteps(niche);
+    expect(steps.map((step) => step.label)).toEqual([
+      "Contatados",
+      "Responderam",
+      "Fecharam",
+      "Recusaram",
+    ]);
+    expect(steps[0]).toMatchObject({ value: 30, percent: null, width: 100 });
+    expect(steps[1]).toMatchObject({ value: 9, percent: 30, width: 30 });
+    expect(steps[2]).toMatchObject({ value: 4, percent: 10, width: 10 });
+    expect(steps[3]).toMatchObject({ value: 2, percent: 7, width: 7 });
+  });
+
+  it("keeps a small share visible and empty bars at zero", () => {
+    const steps = nicheSteps({ ...niche, contacted: 100, replied: 1, cohortWon: 0, won: 0 });
+    expect(steps[1].width).toBe(3);
+    expect(steps[2]).toMatchObject({ percent: 0, width: 0 });
+  });
+
+  it("has no shares without contacted leads", () => {
+    const steps = nicheSteps({
+      ...niche,
+      contacted: 0,
+      replied: 0,
+      won: 0,
+      lost: 0,
+      cohortWon: 0,
+      cohortLost: 0,
+    });
+    expect(steps.every((step) => step.width === 0)).toBe(true);
+    expect(steps.slice(1).every((step) => step.percent === null)).toBe(true);
   });
 });

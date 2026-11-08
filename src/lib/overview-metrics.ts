@@ -177,3 +177,55 @@ export function replyRateLabel({ sent, replied }: ReplyRate): string {
   const sends = sent === 1 ? "1 envio" : `${sent} envios`;
   return `${answers} em ${sends}`;
 }
+
+export type NicheStepTone = "primary" | "blue" | "green" | "red";
+
+export type NicheStep = {
+  label: string;
+  value: number;
+  /** Share of the niche's contacted leads, or null for the base row and without contacts. */
+  percent: number | null;
+  /** Bar length, 0 to 100. */
+  width: number;
+  tone: NicheStepTone;
+};
+
+type NicheFunnel = NicheOutcome & { replied: number };
+
+/** Bar length for a share: visible (3%) when there is at least one, never past 100%. */
+function barWidth(count: number, percent: number | null): number {
+  if (percent === null || count <= 0) return 0;
+  return Math.min(Math.max(percent, 3), 100);
+}
+
+function shareStep(
+  label: string,
+  value: number,
+  cohort: number,
+  contacted: number,
+  tone: NicheStepTone,
+): NicheStep {
+  const percent = ratePercent(cohort, contacted);
+  return { label, value, percent, width: barWidth(cohort, percent), tone };
+}
+
+/**
+ * The funnel of one niche card: contacted (the base, full bar), then replied, won and lost as a
+ * share of the contacted leads. Won and lost count the period; their shares come from the
+ * contacted cohort, as in the niche tags, so they never pass 100%.
+ */
+export function nicheSteps(niche: NicheFunnel): NicheStep[] {
+  const base: NicheStep = {
+    label: "Contatados",
+    value: niche.contacted,
+    percent: null,
+    width: niche.contacted > 0 ? 100 : 0,
+    tone: "primary",
+  };
+  return [
+    base,
+    shareStep("Responderam", niche.replied, niche.replied, niche.contacted, "blue"),
+    shareStep("Fecharam", niche.won, niche.cohortWon, niche.contacted, "green"),
+    shareStep("Recusaram", niche.lost, niche.cohortLost, niche.contacted, "red"),
+  ];
+}
