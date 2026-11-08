@@ -163,8 +163,8 @@ function OverviewPage() {
     >
       <OverviewAlerts alerts={alerts} />
       <NeedsYou data={data} now={data.now} />
-      {/* The goal first, then today's agenda, each as tall as its content; alone, a card spans both columns. */}
-      <div className="grid items-start gap-3 lg:grid-cols-2 [&>*:only-child]:lg:col-span-2">
+      {/* The goal first, then today's agenda, side by side at the same height; alone, a card spans both columns. */}
+      <div className="grid gap-3 lg:grid-cols-2 [&>*:only-child]:lg:col-span-2">
         <MonthlyGoalCard />
         <TodaysAgenda />
       </div>

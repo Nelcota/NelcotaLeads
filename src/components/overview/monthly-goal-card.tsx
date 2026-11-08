@@ -43,7 +43,7 @@ function GoalProgress({ status, pace }: { status: MonthlyGoalStatus; pace: GoalP
   if (!goal) return null;
   const inherited = goal.month !== month;
   return (
-    <div className="grid gap-4 border-t border-border/60 px-5 py-4">
+    <div className="flex flex-1 flex-col gap-4 border-t border-border/60 px-5 py-4">
       <GoalRow
         title="Fechamentos"
         done={formatCount(progress.deals)}
@@ -56,7 +56,8 @@ function GoalProgress({ status, pace }: { status: MonthlyGoalStatus; pace: GoalP
         target={formatCents(goal.revenueCents)}
         percent={pace.revenuePercent}
       />
-      <p className="text-[15px] text-muted-foreground">{paceLine(pace)}</p>
+      {/* At the bottom, so the card lines up with today's agenda beside it. */}
+      <p className="mt-auto text-[15px] text-muted-foreground">{paceLine(pace)}</p>
       {inherited ? (
         <p className="text-[14px] text-tertiary">Mesma meta de {monthName(goal.month)}.</p>
       ) : null}
@@ -114,7 +115,7 @@ export function MonthlyGoalCard() {
   const { data } = goal;
   if (!data && !goal.failed) return null;
   return (
-    <section aria-labelledby="monthly-goal" className="grouped enter">
+    <section aria-labelledby="monthly-goal" className="grouped enter flex flex-col">
       <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 px-5 pt-4 pb-2">
         <h2 id="monthly-goal" className="text-[18px] font-semibold">
           Meta do mês
