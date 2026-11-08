@@ -3,8 +3,8 @@ import { Input } from "@/components/ui/input";
 import { formatMoneyInput, parseMoneyInput } from "@/lib/money";
 import {
   caretAfter,
-  decimalDotToComma,
   maskNumber,
+  moneyAfterEdit,
   significantBefore,
   type NumberMaskKind,
 } from "@/lib/number-mask";
@@ -44,7 +44,8 @@ export function NumberInput({
   });
 
   const change = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const typed = kind === "money" ? decimalDotToComma(event.target.value) : event.target.value;
+    const next = event.target.value;
+    const typed = kind === "money" ? moneyAfterEdit(value, next) : next;
     const caret = event.target.selectionStart ?? typed.length;
     const masked = maskNumber(kind, typed);
     pendingCaret.current = caretAfter(masked, significantBefore(typed, caret));

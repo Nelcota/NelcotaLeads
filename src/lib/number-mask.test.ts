@@ -4,6 +4,7 @@ import {
   decimalDotToComma,
   maskMoney,
   maskWholeNumber,
+  moneyAfterEdit,
   significantBefore,
 } from "./number-mask";
 
@@ -36,14 +37,27 @@ describe("maskMoney", () => {
     expect(maskMoney(",5")).toBe("0,5");
   });
 
-  it("takes a dot typed for the cents as the comma", () => {
-    expect(maskMoney("1500.50")).toBe("1.500,50");
-    expect(maskMoney("1.500.")).toBe("1.500,");
+  it("reads dots as thousands separators", () => {
     expect(maskMoney("1.234")).toBe("1.234");
+    expect(maskMoney("1.00")).toBe("100");
   });
 
   it("keeps a single comma", () => {
     expect(maskMoney("1,2,3")).toBe("1,23");
+  });
+});
+
+describe("moneyAfterEdit", () => {
+  it("takes a dot typed or pasted for the cents as the comma", () => {
+    expect(maskMoney(moneyAfterEdit("1.500", "1500.50"))).toBe("1.500,50");
+    expect(maskMoney(moneyAfterEdit("1.500", "1.500."))).toBe("1.500,");
+    expect(maskMoney(moneyAfterEdit("12", "12.5"))).toBe("12,5");
+  });
+
+  it("keeps grouping dots when a digit is deleted", () => {
+    expect(maskMoney(moneyAfterEdit("1.000", "1.00"))).toBe("100");
+    expect(maskMoney(moneyAfterEdit("15.000", "15.00"))).toBe("1.500");
+    expect(maskMoney(moneyAfterEdit("1.500", "1.00"))).toBe("100");
   });
 });
 

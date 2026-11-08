@@ -35,13 +35,22 @@ export function maskWholeNumber(text: string): string {
   return groupThousands(wholeDigits(text));
 }
 
-/** "150000" → "150.000", "1500,5" → "1.500,5", "1500.50" → "1.500,50"; no "R$". */
+/**
+ * A money field's text after an edit. Only an edit that adds characters (typing or pasting) may
+ * turn a last dot into the decimal comma: a deletion that leaves "1.00" from "1.000" keeps the
+ * dot as a thousands separator, so the value becomes 100 and not R$ 1,00.
+ */
+export function moneyAfterEdit(previous: string, next: string): string {
+  if (next.length <= previous.length) return next;
+  return decimalDotToComma(next);
+}
+
+/** "150000" → "150.000", "1500,5" → "1.500,5"; dots are thousands separators; no "R$". */
 export function maskMoney(text: string): string {
-  const prepared = decimalDotToComma(text);
-  const commaAt = prepared.indexOf(",");
-  if (commaAt === -1) return maskWholeNumber(prepared);
-  const whole = maskWholeNumber(prepared.slice(0, commaAt));
-  const cents = prepared
+  const commaAt = text.indexOf(",");
+  if (commaAt === -1) return maskWholeNumber(text);
+  const whole = maskWholeNumber(text.slice(0, commaAt));
+  const cents = text
     .slice(commaAt + 1)
     .replace(/\D/g, "")
     .slice(0, 2);
