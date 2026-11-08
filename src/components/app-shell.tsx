@@ -479,7 +479,14 @@ export function Page({
 }) {
   return (
     <>
-      <header className="flex h-14 shrink-0 items-center gap-2 px-4 sm:h-16 lg:pr-5 lg:pl-6">
+      {/* The same scrollbar gutter as the content below, so the header actions end where the
+          cards end, whatever the scrollbar width. */}
+      <header
+        className={cn(
+          "flex h-14 shrink-0 items-center gap-2 px-4 sm:h-16 lg:px-6",
+          !bleed && "overflow-y-hidden [scrollbar-gutter:stable]",
+        )}
+      >
         <Hint label="Menu">
           <SidebarTrigger
             aria-label="Mostrar ou esconder o menu"
@@ -495,7 +502,7 @@ export function Page({
       {bleed ? (
         <div className="flex min-h-0 flex-1 flex-col">{children}</div>
       ) : (
-        <div className="scroll-fade min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        <div className="scroll-fade min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-gutter:stable]">
           <div className="mx-auto flex w-full max-w-[1800px] flex-col gap-6 px-4 pt-1 pb-12 lg:px-6">
             {description ? (
               <p className="-mt-1 text-base font-light text-muted-foreground">{description}</p>

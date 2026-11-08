@@ -1,4 +1,10 @@
+import { Hint } from "@/components/apple-ui";
 import { replyHourChart } from "@/lib/overview";
+
+/** "3 respostas às 14h": the app tooltip on hover and the text screen readers get. */
+function barLabel(value: number, hour: number) {
+  return `${value} ${value === 1 ? "resposta" : "respostas"} às ${hour}h`;
+}
 import type { Dashboard } from "@/server/dashboard";
 
 /** When leads answer, by hour, so the sending window can follow it. */
@@ -28,21 +34,20 @@ export function ReplyHoursCard({ data }: { data: Dashboard }) {
           style={{ gridTemplateColumns: `repeat(${chart.bars.length}, minmax(0, 1fr))` }}
         >
           {chart.bars.map((bar) => (
-            <div
-              key={bar.hour}
-              className="flex h-full flex-col items-center justify-end gap-1.5"
-              title={`${bar.value} ${bar.value === 1 ? "resposta" : "respostas"} às ${bar.hour}h`}
-            >
-              <div
-                className={
-                  bar.isPeak
-                    ? "w-full rounded-t-lg rounded-b-sm bg-primary"
-                    : "w-full rounded-t-lg rounded-b-sm bg-fill"
-                }
-                style={{ height: `${Math.max(4, bar.share * 110)}px` }}
-              />
-              <span className="text-[12px] text-tertiary">{bar.hour}h</span>
-            </div>
+            <Hint key={bar.hour} label={barLabel(bar.value, bar.hour)}>
+              <div className="relative flex h-full flex-col items-center justify-end gap-1.5">
+                <span className="sr-only">{barLabel(bar.value, bar.hour)}</span>
+                <div
+                  className={
+                    bar.isPeak
+                      ? "w-full rounded-t-lg rounded-b-sm bg-primary"
+                      : "w-full rounded-t-lg rounded-b-sm bg-fill"
+                  }
+                  style={{ height: `${Math.max(4, bar.share * 110)}px` }}
+                />
+                <span className="text-[12px] text-tertiary">{bar.hour}h</span>
+              </div>
+            </Hint>
           ))}
         </div>
       )}

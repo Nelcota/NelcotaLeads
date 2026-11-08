@@ -1,8 +1,17 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { PlayIcon, RefreshCwIcon } from "lucide-react";
+import {
+  CircleAlertIcon,
+  CircleCheckIcon,
+  CircleXIcon,
+  ClockIcon,
+  PlayIcon,
+  RefreshCwIcon,
+  Undo2Icon,
+  type LucideIcon,
+} from "lucide-react";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
+import { StatusLabel } from "@/components/status-label";
 import { Button } from "@/components/ui/button";
 import { shortTime } from "@/lib/format";
 import { errorToast } from "@/lib/mutation-toasts";
@@ -30,6 +39,20 @@ const STATUS_VARIANT = {
   Voltou: "orange",
   Falhou: "red",
 } as const;
+
+const STATUS_ICON: Record<SendStatus, LucideIcon> = {
+  "Na fila": ClockIcon,
+  Enviado: CircleCheckIcon,
+  Voltou: Undo2Icon,
+  Falhou: CircleXIcon,
+};
+
+/** The run state's icon: a problem, running, or waiting. */
+const RUN_ICON: Record<"green" | "orange" | "gray", LucideIcon> = {
+  green: CircleCheckIcon,
+  orange: CircleAlertIcon,
+  gray: ClockIcon,
+};
 
 const SEND_STATUS = { sent: "Enviado", bounced: "Voltou", failed: "Falhou" } as const;
 
@@ -90,7 +113,9 @@ export function TodaysDispatch({ data }: { data: Dashboard }) {
           <h2 id="todays-dispatch" className="text-[18px] font-semibold">
             Disparo de hoje
           </h2>
-          <Badge variant={state.variant}>● {state.label}</Badge>
+          <StatusLabel icon={RUN_ICON[state.variant]} tone={state.variant}>
+            {state.label}
+          </StatusLabel>
         </div>
         <div className="flex items-baseline gap-2">
           <span className="text-4xl leading-none font-semibold tracking-[-0.03em] tabular-nums">
@@ -154,7 +179,9 @@ export function TodaysDispatch({ data }: { data: Dashboard }) {
                 <span className="truncate font-semibold">{row.name}</span>
                 <span className="truncate text-[14px] text-tertiary">{row.detail}</span>
               </span>
-              <Badge variant={STATUS_VARIANT[row.status]}>{row.status}</Badge>
+              <StatusLabel icon={STATUS_ICON[row.status]} tone={STATUS_VARIANT[row.status]}>
+                {row.status}
+              </StatusLabel>
             </Link>
           ))
         )}

@@ -1,13 +1,38 @@
 import { Link } from "@tanstack/react-router";
-import { Badge } from "@/components/ui/badge";
+import { AlarmClockIcon, CalendarIcon, RotateCcwIcon } from "lucide-react";
+import { StatusLabel } from "@/components/status-label";
 import { agendaDetail, agendaWhen, type AgendaEntry } from "@/lib/agenda";
+
+/** What the row is: a meeting, a follow-up, or a follow-up whose day has passed. */
+function AgendaKind({ meeting, overdue }: { meeting: boolean; overdue: boolean }) {
+  if (meeting) {
+    return (
+      <StatusLabel icon={CalendarIcon} tone="blue">
+        Reunião
+      </StatusLabel>
+    );
+  }
+  if (overdue) {
+    return (
+      <StatusLabel icon={AlarmClockIcon} tone="red">
+        Retorno atrasado
+      </StatusLabel>
+    );
+  }
+  return (
+    <StatusLabel icon={RotateCcwIcon} tone="orange">
+      Retorno
+    </StatusLabel>
+  );
+}
 
 /**
  * One meeting or follow-up: the time ("dia todo" for a follow-up, its day when overdue), the
- * lead, what it is and a chip, Reunião (blue) or Retorno (orange). The whole row opens the lead.
+ * lead, what it is, and whether it is late. The whole row opens the lead.
  */
 export function AgendaRow({ entry, today }: { entry: AgendaEntry; today: string }) {
   const meeting = entry.kind === "meeting";
+  const overdue = entry.day < today;
   const when = agendaWhen(entry, today);
   return (
     <Link
@@ -19,22 +44,14 @@ export function AgendaRow({ entry, today }: { entry: AgendaEntry; today: string 
         {entry.time ? (
           when
         ) : (
-          <span
-            className={
-              entry.day < today
-                ? "text-xs font-medium text-orange"
-                : "text-xs font-medium text-muted-foreground"
-            }
-          >
-            {when}
-          </span>
+          <span className="text-xs font-medium text-muted-foreground">{when}</span>
         )}
       </span>
       <span className="grid min-w-0 flex-1">
         <span className="truncate font-semibold">{entry.leadName}</span>
         <span className="truncate text-[14px] text-muted-foreground">{agendaDetail(entry)}</span>
       </span>
-      <Badge variant={meeting ? "blue" : "orange"}>{meeting ? "Reunião" : "Retorno"}</Badge>
+      <AgendaKind meeting={meeting} overdue={overdue} />
       <span className="shrink-0 text-[15px] font-semibold text-blue max-sm:hidden">Abrir lead</span>
     </Link>
   );
