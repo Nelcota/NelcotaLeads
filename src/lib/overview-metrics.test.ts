@@ -5,6 +5,7 @@ import {
   costPerDeal,
   formatUsd,
   lossBreakdown,
+  hasNicheActivity,
   nicheSteps,
   nicheTags,
   percentLabel,
@@ -149,6 +150,16 @@ describe("nicheSteps", () => {
     const steps = nicheSteps({ ...niche, contacted: 100, replied: 1, cohortWon: 0, won: 0 });
     expect(steps[1].width).toBe(3);
     expect(steps[2]).toMatchObject({ percent: 0, width: 0 });
+  });
+
+  it("shows a deal from an earlier contact without a percent", () => {
+    const steps = nicheSteps({ ...niche, won: 1, cohortWon: 0 });
+    expect(steps[2]).toMatchObject({ value: 1, percent: null, width: 3 });
+  });
+
+  it("knows a niche with only found leads has no activity", () => {
+    expect(hasNicheActivity({ contacted: 0, won: 0, lost: 0 })).toBe(false);
+    expect(hasNicheActivity({ contacted: 0, won: 1, lost: 0 })).toBe(true);
   });
 
   it("has no shares without contacted leads", () => {

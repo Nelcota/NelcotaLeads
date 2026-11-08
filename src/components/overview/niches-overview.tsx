@@ -50,13 +50,15 @@ export function NichesOverview({ period, caption }: { period: OverviewPeriod; ca
         <h2 id="niches" className="text-[18px] font-semibold">
           Por nicho
         </h2>
-        <span className="min-w-0 flex-1 text-sm text-muted-foreground">
+        {/* On a phone the caption takes its own line under the title and the button. */}
+        <span className="min-w-0 text-sm text-muted-foreground max-sm:order-last max-sm:basis-full sm:flex-1">
           {caption} · {captionOf(niches, tags.mostCloses)}
         </span>
         {hasMore ? (
           <Button
             size="sm"
             variant="secondary"
+            className="max-sm:ml-auto"
             aria-expanded={expanded}
             aria-controls="niches-grid"
             onClick={() => setExpanded((open) => !open)}

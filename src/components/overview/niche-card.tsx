@@ -3,7 +3,7 @@ import { TrendingDownIcon, TrendingUpIcon } from "lucide-react";
 import { StatusLabel } from "@/components/status-label";
 import { Button } from "@/components/ui/button";
 import { formatCents } from "@/lib/money";
-import { nicheSteps } from "@/lib/overview-metrics";
+import { hasNicheActivity, nicheSteps } from "@/lib/overview-metrics";
 import { LOSS_REASON_LABELS } from "@/lib/schemas";
 import type { NicheMetricRow } from "@/server/niches";
 import { NicheStep } from "./niche-step";
@@ -64,14 +64,16 @@ export function NicheCard({ niche, tag }: { niche: NicheMetricRow; tag: NicheTag
       <span className="text-sm text-muted-foreground">
         {plural(niche.leads, "lead", "leads")} · {contactedLine}
       </span>
-      {niche.contacted > 0 ? (
+      {hasNicheActivity(niche) ? (
         <div className="flex flex-col gap-2.5">
           {nicheSteps(niche).map((step) => (
             <NicheStep key={step.label} step={step} />
           ))}
         </div>
       ) : (
-        <p className="py-3 text-sm text-muted-foreground">Nenhum lead contatado neste período.</p>
+        <p className="py-3 text-sm text-muted-foreground">
+          Nenhum contato, fechamento ou perda neste período.
+        </p>
       )}
       <div className="mt-auto grid grid-cols-2 gap-3 border-t border-border/60 pt-3">
         <Fact label="Receita">

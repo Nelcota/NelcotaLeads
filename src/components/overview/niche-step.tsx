@@ -8,6 +8,13 @@ const BAR_CLASS: Record<NicheStepTone, string> = {
   red: "bg-red",
 };
 
+/** "40%"; "–" when the share has no base; nothing on the contacted row, the base itself. */
+function percentText(step: NicheStepData): string {
+  if (step.isBase) return "";
+  if (step.percent === null) return "–";
+  return `${step.percent}%`;
+}
+
 const VALUE_CLASS: Record<NicheStepTone, string> = {
   primary: "text-foreground",
   blue: "text-blue",
@@ -34,9 +41,7 @@ export function NicheStep({ step }: { step: NicheStepData }) {
       >
         {step.value}
       </span>
-      <span className="text-right text-[13px] text-tertiary tabular-nums">
-        {step.percent === null ? "" : `${step.percent}%`}
-      </span>
+      <span className="text-right text-[13px] text-tertiary tabular-nums">{percentText(step)}</span>
     </div>
   );
 }

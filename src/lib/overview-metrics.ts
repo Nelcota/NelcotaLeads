@@ -183,8 +183,10 @@ export type NicheStepTone = "primary" | "blue" | "green" | "red";
 export type NicheStep = {
   label: string;
   value: number;
-  /** Share of the niche's contacted leads, or null for the base row and without contacts. */
+  /** Share of the niche's contacted leads; null when there is no base for it. */
   percent: number | null;
+  /** The contacted row: the base the others are a share of, shown without a percent. */
+  isBase: boolean;
   /** Bar length, 0 to 100. */
   width: number;
   tone: NicheStepTone;
@@ -192,12 +194,19 @@ export type NicheStep = {
 
 type NicheFunnel = NicheOutcome & { replied: number };
 
-/** Bar length for a share: visible (3%) when there is at least one, never past 100%. */
+/** Shortest bar, so a count above zero always shows. */
+const MIN_BAR = 3;
+
+/** Bar length for a share: visible when there is at least one, never past 100%. */
 function barWidth(count: number, percent: number | null): number {
   if (percent === null || count <= 0) return 0;
-  return Math.min(Math.max(percent, 3), 100);
+  return Math.min(Math.max(percent, MIN_BAR), 100);
 }
 
+/**
+ * A share of the contacted leads. Deals closed or lost in the period by leads contacted before
+ * it have no base here: the count shows, with a short bar and no percent, instead of "1 · 0%".
+ */
 function shareStep(
   label: string,
   value: number,
@@ -205,8 +214,16 @@ function shareStep(
   contacted: number,
   tone: NicheStepTone,
 ): NicheStep {
+  if (value > 0 && cohort <= 0) {
+    return { label, value, percent: null, isBase: false, width: MIN_BAR, tone };
+  }
   const percent = ratePercent(cohort, contacted);
-  return { label, value, percent, width: barWidth(cohort, percent), tone };
+  return { label, value, percent, isBase: false, width: barWidth(cohort, percent), tone };
+}
+
+/** Whether a niche did anything in the period besides having leads found. */
+export function hasNicheActivity(niche: Pick<NicheOutcome, "contacted" | "won" | "lost">): boolean {
+  return niche.contacted + niche.won + niche.lost > 0;
 }
 
 /**
@@ -219,6 +236,7 @@ export function nicheSteps(niche: NicheFunnel): NicheStep[] {
     label: "Contatados",
     value: niche.contacted,
     percent: null,
+    isBase: true,
     width: niche.contacted > 0 ? 100 : 0,
     tone: "primary",
   };
