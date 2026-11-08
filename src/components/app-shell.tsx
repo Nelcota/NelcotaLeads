@@ -484,7 +484,7 @@ export function Page({
       <header
         className={cn(
           "flex h-14 shrink-0 items-center gap-2 px-4 sm:h-16 lg:px-6",
-          !bleed && "overflow-y-hidden [scrollbar-gutter:stable]",
+          !bleed && "overflow-hidden [scrollbar-gutter:stable]",
         )}
       >
         <Hint label="Menu">
