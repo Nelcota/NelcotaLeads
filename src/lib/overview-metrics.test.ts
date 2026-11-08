@@ -35,13 +35,13 @@ describe("rates and money", () => {
 });
 
 describe("lossBreakdown", () => {
-  it("lists all nine reasons, most common first, with share and bar", () => {
+  it("lists the reasons given, most common first, with share and bar", () => {
     const { total, bars } = lossBreakdown([
       { reason: "not_now", count: 1 },
       { reason: "price", count: 3 },
     ]);
     expect(total).toBe(4);
-    expect(bars).toHaveLength(9);
+    expect(bars).toHaveLength(2);
     expect(bars[0]).toEqual({
       reason: "price",
       label: "Preço alto",
@@ -50,13 +50,12 @@ describe("lossBreakdown", () => {
       share: 1,
     });
     expect(bars[1]).toMatchObject({ reason: "not_now", percent: 25 });
-    expect(bars[2]).toMatchObject({ reason: "has_provider", count: 0, share: 0 });
   });
 
-  it("is all zeros without losses", () => {
+  it("is empty without losses", () => {
     const { total, bars } = lossBreakdown([]);
     expect(total).toBe(0);
-    expect(bars.every((bar) => bar.count === 0 && bar.percent === 0)).toBe(true);
+    expect(bars).toEqual([]);
   });
 });
 

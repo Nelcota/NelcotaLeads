@@ -152,7 +152,7 @@ export function TodaysDispatch({ data }: { data: Dashboard }) {
             {mail.aiAutoReply ? "ligada" : "desligada"} · disparo automático{" "}
             {mail.autoDispatch ? "ligado" : "desligado"}
           </p>
-          <Button asChild size="sm" className="shrink-0">
+          <Button asChild size="sm" variant="outline" className="shrink-0">
             <Link to="/settings" hash="piloto">
               Ajustar
             </Link>
@@ -162,9 +162,9 @@ export function TodaysDispatch({ data }: { data: Dashboard }) {
       <div className="flex min-w-0 flex-col">
         <div className="flex items-center gap-2 pb-2">
           <h3 className="flex-1 text-[16px] font-semibold">Últimos envios</h3>
-          <Link to="/conversas" className="text-[15px] font-semibold text-blue hover:underline">
-            Ver conversas
-          </Link>
+          <Button asChild size="sm" className="shrink-0">
+            <Link to="/conversas">Ver conversas</Link>
+          </Button>
         </div>
         {rows.length === 0 ? (
           <p className="border-t border-border/60 py-4 text-sm text-muted-foreground">

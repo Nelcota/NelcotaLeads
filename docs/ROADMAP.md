@@ -11,7 +11,7 @@ Only what is in **Now** gets built. Every decision below is dated.
 
 Icon standard for the whole app: icons inside actions (buttons, action cards, contact shortcuts, add and remove controls) are bare line icons in their tone, with the official WhatsApp and Google Maps marks; icons in card titles and list rows keep the tinted chip. (2026-11-05, chosen by the user over "bare everywhere")
 
-Card action button standard for the whole app: a button in a card that edits or configures something (Editar meta, Editar in Serviços, Ajustar in Disparo de hoje) is a solid blue button (`Button` default variant; `size="sm"` in card headers and table rows, since the 2026-11-08 button standard removed `xs`), not ghost text or a plain link; Cancelar and Voltar stay ghost, and links that only open another page (Abrir agenda, Ver conversas) stay blue text. (2026-11-08, asked by the user after approving the blue "Editar meta")
+Card action button standard: use `size="sm"` for actions in card headers and table rows (the button standard removed `xs`). Each card in Visão geral has at most one solid blue main action: Abrir agenda, Ver conversas, Ver leads, or Editar meta while no goal is set. Once a goal exists, Editar meta is gray (`variant="outline"`), as is Ajustar in Disparo de hoje. Cancelar and Voltar stay ghost. (2026-11-08, revised after the user chose less visual friction)
 
 Badge standard for the whole app: every status badge is a line icon in the status color followed by neutral text; no pill, no tinted fill, no dot. (2026-11-05, the user rejected the tinted pill "● Caixa não conectada" and chose "ícone de traço + texto" for all badges)
 
