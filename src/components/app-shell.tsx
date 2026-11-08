@@ -140,7 +140,11 @@ export function AppShell({ children }: { children: ReactNode }) {
         <TooltipProvider delayDuration={300}>
           <SidebarProvider>
             <AppSidebar />
-            <SidebarInset className="h-svh overflow-hidden">{children}</SidebarInset>
+            {/* Same background as the sidebar; a thin outline with a rounded top-left corner
+                frames the pages so the cards do not float, like Nelcota PRs. */}
+            <SidebarInset className="h-svh overflow-hidden md:mt-2.5 md:h-[calc(100svh-10px)] md:rounded-tl-[28px] md:border-t md:border-l md:border-border">
+              {children}
+            </SidebarInset>
           </SidebarProvider>
         </TooltipProvider>
         <NewSearchDialog open={newSearchOpen} onOpenChange={setNewSearchOpen} />
