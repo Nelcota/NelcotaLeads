@@ -58,12 +58,14 @@ export function SelectionBar({
         {ids.length} {ids.length === 1 ? "selecionado" : "selecionados"}
       </span>
       {left > 0 ? (
-        <span
-          className="mr-1 text-[13px] text-orange max-sm:hidden"
-          title="Sem e-mail, descadastrados ou já contatados não recebem o primeiro e-mail"
+        <Hint
+          label="Sem e-mail, descadastrados ou já contatados não recebem o primeiro e-mail"
+          side="top"
         >
-          {left} {left === 1 ? "fica" : "ficam"} de fora do disparo
-        </span>
+          <span tabIndex={0} className="mr-1 text-[13px] text-orange outline-none max-sm:hidden">
+            {left} {left === 1 ? "fica" : "ficam"} de fora do disparo
+          </span>
+        </Hint>
       ) : null}
       <DisabledReason reason={dispatchReason} side="top">
         <Button size="sm" disabled={Boolean(dispatchReason)} onClick={onDispatch}>

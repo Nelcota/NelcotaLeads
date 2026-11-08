@@ -2,7 +2,7 @@ import { env } from "cloudflare:test";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import { getDb } from "@/db/client";
-import { leads, searches } from "@/db/schema";
+import { leadEvents, leads, meetings, searches, users } from "@/db/schema";
 import { resetDb } from "../../test/reset-db";
 import { bulkUpdateLeads, undoBulkUpdate } from "./lead-bulk";
 
@@ -55,7 +55,7 @@ describe("bulkUpdateLeads", () => {
       ["new", "contacted", "closed", "missing"],
       "discarded",
     );
-    expect(result).toMatchObject({ changed: 2, skipped: 2 });
+    expect(result).toMatchObject({ changed: 2, skipped: 2, notAllowed: 1, alreadyThere: 0 });
     expect(await lead("new")).toMatchObject({ status: "discarded" });
     expect(await lead("contacted")).toMatchObject({ status: "discarded", followUpOn: null });
     // closed → discarded is not a transition a person can make.
@@ -114,6 +114,69 @@ describe("bulkUpdateLeads", () => {
     await db.update(leads).set({ unsubscribedAt: now }).where(eq(leads.id, "contacted"));
     expect(await undoBulkUpdate(db, "discarded", previous)).toEqual({ restored: 0 });
     expect(await lead("contacted")).toMatchObject({ status: "discarded" });
+  });
+
+  it("says why leads did not move: already there, not allowed or in conversation", async () => {
+    await db.insert(leads).values({
+      id: "talking",
+      searchId: "s",
+      placeId: "p7",
+      name: "G",
+      status: "replied",
+    });
+    const result = await bulkUpdateLeads(db, ["ai", "closed", "talking", "missing"], "discarded");
+    expect(result).toMatchObject({
+      changed: 0,
+      skipped: 4,
+      alreadyThere: 1,
+      notAllowed: 1,
+      needsReason: 1,
+    });
+    // A conversation ends through the panel, with the loss reason the metrics count.
+    expect(await lead("talking")).toMatchObject({ status: "replied" });
+  });
+
+  it("writes each change to the history and the undo writes the way back", async () => {
+    await db
+      .insert(users)
+      .values({ id: "u1", name: "Haniel", email: "haniel@nelcota.test", passwordHash: "x" });
+    const { previous } = await bulkUpdateLeads(db, ["new"], "contacted", now, "u1");
+    const afterChange = await db.select().from(leadEvents).where(eq(leadEvents.leadId, "new"));
+    expect(afterChange).toEqual([
+      expect.objectContaining({
+        kind: "status",
+        fromValue: "new",
+        toValue: "contacted",
+        userId: "u1",
+      }),
+    ]);
+    await undoBulkUpdate(db, "contacted", previous, now, "u1");
+    const afterUndo = await db.select().from(leadEvents).where(eq(leadEvents.leadId, "new"));
+    expect(afterUndo.map((event) => `${event.fromValue}>${event.toValue}`).toSorted()).toEqual([
+      "contacted>new",
+      "new>contacted",
+    ]);
+  });
+
+  it("cancels the future meetings of a discarded lead", async () => {
+    await db.insert(meetings).values({
+      id: "m1",
+      leadId: "contacted",
+      startsAt: new Date("2026-10-13T15:00:00Z"),
+      kind: "call",
+    });
+    await bulkUpdateLeads(db, ["contacted"], "discarded", now);
+    const meeting = await db.query.meetings.findFirst({ where: eq(meetings.id, "m1") });
+    expect(meeting?.cancelledAt).not.toBeNull();
+  });
+
+  it("forgets the contact date when a lead goes back to the queue, and the undo restores it", async () => {
+    const contactedAt = new Date("2026-10-01T12:00:00Z");
+    await db.update(leads).set({ contactedAt }).where(eq(leads.id, "contacted"));
+    const { previous } = await bulkUpdateLeads(db, ["contacted"], "new", now);
+    expect(await lead("contacted")).toMatchObject({ status: "new", contactedAt: null });
+    await undoBulkUpdate(db, "new", previous, now);
+    expect(await lead("contacted")).toMatchObject({ status: "contacted", contactedAt });
   });
 
   it("handles more leads than D1 binds in one query", async () => {

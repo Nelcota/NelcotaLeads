@@ -2,7 +2,9 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type { LeadStatus } from "@/db/schema";
 import { errorToast } from "@/lib/mutation-toasts";
+import { invalidateLeadScreens } from "@/lib/queries";
 import { BULK_LIMIT, type BulkSnapshot, LEAD_STATUS_LABELS } from "@/lib/schemas";
+import type { BulkResult } from "@/server/lead-bulk";
 import { bulkUpdateLeads, undoBulkUpdateLeads } from "@/server/leads";
 
 type ChangeInput = { ids: string[]; status: Exclude<LeadStatus, "closed"> };
@@ -19,19 +21,40 @@ function doneMessage(status: ChangeInput["status"], changed: number) {
   return `${countLabel(changed)} em ${LEAD_STATUS_LABELS[status]}`;
 }
 
+/** Why the rest did not move, one reason at a time; nothing when every lead changed. */
+function skippedLine(result: BulkResult, status: ChangeInput["status"]): string | undefined {
+  const parts: string[] = [];
+  const { alreadyThere, notAllowed, needsReason } = result;
+  if (alreadyThere > 0) {
+    const where = status === "discarded" ? "descartado" : `em ${LEAD_STATUS_LABELS[status]}`;
+    parts.push(`${alreadyThere} já ${alreadyThere === 1 ? "estava" : "estavam"} ${where}`);
+  }
+  if (notAllowed > 0) {
+    parts.push(
+      `${notAllowed} não ${notAllowed === 1 ? "mudou" : "mudaram"}: a etapa atual não permite`,
+    );
+  }
+  if (needsReason > 0) {
+    parts.push(
+      `${needsReason} em conversa: encerre pelo painel, com o motivo`,
+    );
+  }
+  const missing = result.skipped - alreadyThere - notAllowed - needsReason;
+  if (missing > 0) parts.push(`${missing} não ${missing === 1 ? "existe" : "existem"} mais`);
+  return parts.length > 0 ? `${parts.join(" · ")}.` : undefined;
+}
+
 /**
  * Moves leads to a status from the list (one row or a selection) and offers "Desfazer" for a
  * few seconds. Shared by the row's "Mudar etapa" and the selection bar.
  */
 export function useLeadStatusChange(onDone?: () => void) {
   const queryClient = useQueryClient();
+  // Every screen that reads leads (agenda, conversations, bell, metrics) plus the open panel.
   const refresh = () =>
     Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["leads"] }),
+      invalidateLeadScreens(queryClient),
       queryClient.invalidateQueries({ queryKey: ["lead"] }),
-      queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
-      // The niche funnel counts leads by status.
-      queryClient.invalidateQueries({ queryKey: ["niches"] }),
     ]);
 
   const undo = async (status: LeadStatus, previous: BulkSnapshot[]) => {
@@ -52,10 +75,7 @@ export function useLeadStatusChange(onDone?: () => void) {
     onSuccess: async (result, { status }) => {
       await refresh();
       onDone?.();
-      const skipped =
-        result.skipped > 0
-          ? `${result.skipped} não ${result.skipped === 1 ? "mudou" : "mudaram"}: a etapa atual não permite.`
-          : undefined;
+      const skipped = skippedLine(result, status);
       if (result.changed === 0) {
         toast.error("Nenhum lead mudou", { description: skipped });
         return;

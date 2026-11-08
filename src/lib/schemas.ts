@@ -479,5 +479,7 @@ export const bulkSnapshotSchema = z.object({
   lossNote: z.string().max(500).nullable().default(null),
   lostAt: z.number().int().min(0).max(MAX_UNIX_SECONDS).nullable().default(null),
   salesStage: z.enum(SALES_STAGES).nullable().default(null),
+  // Cleared when a lead goes back to "new"; the undo of that puts the old date back.
+  contactedAt: z.number().int().min(0).max(MAX_UNIX_SECONDS).nullable().optional(),
 });
 export type BulkSnapshot = z.infer<typeof bulkSnapshotSchema>;

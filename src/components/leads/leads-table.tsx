@@ -1,6 +1,6 @@
 import { ChevronDownIcon, FilterXIcon, InboxIcon } from "lucide-react";
 import type { ReactNode } from "react";
-import { EmptyState } from "@/components/apple-ui";
+import { EmptyState, Hint } from "@/components/apple-ui";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -168,7 +168,7 @@ export function LeadsTable({
           <Head className="pl-4">
             <Checkbox
               className={LIST_CHECKBOX}
-              aria-label="Selecionar todos"
+              aria-label="Selecionar os leads desta página"
               checked={allSelected ? true : someSelected ? "indeterminate" : false}
               onCheckedChange={(checked) => handlers.onToggle(selectable, checked === true)}
               disabled={selectable.length === 0}
@@ -180,7 +180,11 @@ export function LeadsTable({
           {showNext ? <Head>{NEXT_STEP_HEAD[view] ?? "Próximo passo"}</Head> : null}
           {roomy ? (
             <Head>
-              <span title="Responsável">Resp.</span>
+              <Hint label="Responsável">
+                <span tabIndex={0} aria-label="Responsável" className="outline-none">
+                  Resp.
+                </span>
+              </Hint>
             </Head>
           ) : null}
           {wide ? <SortHeader label="Google" column="rating" sort={sort} onSort={onSort} /> : null}

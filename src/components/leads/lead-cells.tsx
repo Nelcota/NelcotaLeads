@@ -1,5 +1,5 @@
 import { ClockIcon, SendIcon, StarIcon } from "lucide-react";
-import { ProgressRing, TONE_TEXT } from "@/components/apple-ui";
+import { Hint, ProgressRing, TONE_TEXT } from "@/components/apple-ui";
 import { TIER_TONE } from "@/components/lead-badges";
 import type { NextStep } from "@/lib/lead-row";
 import { scoreTier } from "@/lib/schemas";
@@ -21,38 +21,37 @@ export function ScoreCell({
   if (pending) {
     // The ring only (the name's line says "Analisando…"), so the column stays narrow.
     return (
-      <span
-        role="img"
-        aria-label="Analisando"
-        title="Analisando"
-        className="inline-flex items-center"
-      >
-        <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden className="shrink-0">
-          <circle
-            cx="11"
-            cy="11"
-            r="9.5"
-            fill="none"
-            stroke="var(--fill)"
-            strokeWidth="3"
-            strokeDasharray="4 4"
-          />
-        </svg>
-      </span>
+      <Hint label="Analisando">
+        <span role="img" aria-label="Analisando" className="inline-flex items-center">
+          <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden className="shrink-0">
+            <circle
+              cx="11"
+              cy="11"
+              r="9.5"
+              fill="none"
+              stroke="var(--fill)"
+              strokeWidth="3"
+              strokeDasharray="4 4"
+            />
+          </svg>
+        </span>
+      </Hint>
     );
   }
   if (score === null) return <span className="text-tertiary">sem nota</span>;
   const tone = TIER_TONE[scoreTier(score)];
-  return (
+  const cell = (
     <span
-      title={reasons}
-      aria-label={reasons}
+      role="img"
+      aria-label={reasons ?? `Nota ${score}`}
       className={cn("inline-flex items-center gap-2 font-medium tabular-nums", TONE_TEXT[tone])}
     >
       <ProgressRing value={score} tone={tone} size={22} thickness={3} />
       {score}
     </span>
   );
+  // The app's tooltip, not the browser's `title`: same look, keyboard and touch included.
+  return reasons ? <Hint label={reasons}>{cell}</Hint> : cell;
 }
 
 /** "Próximo passo": a clock in the step's color and its text (red when overdue). */
@@ -73,33 +72,36 @@ export function NextStepCell({ step }: { step: NextStep | null }) {
 export function OwnerCell({ name, avatar }: { name: string | null; avatar: string | null }) {
   if (!name) {
     return (
-      <span
-        role="img"
-        aria-label="Livre"
-        title="Livre"
-        className="inline-block size-6 rounded-full border-[1.5px] border-dashed border-muted-foreground/45"
-      />
+      <Hint label="Livre">
+        <span
+          role="img"
+          aria-label="Livre"
+          className="inline-block size-6 rounded-full border-[1.5px] border-dashed border-muted-foreground/45"
+        />
+      </Hint>
     );
   }
   if (avatar) {
     return (
-      <img
-        src={avatar}
-        alt={`Responsável: ${name}`}
-        title={name}
-        className="size-6 rounded-full object-cover"
-      />
+      <Hint label={name}>
+        <img
+          src={avatar}
+          alt={`Responsável: ${name}`}
+          className="size-6 rounded-full object-cover"
+        />
+      </Hint>
     );
   }
   return (
-    <span
-      role="img"
-      aria-label={`Responsável: ${name}`}
-      title={name}
-      className="inline-grid size-6 place-items-center rounded-full bg-fill text-[11px] font-bold text-foreground"
-    >
-      {name.trim().charAt(0).toUpperCase()}
-    </span>
+    <Hint label={name}>
+      <span
+        role="img"
+        aria-label={`Responsável: ${name}`}
+        className="inline-grid size-6 place-items-center rounded-full bg-fill text-[11px] font-bold text-foreground"
+      >
+        {name.trim().charAt(0).toUpperCase()}
+      </span>
+    </Hint>
   );
 }
 
@@ -118,13 +120,10 @@ export function RatingCell({ rating, reviews }: { rating: number | null; reviews
 /** The paper plane next to a lead ready for the first e-mail. */
 export function ReadyMark() {
   return (
-    <span
-      role="img"
-      aria-label="Pronto para disparo"
-      title="Pronto para disparo"
-      className="text-blue"
-    >
-      <SendIcon className="size-3.5" strokeWidth={1.9} />
-    </span>
+    <Hint label="Pronto para disparo">
+      <span role="img" aria-label="Pronto para disparo" className="text-blue">
+        <SendIcon className="size-3.5" strokeWidth={1.9} />
+      </span>
+    </Hint>
   );
 }
