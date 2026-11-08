@@ -120,15 +120,19 @@ export function TodaysDispatch({ data }: { data: Dashboard }) {
           <DispatchControls paused={mail.paused} cancellable={mail.cancellable} />
         ) : null}
         <DispatchActions data={data} />
-        <p className="border-t border-border/60 pt-3 text-[14px] text-tertiary">
-          Ordem: nota mais alta primeiro · das {mail.windowStart}h às {mail.windowEnd}h · um e-mail
-          a cada {SEND_GAP_MINUTES} min · IA responde sozinha{" "}
-          {mail.aiAutoReply ? "ligada" : "desligada"} · disparo automático{" "}
-          {mail.autoDispatch ? "ligado" : "desligado"} ·{" "}
-          <Link to="/settings" hash="piloto" className="font-semibold text-blue hover:underline">
-            Ajustar
-          </Link>
-        </p>
+        <div className="flex items-center gap-3 border-t border-border/60 pt-3">
+          <p className="flex-1 text-[14px] text-tertiary">
+            Ordem: nota mais alta primeiro · das {mail.windowStart}h às {mail.windowEnd}h · um
+            e-mail a cada {SEND_GAP_MINUTES} min · IA responde sozinha{" "}
+            {mail.aiAutoReply ? "ligada" : "desligada"} · disparo automático{" "}
+            {mail.autoDispatch ? "ligado" : "desligado"}
+          </p>
+          <Button asChild size="sm" className="shrink-0">
+            <Link to="/settings" hash="piloto">
+              Ajustar
+            </Link>
+          </Button>
+        </div>
       </div>
       <div className="flex min-w-0 flex-col">
         <div className="flex items-center gap-2 pb-2">

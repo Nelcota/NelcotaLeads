@@ -33,7 +33,7 @@ export function ServiceList({
       <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-3 px-4 pt-3 pb-1.5 text-xs font-medium text-muted-foreground max-sm:hidden">
         <span>Serviço</span>
         <span className="w-24 text-right">Preço base</span>
-        <span className="w-[136px]">Prazo</span>
+        <span className="w-[164px]">Prazo</span>
       </div>
       {services.length === 0 ? (
         <p className="px-4 py-3 text-sm font-light text-muted-foreground">
@@ -62,9 +62,9 @@ export function ServiceList({
               ) : null}
             </span>
             <span className="w-24 text-right font-medium tabular-nums">{priceLabel(service)}</span>
-            <span className="flex items-center gap-1 max-sm:col-span-2 sm:w-[136px]">
+            <span className="flex items-center gap-1 max-sm:col-span-2 sm:w-[164px]">
               <span className="flex-1 text-sm text-muted-foreground">{deadlineLabel(service)}</span>
-              <Button variant="ghost" size="xs" onClick={() => setEditing(service.id)}>
+              <Button size="xs" onClick={() => setEditing(service.id)}>
                 Editar
               </Button>
               <Button

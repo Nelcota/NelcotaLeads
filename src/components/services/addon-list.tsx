@@ -55,7 +55,7 @@ export function AddonList({
             </span>
             <span className="font-medium tabular-nums">+ {priceLabel(addon)}</span>
             <span className="flex items-center gap-1">
-              <Button variant="ghost" size="xs" onClick={() => setEditing(addon.id)}>
+              <Button size="xs" onClick={() => setEditing(addon.id)}>
                 Editar
               </Button>
               <Button
