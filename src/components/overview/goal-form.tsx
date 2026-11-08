@@ -26,6 +26,7 @@ export function GoalForm({ values, error, saving, onChange, onSubmit, onCancel }
     event.preventDefault();
     onCancel();
   };
+  const errorProps = error ? { "aria-invalid": true, "aria-describedby": "goal-error" } : {};
   return (
     <form
       className="grid gap-3 border-t border-border/60 px-5 py-4"
@@ -41,6 +42,7 @@ export function GoalForm({ values, error, saving, onChange, onSubmit, onCancel }
             kind="whole"
             autoFocus
             placeholder="Ex.: 10"
+            {...errorProps}
             value={values.deals}
             onValueChange={(deals) => onChange({ deals })}
           />
@@ -51,6 +53,7 @@ export function GoalForm({ values, error, saving, onChange, onSubmit, onCancel }
             id="goal-revenue"
             kind="money"
             placeholder="0,00"
+            {...errorProps}
             value={values.revenue}
             onValueChange={(revenue) => onChange({ revenue })}
           />
@@ -60,7 +63,7 @@ export function GoalForm({ values, error, saving, onChange, onSubmit, onCancel }
         Vale a partir deste mês. Os meses anteriores mantêm a meta que tinham.
       </p>
       {error ? (
-        <p role="alert" className="text-[14px] text-red">
+        <p id="goal-error" role="alert" className="text-[14px] text-red">
           {error}
         </p>
       ) : null}
