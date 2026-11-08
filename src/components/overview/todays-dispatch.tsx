@@ -152,7 +152,7 @@ export function TodaysDispatch({ data }: { data: Dashboard }) {
             {mail.aiAutoReply ? "ligada" : "desligada"} · disparo automático{" "}
             {mail.autoDispatch ? "ligado" : "desligado"}
           </p>
-          <Button asChild size="sm" variant="secondary" className="shrink-0">
+          <Button asChild size="sm" variant="outline" className="shrink-0">
             <Link to="/settings" hash="piloto">
               Ajustar
             </Link>

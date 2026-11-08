@@ -7,7 +7,6 @@ import { ProgressBar } from "./progress-bar";
  */
 export function LossReasonsCard({ losses, caption }: { losses: LossCount[]; caption: string }) {
   const { total, bars } = lossBreakdown(losses);
-  const usedBars = bars.filter((bar) => bar.count > 0);
   return (
     <section
       aria-labelledby="loss-reasons"
@@ -27,7 +26,7 @@ export function LossReasonsCard({ losses, caption }: { losses: LossCount[]; capt
         </p>
       ) : (
         <ul className="grid gap-2.5">
-          {usedBars.map((bar) => (
+          {bars.map((bar) => (
             <li
               key={bar.reason}
               className="grid grid-cols-[minmax(0,150px)_minmax(0,1fr)_72px] items-center gap-3 text-[15px] sm:grid-cols-[minmax(0,190px)_minmax(0,1fr)_80px]"

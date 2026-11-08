@@ -53,12 +53,15 @@ export type LossBar = {
   share: number;
 };
 
-/** All nine reasons, most common first (ties keep the list order), with share and bar length. */
+/**
+ * The reasons given in the period, most common first (ties keep the list order), with share and
+ * bar length. Reasons nobody gave stay out, so the card lists only what happened.
+ */
 export function lossBreakdown(rows: readonly LossCount[]): { total: number; bars: LossBar[] } {
   const counts = new Map(rows.map((row) => [row.reason, row.count]));
   const total = rows.reduce((sum, row) => sum + row.count, 0);
   const max = Math.max(0, ...rows.map((row) => row.count));
-  const bars = LOSS_REASONS.map((reason) => {
+  const bars = LOSS_REASONS.filter((reason) => (counts.get(reason) ?? 0) > 0).map((reason) => {
     const count = counts.get(reason) ?? 0;
     return {
       reason,
