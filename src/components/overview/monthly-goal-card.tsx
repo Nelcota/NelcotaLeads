@@ -67,7 +67,7 @@ function GoalProgress({ status, pace }: { status: MonthlyGoalStatus; pace: GoalP
 
 function NoGoal({ onEdit }: { onEdit: () => void }) {
   return (
-    <div className="flex flex-col items-start gap-3 border-t border-border/60 px-5 py-4">
+    <div className="flex flex-1 flex-col items-start gap-3 border-t border-border/60 px-5 py-4">
       <div className="flex items-start gap-2.5">
         <TargetIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
         <p className="text-[15px] text-muted-foreground">
@@ -84,7 +84,7 @@ function NoGoal({ onEdit }: { onEdit: () => void }) {
 
 function GoalUnavailable() {
   return (
-    <p className="border-t border-border/60 px-5 py-4 text-[15px] text-muted-foreground">
+    <p className="flex-1 border-t border-border/60 px-5 py-4 text-[15px] text-muted-foreground">
       Não foi possível carregar a meta agora. Recarregue a página para tentar de novo.
     </p>
   );
