@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useReportDirtyForm } from "@/components/leave-guard";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { addonFromForm, type AddonForm as AddonFields } from "@/lib/service-form";
+import { addonFromForm, sameFields, type AddonForm as AddonFields } from "@/lib/service-form";
 import { SERVICE_LIMITS, type AddonInput } from "@/lib/services";
 import { MoneyInput } from "./money-input";
 import { RowFormActions } from "./row-form-actions";
@@ -13,13 +14,20 @@ export function AddonForm({
   busy,
   onSave,
   onCancel,
+  onDirtyChange,
 }: {
   initial: AddonFields;
   busy: boolean;
   onSave: (input: AddonInput) => void;
   onCancel: () => void;
+  /** Whether the form differs from what it opened with, for the table's guard. */
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const [form, setForm] = useState(initial);
+  const dirty = !sameFields(form, initial);
+  // Leaving the page with an open, changed row asks first (the page's LeaveGuard).
+  useReportDirtyForm("addon-row", dirty);
+  useEffect(() => onDirtyChange?.(dirty), [dirty, onDirtyChange]);
   const [error, setError] = useState<string | null>(null);
   const change = (patch: Partial<AddonFields>) => {
     setForm((current) => ({ ...current, ...patch }));

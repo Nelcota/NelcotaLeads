@@ -91,3 +91,8 @@ export function addonToForm(addon: AddonInput): AddonForm {
     monthly: addon.monthly,
   };
 }
+
+/** Whether a row's form still holds what it opened with (every field is a plain value). */
+export function sameFields<T extends Record<string, string | boolean>>(a: T, b: T): boolean {
+  return Object.keys(a).every((key) => a[key] === b[key]);
+}
