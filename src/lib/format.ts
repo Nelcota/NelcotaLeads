@@ -114,3 +114,10 @@ export function brazilInstant(day: string, time: string): Date {
 export function isoWeekday(day: string): number {
   return new Date(`${day}T12:00:00Z`).getUTCDay() || 7;
 }
+
+const counter = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
+
+/** "1.000" for 1000: a count shown to people, thousands grouped by dots. */
+export function formatCount(value: number): string {
+  return counter.format(value);
+}

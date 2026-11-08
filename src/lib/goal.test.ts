@@ -64,8 +64,14 @@ describe("goalPace", () => {
   });
 
   it("uses the singular for one deal and one day", () => {
-    expect(paceLine({ remainingDeals: 1, daysLeft: 1, weeklyPace: 0 })).toBe(
-      "Falta 1 fechamento em 1 dia · no ritmo atual, 0 por semana",
+    expect(paceLine({ remainingDeals: 1, daysLeft: 1, weeklyPace: 0.5 })).toBe(
+      "Falta 1 fechamento em 1 dia · no ritmo atual, 0,5 por semana",
+    );
+  });
+
+  it("says nothing closed yet instead of a pace of zero, and groups thousands", () => {
+    expect(paceLine({ remainingDeals: 1000, daysLeft: 23, weeklyPace: 0 })).toBe(
+      "Faltam 1.000 fechamentos em 23 dias · nenhum fechamento ainda neste mês",
     );
   });
 
@@ -79,6 +85,20 @@ describe("parseGoalForm", () => {
     expect(parseGoalForm({ deals: " 8 ", revenue: "R$ 12.000,50" })).toEqual({
       ok: true,
       value: { deals: 8, revenueCents: 1_200_050 },
+    });
+  });
+
+  it("reads the deals with a thousands dot, as the field masks them", () => {
+    expect(parseGoalForm({ deals: "1.000", revenue: "150.000" })).toEqual({
+      ok: true,
+      value: { deals: 1000, revenueCents: 15_000_000 },
+    });
+  });
+
+  it("says the deal limit in pt-BR", () => {
+    expect(parseGoalForm({ deals: "1.001", revenue: "100" })).toEqual({
+      ok: false,
+      error: "Use no máximo 1.000 fechamentos.",
     });
   });
 
@@ -96,6 +116,10 @@ describe("parseGoalForm", () => {
     expect(goalFormValues({ deals: 4, revenueCents: 800_000 })).toEqual({
       deals: "4",
       revenue: "8.000,00",
+    });
+    expect(goalFormValues({ deals: 1000, revenueCents: 15_000_000 })).toEqual({
+      deals: "1.000",
+      revenue: "150.000,00",
     });
     expect(goalFormValues(null)).toEqual({ deals: "", revenue: "" });
   });
