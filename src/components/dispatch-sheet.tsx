@@ -320,9 +320,8 @@ function DispatchReview({
                 {rewrite.isPending ? "Reescrevendo…" : "Gerar outro"}
               </Button>
               <Button
-                variant="ghost"
+                variant="destructive"
                 size="sm"
-                className="hover:bg-red/15 hover:text-red"
                 disabled={remove.isPending}
                 onClick={() => {
                   remove.mutate(current.id);
@@ -381,7 +380,6 @@ function DispatchReview({
           </div>
         </div>
         <Button
-          size="lg"
           className="w-full"
           disabled={drafts.length === 0 || dispatch.isPending || busy || !mail?.configured}
           onClick={() => dispatch.mutate()}

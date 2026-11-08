@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { TriangleAlertIcon, XIcon } from "lucide-react";
 import type { MouseEvent, ReactNode } from "react";
+import { Button } from "@/components/ui/button";
 import { whenLabel, type NotificationHref, type NotificationItem } from "@/lib/notifications";
 import { cn } from "@/lib/utils";
 import { CategoryChip } from "./category-chip";
@@ -120,15 +121,17 @@ export function NotificationRow({
           </span>
         </span>
       </OriginLink>
-      <button
+      <Button
         type="button"
+        variant="ghost"
+        size="icon-sm"
         onClick={(event) => onDismiss(item, event)}
         aria-label={`Limpar notificação de ${item.title}`}
         title="Limpar"
-        className="absolute top-1/2 right-1.5 grid size-7.5 -translate-y-1/2 place-items-center rounded-full text-muted-foreground opacity-0 transition-[opacity,background-color] duration-150 outline-none group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-fill-2 hover:text-foreground focus-visible:opacity-100 focus-visible:ring-3 focus-visible:ring-ring/40 pointer-coarse:opacity-100 pointer-coarse:after:absolute pointer-coarse:after:-inset-1.5"
+        className="absolute top-1/2 right-1.5 -translate-y-1/2 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100"
       >
         <XIcon aria-hidden className="size-3.5" strokeWidth={2} />
-      </button>
+      </Button>
     </div>
   );
 }

@@ -49,14 +49,15 @@ export function ClientRequests({
               }}
             />
           </div>
-          <button
+          <Button
             type="button"
+            variant="destructive"
+            size="icon-sm"
             aria-label={`Remover pedido ${index + 1}`}
-            className="press relative grid size-[22px] shrink-0 place-items-center rounded-full bg-red text-white after:absolute after:-inset-2.5 after:content-['']"
             onClick={() => remove(line.key)}
           >
             <MinusIcon className="size-3" strokeWidth={3} />
-          </button>
+          </Button>
         </div>
       ))}
       <Button

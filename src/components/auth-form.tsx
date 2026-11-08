@@ -12,6 +12,7 @@ import {
 import { flushSync } from "react-dom";
 import { z } from "zod";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { fieldErrors, LOGIN_ERRORS, type LoginErrorCode } from "@/lib/login";
 import { cn } from "@/lib/utils";
@@ -180,15 +181,16 @@ export function PasswordInput({
 
 export function SubmitButton({ pending, children }: { pending: boolean; children: ReactNode }) {
   return (
-    <button
+    <Button
       type="submit"
+      size="lg"
       disabled={pending}
       aria-busy={pending || undefined}
-      className="press mt-1 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-primary text-[16px] font-medium text-primary-foreground transition-opacity focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none disabled:opacity-70"
+      className="mt-1 w-full"
     >
       {pending ? <Loader2Icon className="size-4 animate-spin" /> : null}
       {children}
-    </button>
+    </Button>
   );
 }
 

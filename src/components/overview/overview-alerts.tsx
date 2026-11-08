@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { TriangleAlertIcon, XIcon } from "lucide-react";
 import { useSyncExternalStore } from "react";
+import { Button } from "@/components/ui/button";
 import type { OverviewAlert } from "@/lib/overview";
 import { cn } from "@/lib/utils";
 
@@ -77,14 +78,15 @@ export function OverviewAlerts({ alerts }: { alerts: OverviewAlert[] }) {
           >
             {alert.action}
           </Link>
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon-sm"
             onClick={() => dismiss(alert.key)}
             aria-label="Dispensar alerta"
-            className="press relative grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors after:absolute after:-inset-1.5 hover:bg-fill-2 hover:text-foreground"
           >
             <XIcon className="size-3.5" />
-          </button>
+          </Button>
         </div>
       ))}
     </section>

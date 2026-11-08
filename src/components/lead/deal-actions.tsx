@@ -36,8 +36,8 @@ export function DealActions({
         Fechar negócio
       </Button>
       <Button
-        variant="ghost"
-        className="ml-auto hover:bg-red/15 hover:text-red"
+        variant="destructive"
+        className="ml-auto"
         disabled={busy}
         onClick={() => setMode("lost")}
       >

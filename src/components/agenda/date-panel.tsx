@@ -75,7 +75,7 @@ export function DatePanel({
         <span className="flex-1" />
         <Button
           variant="ghost"
-          size="icon"
+          size="icon-sm"
           aria-label="Mês anterior"
           onClick={() => setMonth(shiftMonth(month, -1))}
         >
@@ -83,7 +83,7 @@ export function DatePanel({
         </Button>
         <Button
           variant="ghost"
-          size="icon"
+          size="icon-sm"
           aria-label="Próximo mês"
           onClick={() => setMonth(shiftMonth(month, 1))}
         >

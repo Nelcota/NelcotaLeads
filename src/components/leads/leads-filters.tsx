@@ -95,13 +95,9 @@ export function FilterChips({
           </button>
         </span>
       ))}
-      <button
-        type="button"
-        onClick={onReset}
-        className="h-8 px-2 text-sm font-medium text-blue hover:underline"
-      >
+      <Button type="button" variant="ghost" size="sm" onClick={onReset}>
         Limpar filtros
-      </button>
+      </Button>
     </div>
   );
 }
@@ -169,7 +165,7 @@ export function FiltersButton({
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="outline" className="h-9 border border-border">
+        <Button variant="outline">
           <SlidersHorizontalIcon />
           Filtros
           {count > 0 ? <span className="font-semibold tabular-nums">· {count}</span> : null}
@@ -182,13 +178,9 @@ export function FiltersButton({
       >
         <div className="flex items-center justify-between">
           <p className="text-[15px] font-semibold">Filtros</p>
-          <button
-            type="button"
-            onClick={onReset}
-            className="text-sm font-medium text-blue hover:underline"
-          >
+          <Button type="button" variant="ghost" size="sm" onClick={onReset}>
             Limpar
-          </button>
+          </Button>
         </div>
 
         <Group icon={<GaugeIcon className={icon} />} label="Nota">

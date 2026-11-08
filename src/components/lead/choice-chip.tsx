@@ -1,6 +1,6 @@
-import { cn } from "@/lib/utils";
+import { ChoicePill } from "@/components/ui/choice-pill";
 
-/** One option of a single-choice row of chips (a radio button that looks like a pill). */
+/** One option of a single-choice row of chips in a form (a radio button that looks like a pill). */
 export function ChoiceChip({
   label,
   selected,
@@ -11,17 +11,14 @@ export function ChoiceChip({
   onSelect: () => void;
 }) {
   return (
-    <button
-      type="button"
+    <ChoicePill
+      size="sm"
       role="radio"
       aria-checked={selected}
+      selected={selected}
       onClick={onSelect}
-      className={cn(
-        "h-7 rounded-full px-3 text-[14px] font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
-        selected ? "bg-primary text-primary-foreground" : "bg-fill-2 text-foreground hover:bg-fill",
-      )}
     >
       {label}
-    </button>
+    </ChoicePill>
   );
 }

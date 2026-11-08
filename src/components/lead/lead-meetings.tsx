@@ -36,9 +36,8 @@ export function LeadMeetings({
               </span>
             </span>
             <Button
-              variant="ghost"
+              variant="destructive"
               size="sm"
-              className="hover:bg-red/15 hover:text-red"
               disabled={busy}
               onClick={() => onCancel(meeting.id)}
             >

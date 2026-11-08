@@ -1,6 +1,7 @@
 import { BellIcon } from "lucide-react";
 import { useState, useSyncExternalStore, type ComponentProps, type ReactNode } from "react";
 import { Hint } from "@/components/apple-ui";
+import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -30,15 +31,12 @@ function BellButton({ count, open, className, ref, ...props }: BellButtonProps) 
   const badge = unreadBadge(count);
   const label = count > 0 ? `Notificações, ${count} não lidas` : "Notificações";
   return (
-    <button
+    <Button
       ref={ref}
-      type="button"
+      variant="outline"
+      size="icon"
       aria-label={label}
-      className={cn(
-        "relative grid size-10 shrink-0 place-items-center rounded-full border border-border text-foreground outline-none transition-[background-color,transform] duration-150 hover:bg-fill-2 focus-visible:ring-3 focus-visible:ring-ring/40 active:scale-[0.96] pointer-coarse:after:absolute pointer-coarse:after:-inset-1",
-        open && "bg-fill-2",
-        className,
-      )}
+      className={cn(open && "bg-fill-2", className)}
       {...props}
     >
       <BellIcon aria-hidden className="size-[19px]" strokeWidth={1.8} />
@@ -50,7 +48,7 @@ function BellButton({ count, open, className, ref, ...props }: BellButtonProps) 
           {badge}
         </span>
       ) : null}
-    </button>
+    </Button>
   );
 }
 

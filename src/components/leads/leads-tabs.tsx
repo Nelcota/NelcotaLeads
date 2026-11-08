@@ -1,6 +1,6 @@
 import type { LeadCounts } from "@/server/leads-query";
 import { LEAD_VIEW_LABELS, type LeadView } from "@/lib/schemas";
-import { cn } from "@/lib/utils";
+import { ChoicePill } from "@/components/ui/choice-pill";
 
 const WORK_VIEWS: LeadView[] = ["todo", "followup", "waiting", "talking"];
 const ARCHIVE_VIEWS: LeadView[] = ["closed", "discarded", "all"];
@@ -28,32 +28,16 @@ function TabPill({
   counts: LeadCounts | undefined;
   onSelect: (view: LeadView) => void;
 }) {
-  const text = countText(view, counts);
   return (
-    <button
-      type="button"
+    <ChoicePill
       role="tab"
       aria-selected={active}
+      selected={active}
+      count={countText(view, counts)}
       onClick={() => onSelect(view)}
-      className={cn(
-        "press inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium whitespace-nowrap transition-colors",
-        active
-          ? "border-transparent bg-primary font-semibold text-primary-foreground"
-          : "border-border bg-fill-2 text-foreground hover:bg-fill",
-      )}
     >
       {LEAD_VIEW_LABELS[view]}
-      {text ? (
-        <span
-          className={cn(
-            "text-xs font-semibold tabular-nums",
-            active ? "text-white/80" : "text-muted-foreground",
-          )}
-        >
-          {text}
-        </span>
-      ) : null}
-    </button>
+    </ChoicePill>
   );
 }
 

@@ -1,5 +1,6 @@
 import { ChevronLeftIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ChoicePill } from "@/components/ui/choice-pill";
 import { monthIndex, MONTHS } from "@/lib/calendar";
 import { cn } from "@/lib/utils";
 
@@ -25,32 +26,23 @@ export function MonthChooser({
   return (
     <div className="grid gap-2">
       <div className="flex items-center gap-1">
-        <Button variant="ghost" size="icon" aria-label="Voltar aos dias" onClick={onBack}>
+        <Button variant="ghost" size="icon-sm" aria-label="Voltar aos dias" onClick={onBack}>
           <ChevronLeftIcon />
         </Button>
         <span className="text-sm font-semibold">Escolha o mês</span>
       </div>
-      <div
-        role="radiogroup"
-        aria-label="Ano"
-        className="grid grid-cols-4 rounded-full bg-fill-2 p-[3px]"
-      >
+      <div role="radiogroup" aria-label="Ano" className="grid grid-cols-4 gap-1">
         {years.map((value) => (
-          <button
+          <ChoicePill
             key={value}
-            type="button"
+            size="sm"
             role="radio"
             aria-checked={value === year}
+            selected={value === year}
             onClick={() => onYear(value)}
-            className={cn(
-              "h-[30px] rounded-full text-[14px] transition-colors",
-              value === year
-                ? "bg-primary font-semibold text-primary-foreground"
-                : "font-medium hover:bg-fill",
-            )}
           >
             {value}
-          </button>
+          </ChoicePill>
         ))}
       </div>
       <div role="group" aria-label={`Meses de ${year}`} className="grid grid-cols-3 gap-1">
@@ -59,22 +51,17 @@ export function MonthChooser({
           const chosen = index === monthIndex(month);
           const current = first.slice(0, 7) === today.slice(0, 7);
           return (
-            <button
+            <ChoicePill
               key={name}
-              type="button"
               aria-pressed={chosen}
+              aria-current={current ? "date" : undefined}
               aria-label={`${capitalize(name)} de ${year}`}
+              selected={chosen}
               onClick={() => onMonth(first)}
-              className={cn(
-                "h-11 rounded-full text-[14px] transition-colors",
-                chosen ? "bg-primary font-semibold text-primary-foreground" : "hover:bg-fill-2",
-                current && !chosen
-                  ? "font-bold text-primary ring-[1.5px] ring-primary ring-inset"
-                  : "",
-              )}
+              className={cn(current && !chosen && "font-bold")}
             >
               {capitalize(name.slice(0, 3))}
-            </button>
+            </ChoicePill>
           );
         })}
       </div>
