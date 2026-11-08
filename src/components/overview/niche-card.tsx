@@ -1,35 +1,14 @@
 import { Link } from "@tanstack/react-router";
-import { TrendingDownIcon, TrendingUpIcon } from "lucide-react";
-import { StatusLabel } from "@/components/status-label";
 import { Button } from "@/components/ui/button";
 import { formatCents } from "@/lib/money";
-import { hasNicheActivity, nicheSteps } from "@/lib/overview-metrics";
+import { hasNicheActivity, nicheSteps, type NicheTag } from "@/lib/niche-metrics";
 import { LOSS_REASON_LABELS } from "@/lib/schemas";
 import type { NicheMetricRow } from "@/server/niches";
 import { NicheStep } from "./niche-step";
-
-export type NicheTag = "mostCloses" | "mostRefuses" | null;
+import { NicheTagLabel } from "./niche-tag-label";
 
 function plural(count: number, one: string, many: string): string {
   return `${count} ${count === 1 ? one : many}`;
-}
-
-function TagLabel({ tag }: { tag: NicheTag }) {
-  if (tag === "mostCloses") {
-    return (
-      <StatusLabel icon={TrendingUpIcon} tone="green">
-        mais fecha
-      </StatusLabel>
-    );
-  }
-  if (tag === "mostRefuses") {
-    return (
-      <StatusLabel icon={TrendingDownIcon} tone="red">
-        mais recusa
-      </StatusLabel>
-    );
-  }
-  return null;
 }
 
 function Fact({ label, children }: { label: string; children: React.ReactNode }) {
@@ -41,15 +20,17 @@ function Fact({ label, children }: { label: string; children: React.ReactNode })
   );
 }
 
-/** One niche: its tag, funnel, revenue and main loss reason, and "Ver leads". */
-export function NicheCard({ niche, tag }: { niche: NicheMetricRow; tag: NicheTag }) {
+/** One niche: its tags, funnel, revenue and main loss reason, and "Ver leads". */
+export function NicheCard({ niche, tags }: { niche: NicheMetricRow; tags: readonly NicheTag[] }) {
   const contactedLine = plural(niche.contacted, "contatado", "contatados");
   return (
     <article className="flex min-w-0 flex-col gap-3.5 rounded-2xl bg-card-2 px-[18px] py-4">
       <div className="flex min-h-7 items-center gap-2.5">
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2.5 gap-y-1">
           <h3 className="truncate text-[17px] font-semibold">{niche.label}</h3>
-          <TagLabel tag={tag} />
+          {tags.map((tag) => (
+            <NicheTagLabel key={tag} tag={tag} />
+          ))}
         </div>
         <Button asChild size="sm" className="shrink-0">
           <Link

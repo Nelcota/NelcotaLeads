@@ -1,4 +1,4 @@
-import type { NicheStep as NicheStepData, NicheStepTone } from "@/lib/overview-metrics";
+import type { NicheStep as NicheStepData, NicheStepTone } from "@/lib/niche-metrics";
 import { cn } from "@/lib/utils";
 
 const BAR_CLASS: Record<NicheStepTone, string> = {
