@@ -93,9 +93,9 @@ export function nicheCaption(
   niches: readonly { key: string; label: string }[],
   best: string | null,
 ): string {
-  const leader = niches.find((niche) => niche.key === best);
-  if (!leader) return "quem responde, fecha e recusa mais, por área.";
-  return `${leader.label} é quem mais fecha.`;
+  const topNiche = niches.find((niche) => niche.key === best);
+  if (!topNiche) return "quem responde, fecha e recusa mais, por área.";
+  return `${topNiche.label} é quem mais fecha.`;
 }
 
 export type NicheStepTone = "primary" | "blue" | "green" | "red";
