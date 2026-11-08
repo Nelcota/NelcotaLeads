@@ -33,7 +33,7 @@ test.describe("leads inbox", () => {
 
     // The status changes from the panel's step card (there is no status select any more).
     const statusSaved = nextLeadUpdate(page);
-    await panel.getByRole("button", { name: "Descartar", exact: true }).click();
+    await panel.getByRole("button", { name: "Descartar lead", exact: true }).click();
     expect((await statusSaved).ok()).toBe(true);
     // A discarded lead's card offers to put it back in the queue.
     await expect(panel.getByRole("button", { name: "Voltar para a fila" })).toBeVisible();
