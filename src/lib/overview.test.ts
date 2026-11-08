@@ -13,6 +13,7 @@ const base = {
   queued: 3,
   sentToday: 5,
   limit: 30,
+  coldLimit: 24,
   windowStart: 6,
   windowEnd: 18,
 };
@@ -110,5 +111,15 @@ describe("buildAlerts", () => {
 
   it("has no setup alert once the offer exists", () => {
     expect(buildAlerts(alertSource(true), 0)).toEqual([]);
+  });
+});
+
+describe("cold limit", () => {
+  // MAIL_DAILY_LIMIT 30 keeps 6 for replies: first e-mails stop at 24.
+  it("stops the dispatch at the cold share of the limit, before the full limit", () => {
+    expect(dispatchRunState({ ...base, sentToday: 24 }, MORNING).label).toBe(
+      "Limite do dia atingido",
+    );
+    expect(dispatchRunState({ ...base, sentToday: 23 }, MORNING).label).toBe("Rodando");
   });
 });

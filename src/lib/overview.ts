@@ -138,11 +138,15 @@ export type DispatchRunState = {
 
 type DispatchMail = Pick<
   Dashboard["mail"],
-  "configured" | "paused" | "queued" | "sentToday" | "limit" | "windowStart" | "windowEnd"
+  "configured" | "paused" | "queued" | "sentToday" | "coldLimit" | "windowStart" | "windowEnd"
 >;
 
-function limitReached(mail: Pick<Dashboard["mail"], "sentToday" | "limit">): boolean {
-  return mail.sentToday >= mail.limit;
+/**
+ * Whether first e-mails stopped for today. The sender keeps part of the daily limit for
+ * conversation replies (coldDailyLimit), so the dispatch is done before `limit` is reached.
+ */
+function limitReached(mail: Pick<Dashboard["mail"], "sentToday" | "coldLimit">): boolean {
+  return mail.sentToday >= mail.coldLimit;
 }
 
 /**
@@ -166,7 +170,10 @@ export function dispatchRunState(mail: DispatchMail, now: Date): DispatchRunStat
  * used up. Null when nothing is queued.
  */
 export function nextSendTime(
-  mail: Pick<Dashboard["mail"], "nextSendAt" | "sentToday" | "limit" | "windowStart" | "windowEnd">,
+  mail: Pick<
+    Dashboard["mail"],
+    "nextSendAt" | "sentToday" | "coldLimit" | "windowStart" | "windowEnd"
+  >,
   now: Date,
 ): Date | null {
   if (!mail.nextSendAt) return null;

@@ -1,11 +1,27 @@
 import { Hint } from "@/components/apple-ui";
 import { replyHourChart } from "@/lib/overview";
 
+import type { Dashboard } from "@/server/dashboard";
+
 /** "3 respostas às 14h": the app tooltip on hover and the text screen readers get. */
 function barLabel(value: number, hour: number) {
   return `${value} ${value === 1 ? "resposta" : "respostas"} às ${hour}h`;
 }
-import type { Dashboard } from "@/server/dashboard";
+
+/**
+ * The share of replies outside the window, with the total so an empty chart (every reply
+ * outside it) still says how many there were.
+ */
+function outsideLine(total: number, outsidePercent: number, start: number, end: number) {
+  const replies = `${total} ${total === 1 ? "resposta" : "respostas"}`;
+  const window = `da janela das ${start}h às ${end}h`;
+  if (outsidePercent === 100) {
+    return total === 1
+      ? `A única resposta chegou fora ${window}.`
+      : `Todas as ${replies} chegaram fora ${window}.`;
+  }
+  return `${outsidePercent}% das ${replies} chegaram fora ${window}.`;
+}
 
 /** When leads answer, by hour, so the sending window can follow it. */
 export function ReplyHoursCard({ data }: { data: Dashboard }) {
@@ -21,7 +37,7 @@ export function ReplyHoursCard({ data }: { data: Dashboard }) {
           Quando os leads respondem
         </h2>
         <span className="text-sm text-muted-foreground">
-          últimos 30 dias{chart.peak ? ` · pico às ${chart.peak}h` : ""}
+          últimos 30 dias{chart.peak !== undefined ? ` · pico às ${chart.peak}h` : ""}
         </span>
       </div>
       {chart.total === 0 ? (
@@ -53,8 +69,7 @@ export function ReplyHoursCard({ data }: { data: Dashboard }) {
       )}
       {chart.total > 0 ? (
         <p className="mt-auto border-t border-border/60 pt-3 text-[14px] text-tertiary">
-          {chart.outsidePercent}% das respostas chegam fora da janela das {windowStart}h às{" "}
-          {windowEnd}h.
+          {outsideLine(chart.total, chart.outsidePercent, windowStart, windowEnd)}
         </p>
       ) : null}
     </section>
