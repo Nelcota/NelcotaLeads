@@ -105,6 +105,14 @@ export type ReplyHourBar = { hour: number; value: number; share: number; isPeak:
  * share of replies that came outside it (6:00 to 17:59; the 18h bar is shown but already
  * outside it). The peak is the busiest hour shown.
  */
+/** The share outside the window; "100%" only when every reply was outside, never by rounding. */
+function outsideShare(outside: number, total: number): number {
+  if (total <= 0) return 0;
+  const percent = Math.round((outside / total) * 100);
+  if (outside < total) return Math.min(percent, 99);
+  return percent;
+}
+
 export function replyHourChart(rows: { hour: number; value: number }[], window: SendWindow) {
   const byHour = new Map(rows.map((row) => [row.hour, row.value]));
   const total = rows.reduce((sum, row) => sum + row.value, 0);
@@ -123,11 +131,14 @@ export function replyHourChart(rows: { hour: number; value: number }[], window: 
     const value = values[index] ?? 0;
     return { hour, value, share: max > 0 ? value / max : 0, isPeak: value > 0 && value === max };
   });
+  const outside = total - inside;
   return {
     bars,
     total,
     peak: peakHour,
-    outsidePercent: total > 0 ? Math.round(((total - inside) / total) * 100) : 0,
+    /** Replies outside the window; equal to `total` when none came inside it. */
+    outside,
+    outsidePercent: outsideShare(outside, total),
   };
 }
 

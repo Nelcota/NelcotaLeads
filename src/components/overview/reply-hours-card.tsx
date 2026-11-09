@@ -12,10 +12,15 @@ function barLabel(value: number, hour: number) {
  * The share of replies outside the window, with the total so an empty chart (every reply
  * outside it) still says how many there were.
  */
-function outsideLine(total: number, outsidePercent: number, start: number, end: number) {
+function outsideLine(
+  chart: { total: number; outside: number; outsidePercent: number },
+  start: number,
+  end: number,
+) {
+  const { total, outsidePercent } = chart;
   const replies = `${total} ${total === 1 ? "resposta" : "respostas"}`;
   const window = `da janela das ${start}h às ${end}h`;
-  if (outsidePercent === 100) {
+  if (chart.outside === total) {
     return total === 1
       ? `A única resposta chegou fora ${window}.`
       : `Todas as ${replies} chegaram fora ${window}.`;
@@ -69,7 +74,7 @@ export function ReplyHoursCard({ data }: { data: Dashboard }) {
       )}
       {chart.total > 0 ? (
         <p className="mt-auto border-t border-border/60 pt-3 text-[14px] text-tertiary">
-          {outsideLine(chart.total, chart.outsidePercent, windowStart, windowEnd)}
+          {outsideLine(chart, windowStart, windowEnd)}
         </p>
       ) : null}
     </section>
