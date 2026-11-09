@@ -63,11 +63,15 @@ export type BulkSkips = {
   notAllowed: number;
   /** In conversation: a discard needs its loss reason, through the lead panel. */
   needsReason: number;
+  /** Moved by someone else (e.g. the mail flow) between the read and the update. */
+  changedMeanwhile: number;
+  /** Ids that no longer exist. */
+  gone: number;
 };
 
 export type BulkResult = BulkSkips & {
   changed: number;
-  /** Everything that did not change, ids that no longer exist included. */
+  /** Everything that did not change, the sum of the reasons above. */
   skipped: number;
   previous: BulkSnapshot[];
 };
@@ -126,7 +130,7 @@ export async function bulkUpdateLeads(
   const unique = [...new Set(ids)];
   const rows = await db.select().from(leads).where(leadIdIn(unique));
   const today = localDay(now);
-  const skips: BulkSkips = { alreadyThere: 0, notAllowed: 0, needsReason: 0 };
+  const skips = { alreadyThere: 0, notAllowed: 0, needsReason: 0 };
   const updates = [];
   const snapshots: BulkSnapshot[] = [];
   for (const lead of rows) {
@@ -166,6 +170,8 @@ export async function bulkUpdateLeads(
     changed: previous.length,
     skipped: unique.length - previous.length,
     ...skips,
+    changedMeanwhile: updates.length - previous.length,
+    gone: unique.length - rows.length,
     previous,
   };
 }

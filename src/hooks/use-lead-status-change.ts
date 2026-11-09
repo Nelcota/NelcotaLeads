@@ -24,7 +24,7 @@ function doneMessage(status: ChangeInput["status"], changed: number) {
 /** Why the rest did not move, one reason at a time; nothing when every lead changed. */
 function skippedLine(result: BulkResult, status: ChangeInput["status"]): string | undefined {
   const parts: string[] = [];
-  const { alreadyThere, notAllowed, needsReason } = result;
+  const { alreadyThere, notAllowed, needsReason, changedMeanwhile, gone } = result;
   if (alreadyThere > 0) {
     const where = status === "discarded" ? "descartado" : `em ${LEAD_STATUS_LABELS[status]}`;
     parts.push(`${alreadyThere} já ${alreadyThere === 1 ? "estava" : "estavam"} ${where}`);
@@ -39,8 +39,12 @@ function skippedLine(result: BulkResult, status: ChangeInput["status"]): string 
       `${needsReason} em conversa: encerre pelo painel, com o motivo`,
     );
   }
-  const missing = result.skipped - alreadyThere - notAllowed - needsReason;
-  if (missing > 0) parts.push(`${missing} não ${missing === 1 ? "existe" : "existem"} mais`);
+  if (changedMeanwhile > 0) {
+    parts.push(
+      `${changedMeanwhile} ${changedMeanwhile === 1 ? "mudou" : "mudaram"} de etapa enquanto isso`,
+    );
+  }
+  if (gone > 0) parts.push(`${gone} não ${gone === 1 ? "existe" : "existem"} mais`);
   return parts.length > 0 ? `${parts.join(" · ")}.` : undefined;
 }
 

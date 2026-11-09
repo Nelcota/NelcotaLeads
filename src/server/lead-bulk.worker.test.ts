@@ -131,6 +131,8 @@ describe("bulkUpdateLeads", () => {
       alreadyThere: 1,
       notAllowed: 1,
       needsReason: 1,
+      changedMeanwhile: 0,
+      gone: 1,
     });
     // A conversation ends through the panel, with the loss reason the metrics count.
     expect(await lead("talking")).toMatchObject({ status: "replied" });
