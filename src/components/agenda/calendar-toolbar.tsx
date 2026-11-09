@@ -7,10 +7,10 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { ChoicePill } from "@/components/ui/choice-pill";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { AgendaCalendar } from "@/hooks/use-agenda-calendar";
 import { calendarRange, CALENDAR_VIEWS, rangeLabel, VIEW_LABELS, zoomLabel } from "@/lib/calendar";
-import { cn } from "@/lib/utils";
 import { DatePanel } from "./date-panel";
 
 const STEP_LABELS = {
@@ -40,19 +40,24 @@ export function CalendarToolbar({
       aria-label="Navegar na agenda"
       className="flex flex-wrap items-center gap-x-2.5 gap-y-2"
     >
-      <Button variant="secondary" size="sm" onClick={calendar.goToday}>
+      <Button variant="outline" size="sm" onClick={calendar.goToday}>
         Hoje
       </Button>
-      <span className="flex">
+      <span className="flex gap-1">
         <Button
           variant="ghost"
-          size="icon"
+          size="icon-sm"
           aria-label={prevLabel}
           onClick={() => calendar.step(-1)}
         >
           <ChevronLeftIcon />
         </Button>
-        <Button variant="ghost" size="icon" aria-label={nextLabel} onClick={() => calendar.step(1)}>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label={nextLabel}
+          onClick={() => calendar.step(1)}
+        >
           <ChevronRightIcon />
         </Button>
       </span>
@@ -149,24 +154,19 @@ function ZoomControl({ calendar }: { calendar: AgendaCalendar }) {
 
 function ViewSwitch({ calendar }: { calendar: AgendaCalendar }) {
   return (
-    <div role="group" aria-label="Visão" className="inline-flex rounded-full bg-fill-2 p-[3px]">
+    <div role="group" aria-label="Visão" className="inline-flex gap-1.5">
       {CALENDAR_VIEWS.map((option) => {
         const active = option === calendar.view;
         return (
-          <button
+          <ChoicePill
             key={option}
-            type="button"
+            size="sm"
             aria-pressed={active}
+            selected={active}
             onClick={() => calendar.goTo(option, calendar.anchor)}
-            className={cn(
-              "h-[30px] rounded-full px-3.5 text-[14px] transition-colors duration-150",
-              active
-                ? "bg-primary font-semibold text-primary-foreground"
-                : "font-medium hover:bg-fill",
-            )}
           >
             {VIEW_LABELS[option]}
-          </button>
+          </ChoicePill>
         );
       })}
     </div>

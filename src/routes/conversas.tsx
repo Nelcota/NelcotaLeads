@@ -344,7 +344,7 @@ function ConversationsPage() {
             </div>
           ) : rows.length === 0 && data.length > 0 && query.trim() ? (
             <EmptyState icon={SearchIcon} title={`Nenhuma conversa com “${query.trim()}”.`}>
-              <Button variant="secondary" size="sm" onClick={clearSearch}>
+              <Button variant="outline" size="sm" onClick={clearSearch}>
                 Limpar busca
               </Button>
             </EmptyState>
@@ -659,7 +659,7 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
             <>
               <Button
                 size="sm"
-                variant="secondary"
+                variant="outline"
                 className="text-green"
                 disabled={deal.closing}
                 onClick={() => setClosing("won")}
@@ -669,7 +669,7 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
               </Button>
               <Button
                 size="sm"
-                variant="secondary"
+                variant="outline"
                 className="text-red"
                 disabled={deal.closing}
                 onClick={() => setClosing("lost")}
@@ -681,7 +681,7 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
           ) : (
             <Button
               size="sm"
-              variant="secondary"
+              variant="outline"
               className="text-blue"
               disabled={Boolean(blocker) || reopen.isPending}
               onClick={() => reopen.mutate()}
@@ -691,7 +691,7 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
             </Button>
           )}
           {lead.phoneE164 ? (
-            <Button asChild size="sm" variant="secondary" className="text-green">
+            <Button asChild size="sm" variant="outline" className="text-green">
               <ExternalLink href={whatsappLink(lead.phoneE164)} indicator={false}>
                 <MessageCircleIcon />
                 WhatsApp
@@ -699,14 +699,14 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
             </Button>
           ) : null}
           {lead.phone ? (
-            <Button asChild size="sm" variant="secondary">
+            <Button asChild size="sm" variant="outline">
               <a href={`tel:${lead.phone}`}>
                 <PhoneIcon />
                 Ligar
               </a>
             </Button>
           ) : null}
-          <Button asChild size="sm" variant="secondary">
+          <Button asChild size="sm" variant="outline">
             <Link to="/leads" search={{ view: "all", lead: lead.id }}>
               Ver lead
               <ChevronRightIcon />
@@ -809,7 +809,7 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
                 </div>
                 <Hint label={writeLabel}>
                   <Button
-                    variant="secondary"
+                    variant="outline"
                     size="sm"
                     aria-label={writeLabel}
                     className="shrink-0 text-purple @max-lg:w-7 @max-lg:px-0"
@@ -825,7 +825,7 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
                 {state === "needsYou" ? (
                   <Hint label="Devolver para a IA">
                     <Button
-                      variant="secondary"
+                      variant="outline"
                       size="sm"
                       aria-label="Devolver para a IA"
                       className="shrink-0 text-purple @max-2xl:w-7 @max-2xl:px-0"
@@ -1024,13 +1024,7 @@ function MessageAction({
   children: string;
 }) {
   return (
-    <Button
-      variant="link"
-      size="xs"
-      className="h-8 px-1.5 text-xs"
-      disabled={disabled}
-      onClick={onClick}
-    >
+    <Button variant="link" size="sm" disabled={disabled} onClick={onClick}>
       {busy ? busyLabel : children}
     </Button>
   );
@@ -1149,15 +1143,16 @@ function Message({
       </p>
       {quoted ? (
         <div className="grid justify-items-start">
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
             type="button"
             aria-expanded={showQuoted}
             aria-controls={showQuoted ? quotedId : undefined}
             onClick={() => setShowQuoted((value) => !value)}
-            className="-my-1 h-8 text-xs font-medium text-tertiary transition-colors hover:text-foreground"
           >
             {showQuoted ? "Ocultar" : "Mostrar mensagem anterior"}
-          </button>
+          </Button>
           {showQuoted ? (
             <p
               id={quotedId}

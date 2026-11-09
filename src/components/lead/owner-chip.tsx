@@ -30,7 +30,7 @@ export function OwnerChip({
       </span>
       <Button
         variant="ghost"
-        size="xs"
+        size="sm"
         disabled={busy}
         onClick={mine ? onRelease : onTake}
         className="text-blue hover:text-blue"

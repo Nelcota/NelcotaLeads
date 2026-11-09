@@ -13,7 +13,7 @@ function CloseButton({ onClose }: { onClose: () => void }) {
   return (
     <Button
       variant="ghost"
-      size="icon-lg"
+      size="icon"
       onClick={onClose}
       aria-label="Fechar notificações"
       className="size-11"
@@ -54,7 +54,7 @@ export function NotificationCenterPanel({
         <div className="flex items-center gap-1 pt-2.5 pr-2 pb-1.5 pl-1.5">
           <Button
             variant="ghost"
-            size="icon"
+            size="icon-sm"
             autoFocus
             onClick={() => {
               setCameBack(true);
@@ -94,7 +94,7 @@ export function NotificationCenterPanel({
         <Hint label="Preferências de notificação">
           <Button
             variant="ghost"
-            size="icon"
+            size="icon-sm"
             autoFocus={cameBack}
             onClick={() => setView("prefs")}
             aria-label="Preferências de notificação"

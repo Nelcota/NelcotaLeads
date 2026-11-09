@@ -368,14 +368,15 @@ function AutopilotForm() {
                   aria-invalid={Boolean(errors.targets?.[index]?.city)}
                 />
               </div>
-              <button
+              <Button
                 type="button"
+                variant="destructive"
+                size="icon-sm"
                 aria-label={`Remover busca ${index + 1}`}
-                className="press relative grid size-[22px] shrink-0 place-items-center rounded-full bg-red text-white after:absolute after:-inset-2.5 after:content-['']"
                 onClick={() => removeTarget(index)}
               >
                 <MinusIcon className="size-3" strokeWidth={3} />
-              </button>
+              </Button>
             </div>
           ))}
           <AddRow
@@ -571,14 +572,15 @@ function SettingsForm({ defaults }: { defaults: SettingsInput }) {
                 defaultValue={field.weight}
                 aria-invalid={Boolean(errors.criteria?.[index]?.weight)}
               />
-              <button
+              <Button
                 type="button"
+                variant="destructive"
+                size="icon-sm"
                 aria-label={`Remover critério ${index + 1}`}
-                className="press relative grid size-[22px] shrink-0 place-items-center rounded-full bg-red text-white after:absolute after:-inset-2.5 after:content-['']"
                 onClick={() => removeCriterion(index)}
               >
                 <MinusIcon className="size-3" strokeWidth={3} />
-              </button>
+              </Button>
             </div>
           );
         })}
@@ -666,7 +668,7 @@ function SettingsForm({ defaults }: { defaults: SettingsInput }) {
           <span className="text-sm font-light opacity-80">Oferta e critérios não salvos</span>
           <Button
             type="button"
-            variant="secondary"
+            variant="outline"
             size="sm"
             onClick={() => setConfirmDiscard(true)}
             disabled={mutation.isPending}
@@ -795,14 +797,15 @@ function QuickRepliesForm({ defaults }: { defaults: QuickRepliesInput }) {
                   {...form.register(`replies.${index}.title`)}
                   aria-invalid={Boolean(error?.title)}
                 />
-                <button
+                <Button
                   type="button"
+                  variant="destructive"
+                  size="icon-sm"
                   aria-label={`Remover modelo ${index + 1}`}
-                  className="press relative grid size-[22px] shrink-0 place-items-center rounded-full bg-red text-white after:absolute after:-inset-2.5 after:content-['']"
                   onClick={() => replies.remove(index)}
                 >
                   <MinusIcon className="size-3" strokeWidth={3} />
-                </button>
+                </Button>
               </div>
               <Textarea
                 aria-label={`Texto do modelo ${index + 1}`}
@@ -889,17 +892,17 @@ function AddRow({
     // justify-self/self-start: inside a grid or flex column the row would otherwise stretch
     // to the full width and take clicks far from the label.
     <DisabledReason reason={disabledReason} className="self-start justify-self-start">
-      <button
+      <Button
         type="button"
+        variant="outline"
+        size="sm"
         disabled={Boolean(disabledReason)}
         onClick={onClick}
-        className="press inline-flex items-center gap-2.5 self-start justify-self-start py-1 text-sm font-medium text-blue disabled:pointer-events-none disabled:opacity-50"
+        className="self-start justify-self-start"
       >
-        <span className="grid size-[22px] place-items-center rounded-full bg-green text-primary-foreground">
-          <PlusIcon className="size-3" strokeWidth={3} />
-        </span>
+        <PlusIcon aria-hidden />
         {children}
-      </button>
+      </Button>
     </DisabledReason>
   );
 }

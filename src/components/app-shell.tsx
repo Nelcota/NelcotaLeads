@@ -24,6 +24,7 @@ import { Avatar, Hint, TONE_TEXT, toneVar, type Tone } from "@/components/apple-
 import { HelpSheet } from "@/components/help-sheet";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { NewSearchDialog } from "@/components/new-search-dialog";
+import { Button } from "@/components/ui/button";
 import {
   Sidebar,
   SidebarContent,
@@ -140,9 +141,9 @@ export function AppShell({ children }: { children: ReactNode }) {
         <TooltipProvider delayDuration={300}>
           <SidebarProvider>
             <AppSidebar />
-            {/* Same background as the sidebar; a thin outline with a rounded top-left corner
-                frames the pages so the cards do not float, like Nelcota PRs. */}
-            <SidebarInset className="h-svh overflow-hidden md:mt-2.5 md:h-[calc(100svh-10px)] md:rounded-tl-[28px] md:border-t md:border-l md:border-border">
+            {/* Same background as the sidebar; a thin left outline separates the pages
+                from the menu and the panel reaches the top edge, with no gap above. */}
+            <SidebarInset className="h-svh overflow-hidden md:border-l md:border-border">
               {children}
             </SidebarInset>
           </SidebarProvider>
@@ -237,14 +238,15 @@ function AppSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
-        <button
+        <Button
           type="button"
+          variant="outline"
           onClick={openNewSearch}
-          className="press flex h-11 items-center justify-center gap-2 rounded-full border border-border text-[15px] font-semibold text-foreground transition-colors hover:bg-fill-2 group-data-[collapsible=icon]:hidden"
+          className="group-data-[collapsible=icon]:hidden"
         >
           <PlusIcon aria-hidden className="size-4" />
           Nova busca
-        </button>
+        </Button>
       </SidebarHeader>
       <SidebarContent className="px-0.5">
         <SidebarGroup className="py-1">
@@ -432,27 +434,29 @@ function AccountRow() {
           </>
         )}
       </Link>
-      <div className="flex shrink-0 items-center group-data-[collapsible=icon]:flex-col">
+      <div className="flex shrink-0 items-center gap-1 group-data-[collapsible=icon]:flex-col">
         <Hint label="Ajuda" side="top">
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon-sm"
             onClick={openHelp}
             aria-label="Ajuda"
             aria-keyshortcuts="?"
-            className="press relative grid size-9 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors after:absolute after:-inset-1 hover:bg-fill-2 hover:text-foreground"
           >
             <CircleHelpIcon className="size-3.5" />
-          </button>
+          </Button>
         </Hint>
         <Hint label={dark ? "Tema claro" : "Tema escuro"} side="top">
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon-sm"
             onClick={() => setTheme(dark ? "light" : "dark")}
             aria-label={dark ? "Tema claro" : "Tema escuro"}
-            className="press relative grid size-9 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors after:absolute after:-inset-1 hover:bg-fill-2 hover:text-foreground"
           >
             {dark ? <SunIcon className="size-3.5" /> : <MoonIcon className="size-3.5" />}
-          </button>
+          </Button>
         </Hint>
       </div>
     </div>

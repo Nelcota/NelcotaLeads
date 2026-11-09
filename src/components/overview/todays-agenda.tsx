@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { AgendaRow } from "@/components/agenda/agenda-row";
+import { Button } from "@/components/ui/button";
 import { dueToday, TODAY_AGENDA_LIMIT } from "@/lib/agenda";
 import { todayAgendaQuery } from "@/lib/queries";
 
@@ -22,9 +23,9 @@ export function TodaysAgenda() {
           {entries.length}
         </span>
         <span className="min-w-0 flex-1" />
-        <Link to="/agenda" className="text-[15px] font-semibold text-blue hover:underline">
-          Abrir agenda
-        </Link>
+        <Button asChild size="sm" className="shrink-0">
+          <Link to="/agenda">Abrir agenda</Link>
+        </Button>
       </div>
       {entries.length === 0 ? (
         <p className="border-t border-border/60 px-5 py-3.5 text-sm text-muted-foreground">

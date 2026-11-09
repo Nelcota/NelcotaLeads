@@ -539,8 +539,8 @@ function FirstContactStep({ lead, analysis, today, busy, onUpdate, onChanged }: 
           </Button>
         ) : null}
         <Button
-          variant="ghost"
-          className="ml-auto hover:bg-red/15 hover:text-red"
+          variant="destructive"
+          className="ml-auto"
           disabled={busy}
           onClick={() => onUpdate({ status: "discarded" })}
         >
@@ -574,8 +574,8 @@ function WaitingStep(props: StepProps) {
           Respondeu
         </Button>
         <Button
-          variant="ghost"
-          className="ml-auto hover:bg-red/15 hover:text-red"
+          variant="destructive"
+          className="ml-auto"
           disabled={busy}
           onClick={() => onUpdate({ status: "discarded" })}
         >
@@ -729,8 +729,8 @@ function EmailStep({ lead, busy, onUpdate, onChanged }: StepProps) {
           </Button>
         )}
         <Button
-          variant="ghost"
-          className="ml-auto hover:bg-red/15 hover:text-red"
+          variant="destructive"
+          className="ml-auto"
           disabled={busy}
           onClick={() => onUpdate({ status: "discarded" })}
         >

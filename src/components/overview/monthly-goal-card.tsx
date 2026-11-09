@@ -125,7 +125,7 @@ export function MonthlyGoalCard() {
         ) : null}
         <span className="min-w-0 flex-1" />
         {goal.goal && !goal.editing ? (
-          <Button size="sm" onClick={goal.startEditing}>
+          <Button size="sm" variant="outline" onClick={goal.startEditing}>
             Editar meta
           </Button>
         ) : null}

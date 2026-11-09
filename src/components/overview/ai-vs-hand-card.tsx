@@ -54,7 +54,7 @@ export function AiVsHandCard({ metrics, caption }: { metrics: OverviewMetrics; c
         <AuthorRow title="Escrito pela IA" rate={authors.ai} />
         <AuthorRow title="Escrito por uma pessoa" rate={authors.user} />
       </div>
-      <dl className="mt-auto grid grid-cols-3 gap-3 border-t border-border/60 pt-3">
+      <dl className="grid grid-cols-3 gap-3 border-t border-border/60 pt-3">
         <CostRow label="IA no mês" value={formatUsd(aiMonth.costUsd)} />
         <CostRow label="Projeção do mês" value={formatUsd(aiMonth.projectionUsd)} />
         <CostRow label="Por fechamento" value={perDeal === null ? "—" : formatUsd(perDeal)} />

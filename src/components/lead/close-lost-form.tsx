@@ -4,7 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { LostDeal } from "@/lib/deal-form";
 import { LOSS_REASON_LABELS, LOSS_REASONS, type LossReason } from "@/lib/schemas";
-import { cn } from "@/lib/utils";
+import { ChoiceChip } from "./choice-chip";
 
 const NOTE_MAX = 500;
 
@@ -32,7 +32,7 @@ export function CloseLostForm({
         <legend className="mb-1.5 text-sm font-medium">Motivo</legend>
         <div role="radiogroup" aria-label="Motivo" className="flex flex-wrap gap-1.5">
           {LOSS_REASONS.map((item) => (
-            <ReasonChip
+            <ChoiceChip
               key={item}
               label={LOSS_REASON_LABELS[item]}
               selected={reason === item}
@@ -61,30 +61,5 @@ export function CloseLostForm({
         </Button>
       </div>
     </form>
-  );
-}
-
-function ReasonChip({
-  label,
-  selected,
-  onSelect,
-}: {
-  label: string;
-  selected: boolean;
-  onSelect: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      role="radio"
-      aria-checked={selected}
-      onClick={onSelect}
-      className={cn(
-        "h-7 rounded-full px-3 text-[14px] font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
-        selected ? "bg-primary text-primary-foreground" : "bg-fill-2 text-foreground hover:bg-fill",
-      )}
-    >
-      {label}
-    </button>
   );
 }

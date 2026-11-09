@@ -64,13 +64,12 @@ export function ServiceList({
             <span className="w-24 text-right font-medium tabular-nums">{priceLabel(service)}</span>
             <span className="flex items-center gap-1 max-sm:col-span-2 sm:w-[164px]">
               <span className="flex-1 text-sm text-muted-foreground">{deadlineLabel(service)}</span>
-              <Button size="xs" onClick={() => setEditing(service.id)}>
+              <Button size="sm" onClick={() => setEditing(service.id)}>
                 Editar
               </Button>
               <Button
-                variant="ghost"
-                size="xs"
-                className="hover:bg-red/15 hover:text-red"
+                variant="destructive"
+                size="sm"
                 disabled={archiving}
                 onClick={() => onArchive(service.id)}
               >
