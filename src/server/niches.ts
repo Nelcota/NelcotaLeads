@@ -85,7 +85,8 @@ export type NicheMetricRow = {
 
 /**
  * Every niche with activity in the period: leads found, first contacted, replied, won (with
- * revenue) and lost, plus its most common loss reason. The ones that close the most first.
+ * revenue) and lost, plus its most common loss reason. Niches with activity first (contacted,
+ * won or lost), then the ones that close, answer and lose the most; only found leads go last.
  */
 export async function queryNicheMetrics(
   db: Db,
@@ -116,7 +117,8 @@ export async function queryNicheMetrics(
         group by key
       )
       where leads + contacted + won + lost > 0
-      order by won desc, revenueCents desc, replied desc, contacted desc, label`),
+      order by (contacted + won + lost > 0) desc, won desc, revenueCents desc, replied desc,
+        lost desc, contacted desc, leads desc, label`),
     db.all<NicheLossCount>(sql`
       select ${nicheKey} as key, l.loss_reason as reason, count(*) as count
       from leads l inner join searches s on s.id = l.search_id
