@@ -21,8 +21,6 @@ import { EMAIL_PROVIDER, mailDailyLimit } from "./mail-flow";
 import { loadConfig } from "./settings-store";
 import { GOOGLE_PLACES, placesDailyLimit, requestsToday, reserveRequest } from "./usage";
 
-// Google returns up to 20 places per request.
-
 export const createSearch = createServerFn({ method: "POST" })
   .validator(newSearchSchema)
   .handler(({ data }) => startSearch(getDb(), data));

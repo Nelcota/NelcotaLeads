@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { Avatar, Hint, TONE_TEXT, toneVar, type Tone } from "@/components/apple-ui";
+import { GoogleQuotaRow } from "@/components/google-quota-row";
 import { HelpSheet } from "@/components/help-sheet";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { NewSearchDialog } from "@/components/new-search-dialog";
@@ -47,7 +48,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useNotificationAlerts } from "@/hooks/use-notification-alerts";
 import { useNotifications } from "@/hooks/use-notifications";
-import { companiesLeftLabel, type GoogleUsage } from "@/lib/google-quota";
 import { GLOSSARY, isHelpKey } from "@/lib/help";
 import { withAttentionCount } from "@/lib/page-title";
 import { accountQuery, attentionQuery, providerStatusQuery, todayAgendaQuery } from "@/lib/queries";
@@ -340,24 +340,6 @@ function UsageMeter() {
         </Link>
       )}
       <GoogleQuotaRow usage={placesUsage} />
-    </div>
-  );
-}
-
-/** Companies that can still be searched today, with the share of the Google quota already spent. */
-function GoogleQuotaRow({ usage }: { usage: GoogleUsage }) {
-  return (
-    <div className="grid gap-1.5">
-      <p className="text-[14px] leading-tight text-muted-foreground">{companiesLeftLabel(usage)}</p>
-      <div className="h-1 overflow-hidden rounded-full bg-fill-2" aria-hidden>
-        <div
-          className="bar-grow h-full rounded-full"
-          style={{
-            width: `${Math.min(percent(usage.used, usage.limit), 100)}%`,
-            background: toneVar("gray"),
-          }}
-        />
-      </div>
     </div>
   );
 }

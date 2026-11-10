@@ -53,19 +53,34 @@ function saysTryTomorrow(message: string): boolean {
   return GOOGLE_LIMIT_PATTERN.test(message) && /amanhã/i.test(message);
 }
 
+/** A message stored in the old daily-limit wording, read in the new one. */
+export function modernizeLimitText(message: string): string {
+  return message.replace(OLD_GOOGLE_LIMIT_PREFIX, GOOGLE_LIMIT_PREFIX);
+}
+
 /**
- * A search's stored failure as shown in the list. On a later day the "tente amanhã" of a
- * daily-limit failure is wrong, so it becomes the date instead; a message stored in the old
- * wording reads in the new one. The stored message is left as is.
+ * On a later day the "tente amanhã" of a daily-limit failure is wrong, so it becomes the date
+ * the limit was hit. Null when the message is from today or does not send people to "amanhã".
  */
+export function datedLimitText(message: string, searchedAt: Date, today: string): string | null {
+  const day = localDay(searchedAt);
+  if (day === today) {
+    return null;
+  }
+  if (!saysTryTomorrow(message)) {
+    return null;
+  }
+  return `Limite do Google atingido em ${dayMonth(day)}`;
+}
+
+/** A search's stored failure as shown in the list. The stored message is left as is. */
 export function searchFailureText(
   message: string | null,
   searchedAt: Date,
   today: string,
 ): string | null {
-  if (!message) return null;
-  const day = localDay(searchedAt);
-  if (day === today || !saysTryTomorrow(message))
-    return message.replace(OLD_GOOGLE_LIMIT_PREFIX, GOOGLE_LIMIT_PREFIX);
-  return `Limite do Google atingido em ${dayMonth(day)}`;
+  if (!message) {
+    return null;
+  }
+  return datedLimitText(message, searchedAt, today) ?? modernizeLimitText(message);
 }

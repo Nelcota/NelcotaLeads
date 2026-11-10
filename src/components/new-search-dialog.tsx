@@ -53,7 +53,7 @@ const PHRASE_INPUT =
 function NewSearchForm({ onDone }: { onDone: () => void }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { data: status } = useQuery(providerStatusQuery);
+  const { data: status, isPending: statusLoading } = useQuery(providerStatusQuery);
   const form = useForm<NewSearchInput>({
     resolver: zodResolver(newSearchSchema),
     defaultValues: { niche: "", city: "", maxResults: 20 },
@@ -160,6 +160,9 @@ function NewSearchForm({ onDone }: { onDone: () => void }) {
             {searchCostLabel(maxResults, usage)}
           </p>
         ) : null}
+        {statusLoading ? (
+          <p className="px-1 text-xs font-light text-muted-foreground">Carregando a cota…</p>
+        ) : null}
       </div>
 
       {status && !status.offerConfigured ? (
@@ -185,7 +188,7 @@ function NewSearchForm({ onDone }: { onDone: () => void }) {
         <Button type="button" variant="ghost" onClick={onDone}>
           Cancelar
         </Button>
-        <Button type="submit" disabled={mutation.isPending || Boolean(blocker)}>
+        <Button type="submit" disabled={mutation.isPending || statusLoading || Boolean(blocker)}>
           <SearchIcon />
           {mutation.isPending ? "Buscando…" : "Buscar empresas"}
         </Button>
