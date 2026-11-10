@@ -11,6 +11,7 @@ import {
   PlusIcon,
   RotateCwIcon,
   SearchIcon,
+  TriangleAlertIcon,
   XIcon,
 } from "lucide-react";
 import type { ReactNode } from "react";
@@ -504,11 +505,14 @@ function Step({
       {children ? (
         <p
           className={cn(
-            "text-[14px] font-light [&_b]:font-medium [&_b]:text-foreground",
+            "flex items-start gap-1.5 text-[14px] font-light [&_b]:font-medium [&_b]:text-foreground",
             state === "error" ? "text-red" : "text-muted-foreground",
           )}
         >
-          {children}
+          {state === "error" ? (
+            <TriangleAlertIcon aria-hidden strokeWidth={2} className="mt-0.5 size-4 shrink-0" />
+          ) : null}
+          <span className="min-w-0">{children}</span>
         </p>
       ) : null}
       {progress !== undefined ? (

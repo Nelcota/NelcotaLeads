@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { SearchIcon } from "lucide-react";
+import { MapPinIcon, SearchIcon, TagIcon } from "lucide-react";
 import { useForm, useWatch } from "react-hook-form";
 import { errorToast } from "@/lib/mutation-toasts";
 import { Button } from "@/components/ui/button";
@@ -34,7 +34,10 @@ export function NewSearchDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[560px]">
         <DialogHeader>
-          <DialogTitle>Nova busca</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <SearchIcon aria-hidden strokeWidth={2} className="size-[18px] shrink-0 text-blue" />
+            Nova busca
+          </DialogTitle>
           <DialogDescription>
             Uma busca no Google Maps por nicho e cidade. As empresas encontradas são avaliadas pela
             IA como as da busca diária.
@@ -100,11 +103,13 @@ function NewSearchForm({ onDone }: { onDone: () => void }) {
     >
       <div className="grid gap-2">
         <div className="grid grid-cols-[1fr_auto_1fr] text-xs font-medium text-muted-foreground">
-          <Label htmlFor="niche" className="px-1">
+          <Label htmlFor="niche" className="flex items-center gap-1.5 px-1">
+            <TagIcon aria-hidden strokeWidth={2} className="size-3.5 shrink-0" />
             Nicho
           </Label>
           <span />
-          <Label htmlFor="city" className="px-1">
+          <Label htmlFor="city" className="flex items-center gap-1.5 px-1">
+            <MapPinIcon aria-hidden strokeWidth={2} className="size-3.5 shrink-0" />
             Cidade
           </Label>
         </div>

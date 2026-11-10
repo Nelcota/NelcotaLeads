@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
+import { AlarmClockIcon, CalendarDaysIcon, CalendarIcon } from "lucide-react";
 import { TodaysAgendaGroup } from "@/components/overview/todays-agenda-group";
 import { Button } from "@/components/ui/button";
 import { todaysAgenda, todaysAgendaCount } from "@/lib/agenda";
@@ -17,7 +18,8 @@ export function TodaysAgenda() {
   return (
     <section aria-labelledby="todays-agenda" className="grouped enter">
       <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 px-5 pt-4 pb-2">
-        <h2 id="todays-agenda" className="text-[18px] font-semibold">
+        <h2 id="todays-agenda" className="flex items-center gap-2 text-[18px] font-semibold">
+          <CalendarIcon aria-hidden strokeWidth={2} className="size-[18px] shrink-0 text-blue" />
           Agenda de hoje
         </h2>
         {count ? (
@@ -27,13 +29,28 @@ export function TodaysAgenda() {
         ) : null}
         <span className="min-w-0 flex-1" />
         <Button asChild size="sm" className="shrink-0">
-          <Link to="/agenda">Abrir agenda</Link>
+          <Link to="/agenda">
+            <CalendarIcon aria-hidden strokeWidth={2} />
+            Abrir agenda
+          </Link>
         </Button>
       </div>
       {count ? (
         <>
-          <TodaysAgendaGroup title="Atrasados" entries={groups.overdue} today={data.today} />
-          <TodaysAgendaGroup title="Hoje" entries={groups.today} today={data.today} />
+          <TodaysAgendaGroup
+            title="Atrasados"
+            icon={AlarmClockIcon}
+            iconClassName="text-red"
+            entries={groups.overdue}
+            today={data.today}
+          />
+          <TodaysAgendaGroup
+            title="Hoje"
+            icon={CalendarDaysIcon}
+            iconClassName="text-muted-foreground"
+            entries={groups.today}
+            today={data.today}
+          />
         </>
       ) : (
         <p className="border-t border-border/60 px-5 py-3.5 text-sm text-muted-foreground">

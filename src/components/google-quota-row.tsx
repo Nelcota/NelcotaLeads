@@ -1,3 +1,4 @@
+import { SearchIcon } from "lucide-react";
 import { toneVar } from "@/components/apple-ui";
 import { companiesLeftLabel, type GoogleUsage } from "@/lib/google-quota";
 
@@ -12,7 +13,10 @@ function usedPercent({ used, limit }: GoogleUsage): number {
 export function GoogleQuotaRow({ usage }: { usage: GoogleUsage }) {
   return (
     <div className="grid gap-1.5">
-      <p className="text-[14px] leading-tight text-muted-foreground">{companiesLeftLabel(usage)}</p>
+      <p className="flex items-center gap-1.5 text-[14px] leading-tight text-muted-foreground">
+        <SearchIcon aria-hidden strokeWidth={2} className="size-3.5 shrink-0 text-blue" />
+        {companiesLeftLabel(usage)}
+      </p>
       <div className="h-1 overflow-hidden rounded-full bg-fill-2" aria-hidden>
         <div
           className="bar-grow h-full rounded-full"
