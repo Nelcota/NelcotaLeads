@@ -38,6 +38,7 @@ The steps, in this order: (1) Visão geral with the new layout on today's data; 
 
 ## Next
 
+- Sender name per account: lead e-mails signed with the name of the account that sends them (or the lead's owner for automatic ones) instead of one system-wide "Seu nome" in Conta. Changes e-mail sending, so guard rule 7 applies. (2026-11-10, from the user's T5 answer: each partner signs up with the name they choose)
 - Agenda, phase 3 (after phases 1 and 2), the four additions the user chose on 2026-11-06 as most useful:
   - Meeting outcome: after the time, the meeting asks for Realizada, Não compareceu or Remarcar; Realizada suggests the lead's next stage. Migration (status column), so guard rule 7 applies.
   - Lead context in the meeting detail: stage, last contact, proposal value and the last notes, read from data the lead already has.
@@ -74,6 +75,26 @@ The steps, in this order: (1) Visão geral with the new layout on today's data; 
 - Agenda, left out of the full model on 2026-11-05: meeting end time and attendees, events without a lead (team meeting, site delivery, blocked time), work hours, a public booking link for leads with an `.ics` invite, an e-mail reminder to the lead and recurring events. Each needs a migration or sends e-mail, so guard rule 7 applies. (2026-11-05; on 2026-11-06 the outcome and overlap warning moved to Next and the `.ics` feed was dropped)
 
 ## Decisions
+
+### 2026-11-10: P1 and P2 ship switched off (guard rule 7)
+
+- **P2:** a late cron runs its scheduled slot (automatic dispatch and daily searches not skipped) only with `SCHEDULED_CATCH_UP=true`. Off by default: a late run skips the hourly steps, as before. Turned on by hand by whoever runs the infrastructure. The other P2 fixes (inbox and lead queue without the AI key, loud IMAP errors) send nothing and stay on.
+- **P1:** the password-reset caps and the daily AI cap ship off. Configurações gets a "Limites de uso" switch (off) and three numbers: resets per account per day (3), resets per day in total (20), AI calls per day (500). Stored in new `settings` columns (one migration); replaces `AI_DAILY_REQUEST_LIMIT`. Turnstile, the edge rate limit and `SESSION_SECRET` already only act when configured.
+- **Why:** the user accepted the rule 7 notice on the condition that both enter disabled and are turned on manually ("o p2 eu já quero que entre desativado ... p1 adicione uma forma mesmo que seja em configurações ... e também já envie desativado").
+
+### 2026-11-10: partner test skipped for the UX audit PRs
+
+- **Decision:** the test with Haniel, Phellipe and Guilherme on localhost 3040 is skipped before the PRs of T1–T5 and P1–P4 (the user: "pule esta etapa de teste com sócios e vamos para a próxima"). Replaces, for these PRs, "each topic is tested by the user with the partners before its PR opens" in the 2026-11-09 one-shot decision. The other checks stay: lint, test, build, e2e, localhost in both themes.
+- **Each PR says so:** "Not verified: usability test with the partners (skipped by decision of 2026-11-10)".
+- **Review if:** the superior asks for the partner test before approving; the script stays ready in the session notes.
+
+### 2026-11-10: T5 product answers
+
+- **AI cost:** stays in US dollars on screen ("cote em dólar"); no BRL rate in the app.
+- **Owner button:** "Assumir lead" (not "Assumir"), so it never collides with "Assumir conversa", the AI-vs-person control in Conversas.
+- **Closed conversation badge:** "Encerrada" splits into "Fechada" (lead closed with a deal) and "Perdida" (lost, discarded or unsubscribed). The "Fechadas e perdidas" filter keeps both.
+- **Sender name:** the name in Conta was a sample; each partner's name comes from the account they create. Signing lead e-mails with each person's own account name is a change to sending, so it goes to Next (guard rule 4), not into T5.
+- **Why:** the user answered the four open questions from the T5 run.
 
 ### 2026-11-10: line icons everywhere, one icon per function
 
