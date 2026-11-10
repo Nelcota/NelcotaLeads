@@ -4,6 +4,7 @@ import {
   DownloadIcon,
   EllipsisIcon,
   InboxIcon,
+  ListChecksIcon,
   PlusIcon,
   SendIcon,
   UserIcon,
@@ -383,6 +384,7 @@ function LeadsPage() {
           </ChoicePill>
           {readyIds.length > 0 ? (
             <Button variant="ghost" onClick={selectReady}>
+              <ListChecksIcon aria-hidden className="text-blue" strokeWidth={2} />
               {selectReadyLabel(readyIds.length)}
             </Button>
           ) : null}

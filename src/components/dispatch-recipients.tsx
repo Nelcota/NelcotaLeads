@@ -1,3 +1,4 @@
+import { CircleCheckIcon, PencilLineIcon, UsersIcon } from "lucide-react";
 import { Avatar } from "@/components/apple-ui";
 import { Badge } from "@/components/ui/badge";
 
@@ -16,7 +17,8 @@ export function DispatchRecipients({
   if (recipients.length === 0) return null;
   return (
     <section aria-label="Destinatários" className="grid gap-2">
-      <h3 className="text-sm font-medium text-muted-foreground">
+      <h3 className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+        <UsersIcon aria-hidden className="size-4 shrink-0 text-blue" strokeWidth={2} />
         Destinatários ({recipients.length})
       </h3>
       <ul className="grouped">
@@ -44,7 +46,19 @@ export function DispatchRecipients({
 }
 
 function RecipientState({ hasDraft, skipped }: { hasDraft: boolean; skipped: boolean }) {
-  if (hasDraft) return <Badge variant="green">E-mail escrito</Badge>;
+  if (hasDraft) {
+    return (
+      <span className="flex shrink-0 items-center gap-1.5 text-[13px] font-medium text-green">
+        <CircleCheckIcon aria-hidden className="size-3.5 shrink-0" strokeWidth={2} />
+        E-mail escrito
+      </span>
+    );
+  }
   if (skipped) return <Badge variant="orange">De fora</Badge>;
-  return <Badge variant="gray">Falta escrever</Badge>;
+  return (
+    <span className="flex shrink-0 items-center gap-1.5 text-[13px] font-medium text-muted-foreground">
+      <PencilLineIcon aria-hidden className="size-3.5 shrink-0" strokeWidth={2} />
+      Falta escrever
+    </span>
+  );
 }

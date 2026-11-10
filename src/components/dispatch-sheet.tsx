@@ -1,13 +1,18 @@
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
+  GaugeIcon,
   LoaderCircleIcon,
+  MailIcon,
+  PencilLineIcon,
   SendIcon,
   SparklesIcon,
+  TimerIcon,
   TriangleAlertIcon,
 } from "lucide-react";
 import { useState } from "react";
 import { Avatar, Hint, IconTile, PropertyRow, SaveStatus } from "@/components/apple-ui";
+import { IconLabel } from "@/components/icon-label";
 import { DispatchRecipients, type DispatchRecipient } from "@/components/dispatch-recipients";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -90,7 +95,11 @@ function DispatchReview({
     <>
       <SheetHeader className="gap-1 px-5 pt-4 pb-3 pr-14">
         <SheetTitle className="flex items-center gap-2 text-lg">
-          {review.writing ? <LoaderCircleIcon className="size-4 animate-spin text-purple" /> : null}
+          {review.writing ? (
+            <LoaderCircleIcon className="size-4 animate-spin text-purple" />
+          ) : (
+            <SendIcon aria-hidden className="size-[18px] shrink-0 text-blue" strokeWidth={2} />
+          )}
           {reviewTitle({ writing: review.writing, count: drafts.length })}
         </SheetTitle>
         <SheetDescription>
@@ -101,7 +110,8 @@ function DispatchReview({
       <div className="flex-1 overflow-y-auto px-5 pb-5">
         {!review.loading && review.missing.length > 0 ? (
           <div className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl bg-fill-2 px-4 py-3">
-            <p className="flex-1 text-sm font-light text-muted-foreground">
+            <p className="flex flex-1 items-center gap-2 text-sm font-light text-muted-foreground">
+              <PencilLineIcon aria-hidden className="size-4 shrink-0 text-orange" strokeWidth={2} />
               {missingLine(review.missing.length)}
             </p>
             <Button variant="outline" size="sm" disabled={review.writing} onClick={review.write}>
@@ -168,13 +178,20 @@ function DispatchReview({
 
             <div className="grouped">
               <div className="grouped-row flex min-h-[42px] items-center gap-3 px-4 [--inset:16px]">
-                <span className="w-10 font-light text-tertiary">De</span>
+                <span className="w-16 shrink-0 font-light text-tertiary">De</span>
                 <span className="truncate font-medium">
                   {mail?.address || "caixa não conectada"}
                 </span>
               </div>
               <div className="grouped-row flex min-h-[42px] items-center gap-3 px-4 [--inset:16px]">
-                <span className="w-10 font-light text-tertiary">Para</span>
+                <span className="flex w-16 shrink-0 items-center gap-1.5 font-light text-tertiary">
+                  <MailIcon
+                    aria-hidden
+                    className="size-4 shrink-0 text-muted-foreground"
+                    strokeWidth={2}
+                  />
+                  Para
+                </span>
                 <Badge variant="gray" className="text-foreground">
                   <Avatar name={current.leadName} size={16} />
                   {current.toAddress}
@@ -266,14 +283,16 @@ function DispatchReview({
 
       <SheetFooter className="gap-3 border-t border-border/70 bg-black/[0.02] px-5 pt-3.5 pb-5 dark:bg-black/20">
         <div className="grouped">
-          <PropertyRow label="Envio">um a cada {SEND_GAP_MINUTES} min</PropertyRow>
+          <PropertyRow label={<IconLabel icon={TimerIcon} text="Envio" />}>
+            um a cada {SEND_GAP_MINUTES} min
+          </PropertyRow>
           {settings.roomLoading ? (
-            <PropertyRow label="Restam hoje">
+            <PropertyRow label={<IconLabel icon={GaugeIcon} text="Restam hoje" />}>
               <Skeleton className="inline-block h-4 w-16 align-middle" />
             </PropertyRow>
           ) : null}
           {room ? (
-            <PropertyRow label="Restam hoje">
+            <PropertyRow label={<IconLabel icon={GaugeIcon} text="Restam hoje" />}>
               <span className="text-green">{room.remaining}</span> de {room.limit}
               {room.spillsOver ? (
                 <span className="font-light text-orange"> (o resto sai amanhã)</span>
