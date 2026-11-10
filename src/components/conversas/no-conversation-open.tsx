@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { MessagesSquareIcon } from "lucide-react";
+import { ChevronRightIcon, MessagesSquareIcon } from "lucide-react";
 import { EmptyState } from "@/components/apple-ui";
 import { Button } from "@/components/ui/button";
 
@@ -11,6 +11,7 @@ export function NoConversationOpen({ nextLeadId }: { nextLeadId: string | undefi
         <Button asChild size="sm" variant="link">
           <Link from="/conversas" to="." search={(prev) => ({ ...prev, lead: nextLeadId })}>
             Abrir a próxima que precisa de você
+            <ChevronRightIcon aria-hidden strokeWidth={2} className="size-4" />
           </Link>
         </Button>
       ) : null}
