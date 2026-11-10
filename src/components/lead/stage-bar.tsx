@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
  * Where the lead is in the sale: Novo · Contatado · Respondeu · Reunião · Proposta · Fechado,
  * as compact pills. The current step is the selected (blue) pill and reached steps carry a
  * check. With `onSelectStage` (a replied lead) the Respondeu, Reunião and Proposta steps are
- * buttons; the others are shown in the same shape but are not clickable.
+ * buttons; the other steps are plain text, and only the current one keeps the pill.
  */
 export function StageBar({
   current,
@@ -78,13 +78,18 @@ function StageStep({
       </ChoicePill>
     );
   }
-  // Not a button: same pill shape, no hover or press, so it never looks clickable.
+  // The current step keeps the blue pill so the lead's place is clear.
+  if (current) {
+    return (
+      <span className={cn(buttonVariants({ size: "sm" }), "pointer-events-none")}>{body}</span>
+    );
+  }
+  // Not a button: plain text with no outline, so it never looks clickable.
   return (
     <span
       className={cn(
-        buttonVariants({ variant: current ? "default" : "outline", size: "sm" }),
-        "pointer-events-none",
-        !current && !reached && "text-muted-foreground",
+        "inline-flex h-8 items-center gap-1.5 px-1.5 text-sm font-medium [&_svg]:size-3.5",
+        !reached && "text-muted-foreground",
       )}
     >
       {body}

@@ -10,27 +10,19 @@ import {
   CircleCheckIcon,
   ClockIcon,
   ContactIcon,
-  CopyIcon,
-  GlobeIcon,
   HistoryIcon,
   MailIcon,
-  PhoneIcon,
   RefreshCwIcon,
   SearchXIcon,
   SparklesIcon,
   StickyNoteIcon,
   XCircleIcon,
 } from "lucide-react";
-import {
-  EmptyState,
-  ExternalLink,
-  ExternalMark,
-  SaveStatus,
-  TONE_TEXT,
-  type Tone,
-} from "@/components/apple-ui";
-import { ChoicePill } from "@/components/ui/choice-pill";
+import { EmptyState, ExternalLink, SaveStatus, TONE_TEXT, type Tone } from "@/components/apple-ui";
+import { SegmentedControl } from "@/components/notifications/segmented-control";
+import { Notice } from "@/components/lead/notice";
 import { PANEL_FIELD, PanelSection, TitleChip } from "@/components/lead/panel-section";
+import { QuickActions } from "@/components/lead/quick-actions";
 import { InlineEdit } from "@/components/inline-edit";
 import { useReportUnsavedEdits } from "@/components/unsaved-edits";
 import { DealActions } from "@/components/lead/deal-actions";
@@ -41,7 +33,7 @@ import { OwnerChip } from "@/components/lead/owner-chip";
 import { SalesActions } from "@/components/lead/sales-actions";
 import { ScoreRing } from "@/components/lead/score-ring";
 import { followUpTone } from "@/components/lead-badges";
-import { GoogleMapsMark, WhatsAppMark } from "@/components/brand-marks";
+import { WhatsAppMark } from "@/components/brand-marks";
 import { LeadAvatar } from "@/components/leads/lead-avatar";
 import { StageLabel } from "@/components/leads/stage-label";
 import { leadStage } from "@/lib/lead-row";
@@ -84,6 +76,7 @@ import {
   type UpdateLeadInput,
 } from "@/lib/schemas";
 import { cn, safeHttpUrl } from "@/lib/utils";
+import { SCORE_LABEL_HELP } from "@/lib/score-label";
 import { useToday } from "@/lib/today";
 import {
   generateMessage,
@@ -108,6 +101,11 @@ const FOLLOW_UP_OPTIONS = [
   { days: 7, label: "Em 1 semana" },
   { days: 14, label: "Em 2 semanas" },
 ] as const;
+
+const FOLLOW_UP_CHOICES = FOLLOW_UP_OPTIONS.map((option) => ({
+  value: String(option.days),
+  label: option.label,
+}));
 
 type LeadUpdate = Omit<UpdateLeadInput, "id">;
 type DraftText = { subject: string; body: string };
@@ -259,80 +257,6 @@ export function LeadDetail({
         <Footer lead={lead} analysis={analysis} onChanged={refreshAll} />
       </div>
     </div>
-  );
-}
-
-function QuickActions({ lead }: { lead: Lead }) {
-  const copyPhone = async () => {
-    try {
-      await navigator.clipboard.writeText(lead.phone ?? "");
-      toast.success("Telefone copiado");
-    } catch {
-      toast.error("Não foi possível copiar");
-    }
-  };
-  return (
-    // A fixed 2-column grid: every shortcut stays visible, nothing scrolls sideways.
-    <nav aria-label="Contato rápido" className="grid grid-cols-2 gap-2">
-      {lead.phoneE164 ? (
-        <>
-          <QuickAction
-            href={whatsappLink(lead.phoneE164)}
-            external
-            icon={WhatsAppMark}
-            tone="green"
-          >
-            WhatsApp
-          </QuickAction>
-          <QuickAction href={`tel:${lead.phoneE164}`} icon={PhoneIcon} tone="green">
-            Ligar
-          </QuickAction>
-        </>
-      ) : null}
-      {lead.phone ? (
-        <QuickAction as="button" onClick={() => void copyPhone()} icon={CopyIcon} tone="gray">
-          Copiar telefone
-        </QuickAction>
-      ) : null}
-      {safeHttpUrl(lead.website) ? (
-        <QuickAction
-          href={safeHttpUrl(lead.website) ?? undefined}
-          external
-          icon={GlobeIcon}
-          tone="blue"
-        >
-          Site
-        </QuickAction>
-      ) : null}
-      {safeHttpUrl(lead.mapsUrl) ? (
-        <QuickAction
-          href={safeHttpUrl(lead.mapsUrl) ?? undefined}
-          external
-          icon={GoogleMapsMark}
-          tone="red"
-        >
-          Google Maps
-        </QuickAction>
-      ) : null}
-    </nav>
-  );
-}
-
-/** A one-line notice in the panel: a line icon in the tone, then neutral text (badge standard). */
-function Notice({
-  icon: Icon,
-  tone,
-  children,
-}: {
-  icon: ComponentType<{ className?: string; strokeWidth?: number }>;
-  tone: Tone;
-  children: ReactNode;
-}) {
-  return (
-    <p className="flex items-start gap-2 text-sm leading-5">
-      <Icon className={cn("mt-0.5 size-4 shrink-0", TONE_TEXT[tone])} strokeWidth={1.75} />
-      <span>{children}</span>
-    </p>
   );
 }
 
@@ -520,30 +444,18 @@ function FirstContactStep({ lead, analysis, today, busy, onUpdate, onChanged }: 
           disabled={!analysis || generate.isPending}
         />
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <span
-            id="first-contact-follow-up"
-            className="text-[13px] font-medium text-muted-foreground"
-          >
+          <span aria-hidden className="text-[13px] font-medium text-muted-foreground">
             Retorno
           </span>
-          <div
-            role="radiogroup"
-            aria-labelledby="first-contact-follow-up"
-            className="flex flex-wrap gap-1.5"
-          >
-            {FOLLOW_UP_OPTIONS.map((option) => (
-              <ChoicePill
-                key={option.days}
-                size="sm"
-                role="radio"
-                aria-checked={followUpDays === String(option.days)}
-                selected={followUpDays === String(option.days)}
-                onClick={() => setFollowUpDays(String(option.days))}
-              >
-                {option.label}
-              </ChoicePill>
-            ))}
-          </div>
+          {/* Radio semantics: Tab reaches the chosen day, the arrow keys move the choice. */}
+          <SegmentedControl
+            label="Retorno"
+            size="sm"
+            value={followUpDays}
+            options={FOLLOW_UP_CHOICES}
+            onChange={setFollowUpDays}
+            className="min-w-0 flex-1 flex-wrap"
+          />
         </div>
       </CardContent>
       <CardFooter className="flex-wrap gap-2">
@@ -820,7 +732,7 @@ function ConversationStep({ lead, today, closing, onWon, onLost, sales }: StepPr
                 : "rounded-lg bg-muted px-3 py-2 text-sm"
             }
           >
-            <p className="mb-1 text-xs text-muted-foreground">
+            <p className="mb-1 text-[13px] text-muted-foreground">
               {message.direction === "in" ? "Empresa" : message.author === "ai" ? "IA" : "Você"}
             </p>
             <p className="line-clamp-4 whitespace-pre-line wrap-break-word">{message.body}</p>
@@ -948,7 +860,10 @@ function AnalysisSection({ lead, analysis }: { lead: Lead; analysis: Analysis | 
             <ChevronRightIcon className="size-3.5 transition-transform duration-300 ease-spring group-open/details:rotate-90" />
             Como a nota foi calculada
           </summary>
-          <p className="mt-2 leading-relaxed text-muted-foreground">{analysis.scoreReasoning}</p>
+          <div className="mt-2 grid gap-2 leading-relaxed text-muted-foreground">
+            <p>{analysis.scoreReasoning}</p>
+            <p className="text-[13px]">{SCORE_LABEL_HELP}</p>
+          </div>
         </details>
       </div>
     </PanelSection>
@@ -1081,7 +996,7 @@ function NotesSection({
       title="Notas"
       icon={StickyNoteIcon}
       status={
-        <span aria-live="polite" className="text-xs text-tertiary">
+        <span aria-live="polite" className="text-[13px] text-muted-foreground">
           {savedAt ? "Salvo" : ""}
         </span>
       }
@@ -1126,7 +1041,7 @@ function Footer({
     <div className="flex flex-wrap items-center justify-end gap-4 border-t border-border/70 pt-4 text-sm text-muted-foreground">
       <div className="flex flex-wrap items-center gap-3">
         {analysis ? (
-          <span className="text-[13px] text-tertiary">
+          <span className="text-[13px] text-muted-foreground">
             {analysis.model} · US$ {analysis.costEstimate.toFixed(4)} ·{" "}
             {formatDate(analysis.createdAt, true)}
           </span>
@@ -1213,54 +1128,6 @@ function Term({ label, children }: { label: string; children: ReactNode }) {
       <dt className="text-muted-foreground">{label}</dt>
       <dd className="min-w-0 font-medium break-words">{children}</dd>
     </div>
-  );
-}
-
-/** A contact shortcut: a secondary pill (button standard) with a bare line icon in its tone. */
-function QuickAction(
-  props: {
-    icon: ComponentType<{ className?: string; strokeWidth?: number }>;
-    tone: Tone;
-    children: ReactNode;
-  } & (
-    | ({ as?: undefined; external?: boolean } & React.ComponentProps<"a">)
-    | ({ as: "button" } & React.ComponentProps<"button">)
-  ),
-) {
-  const className = cn(buttonVariants({ variant: "outline" }), "w-full", TONE_TEXT[props.tone]);
-  const Icon = props.icon;
-  // Icon standard: a bare line icon in its tone (brand mark for WhatsApp and Maps), no chip.
-  const icon = <Icon className="size-[18px]" strokeWidth={1.75} />;
-  const body = (
-    <>
-      {icon}
-      <span className="text-foreground">{props.children}</span>
-    </>
-  );
-  if (props.as === "button") {
-    const { icon: _icon, tone: _tone, children: _children, as: _as, ...rest } = props;
-    return (
-      <button type="button" className={className} {...rest}>
-        {body}
-      </button>
-    );
-  }
-  const { icon: _icon, tone: _tone, children, as: _as, external, ...rest } = props;
-  if (external) {
-    return (
-      <ExternalLink className={className} indicator={false} {...rest}>
-        {icon}
-        <span className="inline-flex items-center gap-0.5 text-foreground">
-          {children}
-          <ExternalMark />
-        </span>
-      </ExternalLink>
-    );
-  }
-  return (
-    <a className={className} {...rest}>
-      {body}
-    </a>
   );
 }
 

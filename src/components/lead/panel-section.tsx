@@ -10,7 +10,7 @@ const CHIP_TONE: Record<ChipTone, string> = {
 };
 
 /** Outline shared by the panel and every card in it (1px, visible in both themes). */
-export const PANEL_OUTLINE = "border border-foreground/15";
+const PANEL_OUTLINE = "border border-foreground/15";
 
 /** Text fields inside the panel: neutral fill (never near-black) with a visible outline. */
 export const PANEL_FIELD =
@@ -38,40 +38,21 @@ export function TitleChip({
 export function PanelSection({
   title,
   icon: Icon,
-  tone = "gray",
-  description,
   status,
-  action,
-  className,
   children,
 }: {
   title: string;
   icon: ComponentType<{ className?: string; strokeWidth?: number }>;
-  tone?: ChipTone;
-  description?: ReactNode;
-  /** Quiet feedback after the title, e.g. "Salvo" or "Escrito pela IA". */
+  /** Quiet feedback after the title, e.g. "Salvo". */
   status?: ReactNode;
-  /** One card action on the right of the title (e.g. a blue "Editar"). */
-  action?: ReactNode;
-  className?: string;
   children?: ReactNode;
 }) {
   return (
-    <section
-      className={cn(
-        "grid gap-3.5 rounded-[20px] bg-card-2 px-5 py-[18px]",
-        PANEL_OUTLINE,
-        className,
-      )}
-    >
+    <section className={cn("grid gap-3.5 rounded-[20px] bg-card-2 px-5 py-[18px]", PANEL_OUTLINE)}>
       <div className="flex items-start gap-3">
-        <TitleChip icon={Icon} tone={tone} />
-        <div className="grid min-w-0 flex-1 gap-0.5">
-          <h3 className="text-base leading-[22px] font-semibold">{title}</h3>
-          {description ? <div className="text-sm text-muted-foreground">{description}</div> : null}
-        </div>
+        <TitleChip icon={Icon} />
+        <h3 className="mt-1 min-w-0 flex-1 text-base leading-[22px] font-semibold">{title}</h3>
         {status ? <div className="mt-1 shrink-0">{status}</div> : null}
-        {action ? <div className="shrink-0">{action}</div> : null}
       </div>
       {children}
     </section>
