@@ -1,15 +1,17 @@
-import { InfoTip, ProgressRing, TONE_TEXT } from "@/components/apple-ui";
+import { ProgressRing, TONE_TEXT } from "@/components/apple-ui";
 import { TIER_TONE } from "@/components/lead-badges";
 import { Badge } from "@/components/ui/badge";
-import { SCORE_LABEL_HELP, scoreLabel, scoreLevel } from "@/lib/score-label";
+import { scoreLabel, scoreLevel } from "@/lib/score-label";
 import { cn } from "@/lib/utils";
 
-/** The score as a word ("Alta", "Média", "Baixa") inside a ring, "Nota" under it, and its help. */
+/**
+ * The score as a word ("Alta", "Média", "Baixa") inside a ring with "Nota" under it. How it
+ * was calculated lives in the Análise card ("Como a nota foi calculada"), not in a tooltip.
+ */
 export function ScoreRing({ score, pending }: { score: number | null; pending: boolean }) {
   return (
     <div className="flex shrink-0 flex-col items-center gap-1.5">
       <ScoreValue score={score} pending={pending} />
-      <InfoTip side="bottom">{SCORE_LABEL_HELP}</InfoTip>
     </div>
   );
 }

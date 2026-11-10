@@ -4,29 +4,32 @@ import { useEffect, useState, type ComponentType, type ReactNode } from "react";
 import { toast } from "sonner";
 import { errorToast } from "@/lib/mutation-toasts";
 import {
+  CalendarIcon,
   ChevronRightIcon,
   CircleAlertIcon,
+  CircleCheckIcon,
   ClockIcon,
+  ContactIcon,
+  HistoryIcon,
   MailIcon,
-  CopyIcon,
-  GlobeIcon,
-  MapPinIcon,
-  MessageCircleIcon,
-  PhoneIcon,
   RefreshCwIcon,
   SearchXIcon,
   SparklesIcon,
+  StickyNoteIcon,
+  XCircleIcon,
 } from "lucide-react";
 import {
   DisabledReason,
   EmptyState,
   ExternalLink,
-  ExternalMark,
-  IconTile,
   SaveStatus,
   TONE_TEXT,
   type Tone,
 } from "@/components/apple-ui";
+import { SegmentedControl } from "@/components/notifications/segmented-control";
+import { Notice } from "@/components/lead/notice";
+import { PANEL_FIELD, PanelSection, TitleChip } from "@/components/lead/panel-section";
+import { QuickActions } from "@/components/lead/quick-actions";
 import { InlineEdit } from "@/components/inline-edit";
 import { useReportUnsavedEdits } from "@/components/unsaved-edits";
 import { DealActions } from "@/components/lead/deal-actions";
@@ -44,7 +47,7 @@ import { leadStage } from "@/lib/lead-row";
 import { useLeadDeal } from "@/hooks/use-lead-deal";
 import { useReadLeadReplies } from "@/hooks/use-read-lead-replies";
 import { useLeadSales, type LeadSales } from "@/hooks/use-lead-sales";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -53,13 +56,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -87,6 +83,7 @@ import {
   type UpdateLeadInput,
 } from "@/lib/schemas";
 import { cn, safeHttpUrl } from "@/lib/utils";
+import { SCORE_LABEL_HELP } from "@/lib/score-label";
 import { useToday } from "@/lib/today";
 import {
   generateMessage,
@@ -113,10 +110,16 @@ const FOLLOW_UP_OPTIONS = [
   { days: 14, label: "Em 2 semanas" },
 ] as const;
 
+const FOLLOW_UP_CHOICES = FOLLOW_UP_OPTIONS.map((option) => ({
+  value: String(option.days),
+  label: option.label,
+}));
+
 type LeadUpdate = Omit<UpdateLeadInput, "id">;
 type DraftText = { subject: string; body: string };
 
-const STEP_CARD = "shadow-[inset_3px_0_0_var(--green),inset_0_1px_0_rgb(255_255_255/0.05)]!";
+/** The next-step card: the same bordered card as every other block of the panel. */
+const STEP_CARD = "rounded-[20px] border border-foreground/15 bg-card-2! shadow-none!";
 
 /**
  * One lead inside the side sheet, organized around the next thing to do with it.
@@ -174,17 +177,19 @@ export function LeadDetail({
 
   return (
     <div className="flex flex-col">
-      <SheetHeader className="gap-4 px-5 pt-3.5 pb-4">
+      <SheetHeader className="gap-4 px-6 pt-3.5 pb-4">
         {toolbar}
-        <div className="flex items-center gap-3.5">
+        <div className="flex items-start gap-3.5">
           <LeadAvatar
             name={lead.name}
             website={lead.website}
-            size={52}
+            size={48}
             className="rounded-[14px]"
           />
           <div className="grid min-w-0 flex-1 gap-1">
-            <SheetTitle className="leading-snug">{lead.name}</SheetTitle>
+            <SheetTitle className="text-[22px] leading-7 font-semibold tracking-[-0.01em] wrap-break-word">
+              {lead.name}
+            </SheetTitle>
             <SheetDescription>{facts.join(" · ")}</SheetDescription>
             <div className="mt-1 flex flex-wrap items-center gap-1.5">
               <StageLabel stage={leadStage(lead)} className="mr-1.5 text-[14px]" />
@@ -209,18 +214,20 @@ export function LeadDetail({
           <ScoreRing score={lead.score} pending={lead.analysisStatus === "pending"} />
         </div>
         {lead.discardReason && !lead.lossReason ? (
-          <p className="text-[14px] text-red">Descartado pela IA: {lead.discardReason}</p>
+          <Notice icon={XCircleIcon} tone="red">
+            Descartado pela IA: {lead.discardReason}
+          </Notice>
         ) : null}
         <QuickActions lead={lead} />
         <LeadStage lead={lead} busy={deal.movingStage} onSelectStage={deal.setStage} />
         {lead.status === "replied" && isPriceHandoff(lead.handoffReason) ? (
-          <p className="text-[14px] text-orange">
+          <Notice icon={CircleAlertIcon} tone="orange">
             A IA não cita preço. Responda com a proposta da tabela de serviços.
-          </p>
+          </Notice>
         ) : null}
       </SheetHeader>
 
-      <div className="flex flex-col gap-6 px-5 pb-6">
+      <div className="flex flex-col gap-4 px-6 pb-6">
         <NextStep
           lead={lead}
           analysis={analysis}
@@ -234,17 +241,17 @@ export function LeadDetail({
           sales={sales}
         />
         {sales.meetings.length > 0 ? (
-          <Section title="Reuniões">
+          <PanelSection title="Reuniões" icon={CalendarIcon}>
             <LeadMeetings
               meetings={sales.meetings}
               today={today}
               busy={sales.cancelling}
               onCancel={sales.cancel}
             />
-          </Section>
+          </PanelSection>
         ) : null}
         <AnalysisSection lead={lead} analysis={analysis} />
-        <div className="grid gap-6 sm:grid-cols-[1.2fr_1fr]">
+        <div className="grid gap-4">
           <ContactSection lead={lead} onChanged={refreshAll} />
           <NotesSection
             key={lead.id}
@@ -252,66 +259,11 @@ export function LeadDetail({
             onSave={(notes) => update.mutateAsync({ notes })}
           />
         </div>
-        <Section title="Histórico">
+        <PanelSection title="Histórico" icon={HistoryIcon}>
           <LeadHistory lines={historyLines(events)} />
-        </Section>
+        </PanelSection>
         <Footer lead={lead} analysis={analysis} onChanged={refreshAll} />
       </div>
-    </div>
-  );
-}
-
-function QuickActions({ lead }: { lead: Lead }) {
-  const copyPhone = async () => {
-    try {
-      await navigator.clipboard.writeText(lead.phone ?? "");
-      toast.success("Telefone copiado");
-    } catch {
-      toast.error("Não foi possível copiar");
-    }
-  };
-  return (
-    <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1">
-      {lead.phoneE164 ? (
-        <>
-          <QuickAction
-            href={whatsappLink(lead.phoneE164)}
-            external
-            icon={WhatsAppMark}
-            tone="green"
-          >
-            WhatsApp
-          </QuickAction>
-          <QuickAction href={`tel:${lead.phoneE164}`} icon={PhoneIcon} tone="green">
-            Ligar
-          </QuickAction>
-        </>
-      ) : null}
-      {lead.phone ? (
-        <QuickAction as="button" onClick={() => void copyPhone()} icon={CopyIcon} tone="gray">
-          Copiar telefone
-        </QuickAction>
-      ) : null}
-      {safeHttpUrl(lead.website) ? (
-        <QuickAction
-          href={safeHttpUrl(lead.website) ?? undefined}
-          external
-          icon={GlobeIcon}
-          tone="blue"
-        >
-          Site
-        </QuickAction>
-      ) : null}
-      {safeHttpUrl(lead.mapsUrl) ? (
-        <QuickAction
-          href={safeHttpUrl(lead.mapsUrl) ?? undefined}
-          external
-          icon={MapPinIcon}
-          tone="red"
-        >
-          Google Maps
-        </QuickAction>
-      ) : null}
     </div>
   );
 }
@@ -360,7 +312,7 @@ function NextStep(props: StepProps) {
           </CardContent>
           <CardFooter className="flex-wrap gap-2">
             {lead.phoneE164 ? (
-              <Button asChild variant="outline">
+              <Button size="sm" asChild variant="outline">
                 <ExternalLink href={whatsappLink(lead.phoneE164)}>Abrir conversa</ExternalLink>
               </Button>
             ) : null}
@@ -391,6 +343,7 @@ function NextStep(props: StepProps) {
           <CardFooter>
             <DisabledReason reason={reopenReason ?? false}>
               <Button
+                size="sm"
                 variant="outline"
                 disabled={busy || reopenReason !== null}
                 onClick={() => onUpdate({ status: "replied" })}
@@ -412,6 +365,7 @@ function NextStep(props: StepProps) {
             {/* The server refuses outreach for an opted-out lead; say so instead of failing. */}
             <DisabledReason reason={lead.unsubscribedAt ? UNSUBSCRIBED_MESSAGE : false}>
               <Button
+                size="sm"
                 variant="outline"
                 disabled={busy || lead.unsubscribedAt !== null}
                 onClick={() => onUpdate({ status: "new" })}
@@ -482,7 +436,7 @@ function FirstContactStep({ lead, analysis, today, busy, onUpdate, onChanged }: 
     <Card className={STEP_CARD}>
       <CardHeader>
         <div className="flex items-center gap-2.5">
-          <IconTile icon={MessageCircleIcon} tone="green" size={26} />
+          <TitleChip icon={WhatsAppMark} tone="green" />
           <CardTitle>Primeira mensagem</CardTitle>
           {hasMessage ? <WrittenByAi /> : null}
         </div>
@@ -499,45 +453,45 @@ function FirstContactStep({ lead, analysis, today, busy, onUpdate, onChanged }: 
           placeholder={
             analysis ? "Gere uma mensagem ou escreva a sua." : "Disponível depois da análise."
           }
-          className="min-h-32"
+          className={cn("min-h-32", PANEL_FIELD)}
           value={message}
           onChange={(event) => setMessage(event.target.value)}
           disabled={!analysis || generate.isPending}
         />
-        <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-          Retorno
-          <Select value={followUpDays} onValueChange={setFollowUpDays}>
-            <SelectTrigger size="sm" className="w-36" aria-label="Retorno">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {FOLLOW_UP_OPTIONS.map((option) => (
-                <SelectItem key={option.days} value={String(option.days)}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <span aria-hidden className="text-[13px] font-medium text-muted-foreground">
+            Retorno
+          </span>
+          {/* Radio semantics: Tab reaches the chosen day, the arrow keys move the choice. */}
+          <SegmentedControl
+            label="Retorno"
+            size="sm"
+            value={followUpDays}
+            options={FOLLOW_UP_CHOICES}
+            onChange={setFollowUpDays}
+            className="min-w-0 flex-1 flex-wrap"
+          />
         </div>
       </CardContent>
       <CardFooter className="flex-wrap gap-2">
         {hasMessage && lead.phoneE164 ? (
-          <Button asChild disabled={busy}>
+          <Button size="sm" asChild disabled={busy}>
             <ExternalLink
               href={whatsappLink(lead.phoneE164, message)}
               onClick={() => void markContacted()}
             >
-              Enviar no WhatsApp
+              Enviar pelo WhatsApp
             </ExternalLink>
           </Button>
         ) : null}
         {hasMessage && !lead.phoneE164 ? (
-          <Button disabled={busy} onClick={() => void markContacted()}>
+          <Button size="sm" disabled={busy} onClick={() => void markContacted()}>
             Marcar como contatado
           </Button>
         ) : null}
         {analysis ? (
           <Button
+            size="sm"
             variant={hasMessage ? "outline" : "default"}
             onClick={() => generate.mutate()}
             disabled={generate.isPending}
@@ -547,17 +501,18 @@ function FirstContactStep({ lead, analysis, today, busy, onUpdate, onChanged }: 
           </Button>
         ) : null}
         {hasMessage ? (
-          <Button variant="outline" onClick={() => void copy()}>
+          <Button size="sm" variant="outline" onClick={() => void copy()}>
             Copiar
           </Button>
         ) : null}
         <Button
-          variant="destructive"
+          size="sm"
+          variant="ghost"
           className="ml-auto"
           disabled={busy}
           onClick={() => onUpdate({ status: "discarded" })}
         >
-          Descartar
+          Descartar lead
         </Button>
       </CardFooter>
     </Card>
@@ -579,20 +534,21 @@ function WaitingStep(props: StepProps) {
       </CardContent>
       <CardFooter className="flex-wrap gap-2">
         {lead.phoneE164 ? (
-          <Button asChild variant="outline">
+          <Button size="sm" asChild variant="outline">
             <ExternalLink href={whatsappLink(lead.phoneE164)}>Abrir WhatsApp</ExternalLink>
           </Button>
         ) : null}
-        <Button disabled={busy} onClick={() => onUpdate({ status: "replied" })}>
+        <Button size="sm" disabled={busy} onClick={() => onUpdate({ status: "replied" })}>
           Respondeu
         </Button>
         <Button
-          variant="destructive"
+          size="sm"
+          variant="ghost"
           className="ml-auto"
           disabled={busy}
           onClick={() => onUpdate({ status: "discarded" })}
         >
-          Descartar
+          Descartar lead
         </Button>
       </CardFooter>
     </Card>
@@ -688,7 +644,7 @@ function EmailStep({ lead, busy, onUpdate, onChanged }: StepProps) {
     <Card className={STEP_CARD}>
       <CardHeader>
         <div className="flex items-center gap-2.5">
-          <IconTile icon={MailIcon} tone="blue" size={26} />
+          <TitleChip icon={MailIcon} tone="blue" />
           <CardTitle>Primeiro e-mail</CardTitle>
           {draft ? <WrittenByAi /> : null}
         </div>
@@ -700,6 +656,7 @@ function EmailStep({ lead, busy, onUpdate, onChanged }: StepProps) {
             <Input
               aria-label="Assunto"
               autoComplete="off"
+              className={PANEL_FIELD}
               value={value.subject}
               readOnly={rewrite.isPending}
               onChange={(event) => change({ ...value, subject: event.target.value })}
@@ -707,6 +664,7 @@ function EmailStep({ lead, busy, onUpdate, onChanged }: StepProps) {
             <Textarea
               aria-label="Mensagem"
               rows={10}
+              className={PANEL_FIELD}
               value={value.body}
               readOnly={rewrite.isPending}
               onChange={(event) => change({ ...value, body: event.target.value })}
@@ -722,10 +680,11 @@ function EmailStep({ lead, busy, onUpdate, onChanged }: StepProps) {
       <CardFooter className="flex-wrap gap-2">
         {draft ? (
           <>
-            <Button disabled={send.isPending} onClick={() => send.mutate()}>
+            <Button size="sm" disabled={send.isPending} onClick={() => send.mutate()}>
               {send.isPending ? "Enviando…" : "Enviar e-mail"}
             </Button>
             <Button
+              size="sm"
               variant="outline"
               disabled={rewrite.isPending || !value}
               onClick={() => value && rewrite.mutate({ id: draft.id, previous: value })}
@@ -736,18 +695,19 @@ function EmailStep({ lead, busy, onUpdate, onChanged }: StepProps) {
             <SaveStatus state={autosave.state} className="self-center" />
           </>
         ) : (
-          <Button disabled={write.isPending} onClick={() => write.mutate()}>
+          <Button size="sm" disabled={write.isPending} onClick={() => write.mutate()}>
             <SparklesIcon />
             {write.isPending ? "Escrevendo…" : "Escrever e-mail"}
           </Button>
         )}
         <Button
-          variant="destructive"
+          size="sm"
+          variant="ghost"
           className="ml-auto"
           disabled={busy}
           onClick={() => onUpdate({ status: "discarded" })}
         >
-          Descartar
+          Descartar lead
         </Button>
       </CardFooter>
     </Card>
@@ -787,7 +747,7 @@ function ConversationStep({ lead, today, closing, onWon, onLost, sales }: StepPr
                 : "rounded-lg bg-muted px-3 py-2 text-sm"
             }
           >
-            <p className="mb-1 text-xs text-muted-foreground">
+            <p className="mb-1 text-[13px] text-muted-foreground">
               {message.direction === "in" ? "Empresa" : message.author === "ai" ? "IA" : "Você"}
             </p>
             <p className="line-clamp-4 whitespace-pre-line wrap-break-word">{message.body}</p>
@@ -795,7 +755,7 @@ function ConversationStep({ lead, today, closing, onWon, onLost, sales }: StepPr
         ))}
       </CardContent>
       <CardFooter className="flex-wrap gap-2">
-        <Button asChild variant={open ? "outline" : "default"}>
+        <Button size="sm" asChild variant={open ? "outline" : "default"}>
           <Link to="/conversas" search={{ lead: lead.id }}>
             Abrir conversa
           </Link>
@@ -861,29 +821,39 @@ function AnalysisSection({ lead, analysis }: { lead: Lead; analysis: Analysis | 
   const { data: status } = useQuery(providerStatusQuery);
   if (!analysis) {
     return (
-      <Section title="Análise" ai>
-        <p className="text-sm font-light text-muted-foreground">
+      <PanelSection title="Análise" icon={SparklesIcon}>
+        <p className="text-sm text-muted-foreground">
           {lead.analysisStatus === "error"
             ? `A análise falhou: ${lead.analysisError ?? "erro desconhecido"}. Tente reanalisar.`
             : lead.analysisStatus === "skipped"
               ? `${lead.analysisError ?? "Este lead ainda não foi analisado."} Use Reanalisar para analisar agora.`
               : "Lendo o site e avaliando. Esta tela atualiza sozinha."}
         </p>
-      </Section>
+      </PanelSection>
     );
   }
   const hasLists = analysis.signals.length > 0 || analysis.painPoints.length > 0;
   return (
-    <Section title="Análise" ai>
-      <div className="grouped grid gap-4 px-4 py-3.5">
-        <p className="text-base leading-relaxed">{analysis.summary}</p>
+    <PanelSection title="Análise" icon={SparklesIcon}>
+      <div className="grid gap-4">
+        <p className="text-[15px] leading-[22px]">{analysis.summary}</p>
         {hasLists ? (
           <div className="grid gap-4 sm:grid-cols-2">
-            <PlainList title="Oportunidades" tone="green" items={analysis.signals} />
-            <PlainList title="Dores prováveis" tone="orange" items={analysis.painPoints} />
+            <PlainList
+              title="Oportunidades"
+              tone="green"
+              icon={CircleCheckIcon}
+              items={analysis.signals}
+            />
+            <PlainList
+              title="Dores prováveis"
+              tone="orange"
+              icon={CircleAlertIcon}
+              items={analysis.painPoints}
+            />
           </div>
         ) : status && !status.offerConfigured ? (
-          <p className="text-sm font-light text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             Para ver oportunidades,{" "}
             <Link to="/settings" className="text-foreground underline underline-offset-4">
               descreva o que você vende
@@ -891,21 +861,27 @@ function AnalysisSection({ lead, analysis }: { lead: Lead; analysis: Analysis | 
             e reanalise.
           </p>
         ) : (
-          <p className="text-sm font-light text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             Nenhuma oportunidade clara para a sua oferta.
           </p>
         )}
         <details className="group/details text-sm">
-          <summary className="flex cursor-pointer list-none items-center gap-1.5 font-medium text-muted-foreground hover:text-foreground [&::-webkit-details-marker]:hidden">
+          <summary
+            className={cn(
+              buttonVariants({ variant: "ghost", size: "sm" }),
+              "w-fit cursor-pointer list-none [&::-webkit-details-marker]:hidden",
+            )}
+          >
             <ChevronRightIcon className="size-3.5 transition-transform duration-300 ease-spring group-open/details:rotate-90" />
             Como a nota foi calculada
           </summary>
-          <p className="mt-2 leading-relaxed font-light text-muted-foreground">
-            {analysis.scoreReasoning}
-          </p>
+          <div className="mt-2 grid gap-2 leading-relaxed text-muted-foreground">
+            <p>{analysis.scoreReasoning}</p>
+            <p className="text-[13px]">{SCORE_LABEL_HELP}</p>
+          </div>
         </details>
       </div>
-    </Section>
+    </PanelSection>
   );
 }
 
@@ -925,8 +901,8 @@ function ContactSection({ lead, onChanged }: { lead: Lead; onChanged: () => Prom
   };
   const website = safeHttpUrl(lead.website);
   return (
-    <Section title="Contato">
-      <dl className="grouped grid text-sm">
+    <PanelSection title="Contato" icon={ContactIcon}>
+      <dl className="grid text-sm">
         <Term label="Nome">
           <InlineEdit
             label="nome"
@@ -946,7 +922,7 @@ function ContactSection({ lead, onChanged }: { lead: Lead; onChanged: () => Prom
             onSave={save("email")}
           />
           {siteEmails.length > 0 ? (
-            <span className="block text-xs font-light wrap-break-word text-muted-foreground">
+            <span className="block text-[13px] wrap-break-word text-muted-foreground">
               No site: {siteEmails.join(", ")}
             </span>
           ) : null}
@@ -1011,7 +987,7 @@ function ContactSection({ lead, onChanged }: { lead: Lead; onChanged: () => Prom
         ) : null}
         <Term label="Endereço">{lead.address ?? "Sem endereço"}</Term>
       </dl>
-    </Section>
+    </PanelSection>
   );
 }
 
@@ -1031,10 +1007,11 @@ function NotesSection({
     return () => clearTimeout(timer);
   }, [savedAt]);
   return (
-    <Section
+    <PanelSection
       title="Notas"
+      icon={StickyNoteIcon}
       status={
-        <span aria-live="polite" className="text-xs font-light text-tertiary">
+        <span aria-live="polite" className="text-[13px] text-muted-foreground">
           {savedAt ? "Salvo" : ""}
         </span>
       }
@@ -1053,9 +1030,9 @@ function NotesSection({
           );
         }}
         placeholder="Salvas ao sair do campo."
-        className="min-h-28 bg-card! shadow-[inset_0_1px_0_rgb(255_255_255/0.045)] hover:shadow-[inset_0_0_0_1px_var(--input)]"
+        className={cn("min-h-28", PANEL_FIELD)}
       />
-    </Section>
+    </PanelSection>
   );
 }
 
@@ -1079,7 +1056,7 @@ function Footer({
     <div className="flex flex-wrap items-center justify-end gap-4 border-t border-border/70 pt-4 text-sm text-muted-foreground">
       <div className="flex flex-wrap items-center gap-3">
         {analysis ? (
-          <span className="text-[13px] font-light text-tertiary">
+          <span className="text-[13px] text-muted-foreground">
             {analysis.model} · {formatUsd(analysis.costEstimate)} ·{" "}
             {formatDate(analysis.createdAt, true)}
           </span>
@@ -1130,59 +1107,31 @@ function WrittenByAi() {
   );
 }
 
-function Section({
+function PlainList({
   title,
   tone,
-  ai = false,
-  status,
-  children,
+  icon: Icon,
+  items,
 }: {
   title: string;
-  tone?: Tone;
-  /** An AI section: a sparkles icon before the neutral title. */
-  ai?: boolean;
-  /** Quiet feedback after the title, e.g. "Salvo". */
-  status?: ReactNode;
-  children: ReactNode;
+  tone: Tone;
+  icon: ComponentType<{ className?: string; strokeWidth?: number }>;
+  items: string[];
 }) {
   return (
-    <section>
-      <h3
-        className={cn(
-          "mb-2 flex items-center gap-1.5 px-1 text-lg font-medium tracking-[-0.015em]",
-          tone && TONE_TEXT[tone],
-        )}
-      >
-        {ai ? <SparklesIcon className="size-4 text-muted-foreground" strokeWidth={1.9} /> : null}
-        {title}
-        {status}
-      </h3>
-      {children}
-    </section>
-  );
-}
-
-function PlainList({ title, tone, items }: { title: string; tone: Tone; items: string[] }) {
-  return (
     <div>
-      <h4 className={cn("mb-1.5 text-xs font-medium", TONE_TEXT[tone])}>{title}</h4>
+      <h4 className="mb-1.5 text-[13px] font-semibold text-muted-foreground">{title}</h4>
       {items.length > 0 ? (
-        <ul className="grid gap-1.5 text-sm leading-relaxed font-light text-muted-foreground">
+        <ul className="grid gap-1.5 text-sm leading-relaxed">
           {items.map((item) => (
-            <li key={item} className="relative pl-3.5">
-              <span
-                aria-hidden
-                className={cn(
-                  "absolute top-[7px] left-0 size-1.5 rounded-full bg-current",
-                  TONE_TEXT[tone],
-                )}
-              />
+            <li key={item} className="flex items-start gap-2">
+              <Icon className={cn("mt-0.5 size-4 shrink-0", TONE_TEXT[tone])} strokeWidth={1.75} />
               {item}
             </li>
           ))}
         </ul>
       ) : (
-        <p className="text-sm font-light text-muted-foreground">Nenhuma.</p>
+        <p className="text-sm text-muted-foreground">Nenhuma.</p>
       )}
     </div>
   );
@@ -1190,61 +1139,10 @@ function PlainList({ title, tone, items }: { title: string; tone: Tone; items: s
 
 function Term({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="grouped-row grid grid-cols-[84px_minmax(0,1fr)] items-baseline gap-3 px-4 py-2.5 [--inset:16px]">
-      <dt className="font-light text-muted-foreground">{label}</dt>
+    <div className="grid min-h-11 grid-cols-[84px_minmax(0,1fr)] items-baseline gap-3 border-t border-foreground/10 py-2.5 first:border-t-0">
+      <dt className="text-muted-foreground">{label}</dt>
       <dd className="min-w-0 font-medium break-words">{children}</dd>
     </div>
-  );
-}
-
-/** Contacts-style action: a round colored tile with the label under it. */
-function QuickAction(
-  props: {
-    icon: ComponentType<{ className?: string; strokeWidth?: number }>;
-    tone: Tone;
-    children: ReactNode;
-  } & (
-    | ({ as?: undefined; external?: boolean } & React.ComponentProps<"a">)
-    | ({ as: "button" } & React.ComponentProps<"button">)
-  ),
-) {
-  const className = cn(
-    "press grid min-w-[84px] flex-1 justify-items-center gap-1.5 rounded-[14px] border border-border bg-fill-3 px-2 py-3 text-[13px] font-medium whitespace-nowrap transition-colors hover:bg-fill-2",
-    TONE_TEXT[props.tone],
-  );
-  const Icon = props.icon;
-  // Icon standard: a bare line icon in its tone (brand mark for WhatsApp), no colored chip.
-  const icon = <Icon className="size-[22px]" strokeWidth={1.8} />;
-  const body = (
-    <>
-      {icon}
-      <span className="text-foreground">{props.children}</span>
-    </>
-  );
-  if (props.as === "button") {
-    const { icon: _icon, tone: _tone, children: _children, as: _as, ...rest } = props;
-    return (
-      <button type="button" className={className} {...rest}>
-        {body}
-      </button>
-    );
-  }
-  const { icon: _icon, tone: _tone, children, as: _as, external, ...rest } = props;
-  if (external) {
-    return (
-      <ExternalLink className={className} indicator={false} {...rest}>
-        {icon}
-        <span className="inline-flex items-center gap-0.5 text-foreground">
-          {children}
-          <ExternalMark />
-        </span>
-      </ExternalLink>
-    );
-  }
-  return (
-    <a className={className} {...rest}>
-      {body}
-    </a>
   );
 }
 

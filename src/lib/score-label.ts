@@ -10,7 +10,7 @@ export function scoreLabel(score: number): string {
   return SCORE_TIERS[scoreLevel(score)].label;
 }
 
-/** The tooltip next to the score in the lead panel. */
+/** What the levels mean, under "Como a nota foi calculada" in the lead panel. */
 export const SCORE_LABEL_HELP =
   `Quanto a empresa combina com a sua oferta, segundo a IA (0 a 100). ` +
   `Alta a partir de ${SCORE_TIERS.high.min}, Média a partir de ${SCORE_TIERS.medium.min}. ` +

@@ -1,11 +1,15 @@
+import { CheckIcon } from "lucide-react";
+import { buttonVariants } from "@/components/ui/button";
+import { ChoicePill } from "@/components/ui/choice-pill";
 import { STAGE_STEPS, stageOfStep } from "@/lib/lead-stage";
 import type { SalesStage } from "@/lib/schemas";
 import { cn } from "@/lib/utils";
 
 /**
- * Where the lead is in the sale: Novo · Contatado · Respondeu · Reunião · Proposta · Fechado.
- * Reached steps are filled, the current one is in the accent color. With `onSelectStage` (a
- * replied lead) the Respondeu, Reunião and Proposta steps are buttons.
+ * Where the lead is in the sale: Novo · Contatado · Respondeu · Reunião · Proposta · Fechado,
+ * as compact pills. The current step is the selected (blue) pill and reached steps carry a
+ * check. With `onSelectStage` (a replied lead) the Respondeu, Reunião and Proposta steps are
+ * buttons; the other steps are plain text, and only the current one keeps the pill.
  */
 export function StageBar({
   current,
@@ -17,76 +21,78 @@ export function StageBar({
   onSelectStage?: (stage: SalesStage | null) => void;
 }) {
   return (
-    <ol aria-label="Etapa do lead" className="grid grid-cols-6 gap-1">
-      {STAGE_STEPS.map((label, index) => {
-        const stage = stageOfStep(index);
-        const selectable = onSelectStage && stage !== undefined && index !== current;
-        return (
-          <StageStep
-            key={label}
-            label={label}
-            state={index < current ? "reached" : index === current ? "current" : "ahead"}
-            busy={busy}
-            onSelect={selectable ? () => onSelectStage(stage) : undefined}
-          />
-        );
-      })}
-    </ol>
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+      <span id="lead-stage-label" className="text-[13px] font-medium text-muted-foreground">
+        Etapa
+      </span>
+      <ol aria-labelledby="lead-stage-label" className="flex flex-wrap gap-1.5">
+        {STAGE_STEPS.map((label, index) => {
+          const stage = stageOfStep(index);
+          const selectable = onSelectStage && stage !== undefined && index !== current;
+          return (
+            <li key={label} aria-current={index === current ? "step" : undefined}>
+              <StageStep
+                label={label}
+                reached={index < current}
+                current={index === current}
+                busy={busy}
+                onSelect={selectable ? () => onSelectStage(stage) : undefined}
+              />
+            </li>
+          );
+        })}
+      </ol>
+    </div>
   );
 }
 
-type StepState = "reached" | "current" | "ahead";
-
 function StageStep({
   label,
-  state,
+  reached,
+  current,
   busy,
   onSelect,
 }: {
   label: string;
-  state: StepState;
+  reached: boolean;
+  current: boolean;
   busy?: boolean;
   onSelect?: () => void;
 }) {
   const body = (
     <>
-      <span
-        aria-hidden
-        className={cn(
-          "h-1.5 w-full rounded-full",
-          state === "current" ? "bg-primary" : state === "reached" ? "bg-primary/45" : "bg-fill-2",
-        )}
-      />
-      <span
-        className={cn(
-          "truncate text-[12px]",
-          state === "current" ? "font-semibold text-blue" : "font-medium text-muted-foreground",
-          state === "ahead" && "text-tertiary",
-        )}
-      >
-        {label}
-      </span>
+      {reached ? <CheckIcon className="text-green" strokeWidth={2} /> : null}
+      {label}
     </>
   );
-  const className = "grid w-full justify-items-center gap-1.5 rounded-md py-1";
+  if (onSelect) {
+    return (
+      <ChoicePill
+        size="sm"
+        selected={current}
+        disabled={busy}
+        aria-label={`Mover para ${label}`}
+        onClick={onSelect}
+      >
+        {body}
+      </ChoicePill>
+    );
+  }
+  // The current step keeps the blue pill so the lead's place is clear.
+  if (current) {
+    return (
+      <span className={cn(buttonVariants({ size: "sm" }), "pointer-events-none")}>{body}</span>
+    );
+  }
+  // Not a button: plain text with no outline, so it never looks clickable.
   return (
-    <li aria-current={state === "current" ? "step" : undefined} className="min-w-0">
-      {onSelect ? (
-        <button
-          type="button"
-          disabled={busy}
-          title={`Mover para ${label}`}
-          onClick={onSelect}
-          className={cn(
-            className,
-            "transition-colors outline-none hover:bg-fill-2 focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-50",
-          )}
-        >
-          {body}
-        </button>
-      ) : (
-        <div className={className}>{body}</div>
+    <span
+      className={cn(
+        "inline-flex h-8 items-center gap-1.5 px-1.5 text-sm font-medium [&_svg]:size-3.5",
+        !reached && "text-muted-foreground",
       )}
-    </li>
+    >
+      {body}
+    </span>
   );
 }

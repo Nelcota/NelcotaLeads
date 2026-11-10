@@ -19,7 +19,7 @@ export function LeadStage({
   const current = currentStageStep(lead.status, lead.salesStage);
   if (current === null) {
     return (
-      <p className="rounded-[14px] bg-fill-3 px-3.5 py-2.5 text-sm font-medium text-muted-foreground">
+      <p className="rounded-[14px] border border-foreground/15 px-3.5 py-2.5 text-sm font-medium">
         Encerrado sem negócio
         {lead.lossReason ? (
           <span className="font-normal"> · {LOSS_REASON_LABELS[lead.lossReason]}</span>

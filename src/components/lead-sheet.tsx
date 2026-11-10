@@ -46,7 +46,8 @@ export function LeadSheet({
   return (
     <Sheet open={open} onOpenChange={(value) => !value && go(undefined)}>
       <SheetContent
-        className="w-full gap-0 overflow-y-auto data-[side=right]:sm:max-w-[640px]"
+        // Solid panel (no glass or drop shadow): 1px outline and the 28px panel radius.
+        className="w-full gap-0 overflow-y-auto border border-foreground/15 bg-card shadow-none! data-[side=right]:rounded-[28px] data-[side=right]:sm:max-w-[600px]"
         onEscapeKeyDown={(event) => {
           // Esc in a field being edited in place cancels that edit, not the whole panel.
           if (event.target instanceof Element && event.target.closest("[data-inline-edit]")) {
@@ -67,11 +68,11 @@ export function LeadSheet({
               }}
               toolbar={
                 position >= 0 ? (
-                  <div className="flex items-center gap-2.5 pr-10 text-[14px] font-medium text-muted-foreground">
-                    <div className="flex rounded-full bg-fill-2 p-0.5">
+                  <div className="flex items-center gap-2 pr-10 text-[14px] font-medium text-muted-foreground">
+                    <div className="flex gap-2">
                       <Hint label="Anterior (K)">
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="icon-sm"
                           aria-label="Lead anterior (K)"
                           disabled={!prevId}
@@ -82,7 +83,7 @@ export function LeadSheet({
                       </Hint>
                       <Hint label="Próximo (J)">
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="icon-sm"
                           aria-label="Próximo lead (J)"
                           disabled={!nextId}
@@ -96,10 +97,10 @@ export function LeadSheet({
                       {position + 1} de {ids.length}
                     </span>
                     <span className="hidden gap-1 sm:flex" aria-hidden>
-                      <kbd className="grid h-[18px] min-w-[18px] place-items-center rounded-[5px] bg-fill-2 px-1 text-[12px] text-muted-foreground">
+                      <kbd className="grid h-5 min-w-5 place-items-center rounded-md border border-foreground/15 px-1 text-[12px] font-semibold text-muted-foreground">
                         K
                       </kbd>
-                      <kbd className="grid h-[18px] min-w-[18px] place-items-center rounded-[5px] bg-fill-2 px-1 text-[12px] text-muted-foreground">
+                      <kbd className="grid h-5 min-w-5 place-items-center rounded-md border border-foreground/15 px-1 text-[12px] font-semibold text-muted-foreground">
                         J
                       </kbd>
                     </span>

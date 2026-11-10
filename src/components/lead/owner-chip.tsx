@@ -29,11 +29,11 @@ export function OwnerChip({
         {ownerName ? `Com ${ownerName}` : "Livre"}
       </span>
       <Button
-        variant="ghost"
+        variant="outline"
         size="sm"
         disabled={busy}
         onClick={mine ? onRelease : onTake}
-        className="text-blue hover:text-blue"
+        className="ml-1"
       >
         {mine ? "Liberar" : "Assumir"}
       </Button>
