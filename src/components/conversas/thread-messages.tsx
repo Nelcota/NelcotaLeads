@@ -3,7 +3,8 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { Email } from "@/db/schema";
 import { shownMessages, withDayBreaks } from "@/lib/conversation-thread";
-import { MessageBubble, type MessageActions } from "./message-bubble";
+import { MessageBubble } from "./message-bubble";
+import type { MessageActions } from "./message-buttons";
 
 /** A thin rule with the day in the middle: "Hoje", "Ontem", "Qui, 05/11". */
 function DaySeparator({ label }: { label: string }) {

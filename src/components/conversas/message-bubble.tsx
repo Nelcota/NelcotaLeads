@@ -1,27 +1,12 @@
-import { CircleAlertIcon, ClockIcon, MailIcon, SparklesIcon } from "lucide-react";
-import { useId, useState } from "react";
+import { MailIcon, SparklesIcon } from "lucide-react";
 import { Avatar } from "@/components/apple-ui";
-import { StatusLabel } from "@/components/status-label";
-import { Button } from "@/components/ui/button";
 import type { Email } from "@/db/schema";
 import { failedEmailAction } from "@/lib/email-errors";
-import { localTime, shortTime } from "@/lib/format";
 import { splitQuoted } from "@/lib/mail/quoted";
 import { cn } from "@/lib/utils";
-
-export type MessageActions = {
-  today: string;
-  /** The composer is open, so a queued e-mail can go back to it. */
-  canEdit: boolean;
-  /** A closed conversation sends nothing; it has to be reopened first. */
-  canRetry: boolean;
-  busyId: string | undefined;
-  onRetry: (id: string) => void;
-  onCancel: (id: string) => void;
-  onEdit: (id: string) => void;
-};
-
-type FailedNext = ReturnType<typeof failedEmailAction>;
+import { MessageButtons, type MessageActions } from "./message-buttons";
+import { MessageStatus } from "./message-status";
+import { QuotedText } from "./quoted-text";
 
 /** The company's mark beside its own bubbles: the solid blue "N" of the Nelcota logo. */
 function CompanyMark() {
@@ -39,123 +24,6 @@ function authorOf(message: Email, leadName: string): string {
   if (message.direction === "in") return leadName;
   if (message.author === "ai") return "Nelcota · IA, em seu nome";
   return "Nelcota · Você";
-}
-
-/** The right side of the bubble header: the time, the queue or the failure. */
-function MessageStatus({ message, next }: { message: Email; next: FailedNext | null }) {
-  if (message.status === "failed" && next !== "retried") {
-    return (
-      <StatusLabel icon={CircleAlertIcon} tone="red">
-        Não enviado
-      </StatusLabel>
-    );
-  }
-  if (message.status === "failed") {
-    return <span className="text-[13px] text-muted-foreground">Não enviado, reenviado</span>;
-  }
-  if (message.status === "queued") {
-    const label = message.sentAt
-      ? "Saindo agora"
-      : message.sendAfter
-        ? `Na fila, sai ${shortTime(message.sendAfter)}`
-        : "Na fila";
-    return (
-      <StatusLabel icon={ClockIcon} tone="orange">
-        {label}
-      </StatusLabel>
-    );
-  }
-  if (message.status === "cancelled") {
-    return (
-      <span className="text-[13px] text-muted-foreground">{message.error ?? "Cancelado"}</span>
-    );
-  }
-  return (
-    <span className="text-[13px] text-tertiary tabular-nums">
-      {message.sentAt ? localTime(message.sentAt) : ""}
-    </span>
-  );
-}
-
-/** Retry, edit or cancel: the actions a bubble offers while its e-mail has not gone out. */
-function MessageButtons({
-  message,
-  next,
-  actions,
-}: {
-  message: Email;
-  next: FailedNext | null;
-  actions: MessageActions;
-}) {
-  const busy = actions.busyId === message.id;
-  const pending = actions.busyId !== undefined;
-  const waiting = message.status === "queued" && !message.sentAt && message.direction === "out";
-  const canRetry = next === "retry" && actions.canRetry;
-  if (!canRetry && !waiting && next !== "tomorrow") return null;
-  return (
-    <div className="flex flex-wrap items-center gap-2 pt-1">
-      {canRetry ? (
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={pending}
-          onClick={() => actions.onRetry(message.id)}
-        >
-          {busy ? "Reenviando…" : "Tentar de novo"}
-        </Button>
-      ) : null}
-      {next === "tomorrow" ? (
-        <span className="text-[13px] text-muted-foreground">O envio tenta de novo amanhã.</span>
-      ) : null}
-      {waiting && actions.canEdit ? (
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={pending}
-          onClick={() => actions.onEdit(message.id)}
-        >
-          {busy ? "Abrindo…" : "Editar"}
-        </Button>
-      ) : null}
-      {waiting ? (
-        <Button
-          variant="destructive"
-          size="sm"
-          disabled={pending}
-          onClick={() => actions.onCancel(message.id)}
-        >
-          {busy ? "Cancelando…" : "Cancelar envio"}
-        </Button>
-      ) : null}
-    </div>
-  );
-}
-
-/** The original a reply quotes, hidden until asked. */
-function QuotedText({ quoted }: { quoted: string }) {
-  const [open, setOpen] = useState(false);
-  const quotedId = useId();
-  return (
-    <div className="grid justify-items-start">
-      <Button
-        variant="ghost"
-        size="sm"
-        aria-expanded={open}
-        aria-controls={open ? quotedId : undefined}
-        onClick={() => setOpen((value) => !value)}
-      >
-        {open ? "Ocultar" : "Mostrar mensagem anterior"}
-      </Button>
-      {open ? (
-        <p
-          id={quotedId}
-          className="mt-1 border-l-2 border-border pl-3 text-sm leading-relaxed whitespace-pre-line wrap-break-word text-muted-foreground"
-        >
-          {quoted}
-        </p>
-      ) : null}
-    </div>
-  );
 }
 
 /**

@@ -3,26 +3,20 @@ import {
   ChevronRightIcon,
   CircleCheckIcon,
   CircleXIcon,
-  GlobeIcon,
-  PhoneIcon,
   RotateCcwIcon,
   SparklesIcon,
-  StarIcon,
   TrendingUpIcon,
-  type LucideIcon,
 } from "lucide-react";
-import type { ComponentType, ReactNode, SVGProps } from "react";
-import { Avatar, ExternalLink, TONE_TEXT, type Tone } from "@/components/apple-ui";
-import { WhatsAppMark } from "@/components/brand-marks";
+import { Avatar, type Tone } from "@/components/apple-ui";
 import { StatusLabel } from "@/components/status-label";
 import { Button } from "@/components/ui/button";
 import type { Lead } from "@/db/schema";
-import { whatsappLink } from "@/lib/phone";
 import { SCORE_TIERS } from "@/lib/schemas";
 import { scoreLabel, scoreLevel } from "@/lib/score-label";
-import { cn, safeHttpUrl } from "@/lib/utils";
 import type { ConversationState } from "@/server/mail";
 import { ConversationStateLabel } from "./conversation-state-label";
+import { LeadContactTiles } from "./lead-contact-tiles";
+import { LeadFacts } from "./lead-facts";
 
 type PanelLead = Pick<
   Lead,
@@ -35,68 +29,60 @@ const SCORE_TONE: Record<keyof typeof SCORE_TIERS, Tone> = {
   low: "gray",
 };
 
-/** A contact shortcut: a bordered tile with the icon over its name. */
-function ContactTile({
-  icon: Icon,
-  tone,
-  label,
-  href,
-  external,
-}: {
-  icon: LucideIcon | ComponentType<SVGProps<SVGSVGElement>>;
-  tone: Tone;
-  label: string;
-  href: string;
-  external?: boolean;
-}) {
-  const className =
-    "grid min-h-[68px] flex-1 place-items-center content-center gap-1.5 rounded-[14px] border border-border bg-card text-[13px] font-medium text-foreground transition-[background-color,border-color,transform] duration-150 ease-spring hover:border-foreground/25 hover:bg-fill-2 active:scale-[0.97]";
-  const content = (
-    <>
-      <Icon aria-hidden className={cn("size-5", TONE_TEXT[tone])} />
-      {label}
-    </>
-  );
-  if (external) {
-    return (
-      <ExternalLink href={href} indicator={false} className={className}>
-        {content}
-      </ExternalLink>
-    );
-  }
-  return (
-    <a href={href} className={className}>
-      {content}
-    </a>
-  );
-}
-
-function FactRow({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="flex min-h-11 items-center justify-between gap-3 border-b border-border px-3.5 text-sm last:border-b-0">
-      <span className="shrink-0 text-muted-foreground">{label}</span>
-      <span className="min-w-0 truncate text-right font-medium">{children}</span>
-    </div>
-  );
-}
-
-function SiteValue({ website }: { website: string | null }) {
-  if (!website) return <span className="font-normal text-tertiary">sem site</span>;
-  const safe = safeHttpUrl(website);
-  if (!safe) return <span className="break-all">{website}</span>;
-  return (
-    <ExternalLink href={safe} className="text-blue hover:underline">
-      {website.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")}
-    </ExternalLink>
-  );
-}
-
 function ScoreLabel({ score }: { score: number | null }) {
   if (score === null) return null;
   return (
     <StatusLabel icon={TrendingUpIcon} tone={SCORE_TONE[scoreLevel(score)]}>
       Nota {scoreLabel(score).toLowerCase()}
     </StatusLabel>
+  );
+}
+
+/** Fechar negócio and Encerrar sem negócio, or Reabrir once the conversation is closed. */
+function DealButtons({
+  closed,
+  blocker,
+  busy,
+  onWon,
+  onLost,
+  onReopen,
+}: {
+  closed: boolean;
+  blocker: string | null;
+  busy: { closing: boolean; reopening: boolean };
+  onWon: () => void;
+  onLost: () => void;
+  onReopen: () => void;
+}) {
+  if (closed) {
+    return (
+      <Button
+        variant="outline"
+        className="justify-start"
+        disabled={Boolean(blocker) || busy.reopening}
+        onClick={onReopen}
+      >
+        <RotateCcwIcon aria-hidden />
+        {busy.reopening ? "Reabrindo…" : "Reabrir conversa"}
+      </Button>
+    );
+  }
+  return (
+    <>
+      <Button variant="outline" className="justify-start" disabled={busy.closing} onClick={onWon}>
+        <CircleCheckIcon aria-hidden className="text-green" />
+        Fechar negócio
+      </Button>
+      <Button
+        variant="destructive"
+        className="justify-start"
+        disabled={busy.closing}
+        onClick={onLost}
+      >
+        <CircleXIcon aria-hidden />
+        Encerrar sem negócio
+      </Button>
+    </>
   );
 }
 
@@ -125,7 +111,6 @@ export function LeadPanel({
   onLost: () => void;
   onReopen: () => void;
 }) {
-  const site = safeHttpUrl(lead.website);
   return (
     <aside
       aria-label="Dados do lead"
@@ -143,40 +128,13 @@ export function LeadPanel({
         </div>
       </div>
 
-      {lead.phoneE164 || lead.phone || site ? (
-        <div className="flex gap-2">
-          {lead.phoneE164 ? (
-            <ContactTile
-              icon={WhatsAppMark}
-              tone="green"
-              label="WhatsApp"
-              href={whatsappLink(lead.phoneE164)}
-              external
-            />
-          ) : null}
-          {lead.phone ? (
-            <ContactTile icon={PhoneIcon} tone="green" label="Ligar" href={`tel:${lead.phone}`} />
-          ) : null}
-          {site ? (
-            <ContactTile icon={GlobeIcon} tone="blue" label="Site" href={site} external />
-          ) : null}
-        </div>
-      ) : null}
-
-      <div className="rounded-2xl border border-border bg-card">
-        <FactRow label="Telefone">{lead.phone ?? "sem telefone"}</FactRow>
-        <FactRow label="Site">
-          <SiteValue website={lead.website} />
-        </FactRow>
-        {lead.rating !== null ? (
-          <FactRow label="Google">
-            <span className="inline-flex items-center gap-1.5">
-              <StarIcon aria-hidden className="size-3.5 fill-yellow text-yellow" />
-              {lead.rating.toFixed(1).replace(".", ",")} ({lead.reviewCount ?? 0} avaliações)
-            </span>
-          </FactRow>
-        ) : null}
-      </div>
+      <LeadContactTiles phone={lead.phone} phoneE164={lead.phoneE164} website={lead.website} />
+      <LeadFacts
+        phone={lead.phone}
+        website={lead.website}
+        rating={lead.rating}
+        reviewCount={lead.reviewCount}
+      />
 
       {summary ? (
         <div className="grid gap-2 rounded-2xl border border-border bg-card px-4 py-3.5">
@@ -189,38 +147,14 @@ export function LeadPanel({
       ) : null}
 
       <div className="grid gap-2 pt-1">
-        {closed ? (
-          <Button
-            variant="outline"
-            className="justify-start"
-            disabled={Boolean(blocker) || busy.reopening}
-            onClick={onReopen}
-          >
-            <RotateCcwIcon aria-hidden />
-            {busy.reopening ? "Reabrindo…" : "Reabrir conversa"}
-          </Button>
-        ) : (
-          <>
-            <Button
-              variant="outline"
-              className="justify-start"
-              disabled={busy.closing}
-              onClick={onWon}
-            >
-              <CircleCheckIcon aria-hidden className="text-green" />
-              Fechar negócio
-            </Button>
-            <Button
-              variant="destructive"
-              className="justify-start"
-              disabled={busy.closing}
-              onClick={onLost}
-            >
-              <CircleXIcon aria-hidden />
-              Encerrar sem negócio
-            </Button>
-          </>
-        )}
+        <DealButtons
+          closed={closed}
+          blocker={blocker}
+          busy={busy}
+          onWon={onWon}
+          onLost={onLost}
+          onReopen={onReopen}
+        />
         {blocker ? <p className="px-1 text-[13px] text-muted-foreground">{blocker}</p> : null}
         <Button asChild variant="link" className="justify-between">
           <Link to="/leads" search={{ view: "all", lead: lead.id }}>
