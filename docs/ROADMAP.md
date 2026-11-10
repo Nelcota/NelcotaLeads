@@ -75,6 +75,13 @@ The steps, in this order: (1) Visão geral with the new layout on today's data; 
 
 ## Decisions
 
+### 2026-11-10: line icons everywhere, one icon per function
+
+- **Decision:** every icon is a bare line icon (Lucide) in its status color, with no tinted chip, tile or square behind it, in card titles, list rows, actions and badges alike. Overview card titles get an icon. One icon per function across the app. Replaces the 2026-11-05 icon standard's "icons in card titles and list rows keep the tinted chip". Avatars with initials and the brand mark are not icons and stay as they are.
+- **Where:** the shared icon components (`IconTile`, `TitleChip`, `CategoryChip`) and the overview cards no topic branch touches go in their own branch `style/line-icons`, so dropping that branch brings the old look back; icons on screens a topic changed (T1, T2, T3, P4) go in that topic's branch.
+- **Why:** the user reviewed the "Depois" canvas and asked for icons "to recognize each area without thinking", then rejected the tinted backgrounds ("não gosto destes sombreamentos nos ícones"); implemented on 2026-11-10 with the explicit option to revert if the user does not like it on localhost.
+- **Review if:** the user dislikes it on localhost 3040: drop `style/line-icons` and revert the icon commits on the topic branches.
+
 ### 2026-11-10: code review packages P1–P4
 
 - **Decision:** the four packages from the 2026-11-10 read-only code review move to Now and run in parallel with the UX one-shot, each in its own worktree from `main`. The Google search stops at the pages the user asked for (20 companies = 1 page), so the quota it spends matches what the dialog promises; this lands in the T1 branch.
