@@ -22,6 +22,21 @@ function event(change: Partial<ActivityEvent>): ActivityEvent {
   };
 }
 
+/** A partner with nothing but today's follow-ups and waiting conversations. */
+function withToday(due: number, late: number, waiting: number) {
+  return {
+    id: "u1",
+    name: "Haniel",
+    held: 0,
+    talking: 0,
+    meetings: 0,
+    proposals: 0,
+    won: { deals: 0, revenueCents: 0 },
+    previousDeals: 0,
+    today: { due, late, waiting, nextMeeting: null },
+  };
+}
+
 describe("team activity", () => {
   it("says who took, handed out or freed a lead", () => {
     expect(activityLine(event({ toValue: "u2" }), names, "u1", now)).toMatchObject({
@@ -80,23 +95,12 @@ describe("partner column texts", () => {
   });
 
   it("sums up today in one line for the phone, the overdue part marked", () => {
-    const member = (due: number, late: number, waiting: number) => ({
-      id: "u1",
-      name: "Haniel",
-      held: 0,
-      talking: 0,
-      meetings: 0,
-      proposals: 0,
-      won: { deals: 0, revenueCents: 0 },
-      previousDeals: 0,
-      today: { due, late, waiting, nextMeeting: null },
-    });
-    expect(todaySummary(member(3, 1, 2))).toEqual([
+    expect(todaySummary(withToday(3, 1, 2))).toEqual([
       { text: "3 retornos", late: false },
       { text: "1 atrasado", late: true },
       { text: "2 precisam de você", late: false },
     ]);
-    expect(todaySummary(member(0, 0, 0))).toEqual([{ text: "Nada para hoje", late: false }]);
+    expect(todaySummary(withToday(0, 0, 0))).toEqual([{ text: "Nada para hoje", late: false }]);
   });
 
   it("puts you first, then everyone by name", () => {

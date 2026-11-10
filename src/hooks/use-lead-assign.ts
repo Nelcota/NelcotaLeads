@@ -6,6 +6,15 @@ import type { LeadAssignment } from "@/lib/schemas";
 import { undoAssignments } from "@/lib/team-split";
 import { assignTeamLeads, splitFreeLeads } from "@/server/team-leads";
 
+/** "Pegar" (`self`) or "Entregar a" one free lead; the names only go into the toast. */
+type AssignInput = {
+  leadId: string;
+  ownerId: string;
+  leadName: string;
+  ownerName: string;
+  self: boolean;
+};
+
 /** "Desfazer" stays 10 s: handing out moves someone else's work (decided 2026-11-09). */
 const UNDO_MS = 10_000;
 
@@ -41,12 +50,11 @@ export function useLeadAssign() {
   };
 
   const assign = useMutation({
-    mutationFn: (input: { leadId: string; ownerId: string; leadName: string; ownerName: string }) =>
+    mutationFn: (input: AssignInput) =>
       assignTeamLeads({ data: { assignments: [{ id: input.leadId, owner: input.ownerId, expected: null }] } }),
     onSuccess: async (result, input) => {
       await refresh();
-      const taken = input.ownerName === "você";
-      const handed = taken
+      const handed = input.self
         ? `Você pegou ${input.leadName}`
         : `${input.leadName} entregue a ${input.ownerName}`;
       const text = result.moved.length > 0 ? handed : `${input.leadName} já tinha dono`;
@@ -67,7 +75,8 @@ export function useLeadAssign() {
   return {
     assign: assign.mutate,
     assigningId: (assign.isPending ? assign.variables?.leadId : null) ?? null,
-    split: () => split.mutate(),
+    // `onDone` runs only when the split went through, so a failure keeps the preview open.
+    split: (onDone?: () => void) => split.mutate(undefined, { onSuccess: () => onDone?.() }),
     splitting: split.isPending,
   };
 }

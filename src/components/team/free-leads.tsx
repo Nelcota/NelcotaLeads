@@ -37,10 +37,7 @@ export function FreeLeads({
     }
     setConfirming((open) => !open);
   };
-  const confirmSplit = () => {
-    split();
-    setConfirming(false);
-  };
+  const confirmSplit = () => split(() => setConfirming(false));
 
   return (
     <section
@@ -95,7 +92,8 @@ export function FreeLeads({
                   leadId: lead.id,
                   ownerId: member.id,
                   leadName: lead.name,
-                  ownerName: member.id === me ? "você" : member.name,
+                  ownerName: member.name,
+                  self: member.id === me,
                 })
               }
             />

@@ -1,14 +1,10 @@
-import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ArrowRightIcon, ChevronRightIcon } from "lucide-react";
 import { StageLabel } from "@/components/leads/stage-label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { leadStage, nextStep } from "@/lib/lead-row";
-import { leadsQuery } from "@/lib/queries";
+import { usePartnerLeads } from "@/hooks/use-partner-leads";
 import { teamLinks } from "@/lib/team-links";
-
-/** Leads the profile lists before "Ver os N em Leads". */
-const SHOWN = 5;
 
 /** "Em andamento": the partner's open leads, the ones closest to a next step first. */
 export function PartnerLeads({
@@ -20,14 +16,9 @@ export function PartnerLeads({
   held: number;
   today: string;
 }) {
-  const { data, isError, dataUpdatedAt } = useQuery(
-    leadsQuery({ owner: memberId, view: "talking" }),
-  );
-  // The list's own clock: "há 2 h" counts from when it was fetched, like the other lists.
-  const now = new Date(dataUpdatedAt);
-  if (isError) return <p className="text-base text-red">Não foi possível carregar os leads.</p>;
-  if (!data) return <Skeleton className="h-40 rounded-[14px]" />;
-  const rows = data.rows.slice(0, SHOWN);
+  const { rows, failed, now } = usePartnerLeads(memberId);
+  if (failed) return <p className="text-base text-red">Não foi possível carregar os leads.</p>;
+  if (!rows) return <Skeleton className="h-40 rounded-[14px]" />;
   return (
     <div>
       {rows.length === 0 ? (

@@ -1,12 +1,9 @@
-import { useQuery } from "@tanstack/react-query";
 import { XIcon } from "lucide-react";
-import { teamMembersQuery } from "@/lib/queries";
+import { useMemberName } from "@/hooks/use-member-name";
 
 /** "Dono: Phellipe ×": the owner filter a link from the Equipe page left on, removable. */
 export function OwnerFilterChip({ owner, onClear }: { owner: string; onClear: () => void }) {
-  const { data: members } = useQuery(teamMembersQuery);
-  const name = members?.find((member) => member.id === owner)?.name ?? "pessoa removida";
-  const label = `Dono: ${name}`;
+  const label = `Dono: ${useMemberName(owner)}`;
   return (
     <span className="inline-flex h-8 w-fit items-center gap-1 rounded-full border border-border bg-fill-2 pr-1 pl-3 text-sm font-medium">
       {label}
