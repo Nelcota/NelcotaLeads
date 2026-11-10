@@ -1,13 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
-  ChevronLeftIcon,
   ChevronRightIcon,
   CircleCheckIcon,
   CircleXIcon,
   MessagesSquareIcon,
-  PanelRightCloseIcon,
-  PanelRightOpenIcon,
   PhoneIcon,
   RefreshCwIcon,
   RotateCcwIcon,
@@ -27,7 +24,7 @@ import {
   ConversationFilters,
 } from "@/components/conversas/conversation-filters";
 import { ConversationStateLabel } from "@/components/conversas/conversation-state-label";
-import { ConversationOwnerControl } from "@/components/conversas/conversation-owner-control";
+import { ThreadHeader } from "@/components/conversas/thread-header";
 import { HandoffNotice } from "@/components/conversas/handoff-notice";
 import { LeadPanel } from "@/components/conversas/lead-panel";
 import { NoConversationOpen } from "@/components/conversas/no-conversation-open";
@@ -580,43 +577,17 @@ function Thread({
         className={cn("enter flex min-h-0 min-w-0 flex-col", !panelOpen && "xl:col-span-2")}
         style={{ animationDelay: "40ms" }}
       >
-        <div className="flex flex-wrap items-center gap-3 border-b border-border px-5 py-3.5 sm:px-7">
-          <Hint label="Voltar (Esc)">
-            <Button
-              variant="outline"
-              size="icon"
-              className="lg:hidden"
-              onClick={onBack}
-              aria-label="Voltar"
-            >
-              <ChevronLeftIcon />
-            </Button>
-          </Hint>
-          <Avatar name={lead.name} size={40} />
-          <div className="min-w-0 flex-1">
-            <h2 className="truncate text-[17px] font-semibold">{lead.name}</h2>
-            <p className="truncate text-sm text-muted-foreground">{lead.email ?? "sem e-mail"}</p>
-          </div>
-          {!closed ? (
-            <ConversationOwnerControl
-              owner={owner}
-              busy={ai.isPending}
-              onChange={(aiMode) => ai.mutate(aiMode)}
-            />
-          ) : null}
-          <Hint label={panelOpen ? "Esconder dados do lead" : "Mostrar dados do lead"}>
-            <Button
-              variant="outline"
-              size="icon"
-              className="max-xl:hidden"
-              aria-pressed={panelOpen}
-              aria-label={panelOpen ? "Esconder dados do lead" : "Mostrar dados do lead"}
-              onClick={onTogglePanel}
-            >
-              {panelOpen ? <PanelRightCloseIcon /> : <PanelRightOpenIcon />}
-            </Button>
-          </Hint>
-        </div>
+        <ThreadHeader
+          name={lead.name}
+          email={lead.email}
+          closed={closed}
+          owner={owner}
+          ownerBusy={ai.isPending}
+          panelOpen={panelOpen}
+          onBack={onBack}
+          onOwnerChange={(aiMode) => ai.mutate(aiMode)}
+          onTogglePanel={onTogglePanel}
+        />
 
         <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-5 py-3 sm:px-7 xl:hidden">
           {!closed ? (
