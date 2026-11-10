@@ -5,7 +5,6 @@ import {
   costPerDeal,
   formatUsd,
   lossBreakdown,
-  nicheTags,
   percentLabel,
   ratePercent,
   replyRateLabel,
@@ -59,48 +58,7 @@ describe("lossBreakdown", () => {
   });
 });
 
-/** A niche whose deals in the period are all of leads contacted in it. */
-const outcome = (key: string, contacted: number, won: number, lost: number) => ({
-  key,
-  contacted,
-  won,
-  lost,
-  cohortWon: won,
-  cohortLost: lost,
-});
-
-describe("niche tags and reasons", () => {
-  it("tags the best closing share (1+ deal) and the highest loss share (2+ losses)", () => {
-    const tags = nicheTags([
-      outcome("dentistas", 10, 2, 1),
-      outcome("academias", 2, 1, 0),
-      outcome("padarias", 4, 0, 2),
-      outcome("bares", 1, 0, 1),
-    ]);
-    expect(tags).toEqual({ mostCloses: "academias", mostRefuses: "padarias" });
-  });
-
-  it("tags nobody below the minimums", () => {
-    expect(nicheTags([outcome("a", 3, 0, 1)])).toEqual({ mostCloses: null, mostRefuses: null });
-  });
-
-  it("takes the shares within the contacted cohort, never from deals of older leads", () => {
-    // "antigos" closed 5 deals of leads contacted months ago: 5 of 1 would be 500%.
-    const tags = nicheTags([
-      { key: "antigos", contacted: 1, won: 5, lost: 0, cohortWon: 0, cohortLost: 0 },
-      { key: "novos", contacted: 4, won: 1, lost: 3, cohortWon: 1, cohortLost: 2 },
-    ]);
-    expect(tags).toEqual({ mostCloses: "novos", mostRefuses: "novos" });
-  });
-
-  it("ranks by the raw counts when no niche has a cohort", () => {
-    const tags = nicheTags([
-      { key: "a", contacted: 0, won: 1, lost: 2, cohortWon: 0, cohortLost: 0 },
-      { key: "b", contacted: 0, won: 3, lost: 4, cohortWon: 0, cohortLost: 0 },
-    ]);
-    expect(tags).toEqual({ mostCloses: "b", mostRefuses: "b" });
-  });
-
+describe("closing rate and loss reasons", () => {
   it("says the closing rate of the contacted, with the counts", () => {
     expect(closingRateLabel(3, 25)).toBe("12% · 3 de 25");
     expect(closingRateLabel(0, 0)).toBe("—");

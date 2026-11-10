@@ -9,7 +9,7 @@ import { LossReasonsCard } from "@/components/overview/loss-reasons-card";
 import { MetricBlocks } from "@/components/overview/metric-blocks";
 import { MonthlyGoalCard } from "@/components/overview/monthly-goal-card";
 import { NeedsYou } from "@/components/overview/needs-you";
-import { NichesTable } from "@/components/overview/niches-table";
+import { NichesOverview } from "@/components/overview/niches-overview";
 import { OverviewAlerts } from "@/components/overview/overview-alerts";
 import { PeriodSelector } from "@/components/overview/period-selector";
 import { ReplyHoursCard } from "@/components/overview/reply-hours-card";
@@ -134,7 +134,7 @@ function PeriodMetrics({
         />
         <ReplyHoursCard data={data} />
       </div>
-      <NichesTable period={period} caption={caption} />
+      <NichesOverview period={period} caption={caption} />
       <div className="grid gap-3 lg:grid-cols-2">
         <LossReasonsCard losses={metrics.losses} caption={caption} />
         <AiVsHandCard metrics={metrics} caption={caption} />

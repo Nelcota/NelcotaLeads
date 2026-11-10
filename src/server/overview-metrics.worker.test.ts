@@ -314,3 +314,37 @@ describe("overview metrics", () => {
     expect((await row("a"))?.closedAt).toEqual(now);
   });
 });
+
+describe("niche order", () => {
+  beforeAll(async () => {
+    await resetDb();
+    await db.insert(searches).values([
+      { id: "n1", niche: "Academias", city: "BH", maxResults: 5 },
+      { id: "n2", niche: "Advocacia", city: "BH", maxResults: 5 },
+      { id: "n3", niche: "Contabilidade", city: "BH", maxResults: 5 },
+    ]);
+    await db.insert(leads).values([
+      // Only found this week: no contact, deal or loss.
+      { id: "n1a", placeId: "n1a", name: "Academia", searchId: "n1", createdAt: now },
+      { id: "n1b", placeId: "n1b", name: "Academia 2", searchId: "n1", createdAt: now },
+      // Lost this week, contacted long ago.
+      {
+        id: "n2a",
+        placeId: "n2a",
+        name: "Advogado",
+        searchId: "n2",
+        createdAt: old,
+        status: "discarded",
+        lossReason: "has_provider",
+        lostAt: now,
+      },
+      // Only found this week, with fewer leads than Academias.
+      { id: "n3a", placeId: "n3a", name: "Contador", searchId: "n3", createdAt: now },
+    ]);
+  });
+
+  it("puts niches with activity first and only-found ones last, most leads first", async () => {
+    const rows = await queryNicheMetrics(db, periodRange("7d", now));
+    expect(rows.map((row) => row.key)).toEqual(["advocacia", "academias", "contabilidade"]);
+  });
+});
