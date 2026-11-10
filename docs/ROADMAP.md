@@ -54,6 +54,7 @@ The steps, in this order: (1) Visão geral with the new layout on today's data; 
   - Undo send: a few seconds to cancel or edit a reply after clicking Enviar, like Gmail. Changes how e-mail is sent, so guard rule 7 applies.
   - Quick AI replies: two or three short replies suggested by the AI above the reply field, reviewed and sent with one click. Spends AI calls per conversation opened; sending stays manual.
     (2026-11-08, chosen by the user; guard rule 4: offers accepted go to Next, not built)
+- Conversas code split, no visual change: move the thread's queries, mutations and draft autosave out of `src/routes/conversas.tsx` (about 770 lines) into a `useConversationThread` hook, and the thread into `src/components/conversas/conversation-thread.tsx`, so the page keeps only the list. Its own PR, after the redesign. (2026-11-09, found by /revisar; the user: "corrija")
 
 ## Later
 
