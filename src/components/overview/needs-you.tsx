@@ -17,9 +17,11 @@ export function NeedsYou({ data, now }: { data: Dashboard; now: Date }) {
         <span className="rounded-full bg-fill-2 px-2 py-px text-xs font-bold text-muted-foreground tabular-nums">
           {data.stats.interested}
         </span>
-        <span className="min-w-0 flex-1 text-sm text-muted-foreground">
+        {/* On a phone the line would squeeze into a narrow column between the title and the link. */}
+        <span className="min-w-0 flex-1 text-sm text-muted-foreground max-sm:hidden">
           A IA parou e passou a conversa para você.
         </span>
+        <span className="flex-1 sm:hidden" />
         <Link
           to="/conversas"
           search={{ filter: "needsYou" }}

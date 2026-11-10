@@ -77,7 +77,7 @@ const SYSTEM_ATTENTION = "Algo precisa de atenção";
 
 /** One look for every sidebar row: 44px tall, the active page in solid blue, centered in icon mode. */
 const ITEM_CLASS =
-  "h-11 gap-3 rounded-[12px] px-3.5 text-[15px] text-muted-foreground hover:bg-fill-2 hover:text-foreground active:bg-fill data-active:bg-primary data-active:font-semibold data-active:text-primary-foreground data-active:shadow-none data-active:hover:bg-primary data-active:hover:text-primary-foreground group-data-[collapsible=icon]:size-11! group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0!";
+  "h-11 gap-3 rounded-[12px] px-3.5 text-[15px] text-muted-foreground hover:bg-fill-2 hover:text-foreground active:bg-fill data-active:bg-primary data-active:font-semibold data-active:text-primary-foreground data-active:shadow-none data-active:hover:bg-primary data-active:hover:text-primary-foreground group-data-[collapsible=icon]:size-11! group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0! group-data-[collapsible=icon]:[&>span]:sr-only";
 
 /** Count badges centered on a 44px row. */
 const BADGE_CLASS =
@@ -128,7 +128,14 @@ function useAttentionTitle() {
   }, [attention]);
 }
 
-export function AppShell({ children }: { children: ReactNode }) {
+export function AppShell({
+  children,
+  sidebarOpen = true,
+}: {
+  children: ReactNode;
+  /** Whether the menu starts open: what "Recolher menu" left in its cookie. */
+  sidebarOpen?: boolean;
+}) {
   const [newSearchOpen, setNewSearchOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const openHelp = useCallback(() => setHelpOpen(true), []);
@@ -139,7 +146,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <NewSearchContext value={() => setNewSearchOpen(true)}>
       <HelpContext value={openHelp}>
         <TooltipProvider delayDuration={300}>
-          <SidebarProvider>
+          <SidebarProvider defaultOpen={sidebarOpen}>
             <AppSidebar />
             {/* Same background as the sidebar; a thin left outline separates the pages
                 from the menu and the panel reaches the top edge, with no gap above. */}
@@ -519,20 +526,22 @@ export function Page({
   );
 }
 
-/** A number in the summary line, colored by what it means. */
+/** A number in the summary line, colored by what it means; `one` is the label for exactly 1. */
 export function Stat({
   value,
   tone,
+  one,
   children,
 }: {
   value: number;
   tone?: Tone;
+  one?: ReactNode;
   children: ReactNode;
 }) {
   return (
     <span className={cn(tone && TONE_TEXT[tone])}>
       <b className={cn("font-medium tabular-nums", !tone && "text-foreground")}>{value}</b>{" "}
-      {children}
+      {value === 1 && one !== undefined ? one : children}
     </span>
   );
 }

@@ -4,6 +4,7 @@ import { useMonthlyGoal } from "@/hooks/use-monthly-goal";
 import { formatCount } from "@/lib/format";
 import { monthName, paceLine, type GoalPace } from "@/lib/goal";
 import { formatCents } from "@/lib/money";
+import { ratePercent } from "@/lib/overview-metrics";
 import type { MonthlyGoalStatus } from "@/server/goals";
 import { GoalForm } from "./goal-form";
 import { ProgressBar } from "./progress-bar";
@@ -13,11 +14,15 @@ function GoalRow({
   done,
   target,
   percent,
+  barPercent,
 }: {
   title: string;
   done: string;
   target: string;
+  /** The real share, so a month past its goal reads "150%". */
   percent: number;
+  /** The same share capped at 100 for the bar. */
+  barPercent: number;
 }) {
   return (
     <div className="grid gap-1.5">
@@ -30,8 +35,8 @@ function GoalRow({
         </span>
       </div>
       <ProgressBar
-        share={percent / 100}
-        tone={percent >= 100 ? "green" : "primary"}
+        share={barPercent / 100}
+        tone={barPercent >= 100 ? "green" : "primary"}
         label={`${title}: ${percent}%`}
       />
     </div>
@@ -48,13 +53,15 @@ function GoalProgress({ status, pace }: { status: MonthlyGoalStatus; pace: GoalP
         title="Fechamentos"
         done={formatCount(progress.deals)}
         target={formatCount(goal.deals)}
-        percent={pace.dealsPercent}
+        percent={ratePercent(progress.deals, goal.deals) ?? 0}
+        barPercent={pace.dealsPercent}
       />
       <GoalRow
         title="Receita"
         done={formatCents(progress.revenueCents)}
         target={formatCents(goal.revenueCents)}
-        percent={pace.revenuePercent}
+        percent={ratePercent(progress.revenueCents, goal.revenueCents) ?? 0}
+        barPercent={pace.revenuePercent}
       />
       {/* At the bottom, so the card lines up with today's agenda beside it. */}
       <p className="mt-auto text-[15px] text-muted-foreground">{paceLine(pace)}</p>

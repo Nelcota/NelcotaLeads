@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { RouteError } from "@/components/route-error";
 import { Toaster } from "@/components/ui/sonner";
 import { AUTH_PAGES } from "@/lib/login";
+import { readSidebarOpen } from "@/lib/sidebar-state";
 import { applyThemeColor, THEME_COLOR, THEME_INIT_SCRIPT, useTheme } from "@/lib/theme";
 import appCss from "../styles.css?url";
 
@@ -61,6 +62,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "manifest", href: "/manifest.webmanifest" },
     ],
   }),
+  // "Recolher menu" survives a reload: the sidebar's own cookie, read before the first paint.
+  loader: async () => ({ sidebarOpen: await readSidebarOpen() }),
   shellComponent: RootDocument,
   component: RootOutlet,
   errorComponent: RouteError,
@@ -85,6 +88,7 @@ function RootDocument({ children }: { children: ReactNode }) {
   const bare = useRouterState({ select: (state) => AUTH_PAGES.has(state.location.pathname) });
   const { theme } = useTheme();
   useEffect(() => applyThemeColor(theme), [theme]);
+  const sidebarOpen = Route.useLoaderData({ select: (data) => data?.sidebarOpen ?? true });
   const Shell = loadedShell;
   return (
     <html lang="pt-BR" suppressHydrationWarning>
@@ -104,10 +108,10 @@ function RootDocument({ children }: { children: ReactNode }) {
         {bare ? (
           children
         ) : Shell ? (
-          <Shell>{children}</Shell>
+          <Shell sidebarOpen={sidebarOpen}>{children}</Shell>
         ) : (
           <Suspense fallback={<div className="h-svh bg-background" />}>
-            <LazyAppShell>{children}</LazyAppShell>
+            <LazyAppShell sidebarOpen={sidebarOpen}>{children}</LazyAppShell>
           </Suspense>
         )}
         <Toaster position="bottom-right" />

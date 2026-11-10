@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addDays, dayDiff, relativeDay, sharePercent } from "./format";
+import { addDays, dayDiff, formatUsd, relativeDay, sharePercent } from "./format";
 
 describe("sharePercent", () => {
   it("is a whole percent of a larger or equal total", () => {
@@ -42,5 +42,12 @@ describe("calendar days", () => {
     expect(relativeDay("2026-10-21", today)).toBe("21/10");
     expect(relativeDay("2026-10-06", today)).toBe("há 7 dias");
     expect(relativeDay("2026-10-05", today)).toBe("05/10");
+  });
+});
+
+describe("formatUsd", () => {
+  it("uses the decimal comma and keeps small AI costs readable", () => {
+    expect(formatUsd(0.0012).replace(/\s/g, " ")).toBe("US$ 0,0012");
+    expect(formatUsd(1.5).replace(/\s/g, " ")).toBe("US$ 1,50");
   });
 });

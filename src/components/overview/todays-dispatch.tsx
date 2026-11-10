@@ -93,7 +93,8 @@ function nextSendText(data: Dashboard) {
   const next = nextSendTime(mail, data.now);
   if (!next) return "Nenhum e-mail na fila agora.";
   const when = `Próximo envio às ${shortTime(next, data.today)}`;
-  if (mail.sentToday >= mail.limit) return `Limite do dia atingido. ${when}`;
+  // The rest of the daily limit is kept for conversation replies (see coldDailyLimit).
+  if (mail.sentToday >= mail.coldLimit) return `Limite do dia atingido. ${when}`;
   return when;
 }
 

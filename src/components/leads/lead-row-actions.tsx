@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { LeadStatus } from "@/db/schema";
-import { nextStatus } from "@/lib/lead-row";
+import { canDiscardFromList, nextStatus } from "@/lib/lead-row";
 import { whatsappLink } from "@/lib/phone";
 import { LEAD_STATUS_LABELS } from "@/lib/schemas";
 import { cn } from "@/lib/utils";
@@ -131,14 +131,24 @@ export function LeadRowActions({
               Marcar como {LEAD_STATUS_LABELS[next]}
             </DropdownMenuItem>
           ) : null}
-          {next && lead.status !== "discarded" ? <DropdownMenuSeparator /> : null}
-          {lead.status !== "discarded" ? (
+          {next ? <DropdownMenuSeparator /> : null}
+          {canDiscardFromList(lead.status) ? (
             <DropdownMenuItem variant="destructive" onSelect={() => onDiscard(lead.id)}>
               <Trash2Icon />
               Descartar
             </DropdownMenuItem>
           ) : null}
-          {!next && lead.status === "discarded" ? (
+          {/* A conversation ends with its loss reason (the metrics count it): the panel's form. */}
+          {lead.status === "replied" ? (
+            <DropdownMenuItem variant="destructive" onSelect={() => onDiscard(lead.id)}>
+              <Trash2Icon />
+              Encerrar sem negócio…
+            </DropdownMenuItem>
+          ) : null}
+          {lead.status === "closed" ? (
+            <DropdownMenuItem disabled>Negócio fechado: reabra pelo painel</DropdownMenuItem>
+          ) : null}
+          {lead.status === "discarded" ? (
             <DropdownMenuItem disabled>Lead descartado</DropdownMenuItem>
           ) : null}
         </DropdownMenuContent>

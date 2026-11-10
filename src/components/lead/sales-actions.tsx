@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { DisabledReason } from "@/components/apple-ui";
 import { Button } from "@/components/ui/button";
 import type { Lead } from "@/db/schema";
 import type { LeadSales } from "@/hooks/use-lead-sales";
@@ -63,9 +64,19 @@ export function SalesActions({
       <Button variant="outline" onClick={() => setMode("meeting")}>
         Agendar reunião
       </Button>
-      <Button variant="outline" disabled={!sales.table} onClick={() => setMode("proposal")}>
-        Montar proposta
-      </Button>
+      <DisabledReason
+        reason={
+          sales.table
+            ? false
+            : sales.tableError
+              ? "A tabela de serviços não carregou. Recarregue a página."
+              : "Carregando a tabela de serviços…"
+        }
+      >
+        <Button variant="outline" disabled={!sales.table} onClick={() => setMode("proposal")}>
+          Montar proposta
+        </Button>
+      </DisabledReason>
     </>
   );
 }
