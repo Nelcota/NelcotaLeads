@@ -47,6 +47,7 @@ function TeamBody({ team }: { team: ReturnType<typeof useTeam> }) {
       <TeamMembers members={team.data.members} />
       <PendingInvites
         invites={team.data.invites}
+        emailsEnabled={team.data.inviteEmailsEnabled}
         removingId={team.removingId}
         onRemove={team.removeInvite}
       />

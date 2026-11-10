@@ -50,10 +50,31 @@ function writeDismissed(keys: string[]) {
   for (const listener of listeners) listener();
 }
 
+/** `cooling:<day>:<count>` → its day and count; null for any other key. */
+function coolingKey(key: string): { day: string; count: number } | null {
+  const match = /^cooling:(\d{4}-\d{2}-\d{2}):(\d+)$/.exec(key);
+  if (!match) return null;
+  return { day: match[1] ?? "", count: Number(match[2]) };
+}
+
+/**
+ * The cooling alert is keyed by its count, so a new late lead brings it back; answering one of
+ * them (a smaller count, same day) keeps it dismissed instead of showing it again.
+ */
+function isDismissed(key: string, dismissed: string[]): boolean {
+  if (dismissed.includes(key)) return true;
+  const cooling = coolingKey(key);
+  if (!cooling) return false;
+  return dismissed.some((stored) => {
+    const past = coolingKey(stored);
+    return past !== null && past.day === cooling.day && past.count >= cooling.count;
+  });
+}
+
 /** Alerts at the top of the overview; each can be hidden for the rest of the browser session. */
 export function OverviewAlerts({ alerts }: { alerts: OverviewAlert[] }) {
   const dismissed = parseDismissed(useSyncExternalStore(subscribe, readStored, serverSnapshot));
-  const visible = alerts.filter((alert) => !dismissed.includes(alert.key));
+  const visible = alerts.filter((alert) => !isDismissed(alert.key, dismissed));
   if (visible.length === 0) return null;
 
   const dismiss = (key: string) => writeDismissed([...dismissed, key]);

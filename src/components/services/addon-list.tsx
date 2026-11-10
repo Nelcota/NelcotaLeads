@@ -1,6 +1,6 @@
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { ServiceAddon } from "@/db/schema";
+import { useRowEditor } from "@/hooks/use-row-editor";
 import { addonToForm, EMPTY_ADDON_FORM } from "@/lib/service-form";
 import { priceLabel, type AddonInput } from "@/lib/services";
 import { AddonForm } from "./addon-form";
@@ -22,8 +22,9 @@ export function AddonList({
   onSave: (id: string | null, input: AddonInput, done: { onSuccess: () => void }) => void;
   onArchive: (id: string) => void;
 }) {
-  const [editing, setEditing] = useState<string | null>(null);
-  const close = () => setEditing(null);
+  // The row being edited (an id, NEW for the add form, or none), guarded against lost edits.
+  const rows = useRowEditor();
+  const { editing, close } = rows;
   const save = (id: string | null) => (input: AddonInput) =>
     onSave(id, input, { onSuccess: close });
 
@@ -42,6 +43,7 @@ export function AddonList({
               busy={saving}
               onSave={save(addon.id)}
               onCancel={close}
+              onDirtyChange={rows.reportDirty}
             />
           </div>
         ) : (
@@ -55,7 +57,7 @@ export function AddonList({
             </span>
             <span className="font-medium tabular-nums">+ {priceLabel(addon)}</span>
             <span className="flex items-center gap-1">
-              <Button size="sm" onClick={() => setEditing(addon.id)}>
+              <Button size="sm" onClick={() => rows.open(addon.id)}>
                 Editar
               </Button>
               <Button
@@ -77,13 +79,15 @@ export function AddonList({
             busy={saving}
             onSave={save(null)}
             onCancel={close}
+            onDirtyChange={rows.reportDirty}
           />
         </div>
       ) : (
         <div className="px-4 pt-2.5 pb-3.5">
-          <AddRowButton onClick={() => setEditing(NEW)}>Adicionar adicional</AddRowButton>
+          <AddRowButton onClick={() => rows.open(NEW)}>Adicionar adicional</AddRowButton>
         </div>
       )}
+      {rows.dialog}
     </div>
   );
 }

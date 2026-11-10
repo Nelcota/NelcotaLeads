@@ -171,3 +171,12 @@ export function siteHost(url: string | null): string | null {
     return null;
   }
 }
+
+/**
+ * Whether the list may discard the lead itself. A closed deal reopens first (LEAD_TRANSITIONS),
+ * and a lead in conversation ends through "Encerrar sem negócio", which records the reason the
+ * loss metrics count; the list sends those to the lead panel.
+ */
+export function canDiscardFromList(status: LeadStatus): boolean {
+  return status === "new" || status === "contacted";
+}

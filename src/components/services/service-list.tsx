@@ -1,6 +1,6 @@
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { Service } from "@/db/schema";
+import { useRowEditor } from "@/hooks/use-row-editor";
 import { EMPTY_SERVICE_FORM, serviceToForm } from "@/lib/service-form";
 import { deadlineLabel, priceLabel, type ServiceInput } from "@/lib/services";
 import { AddRowButton } from "./add-row-button";
@@ -22,9 +22,9 @@ export function ServiceList({
   onSave: (id: string | null, input: ServiceInput, done: { onSuccess: () => void }) => void;
   onArchive: (id: string) => void;
 }) {
-  // The row being edited: a service id, NEW for the add form, or none.
-  const [editing, setEditing] = useState<string | null>(null);
-  const close = () => setEditing(null);
+  // The row being edited (a service id, NEW for the add form, or none), guarded against lost edits.
+  const rows = useRowEditor();
+  const { editing, close } = rows;
   const save = (id: string | null) => (input: ServiceInput) =>
     onSave(id, input, { onSuccess: close });
 
@@ -48,6 +48,7 @@ export function ServiceList({
               busy={saving}
               onSave={save(service.id)}
               onCancel={close}
+              onDirtyChange={rows.reportDirty}
             />
           </div>
         ) : (
@@ -64,7 +65,7 @@ export function ServiceList({
             <span className="w-24 text-right font-medium tabular-nums">{priceLabel(service)}</span>
             <span className="flex items-center gap-1 max-sm:col-span-2 sm:w-[164px]">
               <span className="flex-1 text-sm text-muted-foreground">{deadlineLabel(service)}</span>
-              <Button size="sm" onClick={() => setEditing(service.id)}>
+              <Button size="sm" onClick={() => rows.open(service.id)}>
                 Editar
               </Button>
               <Button
@@ -86,13 +87,15 @@ export function ServiceList({
             busy={saving}
             onSave={save(null)}
             onCancel={close}
+            onDirtyChange={rows.reportDirty}
           />
         </div>
       ) : (
         <div className="px-4 pt-2.5 pb-3.5">
-          <AddRowButton onClick={() => setEditing(NEW)}>Adicionar serviço</AddRowButton>
+          <AddRowButton onClick={() => rows.open(NEW)}>Adicionar serviço</AddRowButton>
         </div>
       )}
+      {rows.dialog}
     </div>
   );
 }

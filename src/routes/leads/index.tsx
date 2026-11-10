@@ -12,7 +12,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
-import { EmptyState, Hint } from "@/components/apple-ui";
+import { DisabledReason, EmptyState, Hint } from "@/components/apple-ui";
 import { Page, Stat, useOpenNewSearch } from "@/components/app-shell";
 import { AddLeadSheet } from "@/components/add-lead-sheet";
 import { DispatchSheet } from "@/components/dispatch-sheet";
@@ -122,7 +122,7 @@ function LeadsPage() {
     "Lead não encontrado",
     () => void navigate({ search: (prev) => ({ ...prev, missing: undefined }), replace: true }),
   );
-  const { data: list } = useQuery(leadsQuery(filters));
+  const { data: list, isPlaceholderData } = useQuery(leadsQuery(filters));
   const rows = list?.rows;
   const { data: counts } = useQuery(leadCountsQuery(filters));
   const openNewSearch = useOpenNewSearch();
@@ -140,11 +140,16 @@ function LeadsPage() {
   const listKey = JSON.stringify(clean(filters));
   const selection = useListSelection(listKey);
   const [paging, setPaging] = useState({ key: listKey, page: 0 });
-  const page = paging.key === listKey ? paging.page : 0;
+  const requestedPage = paging.key === listKey ? paging.page : 0;
 
   const loaded = rows ?? [];
+  // Never past the last page: discarding the only row of the last page would leave it empty.
+  const lastPage = Math.max(0, Math.ceil(loaded.length / PAGE_SIZE) - 1);
+  const page = Math.min(requestedPage, lastPage);
   const pageRows = loaded.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
   const readyIds = loaded.filter(isReadyToDispatch).map((lead) => lead.id);
+  // One dispatch reviews at most DISPATCH_LIMIT e-mails; "Disparar prontos" picks that many.
+  const pickableIds = readyIds.slice(0, DISPATCH_LIMIT);
   const selectedRows = loaded.filter((lead) => selection.selected.has(lead.id));
   // Keep the count and the enabled state aligned with the actual dispatch rules.
   const sendable = selectedRows.filter(isReadyToDispatch).map((lead) => lead.id);
@@ -155,9 +160,15 @@ function LeadsPage() {
   const filtered = hasFilters(filters);
 
   // Adjusted during render: once A contatar has loaded, select its ready leads.
-  if (pick === "ready" && !pickDone && view === "todo" && rows !== undefined) {
+  if (
+    pick === "ready" &&
+    !pickDone &&
+    view === "todo" &&
+    rows !== undefined &&
+    !isPlaceholderData
+  ) {
     setPickDone(true);
-    selection.replace(readyIds);
+    selection.replace(pickableIds);
   }
   // Then drop `pick` from the address, so Back or a reload does not select again.
   useEffect(() => {
@@ -177,6 +188,18 @@ function LeadsPage() {
   };
 
   const askDiscard = (ids: string[]) => {
+    // A lead in conversation ends with a loss reason, in the panel's "Encerrar sem negócio".
+    const [only] = ids;
+    if (ids.length === 1 && only !== undefined) {
+      const lead = loaded.find((item) => item.id === only);
+      if (lead?.status === "replied") {
+        selectLead(only);
+        toast("Encerre a conversa pelo painel", {
+          description: "Informe o motivo em “Encerrar sem negócio”; ele entra nas métricas.",
+        });
+        return;
+      }
+    }
     if (ids.length >= DISCARD_CONFIRM_FROM) {
       setDiscarding({ open: true, ids });
       return;
@@ -195,16 +218,30 @@ function LeadsPage() {
 
   useLeadsHotkeys(!openLeadId && !dispatching, {
     onSearch: () => searchRef.current?.focus(),
-    onToggle: (id) => selection.toggle([id], !selection.selected.has(id)),
+    onToggle: (id) => {
+      // Same rule as the row's checkbox: a lead still being analyzed cannot be selected.
+      const lead = loaded.find((item) => item.id === id);
+      if (!lead || lead.analysisStatus === "pending") return;
+      selection.toggle([id], !selection.selected.has(id));
+    },
     onWriteEmail: selectLead,
     onWhatsApp: openWhatsApp,
   });
 
+  // Same reasons as the selection bar, so the header button never goes dead without a word.
+  const dispatchReason =
+    selection.selected.size === 0
+      ? false
+      : sendable.length === 0
+        ? "Nenhum lead selecionado pode receber o primeiro e-mail"
+        : sendable.length > DISPATCH_LIMIT
+          ? `Selecione até ${DISPATCH_LIMIT} leads com e-mail por disparo`
+          : false;
   const primary =
     selection.selected.size > 0
       ? {
           label: `Disparar ${sendable.length} ${sendable.length === 1 ? "selecionado" : "selecionados"}`,
-          disabled: sendable.length === 0 || sendable.length > DISPATCH_LIMIT,
+          disabled: Boolean(dispatchReason),
           onClick: () => setDispatching(true),
         }
       : {
@@ -215,9 +252,16 @@ function LeadsPage() {
           disabled: view === "todo" && readyIds.length === 0,
           onClick: () => {
             if (view === "todo") {
-              selection.replace(readyIds);
+              selection.replace(pickableIds);
+              const picked = pickableIds.length;
               toast(
-                `${readyIds.length} ${readyIds.length === 1 ? "lead pronto marcado" : "leads prontos marcados"}. Confira e clique em Disparar.`,
+                `${picked} ${picked === 1 ? "lead pronto marcado" : "leads prontos marcados"}. Confira e clique em Disparar.`,
+                {
+                  description:
+                    readyIds.length > picked
+                      ? `Um disparo leva até ${DISPATCH_LIMIT} e-mails; os outros ${readyIds.length - picked} ficam para o próximo.`
+                      : undefined,
+                },
               );
               return;
             }
@@ -272,10 +316,12 @@ function LeadsPage() {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      <Button disabled={primary.disabled} onClick={primary.onClick} aria-label={primary.label}>
-        <SendIcon />
-        <span className="max-sm:hidden">{primary.label}</span>
-      </Button>
+      <DisabledReason reason={dispatchReason}>
+        <Button disabled={primary.disabled} onClick={primary.onClick} aria-label={primary.label}>
+          <SendIcon />
+          <span className="max-sm:hidden">{primary.label}</span>
+        </Button>
+      </DisabledReason>
     </>
   );
   const addLead = (
@@ -336,7 +382,9 @@ function LeadsPage() {
       description={
         counts ? (
           <>
-            <Stat value={counts.byView.all}>leads</Stat>
+            <Stat value={counts.byView.all} one="lead">
+              leads
+            </Stat>
             {counts.byView.todo > 0 ? (
               <>
                 {" · "}

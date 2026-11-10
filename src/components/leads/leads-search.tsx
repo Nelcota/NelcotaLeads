@@ -42,7 +42,7 @@ export const LeadsSearch = forwardRef<
           else if (ref) ref.current = node;
         }}
         type="search"
-        aria-label="Buscar por nome, e-mail, telefone ou endereço"
+        aria-label="Buscar por nome, e-mail, telefone ou bairro"
         placeholder="Buscar por nome, e-mail, telefone ou bairro"
         className="h-9 rounded-full border border-border pr-20 pl-10"
         {...box.inputProps}

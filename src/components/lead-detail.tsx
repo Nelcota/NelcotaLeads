@@ -18,7 +18,14 @@ import {
   StickyNoteIcon,
   XCircleIcon,
 } from "lucide-react";
-import { EmptyState, ExternalLink, SaveStatus, TONE_TEXT, type Tone } from "@/components/apple-ui";
+import {
+  DisabledReason,
+  EmptyState,
+  ExternalLink,
+  SaveStatus,
+  TONE_TEXT,
+  type Tone,
+} from "@/components/apple-ui";
 import { SegmentedControl } from "@/components/notifications/segmented-control";
 import { Notice } from "@/components/lead/notice";
 import { PANEL_FIELD, PanelSection, TitleChip } from "@/components/lead/panel-section";
@@ -59,7 +66,7 @@ import type { LostDeal, WonDeal } from "@/lib/deal-form";
 import { historyLines } from "@/lib/lead-history";
 import { isPriceHandoff } from "@/lib/lead-stage";
 import { formatCents } from "@/lib/money";
-import { addDays, formatDate, localDay, relativeDay } from "@/lib/format";
+import { addDays, formatDate, formatUsd, localDay, relativeDay } from "@/lib/format";
 import { CONTACT_LIMITS, type ContactField } from "@/lib/lead-contact";
 import { MANUAL_SEARCH_ID } from "@/lib/searches";
 import { whatsappLink } from "@/lib/phone";
@@ -85,6 +92,7 @@ import {
   updateLead,
   updateLeadContact,
 } from "@/server/leads";
+import { reopenBlocker, UNSUBSCRIBED_MESSAGE } from "@/server/lead-status";
 import { dispatchEmails, prepareEmails, rewriteDraft, updateDraft } from "@/server/mail";
 
 const SITE_STATUS_LABELS: Record<SiteStatus, string> = {
@@ -279,6 +287,7 @@ type StepProps = {
 function NextStep(props: StepProps) {
   const { lead, analysis, busy, onUpdate } = props;
   if (lead.lastEmailAt) return <ConversationStep {...props} />;
+  const reopenReason = reopenBlocker(lead);
   switch (lead.status) {
     case "new":
       return lead.email && !lead.unsubscribedAt ? (
@@ -332,14 +341,16 @@ function NextStep(props: StepProps) {
             <DealSummary lead={lead} />
           </CardHeader>
           <CardFooter>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={busy}
-              onClick={() => onUpdate({ status: "replied" })}
-            >
-              Reabrir conversa
-            </Button>
+            <DisabledReason reason={reopenReason ?? false}>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={busy || reopenReason !== null}
+                onClick={() => onUpdate({ status: "replied" })}
+              >
+                Reabrir conversa
+              </Button>
+            </DisabledReason>
           </CardFooter>
         </Card>
       );
@@ -351,14 +362,17 @@ function NextStep(props: StepProps) {
             <LossSummary lead={lead} />
           </CardHeader>
           <CardFooter>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={busy}
-              onClick={() => onUpdate({ status: "new" })}
-            >
-              Voltar para a fila
-            </Button>
+            {/* The server refuses outreach for an opted-out lead; say so instead of failing. */}
+            <DisabledReason reason={lead.unsubscribedAt ? UNSUBSCRIBED_MESSAGE : false}>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={busy || lead.unsubscribedAt !== null}
+                onClick={() => onUpdate({ status: "new" })}
+              >
+                Voltar para a fila
+              </Button>
+            </DisabledReason>
           </CardFooter>
         </Card>
       );
@@ -401,7 +415,8 @@ function FirstContactStep({ lead, analysis, today, busy, onUpdate, onChanged }: 
       {
         onSuccess: () =>
           toast(`${lead.name}: contatado`, {
-            description: `Retorno ${relativeDay(followUpOn, today)}. A IA prepara o e-mail de retorno.`,
+            // This step only shows for leads without a usable e-mail: the follow-up is manual.
+            description: `Retorno ${relativeDay(followUpOn, today)}, pelo WhatsApp ou telefone.`,
             action: { label: "Desfazer", onClick: () => onUpdate({ status: "new" }) },
           }),
       },
@@ -1042,7 +1057,7 @@ function Footer({
       <div className="flex flex-wrap items-center gap-3">
         {analysis ? (
           <span className="text-[13px] text-muted-foreground">
-            {analysis.model} · US$ {analysis.costEstimate.toFixed(4)} ·{" "}
+            {analysis.model} · {formatUsd(analysis.costEstimate)} ·{" "}
             {formatDate(analysis.createdAt, true)}
           </span>
         ) : null}

@@ -115,6 +115,18 @@ export function isoWeekday(day: string): number {
   return new Date(`${day}T12:00:00Z`).getUTCDay() || 7;
 }
 
+const usd = new Intl.NumberFormat("pt-BR", {
+  style: "currency",
+  currency: "USD",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 4,
+});
+
+/** "US$ 0,0012": an AI cost in dollars, with the decimal comma the rest of the app uses. */
+export function formatUsd(value: number): string {
+  return usd.format(value);
+}
+
 const counter = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
 
 /** "1.000" for 1000: a count shown to people, thousands grouped by dots. */

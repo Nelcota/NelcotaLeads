@@ -142,7 +142,9 @@ export const bulkUpdateLeads = createServerFn({ method: "POST" })
       status: z.enum(LEAD_STATUS_VALUES).exclude(["closed"]),
     }),
   )
-  .handler(({ data }) => bulkUpdate(getDb(), data.ids, data.status));
+  .handler(async ({ data }) =>
+    bulkUpdate(getDb(), data.ids, data.status, new Date(), await requestUserId()),
+  );
 
 /** "Desfazer" of a bulk change: the leads it changed go back as they were. */
 export const undoBulkUpdateLeads = createServerFn({ method: "POST" })
@@ -152,7 +154,9 @@ export const undoBulkUpdateLeads = createServerFn({ method: "POST" })
       previous: z.array(bulkSnapshotSchema).max(BULK_LIMIT),
     }),
   )
-  .handler(({ data }) => undoBulkUpdate(getDb(), data.status, data.previous));
+  .handler(async ({ data }) =>
+    undoBulkUpdate(getDb(), data.status, data.previous, new Date(), await requestUserId()),
+  );
 
 export const updateFirstMessage = createServerFn({ method: "POST" })
   .validator(updateMessageSchema)

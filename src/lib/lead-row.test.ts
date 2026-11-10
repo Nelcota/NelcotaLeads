@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  canDiscardFromList,
   isFresh,
   isReadyToDispatch,
   leadStage,
@@ -113,5 +114,16 @@ describe("lead row helpers", () => {
     expect(siteHost("https://www.example.com/page")).toBe("example.com");
     expect(siteHost("javascript:alert(1)")).toBeNull();
     expect(siteHost("https://")).toBeNull();
+  });
+});
+
+describe("canDiscardFromList", () => {
+  it("lets the list discard leads before a conversation only", () => {
+    expect(canDiscardFromList("new")).toBe(true);
+    expect(canDiscardFromList("contacted")).toBe(true);
+    // A conversation ends with its loss reason in the panel; a closed deal reopens first.
+    expect(canDiscardFromList("replied")).toBe(false);
+    expect(canDiscardFromList("closed")).toBe(false);
+    expect(canDiscardFromList("discarded")).toBe(false);
   });
 });

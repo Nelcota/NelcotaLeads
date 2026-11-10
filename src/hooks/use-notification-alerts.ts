@@ -29,6 +29,7 @@ function showSystemNotification(item: NotificationItem, open: (item: Notificatio
 export function useNotificationAlerts(center: NotificationCenter | null) {
   const navigate = useNavigate();
   const seen = useRef<Set<string> | null>(null);
+  const seenScope = useRef<string | null>(null);
 
   const items = center?.data.items;
   const prefs = center?.data.prefs;
@@ -38,7 +39,10 @@ export function useNotificationAlerts(center: NotificationCenter | null) {
   useEffect(() => {
     if (!items || !prefs) return;
     const mine = visibleNotifications(items, prefs, prefs.scope, userId);
-    const previous = seen.current;
+    // Widening the scope ("meus leads" → "todos") shows older items of other partners: they are
+    // recorded like a first load, so nothing old rings.
+    const previous = seenScope.current === prefs.scope ? seen.current : null;
+    seenScope.current = prefs.scope;
     seen.current = new Set(mine.filter((item) => item.unread).map((item) => item.key));
     if (!previous) return;
 

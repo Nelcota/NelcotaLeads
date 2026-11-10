@@ -38,9 +38,19 @@ export function useDispatchControl() {
     onSuccess: async ({ cancelled }) => {
       setConfirming(false);
       await refresh();
+      // The queue may have drained between the confirmation and the click.
+      if (cancelled === 0) {
+        toast("Nenhum e-mail para cancelar", { description: "A fila de hoje já estava vazia." });
+        return;
+      }
       toast.success(
         cancelled === 1 ? "1 e-mail cancelado" : `${cancelled} e-mails cancelados`,
-        { description: "Os leads voltaram para A contatar." },
+        {
+          description:
+            cancelled === 1
+              ? "O lead voltou para A contatar."
+              : "Os leads voltaram para A contatar.",
+        },
       );
     },
     onError: errorToast("Não foi possível cancelar o disparo"),
