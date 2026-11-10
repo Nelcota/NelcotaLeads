@@ -42,7 +42,8 @@ export function ReplyHoursCard({ data }: { data: Dashboard }) {
           Quando os leads respondem
         </h2>
         <span className="text-sm text-muted-foreground">
-          últimos 30 dias{chart.peak !== undefined ? ` · pico às ${chart.peak}h` : ""}
+          respostas recebidas · últimos 30 dias
+          {chart.peak !== undefined ? ` · pico às ${chart.peak}h` : ""}
         </span>
       </div>
       {chart.total === 0 ? (

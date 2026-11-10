@@ -47,6 +47,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useNotificationAlerts } from "@/hooks/use-notification-alerts";
 import { useNotifications } from "@/hooks/use-notifications";
+import { companiesLeftLabel, type GoogleUsage } from "@/lib/google-quota";
 import { GLOSSARY, isHelpKey } from "@/lib/help";
 import { withAttentionCount } from "@/lib/page-title";
 import { accountQuery, attentionQuery, providerStatusQuery, todayAgendaQuery } from "@/lib/queries";
@@ -338,13 +339,25 @@ function UsageMeter() {
           E-mail não conectado
         </Link>
       )}
-      <MeterRow
-        value={percent(placesUsage.used, placesUsage.limit)}
-        tone="gray"
-        used={placesUsage.used}
-        limit={placesUsage.limit}
-        label="buscas no Google"
-      />
+      <GoogleQuotaRow usage={placesUsage} />
+    </div>
+  );
+}
+
+/** Companies that can still be searched today, with the share of the Google quota already spent. */
+function GoogleQuotaRow({ usage }: { usage: GoogleUsage }) {
+  return (
+    <div className="grid gap-1.5">
+      <p className="text-[14px] leading-tight text-muted-foreground">{companiesLeftLabel(usage)}</p>
+      <div className="h-1 overflow-hidden rounded-full bg-fill-2" aria-hidden>
+        <div
+          className="bar-grow h-full rounded-full"
+          style={{
+            width: `${Math.min(percent(usage.used, usage.limit), 100)}%`,
+            background: toneVar("gray"),
+          }}
+        />
+      </div>
     </div>
   );
 }

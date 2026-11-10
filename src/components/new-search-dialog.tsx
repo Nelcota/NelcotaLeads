@@ -15,12 +15,12 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { searchCostLabel, searchQuotaBlocker } from "@/lib/google-quota";
 import { providerStatusQuery } from "@/lib/queries";
 import { newSearchSchema, type NewSearchInput } from "@/lib/schemas";
 import { cn } from "@/lib/utils";
 import { createSearch } from "@/server/searches";
 
-const PAGE_SIZE = 20;
 const SIZES = [20, 40, 60] as const;
 
 export function NewSearchDialog({
@@ -60,11 +60,7 @@ function NewSearchForm({ onDone }: { onDone: () => void }) {
   });
   const { errors } = form.formState;
   const maxResults = useWatch({ control: form.control, name: "maxResults" });
-  const requests = Math.ceil(maxResults / PAGE_SIZE);
-
-  const used = status?.placesUsage.used ?? 0;
-  const limit = status?.placesUsage.limit ?? 0;
-  const remaining = Math.max(0, limit - used);
+  const usage = status?.placesUsage;
   // Plain words here; how to set the keys up is in the README.
   const missingKeysText =
     status && !status.placesConfigured && !status.aiConfigured
@@ -92,11 +88,9 @@ function NewSearchForm({ onDone }: { onDone: () => void }) {
 
   const blocker = missingKeysText
     ? `${missingKeysText} Fale com quem administra o sistema.`
-    : remaining === 0
-      ? `O limite de ${limit} requisições ao Google por dia foi atingido. Volte amanhã.`
-      : requests > remaining
-        ? `Restam só ${remaining} ${remaining === 1 ? "requisição" : "requisições"} hoje. Peça menos resultados.`
-        : null;
+    : usage
+      ? searchQuotaBlocker(maxResults, usage)
+      : null;
 
   return (
     <form
@@ -161,10 +155,11 @@ function NewSearchForm({ onDone }: { onDone: () => void }) {
             ))}
           </TabsList>
         </Tabs>
-        <p className="px-1 text-xs font-light text-muted-foreground tabular-nums">
-          {requests} {requests === 1 ? "requisição" : "requisições"} ao Google · restam {remaining}{" "}
-          de {limit} hoje
-        </p>
+        {usage ? (
+          <p className="px-1 text-xs font-light text-muted-foreground tabular-nums">
+            {searchCostLabel(maxResults, usage)}
+          </p>
+        ) : null}
       </div>
 
       {status && !status.offerConfigured ? (

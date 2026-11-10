@@ -17,6 +17,8 @@ export type MetricBlock = {
   title: string;
   big: string | number;
   caption: string;
+  /** Shown instead of the headline number when the period has no base for it. */
+  empty?: string;
   rows: MetricRow[];
 };
 
@@ -47,20 +49,42 @@ function sendingBlock(data: Dashboard, metrics: OverviewMetrics): MetricBlock {
   };
 }
 
-function replyBlock(data: Dashboard, metrics: OverviewMetrics): MetricBlock {
-  const { funnel } = metrics;
+type ReplyStats = Pick<Dashboard["stats"], "aiTalking" | "interested">;
+type ReplyFunnel = Pick<OverviewMetrics["funnel"], "contacted" | "replied">;
+
+/** What stands "agora", whatever the period. */
+function replyNowRows(stats: ReplyStats): MetricRow[] {
+  return [
+    { label: "IA conversando agora", value: stats.aiTalking },
+    {
+      label: "Precisam de você agora",
+      value: stats.interested,
+      tone: toneWhen(stats.interested > 0, "orange"),
+    },
+  ];
+}
+
+/**
+ * Of the leads first contacted in the period, how many replied (whenever they did): the caption
+ * says so, since "Quando os leads respondem" counts every reply received instead.
+ */
+export function replyBlock(stats: ReplyStats, funnel: ReplyFunnel): MetricBlock {
+  if (funnel.contacted <= 0) {
+    return {
+      title: "Resposta",
+      big: "",
+      caption: "",
+      empty: "Ninguém contatado no período",
+      rows: replyNowRows(stats),
+    };
+  }
   return {
     title: "Resposta",
     big: percentLabel(funnel.replied, funnel.contacted),
-    caption: "responderam",
+    caption: "dos contatados no período responderam",
     rows: [
-      { label: "Responderam", value: funnel.replied },
-      { label: "IA conversando agora", value: data.stats.aiTalking },
-      {
-        label: "Precisam de você agora",
-        value: data.stats.interested,
-        tone: toneWhen(data.stats.interested > 0, "orange"),
-      },
+      { label: "Responderam", value: `${funnel.replied} de ${funnel.contacted}` },
+      ...replyNowRows(stats),
     ],
   };
 }
@@ -89,5 +113,9 @@ function businessBlock(metrics: OverviewMetrics): MetricBlock {
  * failures, conversations waiting) is shown as it stands, whatever the period.
  */
 export function metricBlocks(data: Dashboard, metrics: OverviewMetrics): MetricBlock[] {
-  return [sendingBlock(data, metrics), replyBlock(data, metrics), businessBlock(metrics)];
+  return [
+    sendingBlock(data, metrics),
+    replyBlock(data.stats, metrics.funnel),
+    businessBlock(metrics),
+  ];
 }

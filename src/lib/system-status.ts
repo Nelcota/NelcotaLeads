@@ -50,7 +50,11 @@ const JOB_FALLBACK: Record<Job, string> = {
  */
 export function friendlyJobError(job: Job, error: unknown): string {
   const text = error instanceof Error ? error.message : typeof error === "string" ? error : "";
-  if (/limite diário de requisições ao google|google.*(429|quota|resource_exhausted)/i.test(text)) {
+  if (
+    /limite diário de requisições ao google|limite de buscas do google|google.*(429|quota|resource_exhausted)/i.test(
+      text,
+    )
+  ) {
     return GOOGLE_LIMIT;
   }
   if (

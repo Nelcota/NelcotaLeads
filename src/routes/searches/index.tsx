@@ -33,7 +33,9 @@ import { formatDate } from "@/lib/format";
 import { searchesQuery } from "@/lib/queries";
 import { errorToast } from "@/lib/mutation-toasts";
 import { useNotFoundToast } from "@/lib/not-found-toast";
+import { searchFailureText } from "@/lib/provider-errors";
 import { MANUAL_SEARCH_ID } from "@/lib/searches";
+import { useToday } from "@/lib/today";
 import { cn } from "@/lib/utils";
 import { cancelSearch, hideSearch, repeatSearch } from "@/server/searches";
 import { pageTitle } from "@/lib/page-title";
@@ -178,6 +180,7 @@ function HiddenSearches({
 function SearchCard({ search, index }: { search: Search; index: number }) {
   const processed = search.analyzedCount + search.errorCount;
   const running = search.status === "collecting" || search.status === "analyzing";
+  const today = useToday();
   const auto = search.origin === "autopilot";
   const queryClient = useQueryClient();
   const cancel = useMutation({
@@ -231,8 +234,6 @@ function SearchCard({ search, index }: { search: Search; index: number }) {
             </span>
             {" · "}
             {formatDate(search.createdAt, true)}
-            {" · "}
-            {search.placesRequests} {search.placesRequests === 1 ? "requisição" : "requisições"}
           </p>
         </div>
         <div className="relative flex items-center gap-2">
@@ -318,7 +319,7 @@ function SearchCard({ search, index }: { search: Search; index: number }) {
             title="Coleta no Google Maps"
           >
             {search.status === "error" && search.foundCount === 0 ? (
-              search.errorMessage
+              searchFailureText(search.errorMessage, search.createdAt, today)
             ) : (
               <>
                 <b>{search.foundCount}</b>{" "}

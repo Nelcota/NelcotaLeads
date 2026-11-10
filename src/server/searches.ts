@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { getDb, type Db } from "@/db/client";
 import { searches } from "@/db/schema";
+import { searchQuotaBlocker } from "@/lib/google-quota";
 import { getPlacesProvider } from "@/lib/places";
 import { idSchema, newSearchSchema, type NewSearchInput } from "@/lib/schemas";
 import { mailConfigured } from "@/lib/mail";
@@ -21,7 +22,6 @@ import { loadConfig } from "./settings-store";
 import { GOOGLE_PLACES, placesDailyLimit, requestsToday, reserveRequest } from "./usage";
 
 // Google returns up to 20 places per request.
-const PLACES_PAGE_SIZE = 20;
 
 export const createSearch = createServerFn({ method: "POST" })
   .validator(newSearchSchema)
@@ -43,14 +43,9 @@ async function startSearch(db: Db, input: NewSearchInput) {
     );
   }
   const limit = placesDailyLimit(env.PLACES_DAILY_REQUEST_LIMIT);
-  const remaining = limit - (await requestsToday(db, GOOGLE_PLACES));
-  if (remaining < Math.ceil(input.maxResults / PLACES_PAGE_SIZE)) {
-    throw new Error(
-      remaining <= 0
-        ? `O limite de ${limit} requisições ao Google por dia foi atingido. Volte amanhã.`
-        : `Restam só ${remaining} ${remaining === 1 ? "requisição" : "requisições"} ao Google hoje.`,
-    );
-  }
+  const used = await requestsToday(db, GOOGLE_PLACES);
+  const blocker = searchQuotaBlocker(input.maxResults, { used, limit });
+  if (blocker) throw new Error(blocker);
   const provider = getPlacesProvider(env.GOOGLE_PLACES_API_KEY, () =>
     reserveRequest(db, GOOGLE_PLACES, limit),
   );

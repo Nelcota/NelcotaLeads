@@ -71,12 +71,26 @@ export function groupAgenda(entries: readonly AgendaEntry[], today: string): Age
   return [{ day: OVERDUE_DAY, label: "Atrasados", entries: overdue }, ...groups];
 }
 
-/** What is due today: the overdue follow-ups first, then today's rows ("Agenda de hoje"). */
-export function dueToday(entries: readonly AgendaEntry[], today: string): AgendaEntry[] {
-  return groupAgenda(
-    entries.filter((entry) => entry.day <= today),
-    today,
-  ).flatMap((group) => group.entries);
+/** "Agenda de hoje" in two groups: the overdue rows (oldest first), then today's (by time). */
+export type TodaysAgenda = { overdue: AgendaEntry[]; today: AgendaEntry[] };
+
+/** What is due today, split so the overdue rows never pass for today's. */
+export function todaysAgenda(entries: readonly AgendaEntry[], today: string): TodaysAgenda {
+  return {
+    overdue: entries.filter((entry) => entry.day < today).toSorted(byDayThenTime),
+    today: entries.filter((entry) => entry.day === today).toSorted(byTime),
+  };
+}
+
+/** "1 hoje · 3 atrasados", leaving out a zero part; "" when nothing is due. */
+export function todaysAgendaCount({ overdue, today }: TodaysAgenda): string {
+  const todayPart = today.length > 0 ? `${today.length} hoje` : "";
+  const overduePart = overdue.length > 0 ? overdueCount(overdue.length) : "";
+  return [todayPart, overduePart].filter(Boolean).join(" · ");
+}
+
+function overdueCount(count: number): string {
+  return count === 1 ? "1 atrasado" : `${count} atrasados`;
 }
 
 /** The row's "when": the meeting's time, "dia todo" for a follow-up, its day when overdue. */

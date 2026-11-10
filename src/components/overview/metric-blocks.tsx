@@ -17,12 +17,18 @@ export function MetricBlocks({ blocks, caption }: { blocks: MetricBlock[]; capti
             {block.title}
             <span className="text-[14px] font-normal text-tertiary">{caption}</span>
           </h2>
-          <p className="flex items-baseline gap-2 border-b border-border/60 pb-3">
-            <span className="text-3xl leading-none font-semibold tracking-[-0.03em] tabular-nums">
-              {block.big}
-            </span>
-            <span className="text-sm text-muted-foreground">{block.caption}</span>
-          </p>
+          {block.empty ? (
+            <p className="flex min-h-[42px] items-end border-b border-border/60 pb-3 text-[15px] text-muted-foreground">
+              {block.empty}
+            </p>
+          ) : (
+            <p className="flex items-baseline gap-2 border-b border-border/60 pb-3">
+              <span className="text-3xl leading-none font-semibold tracking-[-0.03em] tabular-nums">
+                {block.big}
+              </span>
+              <span className="text-sm text-muted-foreground">{block.caption}</span>
+            </p>
+          )}
           <dl className="grid gap-2">
             {block.rows.map((row) => (
               <div
