@@ -262,7 +262,7 @@ test.describe("e-mail conversations", () => {
     await expect(row).toContainText("Descartado");
     await page.getByRole("checkbox", { name: `Selecionar ${LEAD.name}` }).check();
     await expect(page.getByText("1 fica de fora do disparo")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Disparar 0 selecionados" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Disparar (0)" })).toBeDisabled();
 
     await backend.tick(later);
     expect(await backend.sent()).toHaveLength(1);

@@ -9,7 +9,7 @@ import {
   UserIcon,
   UserPlusIcon,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { DisabledReason, EmptyState, Hint } from "@/components/apple-ui";
@@ -44,6 +44,7 @@ import { useLeadStatusChange } from "@/hooks/use-lead-status-change";
 import { useLeadsHotkeys } from "@/hooks/use-leads-hotkeys";
 import { useListSelection } from "@/hooks/use-list-selection";
 import { clean, hasFilters, NO_FILTERS, popoverFilterCount } from "@/lib/lead-filters";
+import { dispatchBlocker, dispatchButtonLabel, selectReadyLabel } from "@/lib/dispatch-review";
 import { isReadyToDispatch } from "@/lib/lead-row";
 import { pageTitle } from "@/lib/page-title";
 import { whatsappLink } from "@/lib/phone";
@@ -65,8 +66,6 @@ const searchSchema = lenientSearch(
   leadFiltersSchema.extend({
     lead: z.string().max(64).optional(),
     missing: z.boolean().optional(),
-    // "Disparar prontos" from another tab: select the ready leads once A contatar loads.
-    pick: z.literal("ready").optional(),
   }),
 );
 
@@ -89,8 +88,7 @@ const SORT_START: Record<SortKey, "asc" | "desc"> = { name: "asc", score: "desc"
 export const Route = createFileRoute("/leads/")({
   head: () => ({ meta: [{ title: pageTitle("Leads") }] }),
   validateSearch: searchSchema,
-  loaderDeps: ({ search: { lead: _lead, missing: _missing, pick: _pick, ...filters } }) =>
-    withView(filters),
+  loaderDeps: ({ search: { lead: _lead, missing: _missing, ...filters } }) => withView(filters),
   loader: ({ context, deps }) =>
     Promise.all([
       context.queryClient.ensureQueryData(leadsQuery(deps)),
@@ -113,7 +111,7 @@ function sortState(filters: LeadFilters): SortState {
 }
 
 function LeadsPage() {
-  const { lead: openLeadId, missing, pick, ...search } = Route.useSearch();
+  const { lead: openLeadId, missing, ...search } = Route.useSearch();
   const filters = withView(search);
   const view = filters.view ?? DEFAULT_VIEW;
   const navigate = useNavigate({ from: "/leads/" });
@@ -122,7 +120,7 @@ function LeadsPage() {
     "Lead não encontrado",
     () => void navigate({ search: (prev) => ({ ...prev, missing: undefined }), replace: true }),
   );
-  const { data: list, isPlaceholderData } = useQuery(leadsQuery(filters));
+  const { data: list } = useQuery(leadsQuery(filters));
   const rows = list?.rows;
   const { data: counts } = useQuery(leadCountsQuery(filters));
   const openNewSearch = useOpenNewSearch();
@@ -133,8 +131,6 @@ function LeadsPage() {
   const [dispatching, setDispatching] = useState(false);
   const [adding, setAdding] = useState(false);
   const [discarding, setDiscarding] = useState({ open: false, ids: [] as string[] });
-  // The tab change remounts the page, so the request rides in the URL (`pick`), not in state.
-  const [pickDone, setPickDone] = useState(false);
 
   // The selection and the page belong to one list: another tab, filter, search or order resets them.
   const listKey = JSON.stringify(clean(filters));
@@ -148,33 +144,18 @@ function LeadsPage() {
   const page = Math.min(requestedPage, lastPage);
   const pageRows = loaded.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
   const readyIds = loaded.filter(isReadyToDispatch).map((lead) => lead.id);
-  // One dispatch reviews at most DISPATCH_LIMIT e-mails; "Disparar prontos" picks that many.
+  // One dispatch reviews at most DISPATCH_LIMIT e-mails; "Selecionar prontos" picks that many.
   const pickableIds = readyIds.slice(0, DISPATCH_LIMIT);
   const selectedRows = loaded.filter((lead) => selection.selected.has(lead.id));
   // Keep the count and the enabled state aligned with the actual dispatch rules.
-  const sendable = selectedRows.filter(isReadyToDispatch).map((lead) => lead.id);
+  const sendableRows = selectedRows.filter(isReadyToDispatch);
+  const sendable = sendableRows.map((lead) => lead.id);
+  const recipients = sendableRows.map(({ id, name, email }) => ({ id, name, email }));
   const pendingInList = loaded.filter((lead) => lead.analysisStatus === "pending").length;
 
   const statusChange = useLeadStatusChange(selection.clear);
   const chips = useFilterChips(filters);
   const filtered = hasFilters(filters);
-
-  // Adjusted during render: once A contatar has loaded, select its ready leads.
-  if (
-    pick === "ready" &&
-    !pickDone &&
-    view === "todo" &&
-    rows !== undefined &&
-    !isPlaceholderData
-  ) {
-    setPickDone(true);
-    selection.replace(pickableIds);
-  }
-  // Then drop `pick` from the address, so Back or a reload does not select again.
-  useEffect(() => {
-    if (!pick || !pickDone) return;
-    void navigate({ search: (prev) => ({ ...prev, pick: undefined }), replace: true });
-  }, [pick, pickDone, navigate]);
 
   const setFilters = (patch: Partial<LeadFilters>) =>
     void navigate({ search: (prev) => clean({ ...prev, ...patch }), replace: true });
@@ -229,49 +210,21 @@ function LeadsPage() {
   });
 
   // Same reasons as the selection bar, so the header button never goes dead without a word.
-  const dispatchReason =
-    selection.selected.size === 0
-      ? false
-      : sendable.length === 0
-        ? "Nenhum lead selecionado pode receber o primeiro e-mail"
-        : sendable.length > DISPATCH_LIMIT
-          ? `Selecione até ${DISPATCH_LIMIT} leads com e-mail por disparo`
-          : false;
-  const primary =
-    selection.selected.size > 0
-      ? {
-          label: `Disparar ${sendable.length} ${sendable.length === 1 ? "selecionado" : "selecionados"}`,
-          disabled: Boolean(dispatchReason),
-          onClick: () => setDispatching(true),
-        }
-      : {
-          label:
-            view === "todo"
-              ? `Disparar ${readyIds.length} ${readyIds.length === 1 ? "pronto" : "prontos"}`
-              : "Disparar prontos",
-          disabled: view === "todo" && readyIds.length === 0,
-          onClick: () => {
-            if (view === "todo") {
-              selection.replace(pickableIds);
-              const picked = pickableIds.length;
-              toast(
-                `${picked} ${picked === 1 ? "lead pronto marcado" : "leads prontos marcados"}. Confira e clique em Disparar.`,
-                {
-                  description:
-                    readyIds.length > picked
-                      ? `Um disparo leva até ${DISPATCH_LIMIT} e-mails; os outros ${readyIds.length - picked} ficam para o próximo.`
-                      : undefined,
-                },
-              );
-              return;
-            }
-            void navigate({
-              search: (prev) =>
-                clean({ ...prev, view: "todo", sort: undefined, dir: undefined, pick: "ready" }),
-              replace: true,
-            });
-          },
-        };
+  const dispatchReason = dispatchBlocker({
+    selected: selection.selected.size,
+    sendable: sendable.length,
+    limit: DISPATCH_LIMIT,
+  });
+  const dispatchLabel = dispatchButtonLabel(sendable.length);
+
+  const selectReady = () => {
+    selection.replace(pickableIds);
+    const left = readyIds.length - pickableIds.length;
+    if (left <= 0) return;
+    toast(`${pickableIds.length} leads prontos selecionados`, {
+      description: `Um disparo leva até ${DISPATCH_LIMIT} e-mails; os outros ${left} ficam para o próximo.`,
+    });
+  };
 
   const exportHref = `/api/leads.csv?${new URLSearchParams(
     Object.entries(clean(filters)).map(([key, value]) => [key, String(value)]),
@@ -316,10 +269,11 @@ function LeadsPage() {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+      {/* Keeps its text on phones too: the one primary action of the page. */}
       <DisabledReason reason={dispatchReason}>
-        <Button disabled={primary.disabled} onClick={primary.onClick} aria-label={primary.label}>
+        <Button disabled={Boolean(dispatchReason)} onClick={() => setDispatching(true)}>
           <SendIcon />
-          <span className="max-sm:hidden">{primary.label}</span>
+          {dispatchLabel}
         </Button>
       </DisabledReason>
     </>
@@ -427,6 +381,11 @@ function LeadsPage() {
             <UserIcon />
             Meus leads
           </ChoicePill>
+          {readyIds.length > 0 ? (
+            <Button variant="ghost" onClick={selectReady}>
+              {selectReadyLabel(readyIds.length)}
+            </Button>
+          ) : null}
           <div className="ml-auto">
             <FiltersButton
               filters={filters}
@@ -496,7 +455,7 @@ function LeadsPage() {
       />
 
       <DispatchSheet
-        leadIds={sendable}
+        recipients={recipients}
         open={dispatching}
         onOpenChange={setDispatching}
         onDispatched={selection.clear}

@@ -79,6 +79,19 @@ export function coldDailyLimit(limit: number): number {
   return Math.max(0, limit - reserve);
 }
 
+/**
+ * What today's cold outreach still has room for: the cold share of the daily `limit`, the
+ * e-mails already sent today (any kind, as the send loop counts them) and the cold e-mails
+ * already queued. Read only.
+ */
+export async function loadColdRoom(db: Db, limit: number, now = new Date()) {
+  const [sentToday, queuedCold] = await Promise.all([
+    requestsToday(db, EMAIL_PROVIDER, now),
+    db.$count(emails, and(eq(emails.status, "queued"), isNull(emails.sentAt), isColdOutreach)),
+  ]);
+  return { coldLimit: coldDailyLimit(limit), sentToday, queuedCold };
+}
+
 /** First e-mails one automatic dispatch run may draft. */
 export const AUTO_DISPATCH_PER_RUN = 20;
 // Parallel model calls when drafting many first e-mails at once.
@@ -478,6 +491,42 @@ export async function prepareDrafts(
     }
   }
   return { drafts, skipped };
+}
+
+/**
+ * The first-e-mail drafts `prepareDrafts` would reuse for these leads, read only: no AI call,
+ * nothing written. Opening the review shows them before anyone asks the AI for the rest.
+ */
+export async function findReusableDrafts(db: Db, leadIds: string[]): Promise<Email[]> {
+  if (leadIds.length === 0) return [];
+  const rows = await db.select().from(leads).where(inList(leads.id, leadIds));
+  if (rows.length === 0) return [];
+  const ids = rows.map((lead) => lead.id);
+  const [outgoing, blockedRows] = await Promise.all([
+    db
+      .select()
+      .from(emails)
+      .where(
+        and(
+          inList(emails.leadId, ids),
+          eq(emails.direction, "out"),
+          sql`not ${cancelledByDiscard()}`,
+        ),
+      )
+      .orderBy(desc(emails.createdAt)),
+    db
+      .select({ id: leads.id })
+      .from(leads)
+      .where(and(inList(leads.id, ids), unsubscribedAddress)),
+  ]);
+  const lastOut = firstOf(outgoing);
+  const blocked = new Set(blockedRows.map((row) => row.id));
+  return rows.flatMap((lead) => {
+    const existing = lastOut.get(lead.id);
+    if (!existing) return [];
+    if (draftBlocker(lead, existing, blocked.has(lead.id))) return [];
+    return [existing];
+  });
 }
 
 /** Rewrites one draft with the AI. */

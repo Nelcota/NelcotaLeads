@@ -18,8 +18,10 @@ import {
   ensureOptOut,
   EMAIL_PROVIDER,
   findBouncedEmail,
+  findReusableDrafts,
   handleInbound,
   isUnsubscribeRequest,
+  loadColdRoom,
   outgoingIssues,
   pollInbox,
   prepareDrafts,
@@ -101,6 +103,33 @@ describe("e-mail outreach", () => {
     // A second call reuses the draft instead of paying for a new one.
     const again = await prepareDrafts({ db, analyzer, fromAddress: FROM }, ["a"]);
     expect(again.drafts[0]?.id).toBe(drafts[0]?.id);
+  });
+
+  it("finds the reusable drafts without writing any", async () => {
+    expect(await findReusableDrafts(db, ["a", "b"])).toEqual([]);
+    expect(await leadEmails("a")).toHaveLength(0);
+    const { drafts } = await prepareDrafts({ db, analyzer, fromAddress: FROM }, ["a", "b"]);
+    const found = await findReusableDrafts(db, ["a", "b"]);
+    expect(found.map((draft) => draft.id)).toEqual(drafts.map((draft) => draft.id));
+    // Once queued it is no longer a draft to review.
+    await queueDrafts(
+      db,
+      drafts.map((draft) => draft.id),
+      new Date("2026-10-11T12:00:00Z"),
+    );
+    expect(await findReusableDrafts(db, ["a"])).toEqual([]);
+  });
+
+  it("reads today's cold room: cold share of the limit, sends and queued cold e-mails", async () => {
+    const now = new Date("2026-10-11T12:00:00Z");
+    expect(await loadColdRoom(db, 30, now)).toEqual({ coldLimit: 24, sentToday: 0, queuedCold: 0 });
+    const { drafts } = await prepareDrafts({ db, analyzer, fromAddress: FROM }, ["a"]);
+    await queueDrafts(
+      db,
+      drafts.map((draft) => draft.id),
+      now,
+    );
+    expect(await loadColdRoom(db, 30, now)).toEqual({ coldLimit: 24, sentToday: 0, queuedCold: 1 });
   });
 
   it("sends queued e-mails one per tick, within the daily limit, and marks the lead contacted", async () => {

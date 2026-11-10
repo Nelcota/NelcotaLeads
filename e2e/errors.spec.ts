@@ -43,11 +43,12 @@ test.describe("provider failures", () => {
     await backend.fault("writeEmail");
 
     await visit(page, "/leads");
-    await page.getByRole("button", { name: "Disparar 2 prontos" }).click();
+    await page.getByRole("button", { name: "Selecionar prontos (2)" }).click();
     await page
       .getByRole("region", { name: "Ações da seleção" })
       .getByRole("button", { name: "Disparar" })
       .click();
+    await page.getByRole("dialog").getByRole("button", { name: "Escrever 2 e-mails" }).click();
 
     const sheet = page.getByRole("dialog", { name: "Disparar 1 e-mail" });
     await expect(sheet.getByText("Ficaram de fora")).toBeVisible();
@@ -65,11 +66,12 @@ test.describe("provider failures", () => {
 
     // The skipped lead can be retried right away (reloaded: the tick sent the other one).
     await reload(page);
-    await page.getByRole("button", { name: "Disparar 1 pronto" }).click();
+    await page.getByRole("button", { name: "Selecionar prontos (1)" }).click();
     await page
       .getByRole("region", { name: "Ações da seleção" })
       .getByRole("button", { name: "Disparar" })
       .click();
+    await page.getByRole("dialog").getByRole("button", { name: "Escrever 1 e-mail" }).click();
     const retry = page.getByRole("dialog", { name: "Disparar 1 e-mail" });
     await expect(retry.getByLabel("Assunto")).toHaveValue(/^Assunto para Clínica (Norte|Sul)$/);
     await expect(retry.getByText("Ficaram de fora")).toHaveCount(0);
