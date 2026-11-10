@@ -28,13 +28,12 @@ export function ConversationFilters({
   onChange: (filter: ConversationFilter) => void;
 }) {
   return (
-    <div role="radiogroup" aria-label="Filtrar conversas" className="grid grid-cols-2 gap-2">
+    <div role="group" aria-label="Filtrar conversas" className="grid grid-cols-2 gap-2">
       {CONVERSATION_FILTERS.map((filter) => {
         const pill = (
           <ChoicePill
             key={filter}
-            role="radio"
-            aria-checked={filter === value}
+            aria-pressed={filter === value}
             selected={filter === value}
             count={String(countOf(filter))}
             className={cn("w-full justify-between", filter === "all" && "col-span-2")}

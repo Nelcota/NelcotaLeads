@@ -30,7 +30,7 @@ import {
 import { ConversationStateLabel } from "@/components/conversas/conversation-state-label";
 import { HandoffNotice } from "@/components/conversas/handoff-notice";
 import { LeadPanel } from "@/components/conversas/lead-panel";
-import type { MessageActions } from "@/components/conversas/message-bubble";
+import type { MessageActions } from "@/components/conversas/message-buttons";
 import { ReplyComposer } from "@/components/conversas/reply-composer";
 import { ThreadMessages } from "@/components/conversas/thread-messages";
 import { Button } from "@/components/ui/button";
@@ -75,6 +75,7 @@ import { useUrlSearchBox } from "@/hooks/use-url-search-box";
 import { whatsappLink } from "@/lib/phone";
 import { useListHotkeys } from "@/hooks/use-list-hotkeys";
 import { useLeadDeal } from "@/hooks/use-lead-deal";
+import { useLeadPanelOpen } from "@/hooks/use-lead-panel-open";
 import { useReadLeadReplies } from "@/hooks/use-read-lead-replies";
 import { CloseDealDialog, type CloseDealMode } from "@/components/lead/close-deal-dialog";
 
@@ -109,6 +110,8 @@ function ConversationsPage() {
   const navigate = useNavigate({ from: "/conversas" });
   const searchRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
+  // Lives here, not in the thread, so hiding it holds while you move between conversations.
+  const leadPanel = useLeadPanelOpen();
   // The list filters at once; the URL catches up when the typing pauses.
   const searchBox = useUrlSearchBox(urlQuery, (next) => {
     void navigate({ search: (prev) => ({ ...prev, q: next || undefined }), replace: true });
@@ -342,7 +345,13 @@ function ConversationsPage() {
         </div>
 
         {openId ? (
-          <Thread key={openId} leadId={openId} onBack={() => select(undefined)} />
+          <Thread
+            key={openId}
+            leadId={openId}
+            onBack={() => select(undefined)}
+            panelOpen={leadPanel.open}
+            onTogglePanel={leadPanel.toggle}
+          />
         ) : (
           <div
             className="enter hidden items-center justify-center lg:flex"
@@ -356,7 +365,17 @@ function ConversationsPage() {
   );
 }
 
-function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
+function Thread({
+  leadId,
+  onBack,
+  panelOpen,
+  onTogglePanel,
+}: {
+  leadId: string;
+  onBack: () => void;
+  panelOpen: boolean;
+  onTogglePanel: () => void;
+}) {
   const { data } = useQuery(conversationQuery(leadId));
   useReadLeadReplies(leadId, data?.messages);
   const refresh = useRefresh();
@@ -459,8 +478,6 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
   // "Fechar negócio" and "Encerrar sem negócio" open the lead panel's forms in a dialog. The
   // reply in progress is saved first, so it is part of what the close keeps (and undo restores).
   const [closing, setClosing] = useState<CloseDealMode | null>(null);
-  // The lead panel beside the thread (wide screens only); hiding it gives the thread its width.
-  const [panelOpen, setPanelOpen] = useState(true);
   const deal = useLeadDeal(leadId, {
     onChanged: () => queryClient.invalidateQueries({ queryKey: leadSalesQuery(leadId).queryKey }),
     beforeClose: () => autosave.flush(),
@@ -589,7 +606,7 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
               className="max-xl:hidden"
               aria-pressed={panelOpen}
               aria-label={panelOpen ? "Esconder dados do lead" : "Mostrar dados do lead"}
-              onClick={() => setPanelOpen((open) => !open)}
+              onClick={onTogglePanel}
             >
               {panelOpen ? <PanelRightCloseIcon /> : <PanelRightOpenIcon />}
             </Button>
@@ -641,7 +658,7 @@ function Thread({ leadId, onBack }: { leadId: string; onBack: () => void }) {
           {lead.phone ? (
             <Hint label="Ligar">
               <Button asChild size="icon-sm" variant="outline" aria-label="Ligar">
-                <a href={`tel:${lead.phone}`}>
+                <a href={`tel:${lead.phoneE164 ?? lead.phone}`}>
                   <PhoneIcon className="text-green" />
                 </a>
               </Button>
