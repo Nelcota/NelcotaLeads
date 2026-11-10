@@ -13,6 +13,7 @@ const base = {
   queued: 3,
   sentToday: 5,
   limit: 30,
+  coldLimit: 24,
   windowStart: 6,
   windowEnd: 18,
 };
@@ -90,6 +91,19 @@ describe("replyHourChart", () => {
     expect(chart.peak).toBe(9);
     // 12h and 20h are outside 8:00–11:59: 4 of 8 replies.
     expect(chart.outsidePercent).toBe(50);
+    expect(chart.outside).toBe(4);
+  });
+
+  it("never reads 100% outside while one reply came inside the window", () => {
+    const chart = replyHourChart(
+      [
+        { hour: 9, value: 1 },
+        { hour: 20, value: 300 },
+      ],
+      { start: 8, end: 12 },
+    );
+    expect(chart.outside).toBe(300);
+    expect(chart.outsidePercent).toBe(99);
   });
 });
 
@@ -110,5 +124,15 @@ describe("buildAlerts", () => {
 
   it("has no setup alert once the offer exists", () => {
     expect(buildAlerts(alertSource(true), 0)).toEqual([]);
+  });
+});
+
+describe("cold limit", () => {
+  // MAIL_DAILY_LIMIT 30 keeps 6 for replies: first e-mails stop at 24.
+  it("stops the dispatch at the cold share of the limit, before the full limit", () => {
+    expect(dispatchRunState({ ...base, sentToday: 24 }, MORNING).label).toBe(
+      "Limite do dia atingido",
+    );
+    expect(dispatchRunState({ ...base, sentToday: 23 }, MORNING).label).toBe("Rodando");
   });
 });

@@ -71,7 +71,7 @@ test.describe("browser defaults", () => {
 
     await visit(page, "/leads");
     await expect(
-      page.getByRole("searchbox", { name: "Buscar por nome, e-mail, telefone ou endereço" }),
+      page.getByRole("searchbox", { name: "Buscar por nome, e-mail, telefone ou bairro" }),
     ).toHaveAttribute("autocomplete", "off");
 
     const resize = await page.evaluate(() => {

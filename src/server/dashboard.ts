@@ -23,7 +23,7 @@ import { autopilotInputSchema } from "@/lib/schemas";
 import { ALREADY_RAN_MESSAGE, autopilotDeps, runAutopilot } from "./autopilot";
 import { cancellableFirstEmails } from "./dispatch-control";
 import { recordJobRun } from "./job-runs";
-import { EMAIL_PROVIDER, mailDailyLimit, wasContacted } from "./mail-flow";
+import { coldDailyLimit, EMAIL_PROVIDER, mailDailyLimit, wasContacted } from "./mail-flow";
 import {
   loadAutopilot,
   loadConfig,
@@ -346,6 +346,8 @@ export const getDashboard = createServerFn({ method: "GET" }).handler(async () =
       address: (env.MAIL_ADDRESS ?? "").toLowerCase(),
       sentToday,
       limit: mailDailyLimit(env.MAIL_DAILY_LIMIT),
+      // First e-mails stop here; the rest of the limit is kept for conversation replies.
+      coldLimit: coldDailyLimit(mailDailyLimit(env.MAIL_DAILY_LIMIT)),
       queued: queue[0]?.value ?? 0,
       nextSendAt: queue[0]?.next ? new Date(queue[0].next * 1000) : null,
       failedToday: failedToday[0]?.value ?? 0,

@@ -255,8 +255,9 @@ function AutopilotForm() {
       await queryClient.invalidateQueries({ queryKey: ["autopilot"] });
       await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
-    onError: (error, { name, checked }) => {
-      form.setValue(name, !checked);
+    onError: (error, { name }) => {
+      // Back to the saved default, and not dirty: nothing changed on the server.
+      form.resetField(name);
       errorToast("Não foi possível mudar a automação")(error);
     },
   });

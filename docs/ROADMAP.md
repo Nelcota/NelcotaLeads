@@ -24,6 +24,7 @@ The steps, in this order: (1) Visão geral with the new layout on today's data; 
 - Leads page redesign, in the Visão geral language: mockup first, approved by the user before any code; built in `.claude/worktrees/leads-redesign`. Layout and actions, not only visuals; the choices are in the two 2026-11-07 Leads decisions below. No e-mail. No migration, except the unread-reply mark, which is its own step under guard rule 7. (2026-11-07, chosen by the user over six rounds of questions and the canvas review)
 - Integrated app shell, like Nelcota PRs: the sidebar and the content share one background (no rounded inset panel around the content), a wider sidebar (256px) with 44px items, the active item in solid blue, the Sistema group and a visible "Recolher menu" button at the bottom (moved here from Next), status badges in the 2026-11-05 standard. Changes every page, no change in behavior. Built in `.claude/worktrees/integrated-shell`. (2026-11-08, canvas approved by the user: "Aprovado", then "Colocar em Now")
 - One button standard for the whole app: a single pill design with five roles (primary, secondary, ghost, danger, link), three heights (32 compact, 40 default, 48 sign-in) and one selectable pill (`ChoicePill`) that replaces the seven filter/tab/segmented variants found in the 2026-11-08 audit. Mockup first, approved by the user before any code; built in `.claude/worktrees/button-standard`. Visual only, no change in behavior. The scope is in the 2026-11-08 decision below. (2026-11-08, chosen by the user: "Now + mockup")
+- Conversas redesign: the open conversation in the new layout, from the canvas "Nelcota-leads · Conversas (lead aberto)". Chat bubbles (company right, client left), day separators, older messages collapsed, a collapsible lead panel, a reply field that grows as you type, filters as one grid of `ChoicePill`, badges and buttons in the 2026-11-08 standards, no shadows, no tinted fills. Visual and layout only: no new data, no e-mail change, no migration. Built in `.claude/worktrees/conversas-redesign` on top of `style/button-standard`. The scope is in the 2026-11-08 decision below. (2026-11-08, the user: "agora aplique nossas modificações no localhost 3040", then "Sim, mover para Now")
 
 ## Next
 
@@ -47,6 +48,13 @@ The steps, in this order: (1) Visão geral with the new layout on today's data; 
 - Alert for interested leads left without an answer: a single alert on the Visão geral after 1 day without contact ("não podemos perder tempo com clientes"). (2026-11-03, accepted by the user; on 2026-11-07 it became a category of the notification center in Now)
 - Nelcota's own agenda, v1: meetings created in the lead, shown on the Visão geral from the start and in their own sidebar item. Built in PR #23 (14-day list, follow-ups, owner filter); the calendar views moved to Now on 2026-11-05. (2026-11-03, accepted by the user)
 - Best reply hour: when leads answer, by hour, to tune the 6h–18h window. Where it shows is still to decide. (2026-11-03, accepted by the user)
+- Conversas, new functions after the Conversas redesign; each gets its own mockup first:
+  - Stage and owner in the side panel: the lead's stage (Novo → Fechado) and who took it (Haniel, Phellipe or Guilherme), read from data the Leads panel already shows. No migration.
+  - Meeting in the side panel: an "Agendar reunião" button and the next meeting booked with the lead, from the agenda that already exists. No migration.
+  - Undo send: a few seconds to cancel or edit a reply after clicking Enviar, like Gmail. Changes how e-mail is sent, so guard rule 7 applies.
+  - Quick AI replies: two or three short replies suggested by the AI above the reply field, reviewed and sent with one click. Spends AI calls per conversation opened; sending stays manual.
+    (2026-11-08, chosen by the user; guard rule 4: offers accepted go to Next, not built)
+- Conversas code split, no visual change: move the thread's queries, mutations and draft autosave out of `src/routes/conversas.tsx` (about 770 lines) into a `useConversationThread` hook, and the thread into `src/components/conversas/conversation-thread.tsx`, so the page keeps only the list. Its own PR, after the redesign. (2026-11-09, found by /revisar; the user: "corrija")
 
 ## Later
 
@@ -56,6 +64,13 @@ The steps, in this order: (1) Visão geral with the new layout on today's data; 
 - Agenda, left out of the full model on 2026-11-05: meeting end time and attendees, events without a lead (team meeting, site delivery, blocked time), work hours, a public booking link for leads with an `.ics` invite, an e-mail reminder to the lead and recurring events. Each needs a migration or sends e-mail, so guard rule 7 applies. (2026-11-05; on 2026-11-06 the outcome and overlap warning moved to Next and the `.ics` feed was dropped)
 
 ## Decisions
+
+### 2026-11-08: Conversas redesign, canvas review
+
+- **Decision:** the open conversation follows the canvas "Nelcota-leads · Conversas (lead aberto)". E-mails show as bubbles: the company (AI or a partner) on the right with a blue 1px border and the "N" mark, the client on the left in a lighter solid surface; no colored fill. Day separators ("Hoje", "Ontem", "Qui, 05/11") and only the time on each bubble. Threads longer than four messages show the last three and "Ver N mensagens anteriores". The lead panel collapses from a button next to "IA no comando". The reply field starts at one line and grows to about 220px. "Devolver para a IA" moves to the "A IA parou" notice. Filters are a two-column grid of `ChoicePill`, "Todas" across the top. A failed send shows a red-bordered bubble with "Tentar de novo" and "Editar". Thin scrollbars in the border color; one focus border on the search field. Text weight 400 (not 300); the subject at 22px.
+- **Why:** the user's comments on the canvas, 2026-11-08 ("vícios de I.A", "vícios de navegador", "cores extremamente escuras", "balões de conversa mais visíveis", "aumenta de tamanho conforme você vai escrevendo").
+- **Discarded:** editing a sent e-mail like WhatsApp (an e-mail already in the client's inbox cannot change); undo send went to Next.
+- **Review if:** the bubble border is not enough to tell company from client in the light theme.
 
 ### 2026-11-08: one button standard for the whole app
 

@@ -101,6 +101,8 @@ export function leadPatch(
 ): Patch {
   if (!anyStatus) assertTransition(current, changes.status);
   const patch: Patch = { ...changes, ...(changes.status ? outcomeReset(changes.status) : {}) };
+  // Back in the queue, the lead was never contacted: the next contact gets its own date.
+  if (changes.status === "new") patch.contactedAt = null;
   if (changes.status === "contacted") {
     patch.contactedAt = current.contactedAt ?? now;
     if (changes.followUpOn === undefined && !current.followUpOn) {

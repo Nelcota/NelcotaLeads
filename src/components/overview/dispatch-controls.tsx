@@ -15,8 +15,9 @@ export function DispatchControls({
     return (
       <div role="alert" className="grid gap-3 rounded-[14px] bg-card-2 px-3.5 py-3 text-sm">
         <p>
-          Cancelar {cancellable === 1 ? "o 1 e-mail" : `os ${cancellable} e-mails`} que ainda não
-          saíram hoje? Os leads voltam para A contatar.
+          {cancellable === 1
+            ? "Cancelar o e-mail que ainda não saiu hoje? O lead volta para A contatar."
+            : `Cancelar os ${cancellable} e-mails que ainda não saíram hoje? Os leads voltam para A contatar.`}
         </p>
         <div className="flex flex-wrap gap-2">
           <Button

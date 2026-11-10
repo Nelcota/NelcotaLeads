@@ -94,15 +94,36 @@ function PeriodMetrics({
   period: OverviewPeriod;
   onPeriodChange: (period: OverviewPeriod) => void;
 }) {
-  const { data: metrics } = useQuery(overviewMetricsQuery(period));
+  const { data: metrics, isError } = useQuery(overviewMetricsQuery(period));
   const caption = PERIOD_CAPTIONS[period];
-  if (!metrics) return <Skeleton className="h-56 rounded-[20px]" />;
+  // On a phone the header has no room for the selector; it sits above the metrics instead,
+  // and stays put while another period loads so the tapped pill does not vanish.
+  const selector = (
+    <div className="sm:hidden">
+      <PeriodSelector value={period} onChange={onPeriodChange} />
+    </div>
+  );
+  if (isError && !metrics) {
+    return (
+      <>
+        {selector}
+        <p role="alert" className="grouped px-5 py-6 text-[15px] text-muted-foreground">
+          Não foi possível carregar as métricas do período. Recarregue a página para tentar de novo.
+        </p>
+      </>
+    );
+  }
+  if (!metrics) {
+    return (
+      <>
+        {selector}
+        <Skeleton className="h-56 rounded-[20px]" />
+      </>
+    );
+  }
   return (
     <>
-      {/* On a phone the header has no room for it; it sits above the metrics instead. */}
-      <div className="sm:hidden">
-        <PeriodSelector value={period} onChange={onPeriodChange} />
-      </div>
+      {selector}
       <MetricBlocks blocks={metricBlocks(data, metrics)} caption={caption} />
       <div className="grid gap-3 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
         <FunnelCard
@@ -146,13 +167,17 @@ function OverviewPage() {
       description={
         empty ? null : (
           <>
-            <Stat value={data.stats.leads}>leads na base</Stat>
+            <Stat value={data.stats.leads} one="lead na base">
+              leads na base
+            </Stat>
             {" · "}
-            <Stat value={data.stats.readyToSend}>prontos para disparo</Stat>
+            <Stat value={data.stats.readyToSend} one="pronto para disparo">
+              prontos para disparo
+            </Stat>
             {data.stats.interested > 0 ? (
               <>
                 {" · "}
-                <Stat value={data.stats.interested} tone="orange">
+                <Stat value={data.stats.interested} tone="orange" one="precisa de você">
                   precisam de você
                 </Stat>
               </>

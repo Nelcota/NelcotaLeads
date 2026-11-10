@@ -1,4 +1,4 @@
-import { queryOptions, type QueryClient } from "@tanstack/react-query";
+import { keepPreviousData, queryOptions, type QueryClient } from "@tanstack/react-query";
 import type { OverviewPeriod } from "@/lib/period";
 import { LEAD_NOT_FOUND, type LeadFilters } from "@/lib/schemas";
 import { getAccount } from "@/server/account";
@@ -58,6 +58,9 @@ export const leadsQuery = (filters: LeadFilters) =>
     // Keep refreshing while the queue is still analyzing some of the visible leads.
     refetchInterval: (query) =>
       query.state.data?.rows.some((lead) => lead.analysisStatus === "pending") ? 3000 : false,
+    // While a search or filter change loads, the list keeps the last rows instead of flashing
+    // "Nenhum lead" between keystrokes.
+    placeholderData: keepPreviousData,
   });
 
 export const leadQuery = (id: string) =>
@@ -75,6 +78,8 @@ export const leadCountsQuery = (filters: LeadFilters) =>
     queryKey: ["leads", "counts", filters],
     queryFn: () => getLeadCounts({ data: filters }),
     refetchInterval: (query) => ((query.state.data?.pending ?? 0) > 0 ? 3000 : false),
+    // The tab counts stay on screen while the next filter's counts load.
+    placeholderData: keepPreviousData,
   });
 
 export const dashboardQuery = queryOptions({
