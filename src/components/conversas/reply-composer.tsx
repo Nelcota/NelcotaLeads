@@ -1,4 +1,4 @@
-import { SendIcon, SparklesIcon } from "lucide-react";
+import { CircleAlertIcon, SendIcon, SparklesIcon } from "lucide-react";
 import type { ComponentProps, Ref } from "react";
 import { Hint } from "@/components/apple-ui";
 import { QuickReplyPicker } from "@/components/quick-reply-picker";
@@ -35,7 +35,8 @@ export function ReplyComposer({
   textarea: Omit<ComponentProps<"textarea">, "className" | "rows">;
   quickReply: { disabled: boolean; onPick: (snippet: string) => void };
   write: ComposerAction;
-  send: ComposerAction & { pending: boolean };
+  /** `blockedReason` shows next to "Enviar" when the user must act before sending. */
+  send: ComposerAction & { pending: boolean; blockedReason: string | null };
 }) {
   return (
     <div className="rounded-[18px] border border-border bg-card transition-[border-color] duration-150 focus-within:border-blue">
@@ -68,12 +69,19 @@ export function ReplyComposer({
           <SparklesIcon aria-hidden className="text-purple" />
           {write.label}
         </Button>
-        <Hint label={`Enviar ${sendShortcut()}`}>
-          <Button size="sm" className="ml-auto" disabled={send.disabled} onClick={send.onClick}>
-            <SendIcon aria-hidden />
-            {send.pending ? "Enviando…" : send.label}
-          </Button>
-        </Hint>
+        <span className="ml-auto flex min-w-0 items-center gap-3">
+          {send.blockedReason ? (
+            <StatusLabel icon={CircleAlertIcon} tone="orange" className="whitespace-normal">
+              {send.blockedReason}
+            </StatusLabel>
+          ) : null}
+          <Hint label={`Enviar ${sendShortcut()}`}>
+            <Button size="sm" disabled={send.disabled} onClick={send.onClick}>
+              <SendIcon aria-hidden />
+              {send.pending ? "Enviando…" : send.label}
+            </Button>
+          </Hint>
+        </span>
       </div>
     </div>
   );
