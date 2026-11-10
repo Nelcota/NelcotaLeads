@@ -67,3 +67,57 @@ export function appendDrafts<T extends { id: string }>(
   const known = new Set(current.map((draft) => draft.id));
   return [...current, ...added.filter((draft) => !known.has(draft.id))];
 }
+
+/** "Restam hoje" in the review: what can still go today and whether these drafts spill over. */
+export type ColdRoomSummary = { remaining: number; limit: number; spillsOver: boolean };
+
+/** The review's cold-room line, or null while today's numbers are not known. */
+export function coldRoomSummary(
+  room: { coldLimit: number; sentToday: number; queuedCold: number } | undefined,
+  drafts: number,
+): ColdRoomSummary | null {
+  if (!room) return null;
+  const remaining = coldRemaining(room);
+  return { remaining, limit: room.coldLimit, spillsOver: drafts > remaining };
+}
+
+/**
+ * Whether the review must wait before dispatching. A draft being removed or rewritten is still
+ * listed, so dispatching would send it; while the AI writes, the new drafts are not listed yet.
+ */
+export function reviewBusy(state: { removing: boolean; rewriting: boolean; writing: boolean }) {
+  return state.removing || state.rewriting || state.writing;
+}
+
+/** The server keeps the last complete version: an empty subject or body is not saved. */
+export function isSavableDraft(text: { subject: string; body: string }): boolean {
+  return text.subject.trim() !== "" && text.body.trim() !== "";
+}
+
+/** The review sheet's title: what is going on, then how many e-mails would go. */
+export function reviewTitle(state: { writing: boolean; count: number }): string {
+  if (state.writing) return "Escrevendo os e-mails…";
+  if (state.count === 0) return "Revisar disparo";
+  return `Disparar ${state.count} ${state.count === 1 ? "e-mail" : "e-mails"}`;
+}
+
+/** The line next to "Escrever": how many recipients still have no e-mail. */
+export function missingLine(count: number): string {
+  if (count === 1) return "1 destinatário ainda sem e-mail escrito.";
+  return `${count} destinatários ainda sem e-mail escrito.`;
+}
+
+/** The dispatch button's text, which also says why it is off. */
+export function dispatchLabel(state: {
+  mailConfigured: boolean;
+  dispatching: boolean;
+  removing: boolean;
+  rewriting: boolean;
+  count: number;
+}): string {
+  if (!state.mailConfigured) return "Caixa de e-mail ainda não conectada";
+  if (state.dispatching) return "Colocando na fila…";
+  if (state.removing) return "Tirando do disparo…";
+  if (state.rewriting) return "Gerando outra versão…";
+  return `Disparar ${state.count} ${state.count === 1 ? "e-mail" : "e-mails"}`;
+}

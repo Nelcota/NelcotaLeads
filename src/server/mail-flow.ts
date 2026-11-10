@@ -362,6 +362,47 @@ function draftBlocker(lead: Lead, existing: Email | undefined, blocked: boolean)
   return null;
 }
 
+type DraftContext = {
+  rows: Lead[];
+  /** The latest outgoing e-mail per lead, ignoring the ones cancelled by a discard. */
+  lastOut: Map<string, Email>;
+  /** Leads whose address asked not to receive e-mails (on this or another lead). */
+  blocked: Set<string>;
+};
+
+/**
+ * Read-only: the selected leads with what decides whether they may get a first e-mail. Shared
+ * by `prepareDrafts` and `findReusableDrafts`, so both judge a lead the same way.
+ */
+async function loadDraftContext(db: Db, leadIds: string[]): Promise<DraftContext> {
+  const rows =
+    leadIds.length > 0 ? await db.select().from(leads).where(inList(leads.id, leadIds)) : [];
+  if (rows.length === 0) return { rows, lastOut: new Map(), blocked: new Set() };
+  const ids = rows.map((lead) => lead.id);
+  const [outgoing, blockedRows] = await Promise.all([
+    db
+      .select()
+      .from(emails)
+      .where(
+        and(
+          inList(emails.leadId, ids),
+          eq(emails.direction, "out"),
+          sql`not ${cancelledByDiscard()}`,
+        ),
+      )
+      .orderBy(desc(emails.createdAt)),
+    db
+      .select({ id: leads.id })
+      .from(leads)
+      .where(and(inList(leads.id, ids), unsubscribedAddress)),
+  ]);
+  return {
+    rows,
+    lastOut: firstOf(outgoing),
+    blocked: new Set(blockedRows.map((row) => row.id)),
+  };
+}
+
 /**
  * Writes the first e-mail (as a draft) for each selected new lead that can receive one.
  * Leads that already have a draft keep it.
@@ -376,22 +417,10 @@ export async function prepareDrafts(
 
   const drafts: Email[] = [];
   const skipped: DraftSkip[] = [];
-  const rows =
-    leadIds.length > 0 ? await db.select().from(leads).where(inList(leads.id, leadIds)) : [];
+  const { rows, lastOut, blocked } = await loadDraftContext(db, leadIds);
   if (rows.length === 0) return { drafts, skipped };
   const ids = rows.map((lead) => lead.id);
-  const [outgoing, analysisRows, searchRows, blockedRows] = await Promise.all([
-    db
-      .select()
-      .from(emails)
-      .where(
-        and(
-          inList(emails.leadId, ids),
-          eq(emails.direction, "out"),
-          sql`not ${cancelledByDiscard()}`,
-        ),
-      )
-      .orderBy(desc(emails.createdAt)),
+  const [analysisRows, searchRows] = await Promise.all([
     db
       .select()
       .from(analyses)
@@ -401,15 +430,9 @@ export async function prepareDrafts(
       .select()
       .from(searches)
       .where(inList(searches.id, [...new Set(rows.map((lead) => lead.searchId))])),
-    db
-      .select({ id: leads.id })
-      .from(leads)
-      .where(and(inList(leads.id, ids), unsubscribedAddress)),
   ]);
-  const lastOut = firstOf(outgoing);
   const analysisOf = firstOf(analysisRows);
   const searchOf = new Map(searchRows.map((search) => [search.id, search]));
-  const blocked = new Set(blockedRows.map((row) => row.id));
 
   const toWrite: { lead: Lead; analysis: Analysis }[] = [];
   for (const lead of rows) {
@@ -498,29 +521,7 @@ export async function prepareDrafts(
  * nothing written. Opening the review shows them before anyone asks the AI for the rest.
  */
 export async function findReusableDrafts(db: Db, leadIds: string[]): Promise<Email[]> {
-  if (leadIds.length === 0) return [];
-  const rows = await db.select().from(leads).where(inList(leads.id, leadIds));
-  if (rows.length === 0) return [];
-  const ids = rows.map((lead) => lead.id);
-  const [outgoing, blockedRows] = await Promise.all([
-    db
-      .select()
-      .from(emails)
-      .where(
-        and(
-          inList(emails.leadId, ids),
-          eq(emails.direction, "out"),
-          sql`not ${cancelledByDiscard()}`,
-        ),
-      )
-      .orderBy(desc(emails.createdAt)),
-    db
-      .select({ id: leads.id })
-      .from(leads)
-      .where(and(inList(leads.id, ids), unsubscribedAddress)),
-  ]);
-  const lastOut = firstOf(outgoing);
-  const blocked = new Set(blockedRows.map((row) => row.id));
+  const { rows, lastOut, blocked } = await loadDraftContext(db, leadIds);
   return rows.flatMap((lead) => {
     const existing = lastOut.get(lead.id);
     if (!existing) return [];

@@ -22,7 +22,10 @@ export function useDispatchDrafts(leadIds: string[]) {
   if (drafts === null && loaded !== undefined) setDrafts(loaded);
 
   const list = drafts ?? [];
-  const missing = leadsWithoutDraft(leadIds, list, skipped);
+  // Until the saved drafts arrive nothing is known to be missing; a failed read leaves every
+  // lead to be written.
+  const awaitingDrafts = drafts === null && existing.isPending;
+  const missing = awaitingDrafts ? [] : leadsWithoutDraft(leadIds, list, skipped);
 
   const prepare = useMutation({
     mutationFn: (ids: string[]) => prepareEmails({ data: { leadIds: ids } }),
@@ -49,7 +52,7 @@ export function useDispatchDrafts(leadIds: string[]) {
     skipped,
     missing,
     // A failed read leaves nothing to show, but the AI can still write every e-mail.
-    loading: drafts === null && existing.isPending && leadIds.length > 0,
+    loading: awaitingDrafts && leadIds.length > 0,
     loadFailed: existing.isError,
     writing: prepare.isPending,
     write,
