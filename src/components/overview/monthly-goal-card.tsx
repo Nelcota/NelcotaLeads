@@ -124,7 +124,8 @@ export function MonthlyGoalCard() {
   return (
     <section aria-labelledby="monthly-goal" className="grouped enter flex flex-col">
       <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 px-5 pt-4 pb-2">
-        <h2 id="monthly-goal" className="text-[18px] font-semibold">
+        <h2 id="monthly-goal" className="flex items-center gap-2 text-[18px] font-semibold">
+          <TargetIcon aria-hidden className="size-[18px] shrink-0 text-blue" strokeWidth={2} />
           Meta do mês
         </h2>
         {data ? (

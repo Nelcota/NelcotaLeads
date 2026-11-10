@@ -113,35 +113,28 @@ export function toneVar(tone: Tone) {
   return TONE_VAR[tone];
 }
 
-/** Settings-style icon: a rounded square in the tone with a white glyph. */
+/** Line icon in the tone's color, no tile behind it; the box keeps `size` so layouts hold. */
 export function IconTile({
   icon: Icon,
   tone,
   size = 22,
-  round = false,
   className,
 }: {
   icon: LucideIcon;
   tone: Tone;
   size?: number;
+  /** Kept for callers; the bare icon has no shape to round. */
   round?: boolean;
   className?: string;
 }) {
+  const glyph = size >= 48 ? Math.round(size * 0.5) : 16;
   return (
     <span
       aria-hidden
-      className={cn(
-        "grid shrink-0 place-items-center text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.28),0_1px_2px_rgb(0_0_0/0.3)]",
-        round ? "rounded-full" : size >= 30 ? "rounded-[8px]" : "rounded-[6px]",
-        className,
-      )}
-      style={{
-        width: size,
-        height: size,
-        background: TONE_VAR[tone],
-      }}
+      className={cn("grid shrink-0 place-items-center", TONE_TEXT[tone], className)}
+      style={{ width: size, height: size }}
     >
-      <Icon style={{ width: size * 0.56, height: size * 0.56 }} strokeWidth={2.2} />
+      <Icon style={{ width: glyph, height: glyph }} strokeWidth={2} />
     </span>
   );
 }
