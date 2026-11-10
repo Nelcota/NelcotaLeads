@@ -7,21 +7,13 @@ import {
   INVITE_NOT_FOUND_MESSAGE,
 } from "@/lib/team";
 
-/** Everyone with an account, with how many leads each one has taken. Oldest account first. */
-export async function teamWithLeads(db: Db) {
-  return db
-    .select({
-      id: users.id,
-      name: users.name,
-      email: users.email,
-      avatar: users.avatar,
-      // Spelled out: inside a one-table select drizzle leaves column names unqualified.
-      leads: sql<number>`(select count(*) from leads l where l.owner_id = users.id)`.mapWith(
-        Number,
-      ),
-    })
+/** Everyone's id, in the team's order (oldest account first). */
+export async function teamMemberIds(db: Db): Promise<string[]> {
+  const rows = await db
+    .select({ id: users.id })
     .from(users)
     .orderBy(asc(users.createdAt), asc(users.name));
+  return rows.map((row) => row.id);
 }
 
 /** Invites nobody accepted yet, oldest first. */
@@ -70,6 +62,16 @@ export async function removeInvite(db: Db, id: string): Promise<void> {
     .where(and(eq(invites.id, id), isNull(invites.acceptedAt)))
     .returning({ id: invites.id });
   if (removed.length === 0) throw new Error(INVITE_NOT_FOUND_MESSAGE);
+}
+
+/** The address of a pending invite, for "Reenviar"; an accepted or removed one is refused. */
+export async function pendingInviteEmail(db: Db, id: string): Promise<string> {
+  const row = await db.query.invites.findFirst({
+    where: and(eq(invites.id, id), isNull(invites.acceptedAt)),
+    columns: { email: true },
+  });
+  if (!row) throw new Error(INVITE_NOT_FOUND_MESSAGE);
+  return row.email;
 }
 
 /** Whether `email` has an invite nobody used yet. */

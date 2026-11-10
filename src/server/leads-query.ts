@@ -18,7 +18,13 @@ import { inList } from "@/db/in-list";
 import { analyses, leads, users } from "@/db/schema";
 import { localDay } from "@/lib/format";
 import { leadNicheIs } from "./niches";
-import { SCORE_TIERS, type LeadFilters, type LeadView, type ScoreTier } from "@/lib/schemas";
+import {
+  NO_OWNER,
+  SCORE_TIERS,
+  type LeadFilters,
+  type LeadView,
+  type ScoreTier,
+} from "@/lib/schemas";
 
 /** Rows shown in the leads table; the UI asks for narrower filters past this. */
 export const LIST_LIMIT = 1000;
@@ -105,11 +111,18 @@ function searchCondition(q: string): SQL | undefined {
   return or(...text, phone);
 }
 
-function ownerCondition(filters: LeadQuery): SQL | undefined {
+function mineCondition(filters: LeadQuery): SQL | undefined {
   if (!filters.mine) return undefined;
   // Signed out (or not resolved): "Meus leads" shows nothing rather than everyone's.
   if (!filters.ownerId) return sql`0`;
   return eq(leads.ownerId, filters.ownerId);
+}
+
+/** `owner=<id>`: one partner's leads; `owner=none`: the leads nobody took. */
+function ownerCondition(owner: LeadFilters["owner"]): SQL | undefined {
+  if (!owner) return undefined;
+  if (owner === NO_OWNER) return isNull(leads.ownerId);
+  return eq(leads.ownerId, owner);
 }
 
 function whereClause(filters: LeadQuery, today: string, now: Date): SQL | undefined {
@@ -124,7 +137,9 @@ function whereClause(filters: LeadQuery, today: string, now: Date): SQL | undefi
     filters.noWebsite ? isNull(leads.website) : undefined,
     filters.hasEmail ? isNotNull(leads.email) : undefined,
     filters.fresh ? gte(leads.createdAt, new Date(now.getTime() - FRESH_WINDOW_MS)) : undefined,
-    ownerCondition(filters),
+    mineCondition(filters),
+    ownerCondition(filters.owner),
+    filters.stage ? eq(leads.salesStage, filters.stage) : undefined,
   ];
   return and(...conditions);
 }

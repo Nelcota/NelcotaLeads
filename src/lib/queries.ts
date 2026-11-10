@@ -16,7 +16,7 @@ import { getBookableLeads, getLeadSales } from "@/server/sales";
 import { getServiceTable } from "@/server/services";
 import { getQuickReplies } from "@/server/settings";
 import { getSystemStatus } from "@/server/system-status";
-import { getTeam } from "@/server/team";
+import { getTeam, listTeamMembers } from "@/server/team";
 
 const isRunning = (status: string) => status === "collecting" || status === "analyzing";
 
@@ -186,20 +186,30 @@ export const notificationsQuery = queryOptions({
   refetchIntervalInBackground: true,
 });
 
-/** "Equipe": accounts, pending invites and whether invites are e-mailed. */
-export const teamQuery = queryOptions({
-  queryKey: ["team"],
-  queryFn: () => getTeam(),
+/** "Equipe" for a period: partners and their numbers, goal, free leads, activity and invites. */
+export const teamQuery = (period: OverviewPeriod) =>
+  queryOptions({
+    queryKey: ["team", period],
+    queryFn: () => getTeam({ data: { period } }),
+    refetchInterval: 60_000,
+  });
+
+/** Everyone's id and name: the owner chips in Leads and Conversas. */
+export const teamMembersQuery = queryOptions({
+  queryKey: ["team-members"],
+  queryFn: () => listTeamMembers(),
+  staleTime: 5 * 60_000,
 });
 
 /**
  * Every screen a lead's status, deal, meeting or proposal shows up on: the lists, the
  * Visão geral (goal, metrics, niches, all periods), the Agenda (and its today badge), the
- * Conversas (with its attention badge) and the notification bell. Prefix keys, so the period- and
- * owner-keyed ones match.
+ * Conversas (with its attention badge), the notification bell and the Equipe page. Prefix keys, so
+ * the period- and owner-keyed ones match.
  */
 export const LEAD_SCREEN_KEYS = [
   ["leads"],
+  ["team"],
   ["dashboard"],
   ["agenda"],
   ["monthly-goal"],

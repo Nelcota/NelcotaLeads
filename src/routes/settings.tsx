@@ -12,6 +12,7 @@ import {
   ClockIcon,
   MailIcon,
   MinusIcon,
+  PenLineIcon,
   PlugZapIcon,
   PlusIcon,
   SendIcon,
@@ -19,6 +20,7 @@ import {
   SparklesIcon,
   TagIcon,
 } from "lucide-react";
+import { SIGNATURE_DECISION } from "@/lib/team";
 import {
   DisabledReason,
   FloatingBar,
@@ -125,6 +127,7 @@ function SettingsPage() {
           <AutopilotForm />
           <SettingsForm defaults={data} />
           <ServicesLink />
+          <SignatureSection />
           <QuickReplies />
         </div>
       </LeaveGuard>
@@ -689,6 +692,25 @@ function SettingsForm({ defaults }: { defaults: SettingsInput }) {
         }}
       />
     </form>
+  );
+}
+
+/** Who signs the e-mails; read-only, it moved here from the Equipe page (2026-11-09). */
+function SignatureSection() {
+  return (
+    <SettingsSection
+      id="assinatura"
+      title="Assinatura"
+      description={`Decidido com a equipe em ${SIGNATURE_DECISION.decidedOn}: os e-mails nunca saem no nome de uma pessoa só.`}
+      contentClassName="p-0"
+    >
+      <div className="flex items-center gap-3 px-4 py-3 text-sm">
+        <IconTile icon={PenLineIcon} tone="gray" size={30} />
+        <span className="flex-1 font-medium">
+          Os e-mails saem assinados por {SIGNATURE_DECISION.signature}
+        </span>
+      </div>
+    </SettingsSection>
   );
 }
 
