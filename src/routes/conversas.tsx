@@ -53,9 +53,6 @@ import {
   providerStatusQuery,
 } from "@/lib/queries";
 import { useToday } from "@/lib/today";
-import { conversationOwner } from "@/lib/conversation-owner";
-import { replySendState } from "@/lib/reply-send";
-import { useStickToBottom } from "@/hooks/use-stick-to-bottom";
 import { cn } from "@/lib/utils";
 import { reopenBlocker } from "@/server/lead-status";
 import { updateLead } from "@/server/leads";
@@ -78,6 +75,9 @@ import { useListHotkeys } from "@/hooks/use-list-hotkeys";
 import { useLeadDeal } from "@/hooks/use-lead-deal";
 import { useLeadPanelOpen } from "@/hooks/use-lead-panel-open";
 import { useReadLeadReplies } from "@/hooks/use-read-lead-replies";
+import { useStickToBottom } from "@/hooks/use-stick-to-bottom";
+import { conversationOwner } from "@/lib/conversation-owner";
+import { replySendState } from "@/lib/reply-send";
 import { CloseDealDialog, type CloseDealMode } from "@/components/lead/close-deal-dialog";
 
 const FILTERS = CONVERSATION_FILTERS;
