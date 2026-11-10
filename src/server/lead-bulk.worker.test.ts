@@ -2,7 +2,7 @@ import { env } from "cloudflare:test";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import { getDb } from "@/db/client";
-import { leadEvents, leads, meetings, searches, users } from "@/db/schema";
+import { emails, leadEvents, leads, meetings, searches, users } from "@/db/schema";
 import { resetDb } from "../../test/reset-db";
 import { bulkUpdateLeads, undoBulkUpdate } from "./lead-bulk";
 
@@ -170,6 +170,40 @@ describe("bulkUpdateLeads", () => {
     await bulkUpdateLeads(db, ["contacted"], "discarded", now);
     const meeting = await db.query.meetings.findFirst({ where: eq(meetings.id, "m1") });
     expect(meeting?.cancelledAt).not.toBeNull();
+  });
+
+  it("undo restores only meetings and queued invites cancelled by that bulk action", async () => {
+    const invite = {
+      id: "invite-1",
+      leadId: "contacted",
+      direction: "out" as const,
+      status: "queued" as const,
+      author: "user" as const,
+      fromAddress: "team@nelcota.test",
+      toAddress: "lead@nelcota.test",
+      subject: "Meeting",
+      body: "See you there",
+    };
+    await db.insert(emails).values(invite);
+    await db.insert(meetings).values({
+      id: "meeting-1",
+      leadId: "contacted",
+      startsAt: new Date("2026-10-13T15:00:00Z"),
+      kind: "call",
+      inviteEmailId: invite.id,
+    });
+    const { previous } = await bulkUpdateLeads(db, ["contacted"], "discarded", now);
+    expect(previous[0]?.cancelledMeetings).toEqual(["meeting-1"]);
+    expect((await db.query.emails.findFirst({ where: eq(emails.id, invite.id) }))?.status).toBe(
+      "cancelled",
+    );
+    await undoBulkUpdate(db, "discarded", previous, now);
+    expect(
+      (await db.query.meetings.findFirst({ where: eq(meetings.id, "meeting-1") }))?.cancelledAt,
+    ).toBeNull();
+    expect((await db.query.emails.findFirst({ where: eq(emails.id, invite.id) }))?.status).toBe(
+      "queued",
+    );
   });
 
   it("forgets the contact date when a lead goes back to the queue, and the undo restores it", async () => {

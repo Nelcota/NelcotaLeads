@@ -1,12 +1,13 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, gt, isNull } from "drizzle-orm";
 import type { Db } from "@/db/client";
-import { leadEvents, leads, type Lead, type LeadStatus } from "@/db/schema";
+import { inList } from "@/db/in-list";
+import { emails, leadEvents, leads, meetings, type Lead, type LeadStatus } from "@/db/schema";
 import { localDay } from "@/lib/format";
 import type { BulkSnapshot } from "@/lib/schemas";
 import { leadEvent, type LeadEventRow } from "./lead-events";
 import { leadPatch, OUTREACH_STATUSES } from "./lead-status";
 import { leadIdIn } from "./leads-query";
-import { cancelFutureMeetings } from "./meeting-store";
+import { cancelFutureMeetings, MEETING_CLOSED_REASON } from "./meeting-store";
 
 /** Chunks of statements per D1 batch. */
 const BATCH_SIZE = 50;
@@ -164,7 +165,13 @@ export async function bulkUpdateLeads(
   );
   // An ended lead has nothing left to meet about.
   if (status === "closed" || status === "discarded") {
-    for (const snapshot of previous) await cancelFutureMeetings(db, snapshot.id, now);
+    for (const snapshot of previous) {
+      const cancelled = await cancelFutureMeetings(db, snapshot.id, now);
+      if (cancelled.length > 0) {
+        snapshot.cancelledMeetings = cancelled;
+        snapshot.meetingCancelledAt = toSeconds(now) ?? undefined;
+      }
+    }
   }
   return {
     changed: previous.length,
@@ -211,5 +218,52 @@ export async function undoBulkUpdate(
       leadEvent(id, "status", { from: status, to: restoredStatus.get(id) ?? null }, userId, now),
     ),
   );
+  // Restore only upcoming meetings that this bulk action cancelled. Requeue their invites too.
+  const snapshotsById = new Map(previous.map((snapshot) => [snapshot.id, snapshot]));
+  for (const leadId of restoredIds) {
+    const snapshot = snapshotsById.get(leadId);
+    if (!snapshot?.cancelledMeetings?.length || snapshot.meetingCancelledAt === undefined) continue;
+    const eligible = await db
+      .select({ id: meetings.id, inviteEmailId: meetings.inviteEmailId })
+      .from(meetings)
+      .where(
+        and(
+          inList(meetings.id, snapshot.cancelledMeetings),
+          eq(meetings.leadId, leadId),
+          eq(meetings.cancelledAt, new Date(snapshot.meetingCancelledAt * 1000)),
+          gt(meetings.startsAt, now),
+        ),
+      );
+    if (eligible.length === 0) continue;
+    const meetingIds = eligible.map((meeting) => meeting.id);
+    const inviteIds = eligible.flatMap((meeting) =>
+      meeting.inviteEmailId ? [meeting.inviteEmailId] : [],
+    );
+    await db.batch([
+      db
+        .update(meetings)
+        .set({ cancelledAt: null })
+        .where(
+          and(
+            inList(meetings.id, meetingIds),
+            eq(meetings.leadId, leadId),
+            eq(meetings.cancelledAt, new Date(snapshot.meetingCancelledAt * 1000)),
+            gt(meetings.startsAt, now),
+          ),
+        ),
+      db
+        .update(emails)
+        .set({ status: "queued", error: null })
+        .where(
+          and(
+            inList(emails.id, inviteIds),
+            eq(emails.leadId, leadId),
+            eq(emails.status, "cancelled"),
+            eq(emails.error, MEETING_CLOSED_REASON),
+            isNull(emails.sentAt),
+          ),
+        ),
+    ]);
+  }
   return { restored: restoredIds.length };
 }
