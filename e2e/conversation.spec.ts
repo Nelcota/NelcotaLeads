@@ -202,11 +202,11 @@ test.describe("e-mail conversations", () => {
     await expect(page.getByText("O servidor SMTP recusou o envio.", { exact: true })).toBeVisible();
 
     const failed = page.getByRole("article").filter({ hasText: "Posso te ligar amanhã?" });
-    await expect(failed).toContainText("não enviado");
+    await expect(failed).toContainText("Não enviado");
     await failed.getByRole("button", { name: "Tentar de novo" }).click();
     await expect(failed.first()).toContainText("reenviado");
     await expect(page.getByRole("button", { name: "Tentar de novo" })).toHaveCount(0);
-    await expect(page.getByRole("article").filter({ hasText: "na fila" })).toHaveCount(1);
+    await expect(page.getByRole("article").filter({ hasText: "Na fila" })).toHaveCount(1);
 
     await backend.tick(t1);
     await backend.tick(t2);
@@ -291,10 +291,10 @@ test.describe("e-mail conversations", () => {
     await startConversation(page, backend, OTHER);
     await startConversation(page, backend, LEAD, second);
     await visit(page, "/conversas");
-    const all = page.getByRole("tab", { name: /Todas/ });
+    const all = page.getByRole("button", { name: /Todas/ });
     await expect(all).toContainText("2");
 
-    const search = page.getByRole("searchbox", { name: "Buscar conversa" });
+    const search = page.getByRole("textbox", { name: "Buscar conversa" });
     // No accent, other case.
     await search.fill("CLINICA AURORA");
     await expect(page.getByRole("button", { name: new RegExp(OTHER.name) })).toBeVisible();
@@ -350,7 +350,7 @@ test.describe("e-mail conversations", () => {
   }) => {
     const { id } = await startConversation(page, backend, { ...LEAD, phone: "(31) 99999-0000" });
     await visit(page, `/conversas?lead=${id}`);
-    const whatsapp = page.getByRole("link", { name: "WhatsApp", exact: true });
+    const whatsapp = page.getByRole("link", { name: /^WhatsApp/ });
     await expect(whatsapp).toHaveAttribute("href", "https://wa.me/5531999990000");
     await expect(whatsapp).toHaveAttribute("target", "_blank");
 
