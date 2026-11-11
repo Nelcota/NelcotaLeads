@@ -28,11 +28,12 @@ test.describe("queued e-mails", () => {
     const [t1, t2] = tickTimes(2);
 
     await visit(page, "/leads");
-    await page.getByRole("button", { name: "Disparar 2 prontos" }).click();
+    await page.getByRole("button", { name: "Selecionar prontos (2)" }).click();
     await page
       .getByRole("region", { name: "Ações da seleção" })
       .getByRole("button", { name: "Disparar" })
       .click();
+    await page.getByRole("dialog").getByRole("button", { name: "Escrever 2 e-mails" }).click();
     await page.getByRole("dialog").getByRole("button", { name: "Disparar 2 e-mails" }).click();
     await expect(page.getByText("2 e-mails na fila")).toBeVisible();
 

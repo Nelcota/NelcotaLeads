@@ -94,8 +94,9 @@ test.describe("leads actions", () => {
       await page.getByRole("checkbox", { name: `Selecionar ${name}` }).check();
     }
     await expect(page.getByText("3 selecionados", { exact: true })).toBeVisible();
-    // Nobody selected has an e-mail: the primary action says why it is off.
-    await expect(page.getByRole("button", { name: "Disparar 0 selecionados" })).toBeDisabled();
+    // Nobody selected has an e-mail: the row says so and the primary action is off.
+    await expect(rowOf(page, "Padaria Sol")).toContainText("Sem e-mail");
+    await expect(page.getByRole("button", { name: "Disparar (0)" })).toBeDisabled();
 
     await page
       .getByRole("region", { name: "Ações da seleção" })

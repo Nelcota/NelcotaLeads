@@ -25,6 +25,8 @@ import {
   mailDailyLimit,
   mailErrorMessage,
   pollInbox,
+  findReusableDrafts,
+  loadColdRoom,
   prepareDrafts,
   queueDrafts,
   regenerateDraft,
@@ -64,19 +66,37 @@ export const prepareEmails = createServerFn({ method: "POST" })
       { db, analyzer: getAnalyzer(env), fromAddress: fromAddress() },
       data.leadIds,
     );
-    const names = await db
-      .select({ id: leads.id, name: leads.name })
-      .from(leads)
-      .where(inList(leads.id, data.leadIds));
-    const nameOf = new Map(names.map((row) => [row.id, row.name]));
-    return {
-      drafts: result.drafts.map((draft) => ({
-        ...draft,
-        leadName: nameOf.get(draft.leadId) ?? "",
-      })),
-      skipped: result.skipped,
-    };
+    return { drafts: await withLeadNames(db, result.drafts), skipped: result.skipped };
   });
+
+/** The drafts already written for these leads, for the review to open with: no AI, no writes. */
+export const listReusableDrafts = createServerFn({ method: "POST" })
+  .validator(z.object({ leadIds: z.array(id).min(1).max(DISPATCH_LIMIT) }))
+  .handler(async ({ data }) => {
+    const db = getDb();
+    return withLeadNames(db, await findReusableDrafts(db, data.leadIds));
+  });
+
+/** Room left today for first e-mails, for the dispatch review's "Restam hoje". */
+export const getColdRoom = createServerFn({ method: "GET" }).handler(() =>
+  loadColdRoom(getDb(), limit()),
+);
+
+/** Adds each draft's lead name, which the review shows above the e-mail. */
+async function withLeadNames<T extends { leadId: string }>(db: Db, drafts: T[]) {
+  if (drafts.length === 0) return [];
+  const names = await db
+    .select({ id: leads.id, name: leads.name })
+    .from(leads)
+    .where(
+      inList(
+        leads.id,
+        drafts.map((draft) => draft.leadId),
+      ),
+    );
+  const nameOf = new Map(names.map((row) => [row.id, row.name]));
+  return drafts.map((draft) => ({ ...draft, leadName: nameOf.get(draft.leadId) ?? "" }));
+}
 
 export const updateDraft = createServerFn({ method: "POST" })
   .validator(
