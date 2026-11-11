@@ -347,7 +347,7 @@ function SearchCard({ search, index }: { search: Search; index: number }) {
             }
           >
             {search.status === "error" && search.foundCount > 0 ? (
-              search.errorMessage
+              searchFailureText(search.errorMessage, search.createdAt, today)
             ) : search.status === "analyzing" ? (
               <>
                 <b>{processed}</b> de {search.foundCount} analisadas
