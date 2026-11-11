@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { LeadStatus } from "@/db/schema";
+import { dispatchBlocker } from "@/lib/dispatch-review";
 import { DISPATCH_LIMIT, LEAD_STATUS_LABELS } from "@/lib/schemas";
 
 /** Same bound as the CSV route's selection export. */
@@ -45,12 +46,11 @@ export function SelectionBar({
 }) {
   const exportForm = useRef<HTMLFormElement>(null);
   const left = ids.length - sendable;
-  const dispatchReason =
-    sendable === 0
-      ? "Nenhum lead selecionado pode receber o primeiro e-mail"
-      : sendable > DISPATCH_LIMIT
-        ? `Selecione até ${DISPATCH_LIMIT} leads com e-mail por disparo`
-        : false;
+  const dispatchReason = dispatchBlocker({
+    selected: ids.length,
+    sendable,
+    limit: DISPATCH_LIMIT,
+  });
 
   return (
     <FloatingBar role="region" aria-label="Ações da seleção" className="gap-x-1.5">

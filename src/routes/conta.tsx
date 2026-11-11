@@ -19,6 +19,7 @@ import { AvatarEditor } from "@/components/avatar-editor";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SystemStatusSection } from "@/components/system-status";
+import { companiesLeftLabel } from "@/lib/google-quota";
 import { accountQuery, providerStatusQuery, systemStatusQuery } from "@/lib/queries";
 import type { SettingsInput } from "@/lib/schemas";
 import { useTheme } from "@/lib/theme";
@@ -103,10 +104,7 @@ function AccountPage() {
                   <span className="font-light text-muted-foreground">de {status.mail.limit}</span>
                 </PropertyRow>
                 <PropertyRow label="Buscas no Google">
-                  {status.placesUsage.used}{" "}
-                  <span className="font-light text-muted-foreground">
-                    de {status.placesUsage.limit}
-                  </span>
+                  {companiesLeftLabel(status.placesUsage)}
                 </PropertyRow>
               </div>
             </section>

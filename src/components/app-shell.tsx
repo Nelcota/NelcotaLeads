@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { Avatar, Hint, TONE_TEXT, toneVar, type Tone } from "@/components/apple-ui";
+import { GoogleQuotaRow } from "@/components/google-quota-row";
 import { HelpSheet } from "@/components/help-sheet";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { NewSearchDialog } from "@/components/new-search-dialog";
@@ -338,13 +339,7 @@ function UsageMeter() {
           E-mail não conectado
         </Link>
       )}
-      <MeterRow
-        value={percent(placesUsage.used, placesUsage.limit)}
-        tone="gray"
-        used={placesUsage.used}
-        limit={placesUsage.limit}
-        label="buscas no Google"
-      />
+      <GoogleQuotaRow usage={placesUsage} />
     </div>
   );
 }

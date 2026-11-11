@@ -85,6 +85,20 @@ export function isReadyToDispatch(
   );
 }
 
+/**
+ * Why a new lead cannot get the first e-mail yet, shown under its name; null when it is ready
+ * or past "Novo" (no longer a candidate for a first e-mail).
+ */
+export function notReadyReason(
+  lead: Pick<LeadRowFacts, "status" | "email" | "unsubscribedAt" | "analysisStatus">,
+): string | null {
+  if (lead.status !== "new") return null;
+  if (lead.analysisStatus === "pending") return "Analisando…";
+  if (!lead.email) return "Sem e-mail";
+  if (lead.unsubscribedAt) return "Descadastrado";
+  return null;
+}
+
 /** "Chegaram hoje": created in the last 24 hours (same window as the server filter). */
 export function isFresh(createdAt: Date, now: Date): boolean {
   return now.getTime() - createdAt.getTime() < 24 * 60 * 60 * 1000;

@@ -3,9 +3,14 @@ import {
   ANALYSIS_FAILED,
   ANALYSIS_NOT_CONFIGURED,
   analysisErrorMessage,
+  datedLimitText,
   SEARCH_FAILED,
   SEARCH_NOT_CONFIGURED,
   searchErrorMessage,
+  GOOGLE_LIMIT_REACHED,
+  googleLimitPartialMessage,
+  modernizeLimitText,
+  searchFailureText,
 } from "./provider-errors";
 
 describe("searchErrorMessage", () => {
@@ -20,9 +25,9 @@ describe("searchErrorMessage", () => {
     const own =
       "Limite diário de requisições ao Google atingido. A busca não foi feita; tente amanhã.";
     expect(searchErrorMessage(new Error(own))).toBe(own);
-    expect(
-      searchErrorMessage(new Error("Google Places respondeu 429: RESOURCE_EXHAUSTED")),
-    ).toMatch(/^Limite diário de requisições ao Google/);
+    expect(searchErrorMessage(new Error("Google Places respondeu 429: RESOURCE_EXHAUSTED"))).toBe(
+      GOOGLE_LIMIT_REACHED,
+    );
   });
 
   it("says when the search is not configured", () => {
@@ -45,6 +50,78 @@ describe("analysisErrorMessage", () => {
     );
     expect(analysisErrorMessage(new Error("DEEPSEEK_API_KEY não configurada."), known)).toBe(
       ANALYSIS_NOT_CONFIGURED,
+    );
+  });
+});
+
+describe("searchFailureText", () => {
+  const limit =
+    "Limite diário de requisições ao Google atingido. A busca não foi feita; tente amanhã.";
+  // 2026-11-05 14:00 in Brazil.
+  const searchedAt = new Date("2026-11-05T17:00:00Z");
+
+  it("keeps the message on the day of the search, in the words without requisição", () => {
+    expect(searchFailureText(GOOGLE_LIMIT_REACHED, searchedAt, "2026-11-05")).toBe(
+      GOOGLE_LIMIT_REACHED,
+    );
+    expect(searchFailureText(limit, searchedAt, "2026-11-05")).toBe(GOOGLE_LIMIT_REACHED);
+  });
+
+  it("shows the date instead of amanhã on a later day", () => {
+    expect(searchFailureText(limit, searchedAt, "2026-11-09")).toBe(
+      "Limite do Google atingido em 05/11",
+    );
+    expect(searchFailureText(GOOGLE_LIMIT_REACHED, searchedAt, "2026-11-09")).toBe(
+      "Limite do Google atingido em 05/11",
+    );
+  });
+
+  it("uses the Brazil day of the search, not the UTC one", () => {
+    // 2026-11-05 22:30 in Brazil is already the 6th in UTC.
+    const lateEvening = new Date("2026-11-06T01:30:00Z");
+    expect(searchFailureText(limit, lateEvening, "2026-11-05")).toBe(GOOGLE_LIMIT_REACHED);
+  });
+
+  it("leaves other failures as they are", () => {
+    expect(searchFailureText(SEARCH_FAILED, searchedAt, "2026-11-09")).toBe(SEARCH_FAILED);
+    const partial =
+      "Limite diário de requisições ao Google atingido: coletadas 0 de até 60 empresas.";
+    expect(searchFailureText(partial, searchedAt, "2026-11-09")).toBe(
+      googleLimitPartialMessage(0, 60),
+    );
+    expect(googleLimitPartialMessage(0, 60)).toBe(
+      "Limite de buscas do Google de hoje atingido: coletadas 0 de até 60 empresas.",
+    );
+    expect(searchFailureText(null, searchedAt, "2026-11-09")).toBeNull();
+  });
+});
+
+describe("modernizeLimitText", () => {
+  it("rewrites the old wording and keeps the rest", () => {
+    expect(
+      modernizeLimitText(
+        "Limite diário de requisições ao Google atingido. A busca não foi feita; tente amanhã.",
+      ),
+    ).toBe(GOOGLE_LIMIT_REACHED);
+    expect(modernizeLimitText(SEARCH_FAILED)).toBe(SEARCH_FAILED);
+  });
+});
+
+describe("datedLimitText", () => {
+  const searchedAt = new Date("2026-11-05T17:00:00Z");
+
+  it("is null on the day of the search", () => {
+    expect(datedLimitText(GOOGLE_LIMIT_REACHED, searchedAt, "2026-11-05")).toBeNull();
+  });
+
+  it("is null when the message does not send people to amanhã", () => {
+    expect(datedLimitText(googleLimitPartialMessage(0, 60), searchedAt, "2026-11-09")).toBeNull();
+    expect(datedLimitText(SEARCH_FAILED, searchedAt, "2026-11-09")).toBeNull();
+  });
+
+  it("gives the date of the limit on a later day", () => {
+    expect(datedLimitText(GOOGLE_LIMIT_REACHED, searchedAt, "2026-11-09")).toBe(
+      "Limite do Google atingido em 05/11",
     );
   });
 });
