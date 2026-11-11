@@ -95,7 +95,7 @@ export function DatePanel({
           <span
             key={index}
             aria-hidden
-            className="grid h-6 place-items-center text-[12px] font-medium text-tertiary"
+            className="grid h-6 place-items-center text-2xs font-medium text-tertiary"
           >
             {initial}
           </span>
@@ -149,7 +149,7 @@ function DayButton({
         if (!disabled) onPick(day);
       }}
       className={cn(
-        "group relative grid h-10 place-items-center text-[14px] font-medium",
+        "group relative grid h-10 place-items-center text-sm font-medium",
         inRange ? "bg-fill-2" : "",
         inRange && (day === highlight?.from || isoWeekday(day) === 1) ? "rounded-l-full" : "",
         inRange && (day === highlight?.to || isoWeekday(day) === 7) ? "rounded-r-full" : "",

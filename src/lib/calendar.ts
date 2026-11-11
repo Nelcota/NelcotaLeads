@@ -23,6 +23,15 @@ const LAST_HOUR = 19;
 /** Pixels per hour of each zoom step; 56 is 100%. */
 export const ZOOM_LEVELS = [36, 44, 56, 72, 96] as const;
 export const DEFAULT_ZOOM = 2;
+
+/** The smallest touch target, in px (UX audit T6). */
+const TOUCH_TARGET = 44;
+
+/** The first zoom whose half-hour slot is a full touch target; the Agenda opens on it on touch screens. */
+export const TOUCH_ZOOM = Math.max(
+  DEFAULT_ZOOM,
+  ZOOM_LEVELS.findIndex((height) => height / 2 >= TOUCH_TARGET),
+);
 const BASE_HOUR_HEIGHT = 56;
 
 export const MONTHS = [

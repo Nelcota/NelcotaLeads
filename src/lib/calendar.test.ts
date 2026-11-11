@@ -14,6 +14,8 @@ import {
   sameTimeGroups,
   shiftMonth,
   stepAnchor,
+  TOUCH_ZOOM,
+  ZOOM_LEVELS,
   zoomLabel,
 } from "./calendar";
 
@@ -134,5 +136,11 @@ describe("calendar entries", () => {
   it("counts the day as reuniões and retornos", () => {
     expect(countLabel(2, 1)).toBe("2 reuniões · 1 retorno");
     expect(countLabel(0, 0)).toBe("Livre");
+  });
+});
+
+describe("TOUCH_ZOOM", () => {
+  it("opens touch screens on a zoom whose half-hour slot is at least 44px", () => {
+    expect((ZOOM_LEVELS[TOUCH_ZOOM] ?? 0) / 2).toBeGreaterThanOrEqual(44);
   });
 });

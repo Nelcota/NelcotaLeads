@@ -32,7 +32,7 @@ export function SendWindowRow({
       <div className="flex flex-wrap items-center gap-3">
         <div className="min-w-0 flex-1">
           <p className="font-medium">Horário de envio</p>
-          <p className="text-[14px] font-light text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             Horário de Brasília. Respostas em conversa saem a qualquer hora.
           </p>
         </div>
@@ -43,7 +43,7 @@ export function SendWindowRow({
         </div>
       </div>
       {error ? (
-        <p role="alert" className="text-[14px] text-red">
+        <p role="alert" className="text-sm text-red">
           {error}
         </p>
       ) : null}

@@ -92,10 +92,10 @@ export function OverviewAlerts({ alerts }: { alerts: OverviewAlert[] }) {
             aria-hidden
             className={cn("size-4 shrink-0", alert.tone === "red" ? "text-red" : "text-orange")}
           />
-          <span className="min-w-0 flex-1 text-[15px]">{alert.text}</span>
+          <span className="min-w-0 flex-1 text-base">{alert.text}</span>
           <Link
             {...alert.link}
-            className="shrink-0 text-[15px] font-semibold text-blue hover:underline"
+            className="shrink-0 text-base font-semibold text-blue hover:underline"
           >
             {alert.action}
           </Link>

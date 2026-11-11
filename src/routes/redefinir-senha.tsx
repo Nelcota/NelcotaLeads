@@ -67,7 +67,7 @@ function RequestLinkForm() {
 
   if (form.notice) {
     return (
-      <p role="status" className="text-center text-[15px] leading-snug text-foreground/90">
+      <p role="status" className="text-center text-base leading-snug text-foreground/90">
         {form.notice}
       </p>
     );

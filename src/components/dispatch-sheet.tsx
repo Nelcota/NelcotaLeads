@@ -110,7 +110,7 @@ function DispatchReview({
       <div className="flex-1 overflow-y-auto px-5 pb-5">
         {!review.loading && review.missing.length > 0 ? (
           <div className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl bg-fill-2 px-4 py-3">
-            <p className="flex flex-1 items-center gap-2 text-sm font-light text-muted-foreground">
+            <p className="flex flex-1 items-center gap-2 text-sm text-muted-foreground">
               <PencilLineIcon aria-hidden className="size-4 shrink-0 text-orange" strokeWidth={2} />
               {missingLine(review.missing.length)}
             </p>
@@ -121,7 +121,7 @@ function DispatchReview({
           </div>
         ) : null}
         {review.loadFailed ? (
-          <p className="mb-4 text-sm font-light text-orange">
+          <p className="mb-4 text-sm text-orange">
             Não foi possível carregar os e-mails já escritos.
           </p>
         ) : null}
@@ -178,13 +178,13 @@ function DispatchReview({
 
             <div className="grouped">
               <div className="grouped-row flex min-h-[42px] items-center gap-3 px-4 [--inset:16px]">
-                <span className="w-16 shrink-0 font-light text-tertiary">De</span>
+                <span className="w-16 shrink-0 text-tertiary">De</span>
                 <span className="truncate font-medium">
                   {mail?.address || "caixa não conectada"}
                 </span>
               </div>
               <div className="grouped-row flex min-h-[42px] items-center gap-3 px-4 [--inset:16px]">
-                <span className="flex w-16 shrink-0 items-center gap-1.5 font-light text-tertiary">
+                <span className="flex w-16 shrink-0 items-center gap-1.5 text-tertiary">
                   <MailIcon
                     aria-hidden
                     className="size-4 shrink-0 text-muted-foreground"
@@ -255,7 +255,7 @@ function DispatchReview({
             </div>
           </div>
         ) : (
-          <p className="text-sm font-light text-muted-foreground">Nenhum e-mail escrito ainda.</p>
+          <p className="text-sm text-muted-foreground">Nenhum e-mail escrito ainda.</p>
         )}
 
         <div className="mt-5">
@@ -272,7 +272,7 @@ function DispatchReview({
             <div className="grid gap-0.5 text-sm">
               <p className="font-medium text-orange">Ficaram de fora</p>
               {skipped.map((skip) => (
-                <p key={skip.leadId} className="font-light text-muted-foreground">
+                <p key={skip.leadId} className="text-muted-foreground">
                   {skip.name}: {skip.reason}
                 </p>
               ))}
@@ -294,9 +294,7 @@ function DispatchReview({
           {room ? (
             <PropertyRow label={<IconLabel icon={GaugeIcon} text="Restam hoje" />}>
               <span className="text-green">{room.remaining}</span> de {room.limit}
-              {room.spillsOver ? (
-                <span className="font-light text-orange"> (o resto sai amanhã)</span>
-              ) : null}
+              {room.spillsOver ? <span className="text-orange"> (o resto sai amanhã)</span> : null}
             </PropertyRow>
           ) : null}
           <div className="grouped-row flex min-h-[46px] items-center gap-3 px-4 [--inset:16px]">
@@ -304,7 +302,7 @@ function DispatchReview({
             {/* The global setting, not one for this batch: said so, since it sits in a send. */}
             <label htmlFor="dispatch-ai" className="grid flex-1 gap-0.5 py-2">
               <span className="font-medium">IA responde sozinha até haver interesse</span>
-              <span className="text-[14px] font-light text-muted-foreground">
+              <span className="text-sm text-muted-foreground">
                 Vale para todas as conversas, não só para este disparo.
               </span>
             </label>

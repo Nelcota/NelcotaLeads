@@ -121,7 +121,7 @@ export function MeetingForm({
         <EmailPreview email={invite} emailsEnabled={emailsEnabled} onCopy={onCopy} />
       ) : null}
       {error ? (
-        <p role="alert" className="text-[14px] text-red">
+        <p role="alert" className="text-sm text-red">
           {error}
         </p>
       ) : null}
@@ -169,7 +169,7 @@ function InviteChoice({
           Mandar o convite por e-mail para o lead
         </Label>
       </div>
-      {note ? <p className="pl-7 text-[14px] text-orange">{note}</p> : null}
+      {note ? <p className="pl-7 text-sm text-orange">{note}</p> : null}
     </div>
   );
 }

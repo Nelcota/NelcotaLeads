@@ -107,7 +107,7 @@ function PeriodMetrics({
     return (
       <>
         {selector}
-        <p role="alert" className="grouped px-5 py-6 text-[15px] text-muted-foreground">
+        <p role="alert" className="grouped px-5 py-6 text-base text-muted-foreground">
           Não foi possível carregar as métricas do período. Recarregue a página para tentar de novo.
         </p>
       </>

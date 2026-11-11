@@ -25,7 +25,7 @@ export function MeetingGroup({
             <DialogTitle className="text-lg font-semibold">
               {entries.length} reuniões às {clock(first.minutes ?? 0)}
             </DialogTitle>
-            <DialogDescription className="text-[14px] text-muted-foreground">
+            <DialogDescription className="text-sm text-muted-foreground">
               {longDay(first.day)}
             </DialogDescription>
           </div>
@@ -44,7 +44,7 @@ export function MeetingGroup({
               </span>
               <span className="grid min-w-0 flex-1">
                 <span className="truncate text-sm font-semibold">{entry.leadName}</span>
-                <span className="truncate text-[14px] text-muted-foreground">
+                <span className="truncate text-sm text-muted-foreground">
                   {[
                     entry.meetingKind ? MEETING_KIND_LABELS[entry.meetingKind] : null,
                     entry.ownerName ? `com ${entry.ownerName}` : null,

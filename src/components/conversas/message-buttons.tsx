@@ -42,7 +42,7 @@ export function MessageButtons({
         </Button>
       ) : null}
       {next === "tomorrow" ? (
-        <span className="text-[13px] text-muted-foreground">O envio tenta de novo amanhã.</span>
+        <span className="text-xs text-muted-foreground">O envio tenta de novo amanhã.</span>
       ) : null}
       {waiting && actions.canEdit ? (
         <Button

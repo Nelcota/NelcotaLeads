@@ -22,7 +22,7 @@ export function StageBar({
 }) {
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-      <span id="lead-stage-label" className="text-[13px] font-medium text-muted-foreground">
+      <span id="lead-stage-label" className="text-xs font-medium text-muted-foreground">
         Etapa
       </span>
       <ol aria-labelledby="lead-stage-label" className="flex flex-wrap gap-1.5">

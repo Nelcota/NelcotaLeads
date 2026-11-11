@@ -15,7 +15,7 @@ export function TeamMembers({ members }: { members: Team["members"] }) {
             title={member.name}
             subtitle={member.email}
             trailing={
-              <span className="shrink-0 text-[15px] text-muted-foreground tabular-nums">
+              <span className="shrink-0 text-base text-muted-foreground tabular-nums">
                 {ownedLeadsLabel(member.leads)}
               </span>
             }

@@ -34,7 +34,7 @@ export function NichesOverview({ period, caption }: { period: OverviewPeriod; ca
   if (error) {
     return (
       <section aria-labelledby="niches" className="grouped px-5 py-4">
-        <h2 id="niches" className="text-[18px] font-semibold">
+        <h2 id="niches" className="text-lg font-semibold">
           Por nicho
         </h2>
         <p className="pt-2 text-sm text-muted-foreground">
@@ -53,7 +53,7 @@ export function NichesOverview({ period, caption }: { period: OverviewPeriod; ca
       className="grouped enter flex min-w-0 flex-col gap-4 px-5 py-4"
     >
       <div className="flex flex-wrap items-center gap-2">
-        <h2 id="niches" className="text-[18px] font-semibold">
+        <h2 id="niches" className="text-lg font-semibold">
           Por nicho
         </h2>
         {/* On a phone the caption takes its own line under the title and the button. */}

@@ -29,9 +29,7 @@ function TeamPage() {
 function TeamBody({ team }: { team: ReturnType<typeof useTeam> }) {
   if (!team.data && team.failed) {
     return (
-      <p className="text-sm font-light text-red">
-        Não foi possível carregar a equipe. Atualize a página.
-      </p>
+      <p className="text-sm text-red">Não foi possível carregar a equipe. Atualize a página.</p>
     );
   }
   if (!team.data) {

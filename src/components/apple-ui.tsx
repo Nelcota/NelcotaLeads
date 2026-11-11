@@ -2,6 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import { ArrowUpRightIcon, ChevronRightIcon, InfoIcon } from "lucide-react";
 import { useState, type ComponentProps, type ReactElement, type ReactNode } from "react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { nearestTypeSize } from "@/lib/type-scale";
 import { cn } from "@/lib/utils";
 
 /**
@@ -199,14 +200,14 @@ export function Avatar({
     <span
       aria-hidden
       className={cn(
-        "grid shrink-0 place-items-center font-semibold text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.25)]",
+        "grid shrink-0 place-items-center font-semibold text-on-tone",
         square ? "rounded-[14px]" : "rounded-full",
         className,
       )}
       style={{
         width: size,
         height: size,
-        fontSize: Math.max(9, Math.round(size * 0.34)),
+        fontSize: nearestTypeSize(size * 0.34),
         background: TONE_VAR[tone],
       }}
     >
@@ -277,7 +278,7 @@ export function SectionHeader({
 }) {
   return (
     <div className={cn("flex flex-wrap items-baseline gap-x-2.5 gap-y-1 px-1.5 pb-2", className)}>
-      <h2 className={cn("text-lg font-medium tracking-[-0.015em]", tone && TONE_TEXT[tone])}>
+      <h2 className={cn("text-lg font-semibold tracking-[-0.015em]", tone && TONE_TEXT[tone])}>
         {title}
       </h2>
       {count !== undefined && tone ? (
@@ -288,7 +289,7 @@ export function SectionHeader({
           {count}
         </span>
       ) : null}
-      {hint ? <span className="text-sm font-light text-muted-foreground">{hint}</span> : null}
+      {hint ? <span className="text-sm text-muted-foreground">{hint}</span> : null}
       {action ? <span className="ml-auto">{action}</span> : null}
     </div>
   );
@@ -329,10 +330,8 @@ export function GroupedRow({
         {subtitle ? (
           <div
             className={cn(
-              "truncate text-[14px]",
-              subtitleTone
-                ? cn("font-medium", TONE_TEXT[subtitleTone])
-                : "font-light text-muted-foreground",
+              "truncate text-sm",
+              subtitleTone ? cn("font-medium", TONE_TEXT[subtitleTone]) : "text-muted-foreground",
             )}
           >
             {subtitle}
@@ -349,7 +348,7 @@ export function GroupedRow({
 export function PropertyRow({ label, children }: { label: ReactNode; children: ReactNode }) {
   return (
     <div className="grouped-row flex min-h-[42px] items-center justify-between gap-4 px-4 py-2 [--inset:16px]">
-      <span className="shrink-0 font-light text-muted-foreground">{label}</span>
+      <span className="shrink-0 text-muted-foreground">{label}</span>
       <span className="min-w-0 truncate text-right font-medium">{children}</span>
     </div>
   );
@@ -392,9 +391,9 @@ export function EmptyState({
     <div className={cn("flex flex-col items-center gap-3 px-6 py-12 text-center", className)}>
       <IconTile icon={icon} tone={tone} size={56} className="rounded-[15px]!" />
       <div className="grid gap-1">
-        <p className="text-lg font-medium tracking-[-0.015em]">{title}</p>
+        <p className="text-lg font-semibold tracking-[-0.015em]">{title}</p>
         {description ? (
-          <p className="max-w-sm text-sm font-light text-muted-foreground">{description}</p>
+          <p className="max-w-sm text-sm text-muted-foreground">{description}</p>
         ) : null}
       </div>
       {children ? <div className="mt-1 flex flex-wrap justify-center gap-2">{children}</div> : null}
@@ -414,11 +413,7 @@ export function SaveStatus({
   return (
     <span
       aria-live="polite"
-      className={cn(
-        "text-xs font-light",
-        state === "error" ? "text-red" : "text-tertiary",
-        className,
-      )}
+      className={cn("text-xs", state === "error" ? "text-red" : "text-tertiary", className)}
     >
       {state === "saving"
         ? "Salvando…"
@@ -434,7 +429,7 @@ export function Kbd({ className, ...props }: ComponentProps<"kbd">) {
   return (
     <kbd
       className={cn(
-        "inline-grid h-[20px] min-w-[20px] place-items-center rounded-[5px] bg-fill-2 px-1.5 text-[12px] font-medium text-muted-foreground shadow-[inset_0_-1px_0_rgb(0_0_0/0.12)]",
+        "inline-grid h-[20px] min-w-[20px] place-items-center rounded-[5px] bg-fill-2 px-1.5 text-2xs font-medium text-muted-foreground shadow-[inset_0_-1px_0_rgb(0_0_0/0.12)]",
         className,
       )}
       {...props}

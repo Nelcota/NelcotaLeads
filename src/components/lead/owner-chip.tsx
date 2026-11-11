@@ -21,7 +21,7 @@ export function OwnerChip({
   return (
     <span className="inline-flex items-center gap-1">
       {/* Badge standard: a line icon in the status color, then neutral text. */}
-      <span className="inline-flex items-center gap-1.5 text-[14px] font-medium">
+      <span className="inline-flex items-center gap-1.5 text-sm font-medium">
         <UserIcon
           className={ownerName ? "size-3.5 text-blue" : "size-3.5 text-gray"}
           strokeWidth={1.9}

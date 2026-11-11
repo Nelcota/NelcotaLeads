@@ -98,7 +98,7 @@ export function MeetingDialog({
               <DialogTitle className="text-lg font-semibold">
                 {rescheduling ? "Remarcar reunião" : "Nova reunião"}
               </DialogTitle>
-              <DialogDescription className="text-[14px] text-muted-foreground">
+              <DialogDescription className="text-sm text-muted-foreground">
                 {longDay(form.day)} · 30 min
               </DialogDescription>
             </div>
@@ -150,7 +150,7 @@ export function MeetingDialog({
               />
             </>
           )}
-          {error ? <p className="text-[14px] text-red">{error}</p> : null}
+          {error ? <p className="text-sm text-red">{error}</p> : null}
           <div className="flex gap-2">
             <Button type="submit" disabled={actions.booking || actions.moving}>
               {rescheduling ? "Salvar" : "Marcar reunião"}
@@ -206,7 +206,7 @@ function InviteCheck({
   return (
     <label
       className={cn(
-        "flex min-h-8 items-center gap-2.5 text-[14px]",
+        "flex min-h-8 items-center gap-2.5 text-sm",
         disabled && "text-muted-foreground",
       )}
       title={disabled ? "Só sai com os e-mails de venda ligados e um lead com e-mail." : undefined}

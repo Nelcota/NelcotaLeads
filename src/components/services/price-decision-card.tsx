@@ -14,7 +14,7 @@ export function PriceDecisionCard() {
         <h2 id="price-decision" className="font-medium">
           Quando o lead pergunta o preço
         </h2>
-        <p className="font-light text-muted-foreground">
+        <p className="text-muted-foreground">
           A IA para e passa para a equipe, que responde com a proposta desta tabela.
         </p>
       </div>

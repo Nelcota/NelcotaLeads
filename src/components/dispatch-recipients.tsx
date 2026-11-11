@@ -30,7 +30,7 @@ export function DispatchRecipients({
             <Avatar name={recipient.name} size={24} />
             <div className="grid min-w-0 flex-1">
               <span className="truncate text-sm font-medium">{recipient.name}</span>
-              <span className="truncate text-[13px] font-light text-muted-foreground">
+              <span className="truncate text-xs text-muted-foreground">
                 {recipient.email ?? "Sem e-mail"}
               </span>
             </div>
@@ -48,7 +48,7 @@ export function DispatchRecipients({
 function RecipientState({ hasDraft, skipped }: { hasDraft: boolean; skipped: boolean }) {
   if (hasDraft) {
     return (
-      <span className="flex shrink-0 items-center gap-1.5 text-[13px] font-medium text-green">
+      <span className="flex shrink-0 items-center gap-1.5 text-xs font-medium text-green">
         <CircleCheckIcon aria-hidden className="size-3.5 shrink-0" strokeWidth={2} />
         E-mail escrito
       </span>
@@ -56,7 +56,7 @@ function RecipientState({ hasDraft, skipped }: { hasDraft: boolean; skipped: boo
   }
   if (skipped) return <Badge variant="orange">De fora</Badge>;
   return (
-    <span className="flex shrink-0 items-center gap-1.5 text-[13px] font-medium text-muted-foreground">
+    <span className="flex shrink-0 items-center gap-1.5 text-xs font-medium text-muted-foreground">
       <PencilLineIcon aria-hidden className="size-3.5 shrink-0" strokeWidth={2} />
       Falta escrever
     </span>

@@ -43,7 +43,7 @@ function BellButton({ count, open, className, ref, ...props }: BellButtonProps) 
       {badge ? (
         <span
           aria-hidden
-          className="absolute -top-1 -right-1 grid h-5 min-w-5 place-items-center rounded-full border-2 border-background bg-primary px-1 text-[11px] font-bold text-primary-foreground tabular-nums"
+          className="absolute -top-1 -right-1 grid h-5 min-w-5 place-items-center rounded-full border-2 border-background bg-primary px-1 text-2xs font-bold text-primary-foreground tabular-nums"
         >
           {badge}
         </span>

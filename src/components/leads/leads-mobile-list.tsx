@@ -80,7 +80,7 @@ export function LeadsMobileList({
                 <span className="truncate">{lead.name}</span>
                 {isReadyToDispatch(lead) ? <ReadyMark /> : null}
               </span>
-              <span className="flex items-center gap-3 text-[13px]">
+              <span className="flex items-center gap-3 text-xs">
                 <span className="inline-flex items-center gap-1.5">
                   <ScoreCell score={lead.score} pending={pending} />
                   {pending ? <span className="text-muted-foreground">Analisando</span> : null}
@@ -89,7 +89,7 @@ export function LeadsMobileList({
               </span>
             </button>
             {lead.phoneE164 ? (
-              <span className="flex shrink-0 pr-2">
+              <span className="flex shrink-0 gap-1 pr-2">
                 <Button asChild variant="ghost" size="icon" className="text-green">
                   <a
                     href={whatsappLink(lead.phoneE164)}

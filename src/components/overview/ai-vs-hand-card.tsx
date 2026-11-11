@@ -12,11 +12,11 @@ function AuthorRow({ title, rate }: { title: string; rate: ReplyRate }) {
   const percent = ratePercent(rate.replied, rate.sent);
   return (
     <div className="grid gap-1.5">
-      <div className="flex items-baseline justify-between gap-3 text-[15px]">
+      <div className="flex items-baseline justify-between gap-3 text-base">
         <span className="font-semibold">{title}</span>
         <span className="text-right tabular-nums">
           <span className="font-semibold">{percent === null ? "—" : `${percent}%`}</span>
-          <span className="ml-1.5 text-[14px] text-tertiary">{replyRateLabel(rate)}</span>
+          <span className="ml-1.5 text-sm text-tertiary">{replyRateLabel(rate)}</span>
         </span>
       </div>
       <ProgressBar share={(percent ?? 0) / 100} label={`${title}: ${replyRateLabel(rate)}`} />
@@ -27,8 +27,8 @@ function AuthorRow({ title, rate }: { title: string; rate: ReplyRate }) {
 function CostRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="grid gap-0.5">
-      <dt className="text-[14px] text-muted-foreground">{label}</dt>
-      <dd className="text-[18px] font-semibold tabular-nums">{value}</dd>
+      <dt className="text-sm text-muted-foreground">{label}</dt>
+      <dd className="text-lg font-semibold tabular-nums">{value}</dd>
     </div>
   );
 }
@@ -43,7 +43,7 @@ export function AiVsHandCard({ metrics, caption }: { metrics: OverviewMetrics; c
   return (
     <section aria-labelledby="ai-vs-hand" className="grouped enter flex min-w-0 flex-col gap-4 p-5">
       <div className="flex flex-wrap items-baseline gap-2">
-        <h2 id="ai-vs-hand" className="text-[18px] font-semibold">
+        <h2 id="ai-vs-hand" className="text-lg font-semibold">
           IA × escrito à mão
         </h2>
         <span className="text-sm text-muted-foreground">
