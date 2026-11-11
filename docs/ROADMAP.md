@@ -86,6 +86,12 @@ The steps, in this order: (1) Visão geral with the new layout on today's data; 
 
 ## Decisions
 
+### 2026-11-10: open-PR limit exceeded for P1 and P3
+
+- **Decision:** P1 (`fix/security-hardening`) and P3 (`perf/lead-queries`) open now, taking the open PRs to 9 across repositories (NelcotaAI #36–#38, NelcotaLeads #48–#51 plus these two), above the limit of 7 in guard rule 6.
+- **Why:** the user insisted after being told of the limit ("suba os p1 e p3 também", then "Abrir mesmo assim"). Guard rule 6 asks for the decision in writing before going ahead.
+- **Review order suggested:** #48 (roadmap) and NelcotaAI #36 first, both documents only. No further PR opens until the count is back under 7.
+
 ### 2026-11-10: P1 and P2 ship switched off (guard rule 7)
 
 - **P2:** a late cron runs its scheduled slot (automatic dispatch and daily searches not skipped) only with `SCHEDULED_CATCH_UP=true`. Off by default: a late run skips the hourly steps, as before. Turned on by hand by whoever runs the infrastructure. The other P2 fixes (inbox and lead queue without the AI key, loud IMAP errors) send nothing and stay on.
