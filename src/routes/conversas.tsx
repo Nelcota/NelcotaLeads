@@ -1,18 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
-  ChevronLeftIcon,
   ChevronRightIcon,
   CircleCheckIcon,
   CircleXIcon,
   MessagesSquareIcon,
-  PanelRightCloseIcon,
-  PanelRightOpenIcon,
   PhoneIcon,
   RefreshCwIcon,
   RotateCcwIcon,
   SearchIcon,
-  SparklesIcon,
   XIcon,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -28,8 +24,10 @@ import {
   ConversationFilters,
 } from "@/components/conversas/conversation-filters";
 import { ConversationStateLabel } from "@/components/conversas/conversation-state-label";
+import { ThreadHeader } from "@/components/conversas/thread-header";
 import { HandoffNotice } from "@/components/conversas/handoff-notice";
 import { LeadPanel } from "@/components/conversas/lead-panel";
+import { NoConversationOpen } from "@/components/conversas/no-conversation-open";
 import type { MessageActions } from "@/components/conversas/message-buttons";
 import { ReplyComposer } from "@/components/conversas/reply-composer";
 import { ThreadMessages } from "@/components/conversas/thread-messages";
@@ -43,7 +41,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Switch } from "@/components/ui/switch";
 import type { Email } from "@/db/schema";
 import { useAutosave } from "@/lib/autosave";
 import { shortTime } from "@/lib/format";
@@ -53,6 +50,7 @@ import {
   invalidateLeadScreens,
   leadSalesQuery,
   nichesQuery,
+  providerStatusQuery,
 } from "@/lib/queries";
 import { useToday } from "@/lib/today";
 import { cn } from "@/lib/utils";
@@ -77,6 +75,9 @@ import { useListHotkeys } from "@/hooks/use-list-hotkeys";
 import { useLeadDeal } from "@/hooks/use-lead-deal";
 import { useLeadPanelOpen } from "@/hooks/use-lead-panel-open";
 import { useReadLeadReplies } from "@/hooks/use-read-lead-replies";
+import { useStickToBottom } from "@/hooks/use-stick-to-bottom";
+import { conversationOwner } from "@/lib/conversation-owner";
+import { replySendState } from "@/lib/reply-send";
 import { CloseDealDialog, type CloseDealMode } from "@/components/lead/close-deal-dialog";
 
 const FILTERS = CONVERSATION_FILTERS;
@@ -357,7 +358,7 @@ function ConversationsPage() {
             className="enter hidden items-center justify-center lg:flex"
             style={{ animationDelay: "40ms" }}
           >
-            <EmptyState icon={MessagesSquareIcon} title="Escolha uma conversa." />
+            <NoConversationOpen nextLeadId={data?.find((row) => row.state === "needsYou")?.id} />
           </div>
         )}
       </div>
@@ -377,7 +378,12 @@ function Thread({
   onTogglePanel: () => void;
 }) {
   const { data } = useQuery(conversationQuery(leadId));
+  const { data: providerStatus, isPending: providerStatusPending } = useQuery(providerStatusQuery);
   useReadLeadReplies(leadId, data?.messages);
+  // Opens on the newest message and follows new ones while the user is at the bottom.
+  const { ref: threadRef, onScroll: onThreadScroll } = useStickToBottom(
+    data ? `${data.messages.length}:${data.messages.at(-1)?.id ?? ""}:${data.state}` : null,
+  );
   const refresh = useRefresh();
   const queryClient = useQueryClient();
   const today = useToday();
@@ -524,7 +530,14 @@ function Thread({
   }
   const { lead, state, messages, draft, summary } = data;
   const value = text ?? draft?.body ?? "";
-  const canSend = value.trim() !== "" && !send.isPending;
+  const { canSend, reason: sendBlockedReason } = replySendState({
+    body: value,
+    pending: send.isPending,
+    // A failed status request still lets the server make the final send decision.
+    mailConfigured: providerStatusPending ? undefined : (providerStatus?.mail.configured ?? true),
+  });
+  // While the change is saving, the header already shows where it is going.
+  const owner = conversationOwner(ai.isPending ? (ai.variables ?? lead.aiMode) : lead.aiMode);
   const writeLabel = write.isPending
     ? "Escrevendo…"
     : value.trim()
@@ -565,53 +578,17 @@ function Thread({
         className={cn("enter flex min-h-0 min-w-0 flex-col", !panelOpen && "xl:col-span-2")}
         style={{ animationDelay: "40ms" }}
       >
-        <div className="flex flex-wrap items-center gap-3 border-b border-border px-5 py-3.5 sm:px-7">
-          <Hint label="Voltar (Esc)">
-            <Button
-              variant="outline"
-              size="icon"
-              className="lg:hidden"
-              onClick={onBack}
-              aria-label="Voltar"
-            >
-              <ChevronLeftIcon />
-            </Button>
-          </Hint>
-          <Avatar name={lead.name} size={40} />
-          <div className="min-w-0 flex-1">
-            <h2 className="truncate text-[17px] font-semibold">{lead.name}</h2>
-            <p className="truncate text-sm text-muted-foreground">{lead.email ?? "sem e-mail"}</p>
-          </div>
-          {!closed ? (
-            <label
-              htmlFor="ai-mode"
-              className="flex h-10 shrink-0 cursor-pointer items-center gap-2.5 rounded-full border border-border bg-fill pr-1.5 pl-3.5 text-sm font-medium whitespace-nowrap text-foreground transition-colors duration-150 hover:bg-fill-2"
-            >
-              <SparklesIcon aria-hidden className="size-4 text-purple" />
-              <span className="max-sm:hidden">IA no comando</span>
-              <span className="sm:hidden">IA</span>
-              <Switch
-                id="ai-mode"
-                size="sm"
-                checked={ai.isPending ? ai.variables : lead.aiMode}
-                disabled={ai.isPending}
-                onCheckedChange={(checked) => ai.mutate(checked)}
-              />
-            </label>
-          ) : null}
-          <Hint label={panelOpen ? "Esconder dados do lead" : "Mostrar dados do lead"}>
-            <Button
-              variant="outline"
-              size="icon"
-              className="max-xl:hidden"
-              aria-pressed={panelOpen}
-              aria-label={panelOpen ? "Esconder dados do lead" : "Mostrar dados do lead"}
-              onClick={onTogglePanel}
-            >
-              {panelOpen ? <PanelRightCloseIcon /> : <PanelRightOpenIcon />}
-            </Button>
-          </Hint>
-        </div>
+        <ThreadHeader
+          name={lead.name}
+          email={lead.email}
+          closed={closed}
+          owner={owner}
+          ownerBusy={ai.isPending}
+          panelOpen={panelOpen}
+          onBack={onBack}
+          onOwnerChange={(aiMode) => ai.mutate(aiMode)}
+          onTogglePanel={onTogglePanel}
+        />
 
         <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-5 py-3 sm:px-7 xl:hidden">
           {!closed ? (
@@ -675,7 +652,11 @@ function Thread({
           <p className="px-5 pt-2 text-[13px] text-muted-foreground sm:px-7 xl:hidden">{blocker}</p>
         ) : null}
 
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5 sm:px-7">
+        <div
+          ref={threadRef}
+          onScroll={onThreadScroll}
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5 sm:px-7"
+        >
           <div className="mx-auto grid max-w-[880px] gap-4">
             {firstOut ? (
               <h3 className="text-[22px] leading-tight font-semibold tracking-[-0.01em]">
@@ -683,13 +664,7 @@ function Thread({
               </h3>
             ) : null}
             <ThreadMessages messages={messages} leadName={lead.name} actions={messageActions} />
-            {state === "needsYou" ? (
-              <HandoffNotice
-                reason={lead.handoffReason}
-                busy={ai.isPending}
-                onReturnToAi={() => ai.mutate(true)}
-              />
-            ) : null}
+            {state === "needsYou" ? <HandoffNotice reason={lead.handoffReason} /> : null}
           </div>
         </div>
 
@@ -733,6 +708,7 @@ function Thread({
                 send={{
                   label: "Enviar",
                   pending: send.isPending,
+                  blockedReason: sendBlockedReason,
                   disabled: !canSend,
                   onClick: () => send.mutate(value),
                 }}

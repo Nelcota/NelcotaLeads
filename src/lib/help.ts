@@ -38,8 +38,8 @@ export const GLOSSARY: Record<GlossaryKey, { term: string; text: string }> = {
     text: "A IA parou de responder porque o cliente mostrou interesse ou pediu algo que só você decide.",
   },
   aiInCharge: {
-    term: "IA no comando",
-    text: "A IA responde essa conversa sozinha até haver interesse. Você pode assumir quando quiser.",
+    term: "A IA responde",
+    text: "A IA responde essa conversa sozinha até haver interesse. Use “Assumir conversa” para responder você mesmo.",
   },
   dailyLimit: {
     term: "Limite diário",
