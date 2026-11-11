@@ -65,7 +65,42 @@ describe("runSearch", () => {
       where: (s, { eq }) => eq(s.id, searchId),
     });
     expect(search?.status).toBe("error");
-    expect(search?.errorMessage).toMatch(/Limite diário/);
+    expect(search?.errorMessage).toMatch(/^Limite de buscas do Google de hoje atingido/);
+  });
+
+  it("finishes without an error when closed places leave the search short", async () => {
+    const short: PlacesProvider = {
+      name: "google",
+      search: async () => ({
+        places: [
+          {
+            placeId: "only-open",
+            name: "Clínica Aberta",
+            address: null,
+            phone: null,
+            website: null,
+            rating: null,
+            reviewCount: null,
+            mapsUrl: null,
+            businessStatus: "OPERATIONAL",
+          },
+        ],
+        requests: 1,
+        limitReached: false,
+      }),
+    };
+    const db = getDb(env.DB);
+    const { searchId } = await runSearch(db, fakeQueue().queue, short, {
+      ...input,
+      maxResults: 20,
+    });
+    const search = await db.query.searches.findFirst({ where: (s, { eq }) => eq(s.id, searchId) });
+    expect(search).toMatchObject({
+      status: "analyzing",
+      foundCount: 1,
+      placesRequests: 1,
+      errorMessage: null,
+    });
   });
 
   it("marks the search as failed when the provider throws", async () => {
@@ -77,7 +112,7 @@ describe("runSearch", () => {
     const { searchId } = await runSearch(db, fakeQueue().queue, failing, input);
     const search = await db.query.searches.findFirst({ where: (s, { eq }) => eq(s.id, searchId) });
     expect(search).toMatchObject({ status: "error" });
-    expect(search?.errorMessage).toMatch(/^Limite diário de requisições ao Google/);
+    expect(search?.errorMessage).toMatch(/^Limite de buscas do Google de hoje atingido/);
   });
 
   it("marks the new leads as failed when they cannot be enqueued", async () => {

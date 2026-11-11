@@ -53,6 +53,7 @@ describe("friendlyJobError", () => {
     ["IMAP: login refused", MAILBOX_REFUSED],
     ["Conexão encerrada pelo servidor de e-mail", MAILBOX_REFUSED],
     ["Limite diário de requisições ao Google atingido. A busca não foi feita", GOOGLE_LIMIT],
+    ["Limite de buscas do Google de hoje atingido. A busca não foi feita", GOOGLE_LIMIT],
   ])("maps %j to a known sentence", (text, expected) => {
     expect(friendlyJobError("inbox", new Error(text))).toBe(expected);
   });

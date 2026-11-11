@@ -4,10 +4,11 @@ import {
   agendaDayLabel,
   agendaDetail,
   agendaWhen,
-  dueToday,
   groupAgenda,
   OVERDUE_DAY,
   agendaRangeSchema,
+  todaysAgenda,
+  todaysAgendaCount,
   type AgendaEntry,
 } from "./agenda";
 import { addDays } from "./format";
@@ -61,7 +62,6 @@ describe("groupAgenda", () => {
       ["2026-11-05", "Quinta-feira, 05/11"],
     ]);
     expect(days[0]?.entries.map((item) => item.id)).toEqual(["fri", "mon"]);
-    expect(dueToday(entries, today).map((item) => item.id)).toEqual(["fri", "mon", "today"]);
     expect(agendaWhen(entry({ ...followup, day: "2026-10-30" }), today)).toBe("30/10");
     expect(agendaWhen(entry({ ...followup }), today)).toBe("dia todo");
     expect(agendaWhen(entry({}), today)).toBe("10:00");
@@ -69,6 +69,36 @@ describe("groupAgenda", () => {
 
   it("leaves days without entries out and returns nothing for no entries", () => {
     expect(groupAgenda([], today)).toEqual([]);
+  });
+});
+
+describe("todaysAgenda", () => {
+  const followup = { kind: "followup" as const, time: null, meetingKind: null };
+
+  it("splits the overdue rows (oldest first) from today's (by time) and drops later days", () => {
+    const groups = todaysAgenda(
+      [
+        entry({ id: "late", time: "16:00" }),
+        entry({ ...followup, id: "mon", day: "2026-11-02" }),
+        entry({ id: "early", time: "08:30" }),
+        entry({ ...followup, id: "fri", day: "2026-10-30" }),
+        entry({ id: "thu", day: "2026-11-05" }),
+      ],
+      today,
+    );
+    expect(groups.overdue.map((item) => item.id)).toEqual(["fri", "mon"]);
+    expect(groups.today.map((item) => item.id)).toEqual(["early", "late"]);
+  });
+
+  it("counts both groups and leaves out a part that is zero", () => {
+    const overdue = [entry({ ...followup, day: "2026-11-02" })];
+    const due = [entry({}), entry({ time: "11:00" })];
+    expect(todaysAgendaCount({ overdue, today: due })).toBe("2 hoje · 1 atrasado");
+    expect(todaysAgendaCount({ overdue: [...overdue, ...overdue, ...overdue], today: [] })).toBe(
+      "3 atrasados",
+    );
+    expect(todaysAgendaCount({ overdue: [], today: [entry({})] })).toBe("1 hoje");
+    expect(todaysAgendaCount(todaysAgenda([], today))).toBe("");
   });
 });
 
