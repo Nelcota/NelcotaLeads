@@ -378,7 +378,7 @@ function Thread({
   onTogglePanel: () => void;
 }) {
   const { data } = useQuery(conversationQuery(leadId));
-  const { data: providerStatus } = useQuery(providerStatusQuery);
+  const { data: providerStatus, isPending: providerStatusPending } = useQuery(providerStatusQuery);
   useReadLeadReplies(leadId, data?.messages);
   // Opens on the newest message and follows new ones while the user is at the bottom.
   const { ref: threadRef, onScroll: onThreadScroll } = useStickToBottom(
@@ -533,7 +533,8 @@ function Thread({
   const { canSend, reason: sendBlockedReason } = replySendState({
     body: value,
     pending: send.isPending,
-    mailConfigured: providerStatus?.mail.configured,
+    // A failed status request still lets the server make the final send decision.
+    mailConfigured: providerStatusPending ? undefined : (providerStatus?.mail.configured ?? true),
   });
   // While the change is saving, the header already shows where it is going.
   const owner = conversationOwner(ai.isPending ? (ai.variables ?? lead.aiMode) : lead.aiMode);

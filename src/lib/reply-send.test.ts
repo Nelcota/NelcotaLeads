@@ -23,9 +23,9 @@ describe("replySendState", () => {
     });
   });
 
-  it("does not block while the inbox status is still loading", () => {
+  it("waits for the inbox status before enabling send", () => {
     expect(replySendState({ body: "Oi", pending: false, mailConfigured: undefined })).toEqual({
-      canSend: true,
+      canSend: false,
       reason: null,
     });
   });
