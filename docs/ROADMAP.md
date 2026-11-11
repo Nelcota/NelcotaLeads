@@ -38,6 +38,8 @@ The steps, in this order: (1) Visão geral with the new layout on today's data; 
 
 ## Next
 
+- Admin-only settings: "Limites de uso" (and other system-wide settings) can be changed by any signed-in account today, so whoever has an account can turn the abuse limits off. Needs an admin role or owner check on the settings server functions. (2026-11-10, found by /revisar on P1; the user: "corrija tudo"; guard rule 4)
+- Split `src/routes/settings.tsx` (about 880 lines) into one component per section under `src/components/settings/`, no visual change. Its own PR after T4, T5 and P1 reach `main`, since all three touch that file. (2026-11-10, found by /revisar; guard rule 4)
 - Sender name per account: lead e-mails signed with the name of the account that sends them (or the lead's owner for automatic ones) instead of one system-wide "Seu nome" in Conta. Changes e-mail sending, so guard rule 7 applies. (2026-11-10, from the user's T5 answer: each partner signs up with the name they choose)
 - Agenda, phase 3 (after phases 1 and 2), the four additions the user chose on 2026-11-06 as most useful:
   - Meeting outcome: after the time, the meeting asks for Realizada, Não compareceu or Remarcar; Realizada suggests the lead's next stage. Migration (status column), so guard rule 7 applies.
