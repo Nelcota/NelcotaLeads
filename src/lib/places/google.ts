@@ -1,9 +1,18 @@
 import { z } from "zod";
+import { COMPANIES_PER_GOOGLE_REQUEST, googleRequestsFor } from "@/lib/google-quota";
 import type { Place, PlacesProvider, PlacesSearchParams, ReserveRequest } from "./types";
 
 const ENDPOINT = "https://places.googleapis.com/v1/places:searchText";
-const PAGE_SIZE = 20;
+const PAGE_SIZE = COMPANIES_PER_GOOGLE_REQUEST;
 const MAX_PAGES = 3;
+
+/**
+ * Pages a search may fetch: one per 20 companies asked for (20/40/60 → 1/2/3), as the Nova busca
+ * dialog promises. Closed places on a page do not buy an extra request; the search returns fewer.
+ */
+function pagesFor(maxResults: number): number {
+  return Math.min(MAX_PAGES, googleRequestsFor(maxResults));
+}
 
 // Minimal mask: these fields put the request in the "Text Search Enterprise" SKU.
 export const FIELD_MASK = [
@@ -56,8 +65,9 @@ export function createGooglePlacesProvider(
       let pageToken: string | undefined;
       let requests = 0;
       let limitReached = false;
+      const maxPages = pagesFor(params.maxResults);
 
-      while (requests < MAX_PAGES && places.length < params.maxResults) {
+      while (requests < maxPages && places.length < params.maxResults) {
         if (!(await reserveRequest())) {
           limitReached = true;
           break;

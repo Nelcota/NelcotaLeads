@@ -11,6 +11,7 @@ import {
   PlusIcon,
   RotateCwIcon,
   SearchIcon,
+  TriangleAlertIcon,
   XIcon,
 } from "lucide-react";
 import type { ReactNode } from "react";
@@ -33,7 +34,9 @@ import { formatDate } from "@/lib/format";
 import { searchesQuery } from "@/lib/queries";
 import { errorToast } from "@/lib/mutation-toasts";
 import { useNotFoundToast } from "@/lib/not-found-toast";
+import { searchFailureText } from "@/lib/provider-errors";
 import { MANUAL_SEARCH_ID } from "@/lib/searches";
+import { useToday } from "@/lib/today";
 import { cn } from "@/lib/utils";
 import { cancelSearch, hideSearch, repeatSearch } from "@/server/searches";
 import { pageTitle } from "@/lib/page-title";
@@ -178,6 +181,7 @@ function HiddenSearches({
 function SearchCard({ search, index }: { search: Search; index: number }) {
   const processed = search.analyzedCount + search.errorCount;
   const running = search.status === "collecting" || search.status === "analyzing";
+  const today = useToday();
   const auto = search.origin === "autopilot";
   const queryClient = useQueryClient();
   const cancel = useMutation({
@@ -231,8 +235,6 @@ function SearchCard({ search, index }: { search: Search; index: number }) {
             </span>
             {" · "}
             {formatDate(search.createdAt, true)}
-            {" · "}
-            {search.placesRequests} {search.placesRequests === 1 ? "requisição" : "requisições"}
           </p>
         </div>
         <div className="relative flex items-center gap-2">
@@ -318,7 +320,7 @@ function SearchCard({ search, index }: { search: Search; index: number }) {
             title="Coleta no Google Maps"
           >
             {search.status === "error" && search.foundCount === 0 ? (
-              search.errorMessage
+              searchFailureText(search.errorMessage, search.createdAt, today)
             ) : (
               <>
                 <b>{search.foundCount}</b>{" "}
@@ -345,7 +347,7 @@ function SearchCard({ search, index }: { search: Search; index: number }) {
             }
           >
             {search.status === "error" && search.foundCount > 0 ? (
-              search.errorMessage
+              searchFailureText(search.errorMessage, search.createdAt, today)
             ) : search.status === "analyzing" ? (
               <>
                 <b>{processed}</b> de {search.foundCount} analisadas
@@ -503,11 +505,14 @@ function Step({
       {children ? (
         <p
           className={cn(
-            "text-[14px] font-light [&_b]:font-medium [&_b]:text-foreground",
+            "flex items-start gap-1.5 text-[14px] font-light [&_b]:font-medium [&_b]:text-foreground",
             state === "error" ? "text-red" : "text-muted-foreground",
           )}
         >
-          {children}
+          {state === "error" ? (
+            <TriangleAlertIcon aria-hidden strokeWidth={2} className="mt-0.5 size-4 shrink-0" />
+          ) : null}
+          <span className="min-w-0">{children}</span>
         </p>
       ) : null}
       {progress !== undefined ? (
