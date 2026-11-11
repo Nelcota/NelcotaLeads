@@ -44,8 +44,15 @@ export function useDispatchDrafts(leadIds: string[]) {
     setDrafts((current) =>
       (current ?? []).map((draft) => (draft.id === id ? { ...draft, ...patch } : draft)),
     );
-  const drop = (id: string) =>
-    setDrafts((current) => (current ?? []).filter((draft) => draft.id !== id));
+  const drop = (draft: DispatchDraft) => {
+    setDrafts((current) => (current ?? []).filter((item) => item.id !== draft.id));
+    // Removing a draft excludes its recipient from this review, rather than offering to
+    // write a replacement for the lead that the user just took out of the dispatch.
+    setSkipped((current) => [
+      ...current,
+      { leadId: draft.leadId, name: draft.leadName, reason: "retirado do disparo" },
+    ]);
+  };
 
   return {
     drafts: list,

@@ -71,11 +71,11 @@ export function useDispatchActions({
     onError: errorToast("Não foi possível reescrever"),
   });
   const remove = useMutation({
-    mutationFn: async (id: string) => {
-      await autosave.discard(id);
-      return removeDraft({ data: { id } });
+    mutationFn: async (draft: DispatchDraft) => {
+      await autosave.discard(draft.id);
+      return removeDraft({ data: { id: draft.id } });
     },
-    onSuccess: (_result, id) => review.drop(id),
+    onSuccess: (_result, draft) => review.drop(draft),
     onError: errorToast("Não foi possível tirar do disparo"),
   });
   const dispatch = useMutation({
@@ -109,7 +109,7 @@ export function useDispatchActions({
     saveState: autosave.state,
     rewrite: (id: string, previous: DraftText) => rewrite.mutate({ id, previous }),
     rewriting: rewrite.isPending,
-    remove: (id: string) => remove.mutate(id),
+    remove: (draft: DispatchDraft) => remove.mutate(draft),
     removing: remove.isPending,
     dispatch: () => dispatch.mutate(),
     dispatching: dispatch.isPending,

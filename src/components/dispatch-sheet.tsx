@@ -245,7 +245,7 @@ function DispatchReview({
                 size="sm"
                 disabled={actions.removing}
                 onClick={() => {
-                  actions.remove(current.id);
+                  actions.remove(current);
                   setIndex((i) => Math.max(0, i - 1));
                 }}
               >

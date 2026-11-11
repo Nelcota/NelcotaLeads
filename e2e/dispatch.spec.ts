@@ -57,6 +57,8 @@ test.describe("e-mail dispatch", () => {
 
     const review = page.getByRole("dialog", { name: "Disparar 2 e-mails" });
     await expect(review.getByText("1 de 2")).toBeVisible();
+    await expect(review.getByRole("button", { name: /^Escrever/ })).toHaveCount(0);
+    await expect(review.getByText(`${removed}: retirado do disparo`)).toBeVisible();
     await expect(review.getByLabel("Assunto")).toHaveValue("Proposta para a sua clínica");
     await review.getByRole("button", { name: "Próximo" }).click();
     const untouched = await currentDraftLead(page);
