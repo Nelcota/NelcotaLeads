@@ -238,6 +238,17 @@ function ConversationsPage() {
                 </Hint>
               ) : null}
             </div>
+            {owner ? (
+              <OwnerFilterChip
+                owner={owner}
+                onClear={() =>
+                  void navigate({
+                    search: (prev) => ({ ...prev, owner: undefined }),
+                    replace: true,
+                  })
+                }
+              />
+            ) : null}
             {talkedNiches.length > 1 || niche ? (
               <Select
                 value={niche ?? "all"}
@@ -264,17 +275,6 @@ function ConversationsPage() {
                   ) : null}
                 </SelectContent>
               </Select>
-            ) : null}
-            {owner ? (
-              <OwnerFilterChip
-                owner={owner}
-                onClear={() =>
-                  void navigate({
-                    search: (prev) => ({ ...prev, owner: undefined }),
-                    replace: true,
-                  })
-                }
-              />
             ) : null}
             <ConversationFilters
               value={filter}
