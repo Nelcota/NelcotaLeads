@@ -6,6 +6,7 @@ import {
   MapPinIcon,
   PencilLineIcon,
 } from "lucide-react";
+import { useRef } from "react";
 import { Hint } from "@/components/apple-ui";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,6 +34,16 @@ export function SearchRowMenu({
   const hide = useHideSearch();
   const unhide = useUnhideSearch();
   const hidden = search.hiddenAt !== null;
+  // Filled once the menu has closed: closing hands focus back to ⋯, so the form field would
+  // lose the focus it was just given.
+  const pendingFill = useRef<[string, string] | null>(null);
+  const fillAfterClose = (event: Event) => {
+    const fill = pendingFill.current;
+    if (!fill) return;
+    event.preventDefault();
+    pendingFill.current = null;
+    onFill(fill[0], fill[1]);
+  };
   return (
     <DropdownMenu>
       <Hint label="Mais ações">
@@ -42,12 +53,16 @@ export function SearchRowMenu({
           </Button>
         </DropdownMenuTrigger>
       </Hint>
-      <DropdownMenuContent align="end" className="w-auto min-w-60">
-        <DropdownMenuItem onSelect={() => onFill(search.niche, search.city)}>
+      <DropdownMenuContent
+        align="end"
+        className="w-auto min-w-60"
+        onCloseAutoFocus={fillAfterClose}
+      >
+        <DropdownMenuItem onSelect={() => (pendingFill.current = [search.niche, search.city])}>
           <PencilLineIcon />
           Usar nicho e cidade
         </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => onFill(search.niche, "")}>
+        <DropdownMenuItem onSelect={() => (pendingFill.current = [search.niche, ""])}>
           <MapPinIcon />
           Mesmo nicho em outra cidade
         </DropdownMenuItem>
