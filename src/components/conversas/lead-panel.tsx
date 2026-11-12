@@ -114,10 +114,10 @@ export function LeadPanel({
   return (
     <aside
       aria-label="Dados do lead"
-      className="enter hidden min-h-0 content-start gap-2.5 overflow-x-hidden overflow-y-auto overscroll-contain border-l border-border px-4 py-4 xl:grid"
+      className="enter hidden min-h-0 flex-col gap-2.5 overflow-x-hidden overflow-y-auto overscroll-contain xl:flex"
       style={{ animationDelay: "80ms" }}
     >
-      <div className="grid gap-2.5 rounded-2xl border border-border bg-card p-4">
+      <div className="grid gap-2.5 rounded-[18px] bg-card p-4">
         <div className="flex items-center gap-3">
           <Avatar name={lead.name} size={48} />
           <p className="min-w-0 text-lg leading-tight font-semibold">{lead.name}</p>
@@ -137,7 +137,7 @@ export function LeadPanel({
       />
 
       {summary ? (
-        <div className="grid gap-2 rounded-2xl border border-border bg-card px-4 py-3.5">
+        <div className="grid gap-2 rounded-[18px] bg-card px-4 py-3.5">
           <p className="flex items-center gap-2 text-sm font-semibold">
             <SparklesIcon aria-hidden className="size-3.5 text-purple" />
             Resumo da IA
@@ -146,7 +146,7 @@ export function LeadPanel({
         </div>
       ) : null}
 
-      <div className="grid gap-2 pt-1">
+      <div className="mt-auto grid gap-2 pt-1">
         <DealButtons
           closed={closed}
           blocker={blocker}
@@ -156,7 +156,7 @@ export function LeadPanel({
           onReopen={onReopen}
         />
         {blocker ? <p className="px-1 text-xs text-muted-foreground">{blocker}</p> : null}
-        <Button asChild variant="link" className="justify-between">
+        <Button asChild variant="link" className="justify-between border-transparent">
           <Link to="/leads" search={{ view: "all", lead: lead.id }}>
             Ver análise completa
             <ChevronRightIcon aria-hidden />

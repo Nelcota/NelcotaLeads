@@ -22,6 +22,7 @@ import { WhatsAppMark } from "@/components/brand-marks";
 import {
   CONVERSATION_FILTERS,
   ConversationFilters,
+  type ConversationFilter,
 } from "@/components/conversas/conversation-filters";
 import { ConversationStateLabel } from "@/components/conversas/conversation-state-label";
 import { ThreadHeader } from "@/components/conversas/thread-header";
@@ -170,9 +171,22 @@ function ConversationsPage() {
     row?.scrollIntoView({ block: "nearest" });
   }, [openId]);
 
+  const changeFilter = (next: ConversationFilter) =>
+    void navigate({ search: (prev) => ({ ...prev, filter: next }) });
+
   return (
     <Page
       title="Conversas"
+      titleAside={
+        <div className="max-lg:hidden">
+          <ConversationFilters
+            layout="row"
+            value={filter}
+            countOf={countOf}
+            onChange={changeFilter}
+          />
+        </div>
+      }
       bleed
       actions={
         <Hint label="Verificar e-mails">
@@ -188,14 +202,9 @@ function ConversationsPage() {
         </Hint>
       }
     >
-      <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)] border-t border-border/70 lg:grid-cols-[330px_minmax(0,1fr)] xl:grid-cols-[330px_minmax(0,1fr)_290px]">
-        <div
-          className={cn(
-            "enter flex min-h-0 flex-col border-border/70 lg:border-r",
-            openId && "max-lg:hidden",
-          )}
-        >
-          <div className="grid grid-cols-[minmax(0,1fr)] gap-3 px-4 pt-4 pb-3">
+      <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)] lg:gap-3 lg:pr-6 lg:pb-4 lg:grid-cols-[330px_minmax(0,1fr)] xl:grid-cols-[330px_minmax(0,1fr)_290px]">
+        <div className={cn("enter flex min-h-0 flex-col", openId && "max-lg:hidden")}>
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-3 px-4 pt-4 pb-3 lg:pt-0 lg:pr-1 lg:pl-6">
             <div className="relative">
               <SearchIcon className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-tertiary" />
               <Input
@@ -205,7 +214,10 @@ function ConversationsPage() {
                 enterKeyHint="search"
                 aria-label="Buscar conversa"
                 placeholder="Buscar por nome ou e-mail"
-                className={cn("h-10 rounded-full pl-9", query && "pr-10")}
+                className={cn(
+                  "h-10 rounded-full bg-fill-2 pl-9 shadow-none dark:bg-fill-2",
+                  query && "pr-10",
+                )}
                 {...searchBox.inputProps}
                 onKeyDown={(event) => {
                   if (event.key !== "Escape" || !query) return;
@@ -260,11 +272,9 @@ function ConversationsPage() {
                 </SelectContent>
               </Select>
             ) : null}
-            <ConversationFilters
-              value={filter}
-              countOf={countOf}
-              onChange={(next) => void navigate({ search: (prev) => ({ ...prev, filter: next }) })}
-            />
+            <div className="lg:hidden">
+              <ConversationFilters value={filter} countOf={countOf} onChange={changeFilter} />
+            </div>
           </div>
           {data === undefined ? (
             <div className="grid gap-2 p-3">
@@ -289,7 +299,7 @@ function ConversationsPage() {
           ) : (
             <ul
               ref={listRef}
-              className="grid min-h-0 flex-1 content-start gap-0.5 overflow-y-auto overscroll-contain px-2 pb-3"
+              className="grid min-h-0 flex-1 content-start gap-0.5 overflow-y-auto overscroll-contain px-2 pb-3 lg:pr-0 lg:pl-4"
             >
               {rows.map((row) => {
                 const selectedRow = row.id === openId;
@@ -302,10 +312,8 @@ function ConversationsPage() {
                       data-row={row.id}
                       aria-current={selectedRow || undefined}
                       className={cn(
-                        "grid w-full grid-cols-[12px_minmax(0,1fr)] gap-1.5 rounded-[14px] border py-3 pr-3 pl-2 text-left transition-[background-color,border-color] duration-150 ease-spring",
-                        selectedRow
-                          ? "border-border bg-fill-2"
-                          : "border-transparent hover:bg-fill-3",
+                        "grid w-full grid-cols-[12px_minmax(0,1fr)] gap-1.5 rounded-[14px] py-3 pr-3 pl-2 text-left transition-[background-color] duration-150 ease-spring",
+                        selectedRow ? "bg-fill-2" : "hover:bg-fill-3",
                       )}
                     >
                       <span
@@ -355,7 +363,7 @@ function ConversationsPage() {
           />
         ) : (
           <div
-            className="enter hidden items-center justify-center lg:flex"
+            className="enter hidden items-center justify-center lg:flex lg:rounded-[18px] lg:bg-card"
             style={{ animationDelay: "40ms" }}
           >
             <NoConversationOpen nextLeadId={data?.find((row) => row.state === "needsYou")?.id} />
@@ -522,7 +530,7 @@ function Thread({
 
   if (!data) {
     return (
-      <div className="grid content-start gap-3 p-6">
+      <div className="grid content-start gap-3 p-6 lg:rounded-[18px] lg:bg-card">
         <Skeleton className="h-6 w-1/2" />
         <Skeleton className="h-40 w-full" />
       </div>
@@ -575,7 +583,10 @@ function Thread({
   return (
     <>
       <div
-        className={cn("enter flex min-h-0 min-w-0 flex-col", !panelOpen && "xl:col-span-2")}
+        className={cn(
+          "enter flex min-h-0 min-w-0 flex-col lg:overflow-hidden lg:rounded-[18px] lg:bg-card",
+          !panelOpen && "xl:col-span-2",
+        )}
         style={{ animationDelay: "40ms" }}
       >
         <ThreadHeader
@@ -655,7 +666,7 @@ function Thread({
         <div
           ref={threadRef}
           onScroll={onThreadScroll}
-          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5 sm:px-7"
+          className="scroll-fade min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5 sm:px-7"
         >
           <div className="mx-auto grid max-w-[880px] gap-4">
             {firstOut ? (

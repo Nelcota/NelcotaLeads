@@ -492,12 +492,15 @@ function AccountRow() {
  */
 export function Page({
   title,
+  titleAside,
   description,
   actions,
   bleed = false,
   children,
 }: {
   title: string;
+  /** Sits right after the title (the Conversas filters). */
+  titleAside?: ReactNode;
   description?: ReactNode;
   actions?: ReactNode;
   /** Full-height content without padding (Conversas). */
@@ -520,9 +523,15 @@ export function Page({
             className="-ml-1 size-9 text-tertiary md:hidden"
           />
         </Hint>
-        <h1 className="min-w-0 flex-1 truncate text-lg font-semibold tracking-[-0.02em] sm:text-2xl">
+        <h1
+          className={cn(
+            "min-w-0 truncate text-lg font-semibold tracking-[-0.02em] sm:text-2xl",
+            titleAside ? "shrink-0" : "flex-1",
+          )}
+        >
           {title}
         </h1>
+        {titleAside ? <div className="min-w-0 flex-1 pl-4">{titleAside}</div> : null}
         {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
         <NotificationBell />
       </header>

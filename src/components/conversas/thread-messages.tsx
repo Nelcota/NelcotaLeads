@@ -6,13 +6,13 @@ import { shownMessages, withDayBreaks } from "@/lib/conversation-thread";
 import { MessageBubble } from "./message-bubble";
 import type { MessageActions } from "./message-buttons";
 
-/** A thin rule with the day in the middle: "Hoje", "Ontem", "Qui, 05/11". */
+/** The day, centered between messages: "Hoje", "Ontem", "Qui, 05/11". */
 function DaySeparator({ label }: { label: string }) {
   return (
     <div
       role="separator"
       aria-label={label}
-      className="flex items-center gap-3 pt-2 text-xs font-medium text-tertiary before:h-px before:flex-1 before:bg-border after:h-px after:flex-1 after:bg-border"
+      className="flex justify-center pt-2 text-xs font-medium text-tertiary"
     >
       {label}
     </div>
