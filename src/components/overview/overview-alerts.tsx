@@ -1,115 +1,44 @@
 import { Link } from "@tanstack/react-router";
-import { TriangleAlertIcon, XIcon } from "lucide-react";
-import { useSyncExternalStore } from "react";
+import {
+  CalendarClockIcon,
+  ChevronRightIcon,
+  MessageCircleWarningIcon,
+  PencilLineIcon,
+  SearchXIcon,
+  type LucideIcon,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { OverviewAlert } from "@/lib/overview";
-import { cn } from "@/lib/utils";
+import type { OverviewAlert, OverviewAlertKind } from "@/lib/overview";
 
-const DISMISSED_KEY = "overview:dismissed-alerts";
-const NONE = "[]";
+const ICONS: Record<OverviewAlertKind, LucideIcon> = {
+  offer: PencilLineIcon,
+  cooling: MessageCircleWarningIcon,
+  search: SearchXIcon,
+  followup: CalendarClockIcon,
+};
 
-// What was dismissed in this tab, for when sessionStorage is blocked (private mode).
-let inMemory: string | null = null;
-const listeners = new Set<() => void>();
-
-function subscribe(listener: () => void) {
-  listeners.add(listener);
-  return () => {
-    listeners.delete(listener);
-  };
-}
-
-/** The stored list as text: a stable value for useSyncExternalStore. */
-function readStored(): string {
-  try {
-    return sessionStorage.getItem(DISMISSED_KEY) ?? inMemory ?? NONE;
-  } catch {
-    return inMemory ?? NONE;
-  }
-}
-
-/** The server has no sessionStorage: it (and the first client render) shows every alert. */
-const serverSnapshot = () => NONE;
-
-function parseDismissed(stored: string): string[] {
-  try {
-    const parsed: unknown = JSON.parse(stored);
-    return Array.isArray(parsed) ? parsed.filter((key) => typeof key === "string") : [];
-  } catch {
-    return [];
-  }
-}
-
-function writeDismissed(keys: string[]) {
-  inMemory = JSON.stringify(keys);
-  try {
-    sessionStorage.setItem(DISMISSED_KEY, inMemory);
-  } catch {
-    // Private mode or blocked storage: the alert only stays hidden until the page reloads.
-  }
-  for (const listener of listeners) listener();
-}
-
-/** `cooling:<day>:<count>` → its day and count; null for any other key. */
-function coolingKey(key: string): { day: string; count: number } | null {
-  const match = /^cooling:(\d{4}-\d{2}-\d{2}):(\d+)$/.exec(key);
-  if (!match) return null;
-  return { day: match[1] ?? "", count: Number(match[2]) };
-}
-
-/**
- * The cooling alert is keyed by its count, so a new late lead brings it back; answering one of
- * them (a smaller count, same day) keeps it dismissed instead of showing it again.
- */
-function isDismissed(key: string, dismissed: string[]): boolean {
-  if (dismissed.includes(key)) return true;
-  const cooling = coolingKey(key);
-  if (!cooling) return false;
-  return dismissed.some((stored) => {
-    const past = coolingKey(stored);
-    return past !== null && past.day === cooling.day && past.count >= cooling.count;
-  });
-}
-
-/** Alerts at the top of the overview; each can be hidden for the rest of the browser session. */
-export function OverviewAlerts({ alerts }: { alerts: OverviewAlert[] }) {
-  const dismissed = parseDismissed(useSyncExternalStore(subscribe, readStored, serverSnapshot));
-  const visible = alerts.filter((alert) => !isDismissed(alert.key, dismissed));
-  if (visible.length === 0) return null;
-
-  const dismiss = (key: string) => writeDismissed([...dismissed, key]);
-
+/** One pending item as a pill: line icon in its tone, neutral text, opens its filtered list. */
+function AlertPill({ alert }: { alert: OverviewAlert }) {
+  const Icon = ICONS[alert.kind];
   return (
-    <section aria-label="Alertas" className="enter grid gap-2">
-      {visible.map((alert) => (
-        <div
-          key={alert.key}
-          className={cn(
-            "flex min-h-[52px] items-center gap-3 rounded-[16px] border border-border bg-card px-4 py-2.5",
-          )}
-        >
-          <TriangleAlertIcon
-            aria-hidden
-            className={cn("size-4 shrink-0", alert.tone === "red" ? "text-red" : "text-orange")}
-          />
-          <span className="min-w-0 flex-1 text-[15px]">{alert.text}</span>
-          <Link
-            {...alert.link}
-            className="shrink-0 text-[15px] font-semibold text-blue hover:underline"
-          >
-            {alert.action}
-          </Link>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => dismiss(alert.key)}
-            aria-label="Dispensar alerta"
-          >
-            <XIcon className="size-3.5" />
-          </Button>
-        </div>
+    <Button asChild variant="outline">
+      <Link {...alert.link} aria-label={`${alert.label}. ${alert.hint}`}>
+        <Icon aria-hidden className={alert.tone === "red" ? "text-red" : "text-orange"} />
+        <span className="text-base">{alert.label}</span>
+        <ChevronRightIcon aria-hidden className="size-3.5 text-muted-foreground" />
+      </Link>
+    </Button>
+  );
+}
+
+/** What is pending today, as a row of pills under the page description; nothing when all is done. */
+export function OverviewAlerts({ alerts }: { alerts: OverviewAlert[] }) {
+  if (alerts.length === 0) return null;
+  return (
+    <nav aria-label="Pendências de hoje" className="enter -mt-2 flex flex-wrap gap-2">
+      {alerts.map((alert) => (
+        <AlertPill key={alert.key} alert={alert} />
       ))}
-    </section>
+    </nav>
   );
 }

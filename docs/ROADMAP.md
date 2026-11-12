@@ -92,6 +92,14 @@ The steps, in this order: (1) Visão geral with the new layout on today's data; 
 
 ## Decisions
 
+### 2026-11-11: Visão geral alerts become a summary row
+
+- **Decision:** the alert strip at the top of the Visão geral (one full-width card per alert, warning triangle, link and X) goes. In its place, a row of compact pills under the page description, one per pending item: line icon in its tone, the count and a short label ("1 sem resposta há mais de 1 dia", "3 retornos para hoje ou atrasados", "Busca de dentistas falhou", "Descrever a oferta"). Each pill is a secondary button (`outline`, 40px) that opens the same filtered list the alert opened. No dismiss X: the row mirrors what is pending, and clearing lives in the notification bell. The orange "N precisa de você" leaves the description, since the "Precisa de você" card right below shows it. Part of the Notification center item in Now, which absorbed these alerts on 2026-11-07.
+- **Why:** the user found the strip "arcaico": it repeated the bell and the cards below, said "3 leads" without telling who, and the X only hid it until the tab closed.
+- **Discarded:** one merged "Para hoje" card (still repeats "Precisa de você"); toasts on page load (gone before anyone acts); counters inside the description text (the `linha` variant of the canvas).
+- **Approved:** canvas "Nelcota Leads · Visão geral (avisos)", default `pilulas` variant (2026-11-11, the user: "gostei, aplique no localhost 3040"). The pills open the filtered lists instead of scrolling to the cards below, as the alerts did.
+- **Review if:** with several config alerts at once the row wraps to more than two lines on a phone.
+
 ### 2026-11-10: gap audit plan moves to Now
 
 - **Decision:** the 15 findings of the 2026-11-10 gap audit (what the 2026-11-09 UX audit and the 2026-11-10 code review did not cover) are fixed in two parallel chats and two waves. Chat A owns what the AI writes and the screen texts (A1 now; A2, A3 later); chat B owns accessibility and code cleanup (B1, B2 now; B3, B4 later). Wave 1 starts now; wave 2 waits for T1–T6, P1–P4, `feat/team-page` and `style/line-icons` to reach `main`.

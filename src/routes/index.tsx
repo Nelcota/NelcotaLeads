@@ -107,7 +107,7 @@ function PeriodMetrics({
     return (
       <>
         {selector}
-        <p role="alert" className="grouped px-5 py-6 text-[15px] text-muted-foreground">
+        <p role="alert" className="grouped px-5 py-6 text-base text-muted-foreground">
           Não foi possível carregar as métricas do período. Recarregue a página para tentar de novo.
         </p>
       </>
@@ -174,14 +174,6 @@ function OverviewPage() {
             <Stat value={data.stats.readyToSend} one="pronto para disparo">
               prontos para disparo
             </Stat>
-            {data.stats.interested > 0 ? (
-              <>
-                {" · "}
-                <Stat value={data.stats.interested} tone="orange" one="precisa de você">
-                  precisam de você
-                </Stat>
-              </>
-            ) : null}
           </>
         )
       }

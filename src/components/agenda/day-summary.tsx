@@ -29,7 +29,7 @@ export function DaySummary({
           Hoje
         </span>
       ) : null}
-      <span className="text-[14px] font-medium text-muted-foreground">
+      <span className="text-sm font-medium text-muted-foreground">
         {countLabel(meetings.length, ofDay.length - meetings.length)}
       </span>
       {next ? (

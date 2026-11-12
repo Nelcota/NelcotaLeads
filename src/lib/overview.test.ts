@@ -116,10 +116,23 @@ describe("buildAlerts", () => {
     const alerts = buildAlerts(alertSource(false, 2), 0);
     expect(alerts[0]).toMatchObject({
       key: "setup:offer",
-      action: "Escrever",
+      kind: "offer",
+      label: "Descrever a oferta",
       link: { to: "/settings", hash: "oferta" },
     });
     expect(alerts).toHaveLength(2);
+  });
+
+  it("labels the pending items with their count", () => {
+    const alerts = buildAlerts(alertSource(true, 1), 3);
+    expect(alerts.map((alert) => alert.label)).toEqual([
+      "1 sem resposta há mais de 1 dia",
+      "3 retornos para hoje ou atrasados",
+    ]);
+  });
+
+  it("uses the singular for a single follow-up", () => {
+    expect(buildAlerts(alertSource(true), 1)[0]?.label).toBe("1 retorno para hoje ou atrasado");
   });
 
   it("has no setup alert once the offer exists", () => {

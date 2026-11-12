@@ -13,7 +13,7 @@ function usedPercent({ used, limit }: GoogleUsage): number {
 export function GoogleQuotaRow({ usage }: { usage: GoogleUsage }) {
   return (
     <div className="grid gap-1.5">
-      <p className="flex items-center gap-1.5 text-[14px] leading-tight text-muted-foreground">
+      <p className="flex items-center gap-1.5 text-sm leading-tight text-muted-foreground">
         <SearchIcon aria-hidden strokeWidth={2} className="size-3.5 shrink-0 text-blue" />
         {companiesLeftLabel(usage)}
       </p>

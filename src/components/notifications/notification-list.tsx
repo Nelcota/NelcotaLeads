@@ -35,8 +35,8 @@ function EmptyNotifications({
         <span className="grid size-11 place-items-center rounded-full bg-fill-2 text-muted-foreground">
           <BellIcon aria-hidden className="size-5" strokeWidth={1.8} />
         </span>
-        <p className="text-[15px] font-semibold">Nada nos seus leads</p>
-        <p className="max-w-[260px] text-[13px] leading-snug text-muted-foreground">
+        <p className="text-base font-semibold">Nada nos seus leads</p>
+        <p className="max-w-[260px] text-xs leading-snug text-muted-foreground">
           {hiddenByFilter === 1
             ? "Há 1 notificação de leads de outros sócios."
             : `Há ${hiddenByFilter} notificações de leads de outros sócios.`}
@@ -52,8 +52,8 @@ function EmptyNotifications({
       <span className="grid size-11 place-items-center rounded-full bg-fill-2 text-muted-foreground">
         <BellIcon aria-hidden className="size-5" strokeWidth={1.8} />
       </span>
-      <p className="text-[15px] font-semibold">Nada novo por aqui</p>
-      <p className="max-w-[260px] text-[13px] leading-snug text-muted-foreground">
+      <p className="text-base font-semibold">Nada novo por aqui</p>
+      <p className="max-w-[260px] text-xs leading-snug text-muted-foreground">
         Avisamos quando um lead responder, um retorno vencer, uma reunião chegar ou uma busca
         terminar.
       </p>

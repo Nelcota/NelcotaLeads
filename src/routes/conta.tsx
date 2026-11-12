@@ -57,8 +57,8 @@ function AccountPage() {
           <section className="enter flex flex-col items-center gap-3 pt-2 text-center">
             <AvatarPicker name={name === "Sem nome" ? "?" : name} src={account?.avatar} />
             <div className="grid gap-0.5">
-              <p className="text-xl font-medium tracking-[-0.02em]">{name}</p>
-              <p className="font-light text-muted-foreground">
+              <p className="text-lg font-semibold tracking-[-0.02em]">{name}</p>
+              <p className="text-muted-foreground">
                 {account?.email ?? (settings.senderCompany || "Empresa não informada")}
               </p>
             </div>
@@ -101,7 +101,7 @@ function AccountPage() {
               <div className="grouped">
                 <PropertyRow label="E-mails enviados">
                   {status.mail.sentToday}{" "}
-                  <span className="font-light text-muted-foreground">de {status.mail.limit}</span>
+                  <span className="text-muted-foreground">de {status.mail.limit}</span>
                 </PropertyRow>
                 <PropertyRow label="Buscas no Google">
                   {companiesLeftLabel(status.placesUsage)}
@@ -162,7 +162,7 @@ function AvatarPicker({ name, src }: { name: string; src?: string | null }) {
         className="press group relative overflow-hidden rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       >
         <Avatar name={name} src={src} size={72} />
-        <span className="absolute inset-x-0 bottom-0 grid h-6 place-items-center bg-black/55 text-[12px] font-medium text-white opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100">
+        <span className="absolute inset-x-0 bottom-0 grid h-6 place-items-center bg-black/55 text-xs font-medium text-white opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100">
           {src ? "Editar" : "Adicionar"}
         </span>
       </button>
@@ -242,7 +242,7 @@ function ProfileForm({ defaults }: { defaults: SettingsInput }) {
 function ProfileField({ label, id, children }: { label: string; id: string; children: ReactNode }) {
   return (
     <div className="grouped-row flex min-h-[52px] items-center gap-4 px-4 py-2 [--inset:16px]">
-      <label htmlFor={id} className="w-28 shrink-0 font-light text-muted-foreground">
+      <label htmlFor={id} className="w-28 shrink-0 text-muted-foreground">
         {label}
       </label>
       <div className="min-w-0 flex-1">{children}</div>
@@ -257,7 +257,7 @@ function AppearanceSection() {
       <SectionHeader title="Aparência" />
       <div className="grouped">
         <div className="grouped-row flex min-h-[52px] items-center justify-between gap-4 px-4 py-2 [--inset:16px]">
-          <span className="font-light text-muted-foreground">Tema</span>
+          <span className="text-muted-foreground">Tema</span>
           <Tabs
             value={theme}
             onValueChange={(value) => setTheme(value === "light" ? "light" : "dark")}

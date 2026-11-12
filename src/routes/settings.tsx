@@ -115,8 +115,10 @@ function SettingsPage() {
           <div className="flex items-center gap-4 px-1">
             <IconTile icon={SettingsIcon} tone="gray" size={60} className="rounded-[15px]!" />
             <div>
-              <p className="text-lg font-medium tracking-[-0.02em]">Como a IA trabalha por você</p>
-              <p className="text-sm font-light text-muted-foreground">
+              <p className="text-lg font-semibold tracking-[-0.02em]">
+                Como a IA trabalha por você
+              </p>
+              <p className="text-sm text-muted-foreground">
                 Oferta, critérios de nota, tom das mensagens, caixa de e-mail e o que roda sozinho.
               </p>
             </div>
@@ -155,14 +157,14 @@ function MailCard() {
           {mail?.configured ? (
             <>
               <p className="truncate font-medium">{mail.address}</p>
-              <p className="text-[14px] font-medium text-green">
+              <p className="text-sm font-medium text-green">
                 Conectado · {mail.sentToday} de {mail.limit} enviados hoje
               </p>
             </>
           ) : (
             <>
               <p className="font-medium text-orange">Caixa não conectada</p>
-              <p className="font-light text-muted-foreground">
+              <p className="text-muted-foreground">
                 Ela é conectada por quem administra o sistema, não por aqui. Quando estiver pronta,
                 aparece nesta tela e os envios começam sozinhos.
               </p>
@@ -324,7 +326,7 @@ function AutopilotForm() {
               <IconTile icon={item.icon} tone={item.tone} size={30} />
               <div className="grid min-w-0 flex-1 gap-0.5">
                 <Label htmlFor={`auto-${item.name}`}>{item.label}</Label>
-                <p className="text-[14px] font-light text-muted-foreground">{item.hint}</p>
+                <p className="text-sm text-muted-foreground">{item.hint}</p>
               </div>
               <Controller
                 control={form.control}
@@ -347,7 +349,7 @@ function AutopilotForm() {
         </div>
 
         <div className="grid gap-2 border-t border-border/70 px-4 pt-3.5 pb-4">
-          <p className="text-[14px] font-medium text-muted-foreground">O que buscar</p>
+          <p className="text-sm font-medium text-muted-foreground">O que buscar</p>
           {targets.fields.map((field, index) => (
             <div key={field.id} className="flex items-center gap-2">
               <div className="grid flex-1 grid-cols-[1fr_auto_1fr] items-center gap-2">
@@ -359,7 +361,7 @@ function AutopilotForm() {
                   {...form.register(`targets.${index}.niche`)}
                   aria-invalid={Boolean(errors.targets?.[index]?.niche)}
                 />
-                <span className="text-sm font-light text-tertiary">em</span>
+                <span className="text-sm text-tertiary">em</span>
                 <Input
                   aria-label={`Cidade ${index + 1}`}
                   autoComplete="off"
@@ -589,7 +591,7 @@ function SettingsForm({ defaults }: { defaults: SettingsInput }) {
           <AddRow onClick={() => criteria.append({ label: "", weight: 10 })}>
             Adicionar critério
           </AddRow>
-          <p className="text-xs font-light text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             Soma dos pesos positivos:{" "}
             <span
               className={cn(
@@ -653,12 +655,15 @@ function SettingsForm({ defaults }: { defaults: SettingsInput }) {
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl bg-fill-3 px-3.5 py-2.5 text-sm sm:col-span-2">
           <div className="min-w-0 flex-1">
             <p className="font-medium">Nome e empresa do remetente</p>
-            <p className="truncate font-light text-muted-foreground">
+            <p className="truncate text-muted-foreground">
               {[defaults.senderName, defaults.senderCompany].filter(Boolean).join(" · ") ||
                 "Ainda não informados"}
             </p>
           </div>
-          <Link to="/conta" className="text-[14px] font-medium text-blue hover:underline">
+          <Link
+            to="/conta"
+            className="inline-flex min-h-6 items-center text-sm font-medium text-blue hover:underline"
+          >
             Editar em Conta
           </Link>
         </div>
@@ -666,7 +671,7 @@ function SettingsForm({ defaults }: { defaults: SettingsInput }) {
 
       {isDirty || mutation.isPending ? (
         <FloatingBar>
-          <span className="text-sm font-light opacity-80">Oferta e critérios não salvos</span>
+          <span className="text-sm opacity-80">Oferta e critérios não salvos</span>
           <Button
             type="button"
             variant="outline"
@@ -726,7 +731,7 @@ function QuickReplies() {
         description={QUICK_REPLIES_DESCRIPTION}
       >
         {isError ? (
-          <p className="text-sm font-light text-red">
+          <p className="text-sm text-red">
             Não foi possível carregar os modelos. Atualize a página.
           </p>
         ) : (
@@ -780,7 +785,7 @@ function QuickRepliesForm({ defaults }: { defaults: QuickRepliesInput }) {
         }
       >
         {replies.fields.length === 0 ? (
-          <p className="px-4 pt-3.5 text-sm font-light text-muted-foreground">
+          <p className="px-4 pt-3.5 text-sm text-muted-foreground">
             Nenhum modelo ainda. Crie um para responder mais rápido.
           </p>
         ) : null}
@@ -833,7 +838,7 @@ function QuickRepliesForm({ defaults }: { defaults: QuickRepliesInput }) {
             Adicionar modelo
           </AddRow>
           {full ? (
-            <p className="text-xs font-light text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               Chegou ao limite de {QUICK_REPLY_LIMITS.count} modelos.
             </p>
           ) : null}
@@ -863,7 +868,7 @@ function SettingsSection({
 }) {
   return (
     <section id={id} className="enter scroll-mt-20">
-      <h2 className="flex items-center gap-1.5 px-1.5 pb-2 text-lg font-medium tracking-[-0.015em]">
+      <h2 className="flex items-center gap-1.5 px-1.5 pb-2 text-lg font-semibold tracking-[-0.015em]">
         {title}
         {info}
       </h2>
@@ -873,7 +878,7 @@ function SettingsSection({
           <div className="flex justify-end gap-2 border-t border-border/70 px-4 py-3">{footer}</div>
         ) : null}
       </div>
-      <p className="px-4 pt-2 text-xs leading-relaxed font-light text-tertiary">{description}</p>
+      <p className="px-4 pt-2 text-xs leading-relaxed text-tertiary">{description}</p>
     </section>
   );
 }

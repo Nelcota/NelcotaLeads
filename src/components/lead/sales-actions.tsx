@@ -57,9 +57,7 @@ export function SalesActions({
   return (
     <>
       {sales.proposal ? (
-        <p className="w-full text-[14px] text-muted-foreground">
-          {proposalStatusLine(sales.proposal)}
-        </p>
+        <p className="w-full text-sm text-muted-foreground">{proposalStatusLine(sales.proposal)}</p>
       ) : null}
       <Button variant="outline" onClick={() => setMode("meeting")}>
         Agendar reunião

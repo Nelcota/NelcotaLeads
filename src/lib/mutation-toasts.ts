@@ -2,6 +2,9 @@ import { toast } from "sonner";
 
 export const DEFAULT_ERROR = "Algo deu errado. Tente de novo.";
 
+/** Errors stay twice the default 4 s, so there is time to read them before they go. */
+export const ERROR_TOAST_DURATION = 8000;
+
 // Signs of a message written for developers (browser, runtime, database, validation dump),
 // which must never reach the screen.
 const TECHNICAL =
@@ -23,6 +26,6 @@ export function friendlyMessage(error: unknown): string | null {
  */
 export function errorToast(fallback = DEFAULT_ERROR, options: { id?: string } = {}) {
   return (error: unknown) => {
-    toast.error(friendlyMessage(error) ?? fallback, options);
+    toast.error(friendlyMessage(error) ?? fallback, { duration: ERROR_TOAST_DURATION, ...options });
   };
 }

@@ -1,10 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   calendarEntries,
   DEFAULT_ZOOM,
   loadedRange,
   stepAnchor,
+  TOUCH_ZOOM,
   VIEW_LABELS,
   ZOOM_LEVELS,
   type CalendarView,
@@ -37,6 +38,13 @@ export function useAgendaCalendar(
   const query = useQuery(agendaQuery(owner, range.from, range.to));
   const [history, setHistory] = useState<Place[]>([]);
   const [zoom, setZoom] = useState(DEFAULT_ZOOM);
+
+  // On a touch screen every half-hour slot opens at 44px or more. Read after mount, so the
+  // server and the first client render agree.
+  useEffect(() => {
+    if (!window.matchMedia("(pointer: coarse)").matches) return;
+    setZoom((value) => Math.max(value, TOUCH_ZOOM));
+  }, []);
 
   const today = query.data?.today ?? clientToday;
   const entries = useMemo(

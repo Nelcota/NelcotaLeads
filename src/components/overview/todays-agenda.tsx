@@ -18,7 +18,7 @@ export function TodaysAgenda() {
   return (
     <section aria-labelledby="todays-agenda" className="grouped enter">
       <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 px-5 pt-4 pb-2">
-        <h2 id="todays-agenda" className="flex items-center gap-2 text-[18px] font-semibold">
+        <h2 id="todays-agenda" className="flex items-center gap-2 text-lg font-semibold">
           <CalendarIcon aria-hidden strokeWidth={2} className="size-[18px] shrink-0 text-blue" />
           Agenda de hoje
         </h2>

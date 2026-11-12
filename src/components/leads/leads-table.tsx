@@ -74,7 +74,7 @@ function SortHeader({
   return (
     <th
       className={cn(
-        "h-10 px-3 text-left align-middle text-[13px] font-medium text-tertiary",
+        "h-10 px-3 text-left align-middle text-xs font-medium text-tertiary",
         className,
       )}
       aria-sort={active ? (sort.dir === "asc" ? "ascending" : "descending") : "none"}
@@ -82,7 +82,7 @@ function SortHeader({
       <button
         type="button"
         onClick={() => onSort(column)}
-        className="inline-flex h-7 items-center gap-1 rounded-[6px] hover:text-foreground"
+        className="relative inline-flex h-7 items-center gap-1 rounded-[6px] touch-target hover:text-foreground"
       >
         {label}
         <ChevronDownIcon
@@ -102,7 +102,7 @@ function Head({ children, className }: { children?: ReactNode; className?: strin
   return (
     <th
       className={cn(
-        "h-10 px-3 text-left align-middle text-[13px] font-medium text-tertiary",
+        "h-10 px-3 text-left align-middle text-xs font-medium text-tertiary",
         className,
       )}
     >
@@ -284,7 +284,15 @@ function LeadTableRow({
         if (event.key === "Enter" && event.target === event.currentTarget) handlers.onOpen(lead.id);
       }}
     >
-      <td className="pl-4" onClick={(event) => event.stopPropagation()}>
+      <td
+        className="cursor-pointer pl-4"
+        onClick={(event) => {
+          event.stopPropagation();
+          // The whole cell selects the row, not only the 18px box (UX audit T6).
+          if (event.target !== event.currentTarget || pending) return;
+          handlers.onToggle([lead.id], !selected);
+        }}
+      >
         <Checkbox
           className={LIST_CHECKBOX}
           aria-label={`Selecionar ${lead.name}`}
@@ -303,7 +311,7 @@ function LeadTableRow({
             </p>
             <p
               className={cn(
-                "flex min-w-0 items-center gap-1.5 text-[13px] text-tertiary",
+                "flex min-w-0 items-center gap-1.5 text-xs text-tertiary",
                 hint.tone && "font-medium",
               )}
               style={hint.tone ? { color: hint.tone } : undefined}

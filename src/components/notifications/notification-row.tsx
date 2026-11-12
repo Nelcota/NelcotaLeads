@@ -104,7 +104,7 @@ export function NotificationRow({
           </span>
           <span
             className={cn(
-              "flex min-w-0 items-center gap-1.5 text-[13px]",
+              "flex min-w-0 items-center gap-1.5 text-xs",
               item.unread ? "text-foreground" : "text-muted-foreground",
             )}
           >

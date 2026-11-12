@@ -4,8 +4,8 @@ import {
   CircleDotIcon,
   CircleXIcon,
   FileTextIcon,
+  MailCheckIcon,
   MessageCircleIcon,
-  SendIcon,
   type LucideIcon,
 } from "lucide-react";
 import { STAGE_COLORS, STAGE_LABELS, type LeadStage } from "@/lib/lead-row";
@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 
 const STAGE_ICONS: Record<LeadStage, LucideIcon> = {
   new: CircleDotIcon,
-  contacted: SendIcon,
+  contacted: MailCheckIcon,
   replied: MessageCircleIcon,
   meeting: CalendarDaysIcon,
   proposal: FileTextIcon,

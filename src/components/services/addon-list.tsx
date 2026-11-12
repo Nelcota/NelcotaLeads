@@ -31,9 +31,7 @@ export function AddonList({
   return (
     <div className="grouped">
       {addons.length === 0 ? (
-        <p className="px-4 py-3 text-sm font-light text-muted-foreground">
-          Nenhum adicional ainda.
-        </p>
+        <p className="px-4 py-3 text-sm text-muted-foreground">Nenhum adicional ainda.</p>
       ) : null}
       {addons.map((addon) =>
         editing === addon.id ? (
@@ -53,7 +51,7 @@ export function AddonList({
           >
             <span className="grid min-w-0 flex-1">
               <span className="font-medium">{addon.name}</span>
-              <span className="text-xs font-light text-muted-foreground">{addon.scope}</span>
+              <span className="text-xs text-muted-foreground">{addon.scope}</span>
             </span>
             <span className="font-medium tabular-nums">+ {priceLabel(addon)}</span>
             <span className="flex items-center gap-1">
