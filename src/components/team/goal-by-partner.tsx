@@ -15,8 +15,8 @@ function PartnerShare({ member, goalCents }: { member: TeamMember; goalCents: nu
       <span className="truncate font-semibold">{member.name}</span>
       <span className="text-right text-sm text-muted-foreground tabular-nums">
         {member.month.deals} {dealsWord(member.month.deals)} ·{" "}
-        {formatCents(member.month.revenueCents)}
-        <span className="ml-2 text-base font-semibold text-foreground">{percent}%</span>
+        {formatCents(member.month.revenueCents)}{" "}
+        <span className="ml-1text-base font-semibold text-foreground">{percent}%</span>
       </span>
       <div className="col-span-2 col-start-2">
         <ProgressBar share={share} label={`${member.name}: ${percent}% da meta de receita`} />
