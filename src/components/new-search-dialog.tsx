@@ -1,9 +1,5 @@
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { MapPinIcon, SearchIcon, TagIcon } from "lucide-react";
-import { useForm, useWatch } from "react-hook-form";
-import { errorToast } from "@/lib/mutation-toasts";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,13 +11,9 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { searchCostLabel, searchQuotaBlocker } from "@/lib/google-quota";
-import { providerStatusQuery } from "@/lib/queries";
-import { newSearchSchema, type NewSearchInput } from "@/lib/schemas";
+import { SEARCH_SIZES, useNewSearch } from "@/hooks/use-new-search";
+import { searchCostLabel } from "@/lib/google-quota";
 import { cn } from "@/lib/utils";
-import { createSearch } from "@/server/searches";
-
-const SIZES = [20, 40, 60] as const;
 
 export function NewSearchDialog({
   open,
@@ -54,53 +46,20 @@ const PHRASE_INPUT =
   "h-11 w-full min-w-0 bg-transparent px-3.5 text-base outline-none placeholder:text-tertiary aria-invalid:text-red";
 
 function NewSearchForm({ onDone }: { onDone: () => void }) {
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const { data: status, isPending: statusLoading } = useQuery(providerStatusQuery);
-  const form = useForm<NewSearchInput>({
-    resolver: zodResolver(newSearchSchema),
-    defaultValues: { niche: "", city: "", maxResults: 20 },
-  });
-  const { errors } = form.formState;
-  const maxResults = useWatch({ control: form.control, name: "maxResults" });
-  const usage = status?.placesUsage;
-  // Plain words here; how to set the keys up is in the README.
-  const missingKeysText =
-    status && !status.placesConfigured && !status.aiConfigured
-      ? "As chaves do Google e da IA não estão configuradas."
-      : status && !status.placesConfigured
-        ? "A chave do Google não está configurada."
-        : status && !status.aiConfigured
-          ? "A chave da IA não está configurada."
-          : null;
-
-  const mutation = useMutation({
-    mutationFn: (data: NewSearchInput) => createSearch({ data }),
-    onSuccess: async ({ searchId }) => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["searches"] }),
-        queryClient.invalidateQueries({ queryKey: ["leads"] }),
-        queryClient.invalidateQueries({ queryKey: providerStatusQuery.queryKey }),
-      ]);
-      onDone();
-      // Straight to the new leads; they show up as the analysis finishes.
-      await navigate({ to: "/leads", search: { searchId, view: "all" } });
-    },
-    onError: errorToast("Não foi possível iniciar a busca"),
-  });
-
-  const blocker = missingKeysText
-    ? `${missingKeysText} Fale com quem administra o sistema.`
-    : usage
-      ? searchQuotaBlocker(maxResults, usage)
-      : null;
+  const {
+    form,
+    errors,
+    maxResults,
+    usage,
+    offerConfigured,
+    statusLoading,
+    blocker,
+    pending,
+    submit,
+  } = useNewSearch({ onCreated: onDone });
 
   return (
-    <form
-      className="grid gap-5"
-      noValidate
-      onSubmit={(event) => void form.handleSubmit((data) => mutation.mutate(data))(event)}
-    >
+    <form className="grid gap-5" noValidate onSubmit={submit}>
       <div className="grid gap-2">
         <div className="grid grid-cols-[1fr_auto_1fr] text-xs font-medium text-muted-foreground">
           <Label htmlFor="niche" className="flex items-center gap-1.5 px-1">
@@ -148,12 +107,12 @@ function NewSearchForm({ onDone }: { onDone: () => void }) {
         <Tabs
           value={String(maxResults)}
           onValueChange={(value) => {
-            const size = SIZES.find((n) => String(n) === value);
+            const size = SEARCH_SIZES.find((n) => String(n) === value);
             if (size) form.setValue("maxResults", size);
           }}
         >
           <TabsList className="w-full">
-            {SIZES.map((size) => (
+            {SEARCH_SIZES.map((size) => (
               <TabsTrigger key={size} value={String(size)}>
                 até {size}
               </TabsTrigger>
@@ -170,7 +129,7 @@ function NewSearchForm({ onDone }: { onDone: () => void }) {
         ) : null}
       </div>
 
-      {status && !status.offerConfigured ? (
+      {!offerConfigured ? (
         <p className="rounded-xl bg-[color-mix(in_srgb,var(--orange)_10%,transparent)] px-3.5 py-2.5 text-sm text-muted-foreground shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--orange)_22%,transparent)]">
           <span className="font-medium text-orange">
             Sua oferta ainda não foi descrita, então a nota e a mensagem saem genéricas.
@@ -193,9 +152,9 @@ function NewSearchForm({ onDone }: { onDone: () => void }) {
         <Button type="button" variant="ghost" onClick={onDone}>
           Cancelar
         </Button>
-        <Button type="submit" disabled={mutation.isPending || statusLoading || Boolean(blocker)}>
+        <Button type="submit" disabled={pending || statusLoading || Boolean(blocker)}>
           <SearchIcon />
-          {mutation.isPending ? "Buscando…" : "Buscar empresas"}
+          {pending ? "Buscando…" : "Buscar empresas"}
         </Button>
       </DialogFooter>
     </form>

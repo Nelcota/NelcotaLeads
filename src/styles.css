@@ -497,6 +497,54 @@ select:-webkit-autofill {
   }
 }
 
+/*
+ * Native progress bar of a running search (Buscas). Determinate while the AI analyzes; without a
+ * value (collecting) a short segment sweeps the track, slowly, easing at both ends. The fill is
+ * styled per engine: grouping the -webkit- and -moz- pseudo-elements in one rule voids it.
+ */
+.search-progress {
+  appearance: none;
+  border: 0 solid;
+  overflow: clip;
+  inline-size: 100%;
+  block-size: 6px;
+  border-radius: 999px;
+  background: var(--fill-2);
+  container-type: inline-size;
+  --sweep-duration: 3.2s;
+}
+.search-progress::-webkit-progress-bar {
+  background: transparent;
+}
+.search-progress::-webkit-progress-value {
+  background: var(--primary);
+  border-radius: 999px;
+  transition: inline-size 0.9s var(--ease-spring);
+}
+.search-progress::-moz-progress-bar {
+  background: var(--primary);
+  border-radius: 999px;
+}
+.search-progress:indeterminate::-webkit-progress-value {
+  animation: search-sweep var(--sweep-duration) infinite cubic-bezier(0.45, 0, 0.55, 1);
+}
+.search-progress:indeterminate::-moz-progress-bar {
+  animation: search-sweep var(--sweep-duration) infinite cubic-bezier(0.45, 0, 0.55, 1);
+}
+@keyframes search-sweep {
+  from,
+  to {
+    inline-size: 30%;
+    margin-right: auto;
+  }
+  from {
+    translate: -100%;
+  }
+  to {
+    translate: 100cqi;
+  }
+}
+
 /* Wrong password: a short sideways shake, like the macOS login field. */
 .shake {
   animation: shake 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
@@ -526,5 +574,9 @@ select:-webkit-autofill {
   .animate-pulse,
   .animate-spin {
     animation: none;
+  }
+  /* Never stop the sweep: without its animation the fill has no width at all. */
+  .search-progress {
+    --sweep-duration: 12s;
   }
 }

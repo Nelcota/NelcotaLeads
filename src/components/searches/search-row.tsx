@@ -1,0 +1,92 @@
+import { BotIcon, SearchIcon, TriangleAlertIcon } from "lucide-react";
+import { useState } from "react";
+import { SearchDetails } from "@/components/searches/search-details";
+import { SearchResult } from "@/components/searches/search-result";
+import { SearchRowActions } from "@/components/searches/search-row-actions";
+import { SearchRowMenu } from "@/components/searches/search-row-menu";
+import { SearchStatusText } from "@/components/searches/search-status";
+import type { Search } from "@/db/schema";
+import { dayMonth, formatDate, localDay, localTime } from "@/lib/format";
+import { searchFailureText } from "@/lib/provider-errors";
+import { isSearchRunning } from "@/lib/search-list";
+import { searchLabel } from "@/lib/searches";
+import { useToday } from "@/lib/today";
+
+function OriginIcon({ automatic }: { automatic: boolean }) {
+  const Icon = automatic ? BotIcon : SearchIcon;
+  return (
+    <Icon
+      role="img"
+      aria-label={automatic ? "Busca automática" : "Busca manual"}
+      strokeWidth={1.6}
+      className="size-5 text-muted-foreground md:self-center"
+    />
+  );
+}
+
+/**
+ * One search in the Histórico: date, what was searched, what it brought, its status and actions.
+ * One line on wide screens; on narrow ones status, result and actions stack under the title.
+ */
+export function SearchRow({
+  search,
+  quotaSpent,
+  onFill,
+}: {
+  search: Search;
+  quotaSpent: boolean;
+  onFill: (niche: string, city: string) => void;
+}) {
+  const today = useToday();
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const automatic = search.origin === "autopilot";
+  const failure =
+    search.status === "error"
+      ? searchFailureText(search.errorMessage, search.createdAt, today)
+      : null;
+
+  return (
+    <li className="grid grid-cols-[20px_minmax(0,1fr)] gap-x-3 gap-y-2 border-b border-border py-4 md:grid-cols-[76px_20px_minmax(0,1fr)_170px_116px_272px] md:items-center md:gap-x-4">
+      <p className="hidden flex-col gap-0.5 text-sm tabular-nums md:flex">
+        <span className="font-medium">{dayMonth(localDay(search.createdAt))}</span>
+        <span className="text-tertiary">{localTime(search.createdAt)}</span>
+      </p>
+      <OriginIcon automatic={automatic} />
+      <div className="min-w-0">
+        <p className="line-clamp-2 text-base font-semibold text-pretty">{searchLabel(search)}</p>
+        <p className="text-sm text-muted-foreground">
+          {automatic ? "Automática" : "Manual"}
+          <span className="md:hidden"> · {formatDate(search.createdAt, true)}</span>
+        </p>
+        {failure ? (
+          <p className="mt-0.5 flex items-start gap-1.5 text-sm">
+            <TriangleAlertIcon
+              aria-hidden
+              strokeWidth={2}
+              className="mt-0.5 size-4 shrink-0 text-red"
+            />
+            {failure}
+          </p>
+        ) : null}
+      </div>
+      <div className="col-start-2 md:col-start-auto">
+        <SearchResult search={search} />
+      </div>
+      <div className="col-start-2 md:col-start-auto">
+        <SearchStatusText search={search} />
+      </div>
+      <div className="col-start-2 -ml-3 flex flex-wrap items-center gap-1 md:col-start-auto md:ml-0 md:justify-end">
+        <SearchRowActions search={search} quotaSpent={quotaSpent} />
+        {isSearchRunning(search.status) ? null : (
+          <SearchRowMenu
+            search={search}
+            detailsOpen={detailsOpen}
+            onToggleDetails={() => setDetailsOpen((open) => !open)}
+            onFill={onFill}
+          />
+        )}
+      </div>
+      {detailsOpen ? <SearchDetails search={search} /> : null}
+    </li>
+  );
+}
