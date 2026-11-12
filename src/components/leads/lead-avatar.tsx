@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { siteHost } from "@/lib/lead-row";
+import { nearestTypeSize } from "@/lib/type-scale";
 import { cn } from "@/lib/utils";
 
 function initials(name: string) {
@@ -68,10 +69,10 @@ export function LeadAvatar({
     <span
       aria-hidden
       className={cn(
-        "grid shrink-0 place-items-center rounded-full bg-fill font-semibold text-muted-foreground",
+        "grid shrink-0 place-items-center rounded-full bg-fill font-semibold text-foreground",
         className,
       )}
-      style={{ width: size, height: size, fontSize: Math.max(10, Math.round(size * 0.36)) }}
+      style={{ width: size, height: size, fontSize: nearestTypeSize(size * 0.36) }}
     >
       {initials(name)}
     </span>

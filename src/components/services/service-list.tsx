@@ -36,7 +36,7 @@ export function ServiceList({
         <span className="w-[164px]">Prazo</span>
       </div>
       {services.length === 0 ? (
-        <p className="px-4 py-3 text-sm font-light text-muted-foreground">
+        <p className="px-4 py-3 text-sm text-muted-foreground">
           Nenhum serviço ainda. Adicione o primeiro para montar propostas.
         </p>
       ) : null}
@@ -59,7 +59,7 @@ export function ServiceList({
             <span className="grid min-w-0">
               <span className="font-medium">{service.name}</span>
               {service.detail ? (
-                <span className="text-xs font-light text-muted-foreground">{service.detail}</span>
+                <span className="text-xs text-muted-foreground">{service.detail}</span>
               ) : null}
             </span>
             <span className="w-24 text-right font-medium tabular-nums">{priceLabel(service)}</span>

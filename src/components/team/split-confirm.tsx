@@ -25,7 +25,7 @@ export function SplitConfirm({
       aria-label="Confirmar divisão"
       className="pop mt-4 rounded-2xl border border-border bg-card-2 p-4"
     >
-      <p className="text-[17px] font-semibold">Dividir {count} leads entre os sócios?</p>
+      <p className="text-lg font-semibold">Dividir {count} leads entre os sócios?</p>
       <div className="mt-1">
         {shares.map((share) => {
           const member = byId.get(share.id);

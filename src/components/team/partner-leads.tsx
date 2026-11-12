@@ -35,7 +35,7 @@ export function PartnerLeads({
               className="group -mx-2 flex min-h-15 items-center gap-3 rounded-[12px] px-2 py-2 hover:bg-fill-2 focus-visible:bg-fill-2"
             >
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-[17px] font-semibold">{lead.name}</span>
+                <span className="block truncate text-lg font-semibold">{lead.name}</span>
                 <span className="flex flex-wrap items-center gap-x-2.5 text-sm text-muted-foreground">
                   <StageLabel
                     stage={leadStage(lead)}

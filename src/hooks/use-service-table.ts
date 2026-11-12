@@ -69,5 +69,3 @@ export function useServiceTable() {
     archiving: removeService.isPending || removeAddon.isPending,
   };
 }
-
-export type ServiceTableActions = ReturnType<typeof useServiceTable>;

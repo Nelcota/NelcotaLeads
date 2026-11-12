@@ -48,7 +48,7 @@ export function FreeLeadRow({
       <div className="min-w-0 flex-1">
         <Link
           {...teamLinks.lead(lead.id)}
-          className="block truncate text-[17px] font-semibold hover:underline"
+          className="block truncate text-lg font-semibold hover:underline"
         >
           {lead.name}
         </Link>

@@ -31,7 +31,7 @@ export function LeadMeetings({
               <span className="font-medium tabular-nums" title={dayMonth(day)}>
                 {when}
               </span>
-              <span className="truncate text-xs font-light text-muted-foreground">
+              <span className="truncate text-xs text-muted-foreground">
                 {[MEETING_KIND_LABELS[meeting.kind], meeting.note].filter(Boolean).join(" · ")}
               </span>
             </span>

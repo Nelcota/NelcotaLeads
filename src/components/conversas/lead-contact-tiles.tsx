@@ -6,7 +6,7 @@ import { whatsappLink } from "@/lib/phone";
 import { cn, safeHttpUrl } from "@/lib/utils";
 
 const TILE_CLASS =
-  "grid min-h-[68px] flex-1 place-items-center content-center gap-1.5 rounded-[14px] border border-border bg-card text-[13px] font-medium text-foreground transition-[background-color,border-color,transform] duration-150 ease-spring hover:border-foreground/25 hover:bg-fill-2 active:scale-[0.97]";
+  "grid min-h-[68px] flex-1 place-items-center content-center gap-1.5 rounded-[14px] border border-border bg-card text-xs font-medium text-foreground transition-[background-color,border-color,transform] duration-150 ease-spring hover:border-foreground/25 hover:bg-fill-2 active:scale-[0.97]";
 
 /** A contact shortcut: a bordered tile with the icon over its name. */
 function ContactTile({

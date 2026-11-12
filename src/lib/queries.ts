@@ -3,10 +3,10 @@ import type { OverviewPeriod } from "@/lib/period";
 import { LEAD_NOT_FOUND, type LeadFilters } from "@/lib/schemas";
 import { getAccount } from "@/server/account";
 import { getAgenda, getTodayAgenda } from "@/server/agenda";
-import { getAttentionCount, getDashboard } from "@/server/dashboard";
+import { getAttentionCount, getAutopilot, getDashboard } from "@/server/dashboard";
 import { getSendWindow } from "@/server/dispatch";
 import { getMonthlyGoal } from "@/server/goals";
-import { getConversation, listConversations } from "@/server/mail";
+import { getColdRoom, getConversation, listConversations, listReusableDrafts } from "@/server/mail";
 import { getLead, getLeadCounts, listLeads } from "@/server/leads";
 import { getProviderStatus, listSearches } from "@/server/searches";
 import { listNicheMetrics, listNiches } from "@/server/niches";
@@ -38,6 +38,32 @@ export const accountQuery = queryOptions({
   queryKey: ["account"],
   queryFn: () => getAccount(),
   staleTime: Infinity,
+});
+
+/**
+ * Drafts already written for a dispatch review, read without asking the AI. Always fresh: the
+ * review edits them locally and must not open on an old copy.
+ */
+export const reusableDraftsQuery = (leadIds: string[]) =>
+  queryOptions({
+    queryKey: ["dispatch-drafts", leadIds],
+    queryFn: () => listReusableDrafts({ data: { leadIds } }),
+    enabled: leadIds.length > 0,
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnWindowFocus: false,
+  });
+
+/** Room left today for first e-mails: cold limit, sent today and cold e-mails queued. */
+export const coldRoomQuery = queryOptions({
+  queryKey: ["cold-room"],
+  queryFn: () => getColdRoom(),
+});
+
+/** The automation settings (busca diária, IA responde sozinha, disparo automático): one read. */
+export const autopilotQuery = queryOptions({
+  queryKey: ["autopilot"],
+  queryFn: () => getAutopilot(),
 });
 
 /** The hours first e-mails and follow-ups go out (Configurações → E-mail). */

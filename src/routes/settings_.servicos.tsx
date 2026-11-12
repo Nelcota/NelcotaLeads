@@ -73,7 +73,7 @@ function ServicesPage() {
               </TableSection>
             </>
           ) : actions.loadError ? (
-            <p className="px-1 text-sm font-light text-red">
+            <p className="px-1 text-sm text-red">
               Não foi possível carregar a tabela. Atualize a página.
             </p>
           ) : (
@@ -96,9 +96,9 @@ function TableSection({
 }) {
   return (
     <section className="enter">
-      <h2 className="px-1.5 pb-2 text-lg font-medium tracking-[-0.015em]">{title}</h2>
+      <h2 className="px-1.5 pb-2 text-lg font-semibold tracking-[-0.015em]">{title}</h2>
       {children}
-      <p className="px-4 pt-2 text-xs leading-relaxed font-light text-tertiary">{description}</p>
+      <p className="px-4 pt-2 text-xs leading-relaxed text-tertiary">{description}</p>
     </section>
   );
 }

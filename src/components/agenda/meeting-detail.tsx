@@ -62,14 +62,14 @@ export function MeetingDetail({
           <div className="grid min-w-0 flex-1 gap-0.5">
             <span
               className={cn(
-                "inline-flex items-center gap-1.5 text-[14px] font-semibold",
+                "inline-flex items-center gap-1.5 text-sm font-semibold",
                 when.today ? "text-primary" : "text-muted-foreground",
               )}
             >
               <span aria-hidden className="size-1.5 rounded-full bg-current" />
               {when.text}
             </span>
-            <DialogTitle className="text-[30px] leading-[38px] font-semibold tracking-[-0.02em] tabular-nums">
+            <DialogTitle className="text-2xl leading-[38px] font-semibold tracking-[-0.02em] tabular-nums">
               {time}
             </DialogTitle>
             <DialogDescription className="text-sm text-muted-foreground">
@@ -80,7 +80,7 @@ export function MeetingDetail({
         </div>
         <div className="grid gap-1 rounded-[14px] border border-border bg-card px-3.5 py-3">
           <p className="text-base font-semibold">{entry.leadName}</p>
-          <span className="inline-flex items-center gap-1.5 text-[14px] font-medium text-muted-foreground">
+          <span className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
             <EntryIcon kind={entry.meetingKind} />
             {kind}
           </span>

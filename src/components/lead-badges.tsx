@@ -65,28 +65,45 @@ const SEARCH_LABELS: Record<SearchStatus, string> = {
   cancelled: "Cancelada",
 };
 
+/**
+ * Status text a step darker in light mode and lighter in dark: the tone mixed with 20% of
+ * `--foreground` keeps the capsule at 4.5:1 or more in both themes (the pure tone falls short).
+ */
+const SEARCH_TEXT = {
+  green: "text-[color-mix(in_srgb,var(--green)_80%,var(--foreground))]",
+  red: "text-[color-mix(in_srgb,var(--red)_80%,var(--foreground))]",
+  blue: "text-[color-mix(in_srgb,var(--blue)_80%,var(--foreground))]",
+  purple: "text-[color-mix(in_srgb,var(--purple)_80%,var(--foreground))]",
+  gray: "text-[color-mix(in_srgb,var(--gray)_80%,var(--foreground))]",
+} as const;
+
 export function SearchStatusBadge({ status }: { status: SearchStatus }) {
   if (status === "done") {
     return (
-      <Badge variant="green">
+      <Badge variant="green" className={SEARCH_TEXT.green}>
         <CheckIcon />
         {SEARCH_LABELS[status]}
       </Badge>
     );
   }
   if (status === "cancelled") {
-    return <Badge variant="gray">{SEARCH_LABELS[status]}</Badge>;
+    return (
+      <Badge variant="gray" className={SEARCH_TEXT.gray}>
+        {SEARCH_LABELS[status]}
+      </Badge>
+    );
   }
   if (status === "error") {
     return (
-      <Badge variant="red">
+      <Badge variant="red" className={SEARCH_TEXT.red}>
         <XIcon />
         {SEARCH_LABELS[status]}
       </Badge>
     );
   }
+  const tone = status === "collecting" ? "blue" : "purple";
   return (
-    <Badge variant={status === "collecting" ? "blue" : "purple"} dot>
+    <Badge variant={tone} className={SEARCH_TEXT[tone]} dot>
       {SEARCH_LABELS[status]}
     </Badge>
   );

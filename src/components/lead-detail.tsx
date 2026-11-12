@@ -187,12 +187,12 @@ export function LeadDetail({
             className="rounded-[14px]"
           />
           <div className="grid min-w-0 flex-1 gap-1">
-            <SheetTitle className="text-[22px] leading-7 font-semibold tracking-[-0.01em] wrap-break-word">
+            <SheetTitle className="text-lg leading-7 font-semibold tracking-[-0.01em] wrap-break-word">
               {lead.name}
             </SheetTitle>
             <SheetDescription>{facts.join(" · ")}</SheetDescription>
             <div className="mt-1 flex flex-wrap items-center gap-1.5">
-              <StageLabel stage={leadStage(lead)} className="mr-1.5 text-[14px]" />
+              <StageLabel stage={leadStage(lead)} className="mr-1.5 text-sm" />
               <OwnerChip
                 ownerName={owner?.name ?? null}
                 mine={Boolean(me) && lead.ownerId === me}
@@ -201,7 +201,7 @@ export function LeadDetail({
                 onRelease={deal.release}
               />
               {lead.followUpOn && (lead.status === "contacted" || lead.status === "replied") ? (
-                <span className="inline-flex items-center gap-1.5 text-[14px] font-medium">
+                <span className="inline-flex items-center gap-1.5 text-sm font-medium">
                   <ClockIcon
                     className={cn("size-3.5", TONE_TEXT[followUpTone(lead.followUpOn, today)])}
                     strokeWidth={1.9}
@@ -459,7 +459,7 @@ function FirstContactStep({ lead, analysis, today, busy, onUpdate, onChanged }: 
           disabled={!analysis || generate.isPending}
         />
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <span aria-hidden className="text-[13px] font-medium text-muted-foreground">
+          <span aria-hidden className="text-xs font-medium text-muted-foreground">
             Retorno
           </span>
           {/* Radio semantics: Tab reaches the chosen day, the arrow keys move the choice. */}
@@ -743,11 +743,11 @@ function ConversationStep({ lead, today, closing, onWon, onLost, sales }: StepPr
             key={message.id}
             className={
               message.direction === "out"
-                ? "rounded-lg border px-3 py-2 text-sm"
-                : "rounded-lg bg-muted px-3 py-2 text-sm"
+                ? "rounded-lg border px-3 py-2 text-base"
+                : "rounded-lg bg-muted px-3 py-2 text-base"
             }
           >
-            <p className="mb-1 text-[13px] text-muted-foreground">
+            <p className="mb-1 text-xs text-muted-foreground">
               {message.direction === "in" ? "Empresa" : message.author === "ai" ? "IA" : "Você"}
             </p>
             <p className="line-clamp-4 whitespace-pre-line wrap-break-word">{message.body}</p>
@@ -836,7 +836,7 @@ function AnalysisSection({ lead, analysis }: { lead: Lead; analysis: Analysis | 
   return (
     <PanelSection title="Análise" icon={SparklesIcon}>
       <div className="grid gap-4">
-        <p className="text-[15px] leading-[22px]">{analysis.summary}</p>
+        <p className="text-base">{analysis.summary}</p>
         {hasLists ? (
           <div className="grid gap-4 sm:grid-cols-2">
             <PlainList
@@ -877,7 +877,7 @@ function AnalysisSection({ lead, analysis }: { lead: Lead; analysis: Analysis | 
           </summary>
           <div className="mt-2 grid gap-2 leading-relaxed text-muted-foreground">
             <p>{analysis.scoreReasoning}</p>
-            <p className="text-[13px]">{SCORE_LABEL_HELP}</p>
+            <p className="text-xs">{SCORE_LABEL_HELP}</p>
           </div>
         </details>
       </div>
@@ -922,7 +922,7 @@ function ContactSection({ lead, onChanged }: { lead: Lead; onChanged: () => Prom
             onSave={save("email")}
           />
           {siteEmails.length > 0 ? (
-            <span className="block text-[13px] wrap-break-word text-muted-foreground">
+            <span className="block text-xs wrap-break-word text-muted-foreground">
               No site: {siteEmails.join(", ")}
             </span>
           ) : null}
@@ -1011,7 +1011,7 @@ function NotesSection({
       title="Notas"
       icon={StickyNoteIcon}
       status={
-        <span aria-live="polite" className="text-[13px] text-muted-foreground">
+        <span aria-live="polite" className="text-xs text-muted-foreground">
           {savedAt ? "Salvo" : ""}
         </span>
       }
@@ -1056,7 +1056,7 @@ function Footer({
     <div className="flex flex-wrap items-center justify-end gap-4 border-t border-border/70 pt-4 text-sm text-muted-foreground">
       <div className="flex flex-wrap items-center gap-3">
         {analysis ? (
-          <span className="text-[13px] text-muted-foreground">
+          <span className="text-xs text-muted-foreground">
             {analysis.model} · {formatUsd(analysis.costEstimate)} ·{" "}
             {formatDate(analysis.createdAt, true)}
           </span>
@@ -1100,8 +1100,8 @@ function LossSummary({ lead }: { lead: Lead }) {
 /** "Escrito pela IA", as the badge standard draws it: a line icon, then neutral text. */
 function WrittenByAi() {
   return (
-    <span className="ml-auto inline-flex items-center gap-1.5 text-[13px] font-medium text-muted-foreground">
-      <SparklesIcon className="size-3.5 text-blue" strokeWidth={1.9} />
+    <span className="ml-auto inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+      <SparklesIcon className="size-3.5 text-purple" strokeWidth={1.9} />
       Escrito pela IA
     </span>
   );
@@ -1120,7 +1120,7 @@ function PlainList({
 }) {
   return (
     <div>
-      <h4 className="mb-1.5 text-[13px] font-semibold text-muted-foreground">{title}</h4>
+      <h4 className="mb-1.5 text-xs font-semibold text-muted-foreground">{title}</h4>
       {items.length > 0 ? (
         <ul className="grid gap-1.5 text-sm leading-relaxed">
           {items.map((item) => (

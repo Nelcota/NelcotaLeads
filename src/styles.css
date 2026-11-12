@@ -10,21 +10,26 @@
 
 @theme {
   --font-sans: "Urbanist", system-ui, sans-serif;
-  /* One step above the old scale so nothing reads below 12px. */
+  /*
+   * The seven type sizes of the app (UX audit T6, 2026-11-09); no other size exists.
+   * 2xs chart axes and counters · xs captions · sm labels, tables, buttons · base running text
+   * and every input · lg section titles · 2xl page titles · 3xl highlight numbers.
+   */
+  --text-*: initial;
+  --text-2xs: 0.75rem;
+  --text-2xs--line-height: 1.2;
   --text-xs: 0.8125rem;
-  --text-xs--line-height: 1.125rem;
+  --text-xs--line-height: 1.4;
   --text-sm: 0.875rem;
-  --text-sm--line-height: 1.25rem;
-  --text-base: 0.9375rem;
-  --text-base--line-height: 1.5rem;
-  --text-lg: 1.0625rem;
-  --text-lg--line-height: 1.625rem;
-  --text-xl: 1.375rem;
-  --text-xl--line-height: 1.75rem;
+  --text-sm--line-height: 1.4;
+  --text-base: 1rem;
+  --text-base--line-height: 1.5;
+  --text-lg: 1.125rem;
+  --text-lg--line-height: 1.3;
   --text-2xl: 1.75rem;
-  --text-2xl--line-height: 2.125rem;
-  --text-3xl: 2.375rem;
-  --text-3xl--line-height: 2.75rem;
+  --text-2xl--line-height: 1.2;
+  --text-3xl: 2.25rem;
+  --text-3xl--line-height: 1.1;
   --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -70,6 +75,7 @@
   /* System colors: status meaning, applied to backgrounds and to text. */
   --color-green: var(--green);
   --color-orange: var(--orange);
+  --color-on-tone: var(--on-tone);
   --color-red: var(--red);
   --color-blue: var(--blue);
   --color-purple: var(--purple);
@@ -126,6 +132,8 @@
   --purple: #8944ab;
   --teal: #0071a4;
   --pink: #d30f45;
+  /* Text on a solid tone fill (initials, count badges): 4.5:1 on every tone of this theme. */
+  --on-tone: #ffffff;
   --yellow: #b25000;
   --gray: #6c6c70;
   --glass-edge: rgb(255 255 255 / 0.7);
@@ -178,6 +186,8 @@
   --purple: #bf5af2;
   --teal: #40c8e0;
   --pink: #ff375f;
+  /* The dark theme tones are light, so the text on them is dark. */
+  --on-tone: #1b1b1e;
   --yellow: #ffd60a;
   --gray: #8e8e93;
   --glass-edge: rgb(255 255 255 / 0.09);
@@ -313,6 +323,22 @@ select:-webkit-autofill {
     var(--tw-ring-shadow, 0 0 #0000),
     var(--tw-shadow, 0 0 #0000),
     inset 0 0 0 1000px var(--field);
+}
+
+/*
+ * An invisible 44px touch area centered on a smaller control (UX audit T6). Sized in px, so a
+ * border on the control does not shrink it. The control needs `position: relative`.
+ */
+@utility touch-target {
+  &::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: max(100%, 44px);
+    height: max(100%, 44px);
+    translate: -50% -50%;
+  }
 }
 
 /* ---------- Materials ---------- */

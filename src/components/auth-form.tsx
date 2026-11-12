@@ -35,20 +35,20 @@ export function AuthShell({
       <div className="enter flex w-full max-w-[480px] flex-col items-center">
         <span
           aria-hidden
-          className="grid size-16 place-items-center rounded-[18px] bg-primary text-[26px] font-bold text-primary-foreground"
+          className="grid size-16 place-items-center rounded-[18px] bg-primary text-2xl font-bold text-primary-foreground"
         >
           N
         </span>
-        <h1 className="mt-5 text-center text-[27px] leading-tight font-semibold tracking-[-0.02em]">
+        <h1 className="mt-5 text-center text-2xl leading-tight font-semibold tracking-[-0.02em]">
           {title}
         </h1>
-        <p className="mt-2 max-w-[36ch] text-center text-[15px] leading-snug font-light text-muted-foreground">
+        <p className="mt-2 max-w-[36ch] text-center text-base leading-snug text-muted-foreground">
           {subtitle}
         </p>
         <div className="mt-6 w-full rounded-[24px] bg-card p-6 shadow-[inset_0_0_0_1px_var(--border)] sm:p-8">
           {children}
         </div>
-        <p className="mt-6 text-center text-[14px] text-muted-foreground">{footer}</p>
+        <p className="mt-6 text-center text-sm text-muted-foreground">{footer}</p>
       </div>
     </main>
   );
@@ -71,7 +71,8 @@ export function AuthLink({
       to={to}
       search={next ? { next } : {}}
       className={cn(
-        "rounded-[4px] font-medium text-blue underline-offset-2 hover:underline focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none",
+        // At least 24px tall (WCAG 2.5.8), even on a single line of small text.
+        "inline-flex min-h-6 items-center rounded-[4px] font-medium text-blue underline-offset-2 hover:underline focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none",
         className,
       )}
     >
@@ -97,17 +98,14 @@ export function Field({ label, error, hint, aside, children }: FieldProps) {
   return (
     <div className="grid gap-2">
       <div className="flex items-baseline justify-between gap-3">
-        <label htmlFor={id} className="text-[14px] font-medium text-foreground/90">
+        <label htmlFor={id} className="text-sm font-medium text-foreground/90">
           {label}
         </label>
-        {aside ? <span className="text-[14px]">{aside}</span> : null}
+        {aside ? <span className="text-sm">{aside}</span> : null}
       </div>
       {children({ id, describedBy: note ? noteId : undefined })}
       {note ? (
-        <p
-          id={noteId}
-          className={cn("text-[14px] leading-snug", error ? "text-red" : "text-tertiary")}
-        >
+        <p id={noteId} className={cn("text-sm leading-snug", error ? "text-red" : "text-tertiary")}>
           {note}
         </p>
       ) : null}
@@ -115,11 +113,10 @@ export function Field({ label, error, hint, aside, children }: FieldProps) {
   );
 }
 
-const fieldClass = "h-12 rounded-[14px] px-4 text-[16px] md:text-[16px]";
+const fieldClass = "h-12 rounded-[14px] px-4 text-base md:text-base";
 
 // Urbanist draws the password bullet as a tiny dot; the system font draws a full-size one.
-const maskedClass =
-  "[font-family:system-ui,sans-serif] tracking-[0.18em] text-[18px] md:text-[18px]";
+const maskedClass = "[font-family:system-ui,sans-serif] tracking-[0.18em] text-lg md:text-lg";
 
 export function AuthInput({ className, ...props }: ComponentProps<typeof Input>) {
   return <Input {...props} className={cn(fieldClass, className)} />;
@@ -315,7 +312,7 @@ export function FormError({ message, notice }: { message: string | null; notice?
     <p
       role="alert"
       className={cn(
-        "-mb-1 text-center text-[14px] leading-snug empty:hidden",
+        "-mb-1 text-center text-sm leading-snug empty:hidden",
         message ? "text-red" : "text-tertiary",
       )}
     >

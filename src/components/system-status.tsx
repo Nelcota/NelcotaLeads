@@ -114,7 +114,7 @@ function JobRow({ job, now }: { job: JobStatus; now: Date }) {
       trailing={
         <div className="flex shrink-0 items-center gap-3">
           {job.lastRunAt && job.state !== "off" ? (
-            <span className="text-[14px] font-light text-muted-foreground tabular-nums">
+            <span className="text-sm text-muted-foreground tabular-nums">
               {timeAgo(job.lastRunAt, now)}
             </span>
           ) : null}

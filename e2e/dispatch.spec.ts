@@ -28,12 +28,16 @@ test.describe("e-mail dispatch", () => {
     const [t1, t2, t3, t4, t5] = tickTimes(5);
 
     await visit(page, "/leads");
-    await page.getByRole("button", { name: "Disparar 3 prontos" }).click();
+    // Nothing selected: the primary action is off and says why.
+    await expect(page.getByRole("button", { name: "Disparar (0)" })).toBeDisabled();
+    await page.getByRole("button", { name: "Selecionar prontos (3)" }).click();
     await expect(page.getByText("3 selecionados", { exact: true })).toBeVisible();
-    await page
-      .getByRole("region", { name: "Ações da seleção" })
-      .getByRole("button", { name: "Disparar" })
-      .click();
+    await page.getByRole("button", { name: "Disparar (3)" }).click();
+
+    // Opening the review asks the AI for nothing; "Escrever" does.
+    const opened = page.getByRole("dialog", { name: "Revisar disparo" });
+    await expect(opened.getByText("Destinatários (3)")).toBeVisible();
+    await opened.getByRole("button", { name: "Escrever 3 e-mails" }).click();
 
     const sheet = page.getByRole("dialog", { name: "Disparar 3 e-mails" });
     await expect(sheet).toBeVisible();
@@ -53,6 +57,8 @@ test.describe("e-mail dispatch", () => {
 
     const review = page.getByRole("dialog", { name: "Disparar 2 e-mails" });
     await expect(review.getByText("1 de 2")).toBeVisible();
+    await expect(review.getByRole("button", { name: /^Escrever/ })).toHaveCount(0);
+    await expect(review.getByText(`${removed}: retirado do disparo`)).toBeVisible();
     await expect(review.getByLabel("Assunto")).toHaveValue("Proposta para a sua clínica");
     await review.getByRole("button", { name: "Próximo" }).click();
     const untouched = await currentDraftLead(page);
@@ -99,7 +105,7 @@ Para não receber mais e-mails, responda com "sair".`,
     for (const name of [edited, untouched]) {
       await page.getByRole("checkbox", { name: `Selecionar ${name}` }).check();
     }
-    await expect(page.getByRole("button", { name: "Disparar 0 selecionados" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Disparar (0)" })).toBeDisabled();
     await expect(
       page
         .getByRole("region", { name: "Ações da seleção" })
@@ -119,11 +125,12 @@ Para não receber mais e-mails, responda com "sair".`,
     if (!lead) throw new Error("no lead");
     await backend.lead(lead);
     await visit(page, "/leads");
-    await page.getByRole("button", { name: "Disparar 1 pronto" }).click();
+    await page.getByRole("button", { name: "Selecionar prontos (1)" }).click();
     await page
       .getByRole("region", { name: "Ações da seleção" })
       .getByRole("button", { name: "Disparar" })
       .click();
+    await page.getByRole("dialog").getByRole("button", { name: "Escrever 1 e-mail" }).click();
 
     const sheet = page.getByRole("dialog", { name: "Disparar 1 e-mail" });
     const body = sheet.getByLabel("Mensagem");
@@ -146,7 +153,9 @@ Para não receber mais e-mails, responda com "sair".`,
       .getByRole("region", { name: "Ações da seleção" })
       .getByRole("button", { name: "Disparar" })
       .click();
+    // The saved draft comes back with the review, nothing left to write.
     const again = page.getByRole("dialog", { name: "Disparar 1 e-mail" });
+    await expect(again.getByRole("button", { name: /^Escrever/ })).toHaveCount(0);
     await expect(again.getByLabel("Assunto")).toHaveValue("Assunto que eu escrevi");
     await expect(again.getByLabel("Mensagem")).toHaveValue(/^Texto que eu escrevi\./);
 

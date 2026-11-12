@@ -5,7 +5,6 @@ import {
   CircleAlertIcon,
   CircleCheckIcon,
   CircleHelpIcon,
-  HistoryIcon,
   InboxIcon,
   LayoutGridIcon,
   MessageCircleIcon,
@@ -13,6 +12,7 @@ import {
   PanelLeftCloseIcon,
   PanelLeftOpenIcon,
   PlusIcon,
+  SearchIcon,
   SettingsIcon,
   SunIcon,
   UserIcon,
@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { Avatar, Hint, TONE_TEXT, toneVar, type Tone } from "@/components/apple-ui";
+import { GoogleQuotaRow } from "@/components/google-quota-row";
 import { HelpSheet } from "@/components/help-sheet";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { NewSearchDialog } from "@/components/new-search-dialog";
@@ -65,7 +66,7 @@ const NAV: NavItem[] = [
   { to: "/leads", label: "Leads", icon: InboxIcon },
   { to: "/conversas", label: "Conversas", icon: MessageCircleIcon },
   { to: "/agenda", label: "Agenda", icon: CalendarIcon },
-  { to: "/searches", label: "Buscas", icon: HistoryIcon },
+  { to: "/searches", label: "Buscas", icon: SearchIcon },
 ];
 const SYSTEM_NAV: NavItem[] = [
   { to: "/equipe", label: "Equipe", icon: UsersIcon },
@@ -77,13 +78,20 @@ const SYSTEM_ATTENTION = "Algo precisa de atenção";
 
 /** One look for every sidebar row: 44px tall, the active page in solid blue, centered in icon mode. */
 const ITEM_CLASS =
-  "h-11 gap-3 rounded-[12px] px-3.5 text-[15px] text-muted-foreground hover:bg-fill-2 hover:text-foreground active:bg-fill data-active:bg-primary data-active:font-semibold data-active:text-primary-foreground data-active:shadow-none data-active:hover:bg-primary data-active:hover:text-primary-foreground group-data-[collapsible=icon]:size-11! group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0! group-data-[collapsible=icon]:[&>span]:sr-only";
+  "h-11 gap-3 rounded-[12px] px-3.5 text-base text-muted-foreground hover:bg-fill-2 hover:text-foreground active:bg-fill data-active:bg-primary data-active:font-semibold data-active:text-primary-foreground data-active:shadow-none data-active:hover:bg-primary data-active:hover:text-primary-foreground group-data-[collapsible=icon]:size-11! group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0! group-data-[collapsible=icon]:[&>span]:sr-only";
 
 /** Count badges centered on a 44px row. */
 const BADGE_CLASS =
-  "top-[13px]! right-2.5 h-[18px] min-w-0 rounded-full px-1.5 text-[12px] tabular-nums";
+  "top-[13px]! right-2.5 h-[18px] min-w-0 rounded-full px-1.5 text-2xs tabular-nums";
 
-const GROUP_LABEL_CLASS = "h-8 px-3.5 text-[13px] font-semibold text-tertiary";
+/** The badge text keeps its color on hover and on the active page, so it stays at 4.5:1. */
+const ON_TONE_BADGE =
+  "bg-orange text-on-tone peer-hover/menu-button:text-on-tone peer-data-active/menu-button:text-on-tone";
+
+const GROUP_LABEL_CLASS = "h-8 px-3.5 text-xs font-semibold text-tertiary";
+
+/** Target of the "Pular para o conteúdo" link: the page area beside the menu. */
+const MAIN_CONTENT_ID = "conteudo";
 
 const NewSearchContext = createContext<() => void>(() => {});
 
@@ -146,11 +154,22 @@ export function AppShell({
     <NewSearchContext value={() => setNewSearchOpen(true)}>
       <HelpContext value={openHelp}>
         <TooltipProvider delayDuration={300}>
+          {/* First stop of the Tab key: jumps over the menu straight to the page. */}
+          <a
+            href={`#${MAIN_CONTENT_ID}`}
+            className="sr-only rounded-lg border border-border bg-popover px-3 py-2 text-sm font-medium text-foreground shadow-md focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50"
+          >
+            Pular para o conteúdo
+          </a>
           <SidebarProvider defaultOpen={sidebarOpen}>
             <AppSidebar />
             {/* Same background as the sidebar; a thin left outline separates the pages
                 from the menu and the panel reaches the top edge, with no gap above. */}
-            <SidebarInset className="h-svh overflow-hidden md:border-l md:border-border">
+            <SidebarInset
+              id={MAIN_CONTENT_ID}
+              tabIndex={-1}
+              className="h-svh overflow-hidden outline-none md:border-l md:border-border"
+            >
               {children}
             </SidebarInset>
           </SidebarProvider>
@@ -190,7 +209,7 @@ function AppSidebar() {
           </Link>
         </SidebarMenuButton>
         {item.to === "/conversas" && attention > 0 ? (
-          <SidebarMenuBadge className={cn(BADGE_CLASS, "bg-orange text-[#1b1000]")}>
+          <SidebarMenuBadge className={cn(BADGE_CLASS, ON_TONE_BADGE)}>
             {attention}
             <span className="sr-only"> precisam de você</span>
           </SidebarMenuBadge>
@@ -232,12 +251,12 @@ function AppSidebar() {
               className="hover:bg-transparent group-data-[collapsible=icon]:size-11! group-data-[collapsible=icon]:p-1!"
             >
               <Link to="/">
-                <span className="grid aspect-square size-9 shrink-0 place-items-center rounded-[10px] bg-primary text-[16px] font-bold text-primary-foreground">
+                <span className="grid aspect-square size-9 shrink-0 place-items-center rounded-[10px] bg-primary text-base font-bold text-primary-foreground">
                   N
                 </span>
                 <span className="grid flex-1 text-left leading-tight">
-                  <span className="truncate text-[18px] font-bold">Nelcota Leads</span>
-                  <span className="truncate text-[13px] font-normal text-muted-foreground">
+                  <span className="truncate text-lg font-bold">Nelcota Leads</span>
+                  <span className="truncate text-xs font-normal text-muted-foreground">
                     Prospecção B2B
                   </span>
                 </span>
@@ -256,19 +275,22 @@ function AppSidebar() {
         </Button>
       </SidebarHeader>
       <SidebarContent className="px-0.5">
-        <SidebarGroup className="py-1">
-          <SidebarGroupLabel className={GROUP_LABEL_CLASS}>Prospecção</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu className="gap-1">{NAV.map(renderItem)}</SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-        {/* Sistema sits at the bottom, next to the account, like Nelcota PRs. */}
-        <SidebarGroup className="mt-auto py-1">
-          <SidebarGroupLabel className={GROUP_LABEL_CLASS}>Sistema</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu className="gap-1">{SYSTEM_NAV.map(renderItem)}</SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {/* One landmark for the page links, so screen readers can jump to the menu. */}
+        <nav aria-label="Menu principal" className="contents">
+          <SidebarGroup className="py-1">
+            <SidebarGroupLabel className={GROUP_LABEL_CLASS}>Prospecção</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu className="gap-1">{NAV.map(renderItem)}</SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+          {/* Sistema sits at the bottom, next to the account, like Nelcota PRs. */}
+          <SidebarGroup className="mt-auto py-1">
+            <SidebarGroupLabel className={GROUP_LABEL_CLASS}>Sistema</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu className="gap-1">{SYSTEM_NAV.map(renderItem)}</SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </nav>
       </SidebarContent>
       <SidebarFooter className="gap-3 px-2.5 pt-0 pb-3">
         <CollapseMenuButton />
@@ -332,19 +354,13 @@ function UsageMeter() {
         <Link
           to="/settings"
           hash="email"
-          className="flex items-center gap-2 text-[14px] font-semibold text-foreground"
+          className="flex items-center gap-2 text-sm font-semibold text-foreground"
         >
           <CircleAlertIcon aria-hidden className="size-4 shrink-0 text-orange" />
           E-mail não conectado
         </Link>
       )}
-      <MeterRow
-        value={percent(placesUsage.used, placesUsage.limit)}
-        tone="gray"
-        used={placesUsage.used}
-        limit={placesUsage.limit}
-        label="buscas no Google"
-      />
+      <GoogleQuotaRow usage={placesUsage} />
     </div>
   );
 }
@@ -372,7 +388,7 @@ function MeterRow({
         ? { tabIndex: 0, role: "group", "aria-label": `${used} de ${limit} ${label}` }
         : {})}
     >
-      <div className="flex items-baseline justify-between gap-2 text-[14px] leading-tight">
+      <div className="flex items-baseline justify-between gap-2 text-sm leading-tight">
         <span className="text-muted-foreground first-letter:uppercase">{label}</span>
         <span className="font-semibold tabular-nums">
           {used} de {limit}
@@ -428,8 +444,8 @@ function AccountRow() {
           <>
             <Avatar name={name} src={account?.avatar} size={32} />
             <div className="min-w-0 flex-1 leading-tight group-data-[collapsible=icon]:hidden">
-              <p className="truncate text-[14px] font-medium">{name}</p>
-              <p className="flex min-w-0 items-center gap-1.5 text-[13px] text-muted-foreground">
+              <p className="truncate text-sm font-medium">{name}</p>
+              <p className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
                 {address ? (
                   <CircleCheckIcon aria-hidden className="size-3.5 shrink-0 text-green" />
                 ) : (
@@ -504,7 +520,7 @@ export function Page({
             className="-ml-1 size-9 text-tertiary md:hidden"
           />
         </Hint>
-        <h1 className="min-w-0 flex-1 truncate text-xl font-semibold tracking-[-0.02em] sm:text-2xl">
+        <h1 className="min-w-0 flex-1 truncate text-lg font-semibold tracking-[-0.02em] sm:text-2xl">
           {title}
         </h1>
         {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
@@ -516,7 +532,7 @@ export function Page({
         <div className="scroll-fade min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-gutter:stable]">
           <div className="mx-auto flex w-full max-w-[1800px] flex-col gap-6 px-4 pt-1 pb-12 lg:px-6">
             {description ? (
-              <p className="-mt-1 text-base font-light text-muted-foreground">{description}</p>
+              <p className="-mt-1 text-base text-muted-foreground">{description}</p>
             ) : null}
             {children}
           </div>

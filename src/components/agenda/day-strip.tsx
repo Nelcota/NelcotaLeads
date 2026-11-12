@@ -31,8 +31,8 @@ export function DayStrip({
               !selected && day === today ? "text-primary" : "",
             )}
           >
-            <span className="text-[12px] font-medium">{WEEKDAY_SHORT[index]}</span>
-            <span className="text-[18px] font-semibold">{Number(day.slice(8, 10))}</span>
+            <span className="text-2xs font-medium">{WEEKDAY_SHORT[index]}</span>
+            <span className="text-lg font-semibold">{Number(day.slice(8, 10))}</span>
             <span
               aria-hidden
               className={cn(

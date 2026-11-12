@@ -11,6 +11,7 @@ import {
   PlusIcon,
   RotateCwIcon,
   SearchIcon,
+  TriangleAlertIcon,
   XIcon,
 } from "lucide-react";
 import type { ReactNode } from "react";
@@ -33,7 +34,9 @@ import { formatDate } from "@/lib/format";
 import { searchesQuery } from "@/lib/queries";
 import { errorToast } from "@/lib/mutation-toasts";
 import { useNotFoundToast } from "@/lib/not-found-toast";
+import { searchFailureText } from "@/lib/provider-errors";
 import { MANUAL_SEARCH_ID } from "@/lib/searches";
+import { useToday } from "@/lib/today";
 import { cn } from "@/lib/utils";
 import { cancelSearch, hideSearch, repeatSearch } from "@/server/searches";
 import { pageTitle } from "@/lib/page-title";
@@ -48,6 +51,12 @@ export const Route = createFileRoute("/searches/")({
   loader: ({ context }) => context.queryClient.ensureQueryData(searchesQuery),
   component: SearchesPage,
 });
+
+/**
+ * Purple text a step darker in light mode and lighter in dark (20% of `--foreground`): the pure
+ * tone falls under 4.5:1 on the dark card ("Automática", the running step's title).
+ */
+const READABLE_PURPLE = "text-[color-mix(in_srgb,var(--purple)_80%,var(--foreground))]";
 
 function SearchesPage() {
   const { data: all } = useSuspenseQuery(searchesQuery);
@@ -178,6 +187,7 @@ function HiddenSearches({
 function SearchCard({ search, index }: { search: Search; index: number }) {
   const processed = search.analyzedCount + search.errorCount;
   const running = search.status === "collecting" || search.status === "analyzing";
+  const today = useToday();
   const auto = search.origin === "autopilot";
   const queryClient = useQueryClient();
   const cancel = useMutation({
@@ -221,18 +231,16 @@ function SearchCard({ search, index }: { search: Search; index: number }) {
             <span className="truncate text-base font-medium">
               {search.niche} em {search.city}
             </span>
-            <span className="rounded-full bg-fill-2 px-2 py-px text-[13px] font-medium text-muted-foreground tabular-nums">
+            <span className="rounded-full bg-fill-2 px-2 py-px text-xs font-medium text-muted-foreground tabular-nums">
               {search.foundCount} {search.foundCount === 1 ? "lead" : "leads"}
             </span>
           </p>
-          <p className="text-xs font-light text-tertiary">
-            <span className={cn("font-medium", auto ? "text-purple" : "text-blue")}>
+          <p className="text-xs text-tertiary">
+            <span className={cn("font-medium", auto ? READABLE_PURPLE : "text-blue")}>
               {auto ? "Automática" : "Manual"}
             </span>
             {" · "}
             {formatDate(search.createdAt, true)}
-            {" · "}
-            {search.placesRequests} {search.placesRequests === 1 ? "requisição" : "requisições"}
           </p>
         </div>
         <div className="relative flex items-center gap-2">
@@ -318,7 +326,7 @@ function SearchCard({ search, index }: { search: Search; index: number }) {
             title="Coleta no Google Maps"
           >
             {search.status === "error" && search.foundCount === 0 ? (
-              search.errorMessage
+              searchFailureText(search.errorMessage, search.createdAt, today)
             ) : (
               <>
                 <b>{search.foundCount}</b>{" "}
@@ -345,7 +353,7 @@ function SearchCard({ search, index }: { search: Search; index: number }) {
             }
           >
             {search.status === "error" && search.foundCount > 0 ? (
-              search.errorMessage
+              searchFailureText(search.errorMessage, search.createdAt, today)
             ) : search.status === "analyzing" ? (
               <>
                 <b>{processed}</b> de {search.foundCount} analisadas
@@ -355,7 +363,7 @@ function SearchCard({ search, index }: { search: Search; index: number }) {
           <Step state="pending" title="Concluída" />
         </div>
       ) : (
-        <p className="flex items-center gap-2 border-t border-border/70 px-4 py-2.5 pl-[58px] text-[14px] font-light text-muted-foreground">
+        <p className="flex items-center gap-2 border-t border-border/70 px-4 py-2.5 pl-[58px] text-sm text-muted-foreground">
           {search.status === "cancelled" ? (
             <XIcon className="size-3.5 text-gray" strokeWidth={2.6} />
           ) : (
@@ -474,17 +482,17 @@ function Step({
         className={cn(
           "flex items-center gap-2 font-medium",
           state === "done" && "text-foreground",
-          state === "running" && "text-purple",
+          state === "running" && READABLE_PURPLE,
           state === "error" && "text-red",
           state === "pending" && "text-tertiary",
         )}
       >
         {state === "done" ? (
-          <span className="grid size-5 place-items-center rounded-full bg-green text-primary-foreground">
+          <span className="grid size-5 place-items-center rounded-full bg-green text-on-tone">
             <CheckIcon className="size-3" strokeWidth={3} />
           </span>
         ) : state === "error" ? (
-          <span className="grid size-5 place-items-center rounded-full bg-red text-white">
+          <span className="grid size-5 place-items-center rounded-full bg-red text-on-tone">
             <XIcon className="size-3" strokeWidth={3} />
           </span>
         ) : state === "running" ? (
@@ -503,11 +511,14 @@ function Step({
       {children ? (
         <p
           className={cn(
-            "text-[14px] font-light [&_b]:font-medium [&_b]:text-foreground",
+            "flex items-start gap-1.5 text-sm [&_b]:font-medium [&_b]:text-foreground",
             state === "error" ? "text-red" : "text-muted-foreground",
           )}
         >
-          {children}
+          {state === "error" ? (
+            <TriangleAlertIcon aria-hidden strokeWidth={2} className="mt-0.5 size-4 shrink-0" />
+          ) : null}
+          <span className="min-w-0">{children}</span>
         </p>
       ) : null}
       {progress !== undefined ? (

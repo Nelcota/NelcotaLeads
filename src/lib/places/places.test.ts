@@ -25,7 +25,7 @@ describe("google places provider", () => {
       .mockResolvedValueOnce(page([place("c")]));
     const provider = createGooglePlacesProvider("key", { fetchFn });
 
-    const result = await provider.search({ niche: "dentistas", city: "BH", maxResults: 10 });
+    const result = await provider.search({ niche: "dentistas", city: "BH", maxResults: 40 });
 
     expect(result.places.map((p) => p.placeId)).toEqual(["a", "c"]);
     expect(result.requests).toBe(2);
@@ -59,6 +59,35 @@ describe("google places provider", () => {
     const result = await provider.search({ niche: "x", city: "y", maxResults: 1 });
     expect(result.places).toHaveLength(1);
     expect(fetchFn).toHaveBeenCalledTimes(1);
+  });
+
+  it("spends one request per 20 companies asked, even when closed places leave it short", async () => {
+    const closedFirst = [place("a"), place("b", "CLOSED_PERMANENTLY")];
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(page(closedFirst, "t"));
+    const reserveRequest = vi.fn<() => Promise<boolean>>().mockResolvedValue(true);
+    const provider = createGooglePlacesProvider("key", { fetchFn, reserveRequest });
+
+    const result = await provider.search({ niche: "x", city: "y", maxResults: 20 });
+
+    expect(result.places.map((p) => p.placeId)).toEqual(["a"]);
+    expect(result).toMatchObject({ requests: 1, limitReached: false });
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    expect(reserveRequest).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    [40, 2],
+    [60, 3],
+  ])("stops a search of %i companies after %i pages", async (maxResults, pages) => {
+    const fetchFn = vi
+      .fn<typeof fetch>()
+      .mockImplementation(async () =>
+        page([place(crypto.randomUUID(), "CLOSED_TEMPORARILY")], "t"),
+      );
+    const provider = createGooglePlacesProvider("key", { fetchFn });
+    const result = await provider.search({ niche: "x", city: "y", maxResults });
+    expect(result).toMatchObject({ places: [], requests: pages });
+    expect(fetchFn).toHaveBeenCalledTimes(pages);
   });
 
   it("stops paginating when the daily limit denies a request", async () => {

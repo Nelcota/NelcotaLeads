@@ -4,7 +4,11 @@ import { inList } from "@/db/in-list";
 import { leads, searches, type SearchStatus } from "@/db/schema";
 import type { PlacesProvider } from "@/lib/places";
 import { toE164 } from "@/lib/phone";
-import { searchErrorMessage } from "@/lib/provider-errors";
+import {
+  GOOGLE_LIMIT_REACHED,
+  googleLimitPartialMessage,
+  searchErrorMessage,
+} from "@/lib/provider-errors";
 import type { NewSearchInput } from "@/lib/schemas";
 import { enqueueLeads, type LeadJob } from "./queue";
 
@@ -28,9 +32,7 @@ export async function runSearch(
   try {
     const { places, requests, limitReached } = await provider.search(input);
     if (limitReached && places.length === 0) {
-      throw new Error(
-        "Limite diário de requisições ao Google atingido. A busca não foi feita; tente amanhã.",
-      );
+      throw new Error(GOOGLE_LIMIT_REACHED);
     }
 
     const inserts = places.map((place) =>
@@ -87,9 +89,7 @@ export async function runSearch(
           placesRequests: requests,
           errorMessage:
             enqueueError ??
-            (limitReached
-              ? `Limite diário de requisições ao Google atingido: coletadas ${places.length} de até ${input.maxResults} empresas.`
-              : null),
+            (limitReached ? googleLimitPartialMessage(places.length, input.maxResults) : null),
         })
         .where(eq(searches.id, searchId)),
       // Jobs may finish before the search is marked as analyzing; complete it here then.

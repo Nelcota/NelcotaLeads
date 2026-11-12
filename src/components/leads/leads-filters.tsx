@@ -196,7 +196,7 @@ export function FiltersButton({
         className="grid w-[340px] gap-4 rounded-[16px] border border-border bg-popover p-4 shadow-none backdrop-blur-none"
       >
         <div className="flex items-center justify-between">
-          <p className="text-[15px] font-semibold">Filtros</p>
+          <p className="text-base font-semibold">Filtros</p>
           <Button type="button" variant="ghost" size="sm" onClick={onReset}>
             Limpar
           </Button>
@@ -290,7 +290,7 @@ export function FiltersButton({
         </div>
 
         <div className="flex items-center justify-between border-t border-border pt-3">
-          <span className="text-[13px] text-tertiary" aria-live="polite">
+          <span className="text-xs text-tertiary" aria-live="polite">
             {shown === undefined ? "" : `${shown} ${shown === 1 ? "lead" : "leads"} nesta aba`}
           </span>
           <PopoverClose />

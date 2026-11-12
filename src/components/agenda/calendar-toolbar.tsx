@@ -88,12 +88,9 @@ function PeriodPicker({
           <button
             type="button"
             title="Escolher a data"
-            className="-ml-1 inline-flex h-9 max-w-full items-center gap-2 rounded-[10px] px-2.5 transition-colors hover:bg-fill-2 aria-expanded:bg-fill-2"
+            className="relative -ml-1 inline-flex h-9 max-w-full items-center gap-2 pointer-coarse:touch-target rounded-[10px] px-2.5 transition-colors hover:bg-fill-2 aria-expanded:bg-fill-2"
           >
-            <span
-              aria-live="polite"
-              className="truncate text-[18px] font-semibold tracking-[-0.01em]"
-            >
+            <span aria-live="polite" className="truncate text-lg font-semibold tracking-[-0.01em]">
               {rangeLabel(view, anchor)}
             </span>
             <ChevronDownIcon aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />

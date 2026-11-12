@@ -60,7 +60,7 @@ export function TimeGrid({
         </div>
       ) : null}
       <div className="grid border-b border-border" style={{ gridTemplateColumns: template }}>
-        <div className="pt-2.5 pr-2 text-right text-[12px] font-medium text-tertiary">Retornos</div>
+        <div className="pt-2.5 pr-2 text-right text-2xs font-medium text-tertiary">Retornos</div>
         {columns.map((column) => (
           <FollowUps key={column.key} column={column} onPick={handlers.onPick} />
         ))}
@@ -114,7 +114,7 @@ function ColumnHeader({
         className={cn(
           "inline-grid h-[30px] min-w-[30px] place-items-center rounded-full px-1.5 font-semibold",
           isToday ? "bg-primary text-primary-foreground" : "",
-          column.name ? "bg-fill-2 text-[14px] text-muted-foreground" : "text-base text-foreground",
+          column.name ? "bg-fill-2 text-sm text-muted-foreground" : "text-base text-foreground",
         )}
       >
         {column.number}
@@ -130,7 +130,7 @@ function ColumnHeader({
     </>
   );
   const className =
-    "flex h-[52px] min-w-0 items-center justify-center gap-2 border-l border-border text-[14px] font-medium text-muted-foreground";
+    "flex h-[52px] min-w-0 items-center justify-center gap-2 border-l border-border text-sm font-medium text-muted-foreground";
   if (!column.onOpen) return <div className={className}>{content}</div>;
   return (
     <button
@@ -164,7 +164,7 @@ function FollowUps({
           type="button"
           onClick={() => onPick(entry)}
           title={`Retornar o contato${entry.ownerName ? ` · ${entry.ownerName}` : ""}${entry.overdueFrom ? ` · atrasado desde ${dayMonth(entry.overdueFrom)}` : ""}`}
-          className="flex min-h-[26px] min-w-0 items-center gap-1.5 rounded-lg border border-border bg-card px-2 text-left text-xs font-medium transition-colors hover:bg-card-2"
+          className="flex min-h-[26px] min-w-0 items-center pointer-coarse:min-h-11 gap-1.5 rounded-lg border border-border bg-card px-2 text-left text-xs font-medium transition-colors hover:bg-card-2"
         >
           <EntryIcon kind={null} className="size-3" />
           <span className="min-w-0 truncate">{entry.leadName}</span>
@@ -191,7 +191,7 @@ function HourLabels({
       {Array.from({ length: last - first }, (_, index) => (
         <span
           key={index}
-          className="absolute right-2 text-[12px] leading-[14px] font-medium text-tertiary tabular-nums"
+          className="absolute right-2 text-2xs leading-[14px] font-medium text-tertiary tabular-nums"
           style={{ top: index === 0 ? 4 : index * hourHeight - 7 }}
         >
           {clock((first + index) * 60)}

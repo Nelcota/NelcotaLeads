@@ -36,7 +36,7 @@ export function PartnerName({
       className="group -mx-2 flex min-h-14 w-[calc(100%+16px)] items-center gap-3 rounded-[14px] px-2 text-left outline-none hover:bg-fill-2 focus-visible:bg-fill-2"
     >
       <Avatar neutral name={member.name} src={member.avatar} size={44} />
-      <span className="min-w-0 flex-1 truncate text-[17px] font-semibold">
+      <span className="min-w-0 flex-1 truncate text-lg font-semibold">
         {member.name}
         {isMe ? <span className="font-normal text-muted-foreground"> · você</span> : null}
       </span>

@@ -75,13 +75,13 @@ export function QuickReplyPicker({
           }}
         />
         {data === undefined ? (
-          <p className="px-2 py-3 text-sm font-light text-muted-foreground">
+          <p className="px-2 py-3 text-sm text-muted-foreground">
             {isError ? "Não foi possível carregar os modelos." : "Carregando…"}
           </p>
         ) : data.length === 0 ? (
-          <p className="px-2 py-3 text-sm font-light text-muted-foreground">Nenhum modelo ainda.</p>
+          <p className="px-2 py-3 text-sm text-muted-foreground">Nenhum modelo ainda.</p>
         ) : items.length === 0 ? (
-          <p className="px-2 py-3 text-sm font-light text-muted-foreground">
+          <p className="px-2 py-3 text-sm text-muted-foreground">
             Nenhum modelo com “{filter.trim()}”.
           </p>
         ) : (
@@ -94,9 +94,7 @@ export function QuickReplyPicker({
                   className="grid w-full gap-0.5 rounded-lg px-2 py-2 text-left hover:bg-fill-3 focus-visible:bg-fill-3 focus-visible:outline-none"
                 >
                   <span className="truncate text-sm font-medium">{item.title}</span>
-                  <span className="line-clamp-2 text-xs font-light text-muted-foreground">
-                    {item.body}
-                  </span>
+                  <span className="line-clamp-2 text-xs text-muted-foreground">{item.body}</span>
                 </button>
               </li>
             ))}
@@ -106,7 +104,7 @@ export function QuickReplyPicker({
           <Link
             to="/settings"
             hash="respostas"
-            className="flex h-8 items-center rounded-lg px-2 text-[14px] font-medium text-blue hover:bg-fill-3"
+            className="flex h-8 items-center rounded-lg px-2 text-sm font-medium text-blue hover:bg-fill-3"
           >
             {data?.length ? "Editar modelos" : "Criar modelos em Configurações"}
           </Link>

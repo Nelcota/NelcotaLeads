@@ -4,7 +4,7 @@ import { Hint } from "@/components/apple-ui";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { useNotifications, type NotificationCenter } from "@/hooks/use-notifications";
 import { unreadBadge } from "@/lib/notifications";
 import { cn } from "@/lib/utils";
@@ -43,7 +43,7 @@ function BellButton({ count, open, className, ref, ...props }: BellButtonProps) 
       {badge ? (
         <span
           aria-hidden
-          className="absolute -top-1 -right-1 grid h-5 min-w-5 place-items-center rounded-full border-2 border-background bg-primary px-1 text-[11px] font-bold text-primary-foreground tabular-nums"
+          className="absolute -top-1 -right-1 grid h-5 min-w-5 place-items-center rounded-full border-2 border-background bg-primary px-1 text-2xs font-bold text-primary-foreground tabular-nums"
         >
           {badge}
         </span>
@@ -130,7 +130,7 @@ function keepOpenForToast(event: { target: EventTarget | null; preventDefault: (
  */
 export function NotificationBell() {
   const center = useNotifications();
-  const isMobile = useIsMobile();
+  const isMobile = useMediaQuery("(max-width: 767px)", false);
   // The query may resolve in the browser before hydration while SSR still rendered no bell.
   // Mounting it after hydration keeps the first server and client trees identical.
   const hydrated = useSyncExternalStore(noUpdates, clientHydrated, serverHydrated);

@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { SearchIcon } from "lucide-react";
+import { MapPinIcon, SearchIcon, TagIcon } from "lucide-react";
 import { useForm, useWatch } from "react-hook-form";
 import { errorToast } from "@/lib/mutation-toasts";
 import { Button } from "@/components/ui/button";
@@ -15,12 +15,12 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { searchCostLabel, searchQuotaBlocker } from "@/lib/google-quota";
 import { providerStatusQuery } from "@/lib/queries";
 import { newSearchSchema, type NewSearchInput } from "@/lib/schemas";
 import { cn } from "@/lib/utils";
 import { createSearch } from "@/server/searches";
 
-const PAGE_SIZE = 20;
 const SIZES = [20, 40, 60] as const;
 
 export function NewSearchDialog({
@@ -34,7 +34,10 @@ export function NewSearchDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[560px]">
         <DialogHeader>
-          <DialogTitle>Nova busca</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <SearchIcon aria-hidden strokeWidth={2} className="size-[18px] shrink-0 text-blue" />
+            Nova busca
+          </DialogTitle>
           <DialogDescription>
             Uma busca no Google Maps por nicho e cidade. As empresas encontradas são avaliadas pela
             IA como as da busca diária.
@@ -53,18 +56,14 @@ const PHRASE_INPUT =
 function NewSearchForm({ onDone }: { onDone: () => void }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { data: status } = useQuery(providerStatusQuery);
+  const { data: status, isPending: statusLoading } = useQuery(providerStatusQuery);
   const form = useForm<NewSearchInput>({
     resolver: zodResolver(newSearchSchema),
     defaultValues: { niche: "", city: "", maxResults: 20 },
   });
   const { errors } = form.formState;
   const maxResults = useWatch({ control: form.control, name: "maxResults" });
-  const requests = Math.ceil(maxResults / PAGE_SIZE);
-
-  const used = status?.placesUsage.used ?? 0;
-  const limit = status?.placesUsage.limit ?? 0;
-  const remaining = Math.max(0, limit - used);
+  const usage = status?.placesUsage;
   // Plain words here; how to set the keys up is in the README.
   const missingKeysText =
     status && !status.placesConfigured && !status.aiConfigured
@@ -92,11 +91,9 @@ function NewSearchForm({ onDone }: { onDone: () => void }) {
 
   const blocker = missingKeysText
     ? `${missingKeysText} Fale com quem administra o sistema.`
-    : remaining === 0
-      ? `O limite de ${limit} requisições ao Google por dia foi atingido. Volte amanhã.`
-      : requests > remaining
-        ? `Restam só ${remaining} ${remaining === 1 ? "requisição" : "requisições"} hoje. Peça menos resultados.`
-        : null;
+    : usage
+      ? searchQuotaBlocker(maxResults, usage)
+      : null;
 
   return (
     <form
@@ -106,11 +103,13 @@ function NewSearchForm({ onDone }: { onDone: () => void }) {
     >
       <div className="grid gap-2">
         <div className="grid grid-cols-[1fr_auto_1fr] text-xs font-medium text-muted-foreground">
-          <Label htmlFor="niche" className="px-1">
+          <Label htmlFor="niche" className="flex items-center gap-1.5 px-1">
+            <TagIcon aria-hidden strokeWidth={2} className="size-3.5 shrink-0" />
             Nicho
           </Label>
           <span />
-          <Label htmlFor="city" className="px-1">
+          <Label htmlFor="city" className="flex items-center gap-1.5 px-1">
+            <MapPinIcon aria-hidden strokeWidth={2} className="size-3.5 shrink-0" />
             Cidade
           </Label>
         </div>
@@ -129,7 +128,7 @@ function NewSearchForm({ onDone }: { onDone: () => void }) {
             className={PHRASE_INPUT}
             {...form.register("niche")}
           />
-          <span className="px-1 text-sm font-light text-tertiary">em</span>
+          <span className="px-1 text-sm text-tertiary">em</span>
           <input
             id="city"
             autoComplete="off"
@@ -161,14 +160,18 @@ function NewSearchForm({ onDone }: { onDone: () => void }) {
             ))}
           </TabsList>
         </Tabs>
-        <p className="px-1 text-xs font-light text-muted-foreground tabular-nums">
-          {requests} {requests === 1 ? "requisição" : "requisições"} ao Google · restam {remaining}{" "}
-          de {limit} hoje
-        </p>
+        {usage ? (
+          <p className="px-1 text-xs text-muted-foreground tabular-nums">
+            {searchCostLabel(maxResults, usage)}
+          </p>
+        ) : null}
+        {statusLoading ? (
+          <p className="px-1 text-xs text-muted-foreground">Carregando a cota…</p>
+        ) : null}
       </div>
 
       {status && !status.offerConfigured ? (
-        <p className="rounded-xl bg-[color-mix(in_srgb,var(--orange)_10%,transparent)] px-3.5 py-2.5 text-sm font-light text-muted-foreground shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--orange)_22%,transparent)]">
+        <p className="rounded-xl bg-[color-mix(in_srgb,var(--orange)_10%,transparent)] px-3.5 py-2.5 text-sm text-muted-foreground shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--orange)_22%,transparent)]">
           <span className="font-medium text-orange">
             Sua oferta ainda não foi descrita, então a nota e a mensagem saem genéricas.
           </span>{" "}
@@ -190,7 +193,7 @@ function NewSearchForm({ onDone }: { onDone: () => void }) {
         <Button type="button" variant="ghost" onClick={onDone}>
           Cancelar
         </Button>
-        <Button type="submit" disabled={mutation.isPending || Boolean(blocker)}>
+        <Button type="submit" disabled={mutation.isPending || statusLoading || Boolean(blocker)}>
           <SearchIcon />
           {mutation.isPending ? "Buscando…" : "Buscar empresas"}
         </Button>

@@ -21,7 +21,7 @@ export function TeamError({ onRetry }: { onRetry: () => void }) {
     <div role="alert" className="grouped flex flex-wrap items-center gap-3.5 p-6">
       <CircleAlertIcon aria-hidden className="size-[22px] shrink-0 text-red" />
       <div className="min-w-64 flex-1">
-        <p className="text-[17px] font-semibold">Não foi possível carregar a equipe.</p>
+        <p className="text-lg font-semibold">Não foi possível carregar a equipe.</p>
         <p className="text-base text-muted-foreground">Confira a conexão e tente de novo.</p>
       </div>
       <Button variant="outline" onClick={onRetry}>

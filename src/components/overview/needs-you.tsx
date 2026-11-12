@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { ClockAlertIcon, ClockIcon } from "lucide-react";
+import { ClockAlertIcon, ClockIcon, HandIcon } from "lucide-react";
 import { Avatar } from "@/components/apple-ui";
 import { StatusLabel } from "@/components/status-label";
 import { nicheAndCity, waitingLabel } from "@/lib/overview";
@@ -11,7 +11,8 @@ export function NeedsYou({ data, now }: { data: Dashboard; now: Date }) {
   return (
     <section aria-labelledby="needs-you" className="grouped enter">
       <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 px-5 pt-4 pb-2">
-        <h2 id="needs-you" className="text-[18px] font-semibold">
+        <h2 id="needs-you" className="flex items-center gap-2 text-lg font-semibold">
+          <HandIcon aria-hidden className="size-[18px] shrink-0 text-orange" strokeWidth={2} />
           Precisa de você
         </h2>
         <span className="rounded-full bg-fill-2 px-2 py-px text-xs font-bold text-muted-foreground tabular-nums">
@@ -25,7 +26,7 @@ export function NeedsYou({ data, now }: { data: Dashboard; now: Date }) {
         <Link
           to="/conversas"
           search={{ filter: "needsYou" }}
-          className="text-[15px] font-semibold text-blue hover:underline"
+          className="inline-flex min-h-6 items-center text-base font-semibold text-blue hover:underline"
         >
           Ver todas
         </Link>
@@ -44,7 +45,7 @@ export function NeedsYou({ data, now }: { data: Dashboard; now: Date }) {
             <Avatar name={lead.name} size={36} square />
             <span className="grid min-w-0 flex-1">
               <span className="truncate font-semibold">{lead.name}</span>
-              <span className="truncate text-[14px] text-muted-foreground">
+              <span className="truncate text-sm text-muted-foreground">
                 {lead.handoffReason ?? "Respondeu"}
                 {where ? ` · ${where}` : ""}
               </span>
@@ -53,12 +54,12 @@ export function NeedsYou({ data, now }: { data: Dashboard; now: Date }) {
               <StatusLabel
                 icon={late ? ClockAlertIcon : ClockIcon}
                 tone={late ? "red" : "gray"}
-                className="text-[14px] tabular-nums"
+                className="text-sm tabular-nums"
               >
                 {waitingLabel(lead.lastInboundAt, now)}
               </StatusLabel>
             ) : null}
-            <span className="shrink-0 text-[15px] font-semibold text-blue max-sm:hidden">
+            <span className="shrink-0 text-base font-semibold text-blue max-sm:hidden">
               Responder
             </span>
           </Link>

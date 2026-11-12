@@ -26,7 +26,7 @@ export function PartnerRow({
     >
       <Avatar neutral name={member.name} src={member.avatar} size={44} />
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[17px] font-semibold">
+        <span className="block truncate text-lg font-semibold">
           {member.name}
           {isMe ? <span className="font-normal text-muted-foreground"> · você</span> : null}
         </span>
