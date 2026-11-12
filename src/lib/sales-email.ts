@@ -31,7 +31,11 @@ function signed(paragraphs: readonly string[]): string {
   return [...paragraphs.filter(Boolean), SALES_SIGNATURE].join("\n\n");
 }
 
-/** The invite the lead gets for a meeting: day, time (Brasília) and how it happens. */
+/**
+ * The invite the lead gets for a meeting: day, time (Brasília) and how it happens.
+ * `leadName` is the Google listing name (often stuffed with keywords), so the body does not
+ * greet by it: the date opens the e-mail.
+ */
 export function meetingInviteEmail(meeting: {
   leadName: string;
   startsAt: Date;
@@ -43,10 +47,9 @@ export function meetingInviteEmail(meeting: {
   return {
     subject: `Nossa conversa: ${when}`,
     body: signed([
-      `Olá, ${meeting.leadName}!`,
-      `Confirmando a nossa conversa: ${when} (horário de Brasília), ${KIND_PHRASE[meeting.kind]}.`,
+      `Nossa conversa fica marcada para ${when} (horário de Brasília), ${KIND_PHRASE[meeting.kind]}.`,
       meeting.note,
-      "Se precisar mudar o horário, é só responder este e-mail.",
+      "Se o horário não der, responda com outro que funcione para vocês.",
     ]),
   };
 }
@@ -71,12 +74,11 @@ export function proposalEmail(proposal: {
   return {
     subject: `Proposta da Nelcota para ${proposal.leadName}`,
     body: signed([
-      `Olá, ${proposal.leadName}!`,
-      "Conforme conversamos, segue a nossa proposta:",
+      "Segue a proposta com o que vamos fazer e o valor de cada parte:",
       proposal.items.map(itemLine).join("\n"),
       `Total: ${formatCents(totalCents)}${monthly}.`,
       `Proposta válida por ${proposal.validDays} dias, até ${validUntil}.`,
-      "Qualquer dúvida, é só responder este e-mail.",
+      "Se quiser mudar algum item, responda este e-mail.",
     ]),
   };
 }
