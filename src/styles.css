@@ -497,6 +497,38 @@ select:-webkit-autofill {
   }
 }
 
+/* Wrong password: a short sideways shake, like the macOS login field. */
+.shake {
+  animation: shake 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+@keyframes shake {
+  20%,
+  60% {
+    transform: translateX(-7px);
+  }
+  40%,
+  80% {
+    transform: translateX(7px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row-hover:hover .row-chev {
+    transform: none !important;
+  }
+  .ring-fill,
+  .bar-grow,
+  .enter,
+  .rise,
+  .shake {
+    animation: none;
+  }
+  .animate-pulse,
+  .animate-spin {
+    animation: none;
+  }
+}
+
 /*
  * Native progress bar of a running search (Buscas). Determinate while the AI analyzes; without a
  * value (collecting) a short segment sweeps the track, slowly, easing at both ends. The fill is
@@ -544,38 +576,8 @@ select:-webkit-autofill {
     translate: 100cqi;
   }
 }
-
-/* Wrong password: a short sideways shake, like the macOS login field. */
-.shake {
-  animation: shake 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
-}
-@keyframes shake {
-  20%,
-  60% {
-    transform: translateX(-7px);
-  }
-  40%,
-  80% {
-    transform: translateX(7px);
-  }
-}
-
+/* Never stop the sweep under reduced motion: without its animation the fill has no width. */
 @media (prefers-reduced-motion: reduce) {
-  .row-hover:hover .row-chev {
-    transform: none !important;
-  }
-  .ring-fill,
-  .bar-grow,
-  .enter,
-  .rise,
-  .shake {
-    animation: none;
-  }
-  .animate-pulse,
-  .animate-spin {
-    animation: none;
-  }
-  /* Never stop the sweep: without its animation the fill has no width at all. */
   .search-progress {
     --sweep-duration: 12s;
   }
