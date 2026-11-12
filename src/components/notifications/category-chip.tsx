@@ -1,5 +1,5 @@
-import { CalendarIcon, ClockIcon, MailIcon, SearchIcon, type LucideIcon } from "lucide-react";
-import { toneVar, type Tone } from "@/components/apple-ui";
+import { CalendarIcon, ClockIcon, SearchIcon, MailIcon, type LucideIcon } from "lucide-react";
+import { TONE_TEXT, type Tone } from "@/components/apple-ui";
 import type { NotificationCategory } from "@/lib/notifications";
 import { cn } from "@/lib/utils";
 
@@ -17,7 +17,7 @@ const CATEGORY_TONE: Record<NotificationCategory, Tone> = {
   searches: "green",
 };
 
-/** The category's line icon on a chip tinted with its color (list-row icon standard). */
+/** The category's bare line icon in its color (list-row icon standard: no chip behind it). */
 export function CategoryChip({
   category,
   size = 34,
@@ -28,19 +28,14 @@ export function CategoryChip({
   className?: string;
 }) {
   const Icon = CATEGORY_ICON[category];
-  const tone = toneVar(CATEGORY_TONE[category]);
+  const tone = CATEGORY_TONE[category];
   return (
     <span
       aria-hidden
-      className={cn("grid shrink-0 place-items-center rounded-[10px]", className)}
-      style={{
-        width: size,
-        height: size,
-        color: tone,
-        background: `color-mix(in srgb, ${tone} 16%, transparent)`,
-      }}
+      className={cn("grid shrink-0 place-items-center", TONE_TEXT[tone], className)}
+      style={{ width: size, height: size }}
     >
-      <Icon style={{ width: size * 0.5, height: size * 0.5 }} strokeWidth={1.8} />
+      <Icon className="size-4" strokeWidth={2} />
     </span>
   );
 }

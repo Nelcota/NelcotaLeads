@@ -1,3 +1,4 @@
+import { FunnelIcon } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { sharePercent } from "@/lib/format";
 import type { LeadFilters } from "@/lib/schemas";
@@ -63,8 +64,9 @@ export function FunnelCard({ funnel, won, readyToSend, caption }: FunnelCardProp
   const max = Math.max(1, ...steps.map((step) => step.value));
   return (
     <section aria-labelledby="funnel" className="grouped enter min-w-0 py-4">
-      <div className="flex flex-wrap items-baseline gap-2 px-5 pb-2">
-        <h2 id="funnel" className="text-lg font-semibold">
+      <div className="flex flex-wrap items-center gap-2 px-5 pb-2">
+        <h2 id="funnel" className="flex items-center gap-2 text-lg font-semibold">
+          <FunnelIcon aria-hidden className="size-[18px] shrink-0 text-blue" strokeWidth={2} />
           Funil
         </h2>
         <span className="text-sm text-muted-foreground">

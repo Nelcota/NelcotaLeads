@@ -86,6 +86,14 @@ The steps, in this order: (1) Visão geral with the new layout on today's data; 
 
 ## Decisions
 
+### 2026-11-11: Visão geral alerts become a summary row
+
+- **Decision:** the alert strip at the top of the Visão geral (one full-width card per alert, warning triangle, link and X) goes. In its place, a row of compact pills under the page description, one per pending item: line icon in its tone, the count and a short label ("1 sem resposta há mais de 1 dia", "3 retornos para hoje ou atrasados", "Busca de dentistas falhou", "Descrever a oferta"). Each pill is a secondary button (`outline`, 40px) that opens the same filtered list the alert opened. No dismiss X: the row mirrors what is pending, and clearing lives in the notification bell. The orange "N precisa de você" leaves the description, since the "Precisa de você" card right below shows it. Part of the Notification center item in Now, which absorbed these alerts on 2026-11-07.
+- **Why:** the user found the strip "arcaico": it repeated the bell and the cards below, said "3 leads" without telling who, and the X only hid it until the tab closed.
+- **Discarded:** one merged "Para hoje" card (still repeats "Precisa de você"); toasts on page load (gone before anyone acts); counters inside the description text (the `linha` variant of the canvas).
+- **Approved:** canvas "Nelcota Leads · Visão geral (avisos)", default `pilulas` variant (2026-11-11, the user: "gostei, aplique no localhost 3040"). The pills open the filtered lists instead of scrolling to the cards below, as the alerts did.
+- **Review if:** with several config alerts at once the row wraps to more than two lines on a phone.
+
 ### 2026-11-10: open-PR limit exceeded for P1 and P3
 
 - **Decision:** P1 (`fix/security-hardening`) and P3 (`perf/lead-queries`) open now, taking the open PRs to 9 across repositories (NelcotaAI #36–#38, NelcotaLeads #48–#51 plus these two), above the limit of 7 in guard rule 6.

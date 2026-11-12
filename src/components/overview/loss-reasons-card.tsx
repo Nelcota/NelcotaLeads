@@ -1,3 +1,4 @@
+import { CircleXIcon } from "lucide-react";
 import { lossBreakdown, type LossCount } from "@/lib/overview-metrics";
 import { ProgressBar } from "./progress-bar";
 
@@ -12,8 +13,9 @@ export function LossReasonsCard({ losses, caption }: { losses: LossCount[]; capt
       aria-labelledby="loss-reasons"
       className="grouped enter flex min-w-0 flex-col gap-3 p-5"
     >
-      <div className="flex flex-wrap items-baseline gap-2">
-        <h2 id="loss-reasons" className="text-lg font-semibold">
+      <div className="flex flex-wrap items-center gap-2">
+        <h2 id="loss-reasons" className="flex items-center gap-2 text-lg font-semibold">
+          <CircleXIcon aria-hidden className="size-[18px] shrink-0 text-red" strokeWidth={2} />
           Por que não fecharam
         </h2>
         <span className="text-sm text-muted-foreground">
