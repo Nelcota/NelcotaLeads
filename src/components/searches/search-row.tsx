@@ -75,7 +75,7 @@ export function SearchRow({
       <div className="col-start-2 @4xl:col-start-auto">
         <SearchStatusText search={search} />
       </div>
-      <div className="col-start-2 -ml-3 flex flex-wrap items-center gap-1 @4xl:col-start-auto @4xl:ml-0 @4xl:justify-end">
+      <div className="col-start-2 flex flex-wrap items-center gap-1 @4xl:col-start-auto @4xl:justify-end">
         <SearchRowActions search={search} quotaSpent={quotaSpent} />
         {isSearchRunning(search.status) ? null : (
           <SearchRowMenu
