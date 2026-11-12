@@ -86,11 +86,14 @@ export function useNewSearch({ onCreated }: { onCreated?: () => void } = {}) {
   const submit = (event: FormEvent<HTMLFormElement>) =>
     void form.handleSubmit((data) => mutation.mutate(data))(event);
 
-  /** Fills the form from an older search; an empty city is left for the user to type. */
+  /**
+   * Fills the form from an older search; an empty city is left for the user to type. The focus
+   * moves on the next frame, once the menu that asked for it has finished closing.
+   */
   const prefill = (niche: string, city: string) => {
     form.setValue("niche", niche, { shouldValidate: false });
     form.setValue("city", city, { shouldValidate: false });
-    form.setFocus(city ? "niche" : "city");
+    requestAnimationFrame(() => form.setFocus(city ? "niche" : "city", { shouldSelect: true }));
   };
 
   return {
