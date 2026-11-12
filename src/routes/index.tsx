@@ -174,14 +174,6 @@ function OverviewPage() {
             <Stat value={data.stats.readyToSend} one="pronto para disparo">
               prontos para disparo
             </Stat>
-            {data.stats.interested > 0 ? (
-              <>
-                {" · "}
-                <Stat value={data.stats.interested} tone="orange" one="precisa de você">
-                  precisam de você
-                </Stat>
-              </>
-            ) : null}
           </>
         )
       }

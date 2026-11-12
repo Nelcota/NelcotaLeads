@@ -26,11 +26,16 @@ export function nicheAndCity(niche: string | null, city: string | null): string 
   return [niche, city].filter((part): part is string => Boolean(part)).join(", ");
 }
 
+export type OverviewAlertKind = "offer" | "cooling" | "search" | "followup";
+
 export type OverviewAlert = {
   key: string;
+  kind: OverviewAlertKind;
   tone: "orange" | "red";
-  text: string;
-  action: string;
+  /** The short pill text: "1 sem resposta há mais de 1 dia". */
+  label: string;
+  /** What the pill opens, for its tooltip and screen readers. */
+  hint: string;
   link:
     | { to: "/conversas"; search: { filter: "needsYou" } }
     | { to: "/leads"; search: { view: "followup" } | { view: "all"; searchId: string } }
@@ -56,23 +61,21 @@ export function buildAlerts(data: AlertSource, followUps: number): OverviewAlert
   if (!data.setup.offer) {
     alerts.push({
       key: "setup:offer",
+      kind: "offer",
       tone: "orange",
-      text: "Conte o que a Nelcota vende: sem isso, a IA escreve e-mails genéricos.",
-      action: "Escrever",
+      label: "Descrever a oferta",
+      hint: "Sem a oferta, a IA escreve e-mails genéricos. Abre Configurações.",
       link: { to: "/settings", hash: "oferta" },
     });
   }
   const cooling = data.stats.cooling;
   if (cooling > 0) {
     alerts.push({
-      // Keyed by count and day: a new cooling lead brings a dismissed alert back.
-      key: `cooling:${data.today}:${cooling}`,
+      key: `cooling:${data.today}`,
+      kind: "cooling",
       tone: "orange",
-      text:
-        cooling === 1
-          ? "1 lead interessado está sem resposta há mais de 1 dia."
-          : `${cooling} leads interessados estão sem resposta há mais de 1 dia.`,
-      action: "Responder",
+      label: `${cooling} sem resposta há mais de 1 dia`,
+      hint: `${cooling === 1 ? "Lead interessado esperando" : "Leads interessados esperando"} resposta. Abre Conversas.`,
       link: { to: "/conversas", search: { filter: "needsYou" } },
     });
   }
@@ -80,18 +83,20 @@ export function buildAlerts(data: AlertSource, followUps: number): OverviewAlert
     if (search.status !== "error") continue;
     alerts.push({
       key: `search:${search.id}`,
+      kind: "search",
       tone: "red",
-      text: `A busca de ${search.niche} em ${search.city} falhou hoje.`,
-      action: "Ver busca",
+      label: `Busca de ${search.niche} falhou`,
+      hint: `A busca de ${search.niche} em ${search.city} falhou hoje. Abre os leads dessa busca.`,
       link: { to: "/leads", search: { view: "all", searchId: search.id } },
     });
   }
   if (followUps > 0) {
     alerts.push({
       key: `followup:${data.today}`,
+      kind: "followup",
       tone: "orange",
-      text: `${followUps} ${followUps === 1 ? "lead tem" : "leads têm"} retorno marcado para hoje ou atrasado.`,
-      action: "Ver leads",
+      label: `${followUps} ${followUps === 1 ? "retorno para hoje ou atrasado" : "retornos para hoje ou atrasados"}`,
+      hint: "Leads com retorno marcado para hoje ou antes. Abre Leads.",
       link: { to: "/leads", search: { view: "followup" } },
     });
   }
