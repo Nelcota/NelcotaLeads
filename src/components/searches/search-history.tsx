@@ -1,61 +1,26 @@
-import { SearchIcon } from "lucide-react";
+import { HistoryIcon } from "lucide-react";
 import { useState } from "react";
+import { SearchFilterBar } from "@/components/searches/search-filter-bar";
+import { SearchHistoryEmpty, type EmptyKind } from "@/components/searches/search-history-empty";
 import { SearchRow } from "@/components/searches/search-row";
 import { Button } from "@/components/ui/button";
-import { ChoicePill } from "@/components/ui/choice-pill";
 import type { Search } from "@/db/schema";
 import { formatCount } from "@/lib/format";
-import {
-  countSearches,
-  matchesSearchFilter,
-  SEARCH_FILTER_IDS,
-  SEARCH_FILTER_LABELS,
-  summarizeSearches,
-  type SearchFilter,
-} from "@/lib/search-list";
+import { matchesSearchFilter, type SearchFilter } from "@/lib/search-list";
 
 /** Rows shown before "Mostrar mais". */
 const FIRST_ROWS = 10;
 
-function plural(count: number, one: string, many: string): string {
-  return `${formatCount(count)} ${count === 1 ? one : many}`;
-}
-
-function Summary({ searches }: { searches: readonly Search[] }) {
-  const summary = summarizeSearches(searches);
-  const parts = [
-    plural(summary.searches, "busca", "buscas"),
-    plural(summary.newLeads, "lead novo", "leads novos"),
-  ];
-  if (summary.running > 0) parts.push(`${formatCount(summary.running)} em andamento`);
-  return <p className="text-sm text-muted-foreground tabular-nums">{parts.join(" · ")}</p>;
-}
-
-function EmptyHistory({ filtered, onShowAll }: { filtered: boolean; onShowAll: () => void }) {
-  if (filtered) {
-    return (
-      <div className="grid justify-items-center gap-2 border-b border-border px-6 py-12 text-center">
-        <p className="text-lg font-semibold">Nenhuma busca neste filtro</p>
-        <Button variant="ghost" size="sm" onClick={onShowAll}>
-          Ver todas
-        </Button>
-      </div>
-    );
-  }
-  return (
-    <div className="grid justify-items-center gap-2 border-b border-border px-6 py-14 text-center">
-      <SearchIcon aria-hidden strokeWidth={1.6} className="size-7 text-muted-foreground" />
-      <p className="text-xl font-semibold">Nenhuma busca ainda</p>
-      <p className="max-w-md text-base text-pretty text-muted-foreground">
-        As buscas diárias e as que você fizer aparecem aqui.
-      </p>
-    </div>
-  );
+function emptyKind(searches: readonly Search[], filter: SearchFilter): EmptyKind {
+  if (searches.length === 0) return "none";
+  const visible = searches.some((search) => search.hiddenAt === null);
+  if (filter === "all" && !visible) return "all-hidden";
+  return "filtered";
 }
 
 /**
- * The Histórico: one open list with its filters right above it, first rows only until
- * "Mostrar mais". A second click on the active filter goes back to "Todas".
+ * The Histórico card: filters in its header, one row per search, first rows only until
+ * "Mostrar mais".
  */
 export function SearchHistory({
   searches,
@@ -73,56 +38,49 @@ export function SearchHistory({
   const [showAll, setShowAll] = useState(false);
   const rows = searches.filter((search) => matchesSearchFilter(search, filter));
   const visibleRows = showAll ? rows : rows.slice(0, FIRST_ROWS);
-  const hiddenCount = rows.length - visibleRows.length;
-  const pick = (next: SearchFilter) => {
+  const moreCount = rows.length - FIRST_ROWS;
+  const changeFilter = (next: SearchFilter) => {
     setShowAll(false);
-    onFilterChange(next === filter ? "all" : next);
+    onFilterChange(next);
   };
 
   return (
-    <section aria-labelledby="historico" className="grid gap-3">
-      <div className="flex flex-wrap items-baseline justify-between gap-3">
-        <h2 id="historico" className="text-base font-semibold text-muted-foreground">
+    <section aria-labelledby="historico" className="grouped @container min-w-0">
+      <div className="flex flex-col gap-3 border-b border-border p-5">
+        <h2 id="historico" className="flex items-center gap-2 text-lg font-semibold">
+          <HistoryIcon aria-hidden className="size-[18px] shrink-0 text-blue" strokeWidth={2} />
           Histórico
         </h2>
-        {searches.length > 0 ? <Summary searches={searches} /> : null}
+        {searches.length > 0 ? (
+          <SearchFilterBar searches={searches} filter={filter} onChange={changeFilter} />
+        ) : null}
       </div>
-      {searches.length > 0 ? (
-        <div role="radiogroup" aria-label="Filtrar buscas" className="flex flex-wrap gap-2">
-          {SEARCH_FILTER_IDS.map((id) => {
-            const count = countSearches(searches, id);
-            return (
-              <ChoicePill
-                key={id}
-                role="radio"
-                aria-checked={filter === id}
-                selected={filter === id}
-                count={count > 0 ? formatCount(count) : undefined}
-                onClick={() => pick(id)}
-              >
-                {SEARCH_FILTER_LABELS[id]}
-              </ChoicePill>
-            );
-          })}
+      {rows.length > 0 ? (
+        <ul className="divide-y divide-border">
+          {visibleRows.map((search) => (
+            <SearchRow key={search.id} search={search} quotaSpent={quotaSpent} onFill={onFill} />
+          ))}
+        </ul>
+      ) : (
+        <SearchHistoryEmpty
+          kind={emptyKind(searches, filter)}
+          onShowAll={() => changeFilter("all")}
+          onShowHidden={() => changeFilter("hidden")}
+        />
+      )}
+      {moreCount > 0 ? (
+        <div className="border-t border-border px-5 py-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            aria-expanded={showAll}
+            onClick={() => setShowAll((open) => !open)}
+          >
+            {showAll
+              ? "Mostrar menos"
+              : `Mostrar mais ${formatCount(moreCount)} ${moreCount === 1 ? "busca" : "buscas"}`}
+          </Button>
         </div>
-      ) : null}
-      <ul className="@container border-t border-input">
-        {visibleRows.map((search) => (
-          <SearchRow key={search.id} search={search} quotaSpent={quotaSpent} onFill={onFill} />
-        ))}
-      </ul>
-      {rows.length === 0 ? (
-        <EmptyHistory filtered={searches.length > 0} onShowAll={() => pick("all")} />
-      ) : null}
-      {rows.length > FIRST_ROWS ? (
-        <Button
-          variant="outline"
-          className="justify-self-start"
-          aria-expanded={showAll}
-          onClick={() => setShowAll((open) => !open)}
-        >
-          {showAll ? "Mostrar menos" : `Mostrar mais ${plural(hiddenCount, "busca", "buscas")}`}
-        </Button>
       ) : null}
     </section>
   );

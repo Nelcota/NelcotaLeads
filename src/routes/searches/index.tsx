@@ -1,7 +1,7 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { z } from "zod";
-import { Page } from "@/components/app-shell";
+import { Page, Stat } from "@/components/app-shell";
 import { SearchComposer } from "@/components/searches/search-composer";
 import { SearchHistory } from "@/components/searches/search-history";
 import { useNewSearch } from "@/hooks/use-new-search";
@@ -10,7 +10,7 @@ import { useNotFoundToast } from "@/lib/not-found-toast";
 import { pageTitle } from "@/lib/page-title";
 import { searchesQuery } from "@/lib/queries";
 import { lenientSearch } from "@/lib/schemas";
-import { SEARCH_FILTER_IDS, type SearchFilter } from "@/lib/search-list";
+import { SEARCH_FILTER_IDS, summarizeSearches, type SearchFilter } from "@/lib/search-list";
 import { MANUAL_SEARCH_ID } from "@/lib/searches";
 
 export const Route = createFileRoute("/searches/")({
@@ -37,6 +37,7 @@ function SearchesPage() {
   const quotaSpent = newSearch.usage ? companiesLeftToday(newSearch.usage) === 0 : false;
   // Leads added by hand are filed under a fixed "search" that is not one (see Leads).
   const searches = all.filter((search) => search.id !== MANUAL_SEARCH_ID);
+  const summary = summarizeSearches(searches);
   const setFilter = (next: SearchFilter) =>
     void navigate({
       search: (prev) => ({ ...prev, filter: next === "all" ? undefined : next }),
@@ -46,7 +47,27 @@ function SearchesPage() {
   return (
     <Page
       title="Buscas"
-      description="Empresas do Google Maps por nicho e cidade. A IA avalia cada uma e as boas viram leads."
+      description={
+        summary.searches > 0 ? (
+          <>
+            <Stat value={summary.searches} one="busca">
+              buscas
+            </Stat>
+            {" · "}
+            <Stat value={summary.newLeads} one="lead novo">
+              leads novos
+            </Stat>
+            {summary.running > 0 ? (
+              <>
+                {" · "}
+                <Stat value={summary.running}>em andamento</Stat>
+              </>
+            ) : null}
+          </>
+        ) : (
+          "Empresas do Google Maps por nicho e cidade. A IA avalia cada uma e as boas viram leads."
+        )
+      }
     >
       <SearchComposer newSearch={newSearch} />
       <SearchHistory

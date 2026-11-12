@@ -12,21 +12,9 @@ import { isSearchRunning } from "@/lib/search-list";
 import { searchLabel } from "@/lib/searches";
 import { useToday } from "@/lib/today";
 
-function OriginIcon({ automatic }: { automatic: boolean }) {
-  const Icon = automatic ? BotIcon : SearchIcon;
-  return (
-    <Icon
-      role="img"
-      aria-label={automatic ? "Busca automática" : "Busca manual"}
-      strokeWidth={1.6}
-      className="size-5 text-muted-foreground @4xl:self-center"
-    />
-  );
-}
-
 /**
- * One search in the Histórico: date, what was searched, what it brought, its status and actions.
- * One line on wide screens; on narrow ones status, result and actions stack under the title.
+ * One search in the Histórico card: date, what was searched, what it brought, its status and
+ * actions. One line when the card is wide; on a narrow card the rest stacks under the title.
  */
 export function SearchRow({
   search,
@@ -40,20 +28,25 @@ export function SearchRow({
   const today = useToday();
   const [detailsOpen, setDetailsOpen] = useState(false);
   const automatic = search.origin === "autopilot";
+  const OriginIcon = automatic ? BotIcon : SearchIcon;
   const failure =
     search.status === "error"
       ? searchFailureText(search.errorMessage, search.createdAt, today)
       : null;
 
   return (
-    <li className="grid grid-cols-[20px_minmax(0,1fr)] gap-x-3 gap-y-2 border-b border-border py-4 @4xl:grid-cols-[76px_20px_minmax(0,1fr)_170px_116px_272px] @4xl:items-center @4xl:gap-x-4">
-      <p className="hidden flex-col gap-0.5 text-sm tabular-nums @4xl:flex">
+    <li className="grid grid-cols-[20px_minmax(0,1fr)] gap-x-3 gap-y-2 px-5 py-4 @4xl:grid-cols-[64px_20px_minmax(0,1fr)_170px_112px_272px] @4xl:items-center @4xl:gap-x-4">
+      <p className="hidden flex-col text-sm tabular-nums @4xl:flex">
         <span className="font-medium">{dayMonth(localDay(search.createdAt))}</span>
         <span className="text-tertiary">{localTime(search.createdAt)}</span>
       </p>
-      <OriginIcon automatic={automatic} />
+      <OriginIcon
+        aria-hidden
+        strokeWidth={1.8}
+        className="mt-0.5 size-5 text-muted-foreground @4xl:mt-0"
+      />
       <div className="min-w-0">
-        <p className="line-clamp-2 text-base font-semibold text-pretty">{searchLabel(search)}</p>
+        <p className="line-clamp-2 font-semibold text-pretty">{searchLabel(search)}</p>
         <p className="text-sm text-muted-foreground">
           {automatic ? "Automática" : "Manual"}
           <span className="@4xl:hidden"> · {formatDate(search.createdAt, true)}</span>
@@ -80,6 +73,7 @@ export function SearchRow({
         {isSearchRunning(search.status) ? null : (
           <SearchRowMenu
             search={search}
+            quotaSpent={quotaSpent}
             detailsOpen={detailsOpen}
             onToggleDetails={() => setDetailsOpen((open) => !open)}
             onFill={onFill}

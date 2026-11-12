@@ -5,6 +5,7 @@ import {
   InfoIcon,
   MapPinIcon,
   PencilLineIcon,
+  RotateCwIcon,
 } from "lucide-react";
 import { useRef } from "react";
 import { Hint } from "@/components/apple-ui";
@@ -17,20 +18,26 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { Search } from "@/db/schema";
-import { useHideSearch, useUnhideSearch } from "@/hooks/use-search-actions";
+import { useHideSearch, useRepeatSearch, useUnhideSearch } from "@/hooks/use-search-actions";
 
-/** The ⋯ menu of a search that is not running: reuse it in the form, details, hide or show. */
+/**
+ * The ⋯ menu of a search that is not running: search it again, reuse it in the form, details,
+ * hide or show. What needs today's quota is off once the quota is spent.
+ */
 export function SearchRowMenu({
   search,
+  quotaSpent,
   detailsOpen,
   onToggleDetails,
   onFill,
 }: {
   search: Search;
+  quotaSpent: boolean;
   detailsOpen: boolean;
   onToggleDetails: () => void;
   onFill: (niche: string, city: string) => void;
 }) {
+  const repeat = useRepeatSearch();
   const hide = useHideSearch();
   const unhide = useUnhideSearch();
   const hidden = search.hiddenAt !== null;
@@ -44,6 +51,10 @@ export function SearchRowMenu({
     pendingFill.current = null;
     onFill(fill[0], fill[1]);
   };
+  const queueFill = (city: string) => {
+    pendingFill.current = [search.niche, city];
+  };
+
   return (
     <DropdownMenu>
       <Hint label="Mais ações">
@@ -58,11 +69,18 @@ export function SearchRowMenu({
         className="w-auto min-w-60"
         onCloseAutoFocus={fillAfterClose}
       >
-        <DropdownMenuItem onSelect={() => (pendingFill.current = [search.niche, search.city])}>
+        <DropdownMenuItem
+          disabled={quotaSpent || repeat.isPending}
+          onSelect={() => repeat.mutate(search.id)}
+        >
+          <RotateCwIcon />
+          Buscar de novo
+        </DropdownMenuItem>
+        <DropdownMenuItem disabled={quotaSpent} onSelect={() => queueFill(search.city)}>
           <PencilLineIcon />
           Usar nicho e cidade
         </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => (pendingFill.current = [search.niche, ""])}>
+        <DropdownMenuItem disabled={quotaSpent} onSelect={() => queueFill("")}>
           <MapPinIcon />
           Mesmo nicho em outra cidade
         </DropdownMenuItem>

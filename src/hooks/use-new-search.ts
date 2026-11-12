@@ -1,9 +1,9 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import type { FormEvent } from "react";
+import { useEffect, type FormEvent } from "react";
 import { useForm, useWatch } from "react-hook-form";
-import { searchQuotaBlocker } from "@/lib/google-quota";
+import { companiesLeftToday, searchQuotaBlocker, type GoogleUsage } from "@/lib/google-quota";
 import { errorToast } from "@/lib/mutation-toasts";
 import { providerStatusQuery } from "@/lib/queries";
 import { newSearchSchema, type NewSearchInput } from "@/lib/schemas";
@@ -26,6 +26,23 @@ function missingKeysText(status: ProviderStatus | undefined): string | null {
   if (!status.placesConfigured) return "A chave do Google não está configurada.";
   if (!status.aiConfigured) return "A chave da IA não está configurada.";
   return null;
+}
+
+type QuotaStatus = ProviderStatus & { placesUsage: GoogleUsage };
+
+/** Why the form cannot search: a missing key first, then today's quota. */
+function searchBlocker(status: QuotaStatus | undefined, companies: number): string | null {
+  const keys = missingKeysText(status);
+  if (keys) return `${keys} Fale com quem administra o sistema.`;
+  if (!status) return null;
+  return searchQuotaBlocker(companies, status.placesUsage);
+}
+
+/** The largest offered size that today's quota still covers, or null when none does. */
+function largestFittingSize(usage: GoogleUsage): number | null {
+  const left = companiesLeftToday(usage);
+  const fits = SEARCH_SIZES.filter((size) => size <= left);
+  return fits.at(-1) ?? null;
 }
 
 /**
@@ -57,12 +74,14 @@ export function useNewSearch({ onCreated }: { onCreated?: () => void } = {}) {
     onError: errorToast("Não foi possível iniciar a busca"),
   });
 
-  const keys = missingKeysText(status);
-  const blocker = keys
-    ? `${keys} Fale com quem administra o sistema.`
-    : usage
-      ? searchQuotaBlocker(maxResults, usage)
-      : null;
+  const blocker = searchBlocker(status, maxResults);
+
+  // A size that no longer fits today's quota steps down to the largest one that does.
+  const fitting = usage ? largestFittingSize(usage) : null;
+  useEffect(() => {
+    if (fitting === null || fitting >= maxResults) return;
+    form.setValue("maxResults", fitting);
+  }, [fitting, maxResults, form]);
 
   const submit = (event: FormEvent<HTMLFormElement>) =>
     void form.handleSubmit((data) => mutation.mutate(data))(event);

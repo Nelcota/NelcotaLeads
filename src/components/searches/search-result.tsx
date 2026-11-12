@@ -1,28 +1,27 @@
+import type { ReactNode } from "react";
 import type { Search } from "@/db/schema";
 import { formatCount } from "@/lib/format";
 import { analysisPercent } from "@/lib/search-list";
+import { searchLabel } from "@/lib/searches";
 
-function Count({ value }: { value: number }) {
-  return <b className="font-semibold text-foreground tabular-nums">{formatCount(value)}</b>;
-}
+const COUNT = "font-semibold text-foreground tabular-nums";
 
-function finishedText(search: Search) {
-  if (search.foundCount === 0) {
-    return <span>Nenhuma empresa nova</span>;
-  }
+function finishedText(search: Search): ReactNode {
+  if (search.foundCount === 0) return "Nenhuma empresa nova";
+  const found = <b className={COUNT}>{formatCount(search.foundCount)}</b>;
   if (search.status === "cancelled") {
     return (
-      <span>
-        <Count value={search.foundCount} /> novas antes de cancelar
-      </span>
+      <>
+        {found} {search.foundCount === 1 ? "nova" : "novas"} antes de cancelar
+      </>
     );
   }
   return (
-    <span>
-      <Count value={search.foundCount} /> novas
+    <>
+      {found} {search.foundCount === 1 ? "nova" : "novas"}
       {search.duplicateCount > 0 ? <> · {formatCount(search.duplicateCount)} já existiam</> : null}
       {search.errorCount > 0 ? <> · {formatCount(search.errorCount)} com erro</> : null}
-    </span>
+    </>
   );
 }
 
@@ -31,13 +30,15 @@ function finishedText(search: Search) {
  * collecting (how many Google returns is unknown), with the share analyzed afterwards.
  */
 export function SearchResult({ search }: { search: Search }) {
+  const name = searchLabel(search);
   if (search.status === "collecting") {
     return (
       <div className="grid gap-1.5 text-sm text-muted-foreground">
         <span>
-          <Count value={search.foundCount} /> empresas até agora
+          <b className={COUNT}>{formatCount(search.foundCount)}</b>{" "}
+          {search.foundCount === 1 ? "empresa" : "empresas"} até agora
         </span>
-        <progress className="search-progress" aria-label="Coletando empresas" />
+        <progress className="search-progress" aria-label={`Coletando empresas: ${name}`} />
       </div>
     );
   }
@@ -45,14 +46,14 @@ export function SearchResult({ search }: { search: Search }) {
     return (
       <div className="grid gap-1.5 text-sm text-muted-foreground">
         <span>
-          <Count value={search.analyzedCount + search.errorCount} /> de{" "}
+          <b className={COUNT}>{formatCount(search.analyzedCount + search.errorCount)}</b> de{" "}
           {formatCount(search.foundCount)} analisadas
         </span>
         <progress
           className="search-progress"
           max={100}
           value={analysisPercent(search)}
-          aria-label="Progresso da análise"
+          aria-label={`Análise: ${name}`}
         />
       </div>
     );

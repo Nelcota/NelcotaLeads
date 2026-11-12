@@ -11,8 +11,9 @@ function leadsLabel(count: number): string {
 }
 
 /**
- * The actions a search shows in its row: cancel while it runs; try again after a failure (or
- * "Volta amanhã" once today's quota is spent); search again and open its leads when it found any.
+ * The actions in view on a search row: cancel while it runs; after a failure, try again (or
+ * "Volta amanhã" once today's quota is spent); search again on a visible finished search; and
+ * the link to its leads whenever it found any, hidden or not.
  */
 export function SearchRowActions({ search, quotaSpent }: { search: Search; quotaSpent: boolean }) {
   const cancel = useCancelSearch();
@@ -33,54 +34,39 @@ export function SearchRowActions({ search, quotaSpent }: { search: Search; quota
       </Button>
     );
   }
-  if (hidden) return null;
-  if (search.status === "error") {
-    if (quotaSpent) {
-      return (
-        <Button
-          variant="outline"
-          size="sm"
-          aria-disabled
-          title="O limite de hoje acabou"
-          className="opacity-60"
-        >
+
+  const failed = search.status === "error";
+  const retry = failed && !hidden && !quotaSpent;
+  const waitTomorrow = failed && !hidden && quotaSpent;
+  const again = !failed && !hidden && !quotaSpent && search.foundCount > 0;
+  const repeatLabel = retry ? "Tentar de novo" : "Buscar de novo";
+  return (
+    <>
+      {waitTomorrow ? (
+        <Button variant="outline" size="sm" disabled title="O limite de hoje acabou">
           <ClockIcon />
           Volta amanhã
         </Button>
-      );
-    }
-    return (
-      <Button
-        variant="outline"
-        size="sm"
-        disabled={repeat.isPending}
-        onClick={() => repeat.mutate(search.id)}
-      >
-        <RotateCwIcon />
-        {repeat.isPending ? "Buscando…" : "Tentar de novo"}
-      </Button>
-    );
-  }
-  if (search.foundCount === 0) return null;
-  return (
-    <>
-      {quotaSpent ? null : (
+      ) : null}
+      {retry || again ? (
         <Button
-          variant="ghost"
+          variant={retry ? "outline" : "ghost"}
           size="sm"
           disabled={repeat.isPending}
           onClick={() => repeat.mutate(search.id)}
         >
           <RotateCwIcon />
-          {repeat.isPending ? "Buscando…" : "Buscar de novo"}
+          {repeat.isPending ? "Buscando…" : repeatLabel}
         </Button>
-      )}
-      <Button asChild variant="outline" size="sm">
-        <Link to="/leads" search={{ view: "all", searchId: search.id }}>
-          {leadsLabel(search.foundCount)}
-          <ArrowRightIcon />
-        </Link>
-      </Button>
+      ) : null}
+      {search.foundCount > 0 ? (
+        <Button asChild variant="outline" size="sm">
+          <Link to="/leads" search={{ view: "all", searchId: search.id }}>
+            {leadsLabel(search.foundCount)}
+            <ArrowRightIcon />
+          </Link>
+        </Button>
+      ) : null}
     </>
   );
 }
