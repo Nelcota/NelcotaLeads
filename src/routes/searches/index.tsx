@@ -52,6 +52,12 @@ export const Route = createFileRoute("/searches/")({
   component: SearchesPage,
 });
 
+/**
+ * Purple text a step darker in light mode and lighter in dark (20% of `--foreground`): the pure
+ * tone falls under 4.5:1 on the dark card ("Automática", the running step's title).
+ */
+const READABLE_PURPLE = "text-[color-mix(in_srgb,var(--purple)_80%,var(--foreground))]";
+
 function SearchesPage() {
   const { data: all } = useSuspenseQuery(searchesQuery);
   const { missing, hidden: showHidden } = Route.useSearch();
@@ -230,7 +236,7 @@ function SearchCard({ search, index }: { search: Search; index: number }) {
             </span>
           </p>
           <p className="text-xs text-tertiary">
-            <span className={cn("font-medium", auto ? "text-purple" : "text-blue")}>
+            <span className={cn("font-medium", auto ? READABLE_PURPLE : "text-blue")}>
               {auto ? "Automática" : "Manual"}
             </span>
             {" · "}
@@ -476,7 +482,7 @@ function Step({
         className={cn(
           "flex items-center gap-2 font-medium",
           state === "done" && "text-foreground",
-          state === "running" && "text-purple",
+          state === "running" && READABLE_PURPLE,
           state === "error" && "text-red",
           state === "pending" && "text-tertiary",
         )}

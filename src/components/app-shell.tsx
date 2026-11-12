@@ -90,6 +90,9 @@ const ON_TONE_BADGE =
 
 const GROUP_LABEL_CLASS = "h-8 px-3.5 text-xs font-semibold text-tertiary";
 
+/** Target of the "Pular para o conteúdo" link: the page area beside the menu. */
+const MAIN_CONTENT_ID = "conteudo";
+
 const NewSearchContext = createContext<() => void>(() => {});
 
 /** Opens the "Nova busca" dialog from anywhere in the app. */
@@ -151,11 +154,22 @@ export function AppShell({
     <NewSearchContext value={() => setNewSearchOpen(true)}>
       <HelpContext value={openHelp}>
         <TooltipProvider delayDuration={300}>
+          {/* First stop of the Tab key: jumps over the menu straight to the page. */}
+          <a
+            href={`#${MAIN_CONTENT_ID}`}
+            className="sr-only rounded-lg border border-border bg-popover px-3 py-2 text-sm font-medium text-foreground shadow-md focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50"
+          >
+            Pular para o conteúdo
+          </a>
           <SidebarProvider defaultOpen={sidebarOpen}>
             <AppSidebar />
             {/* Same background as the sidebar; a thin left outline separates the pages
                 from the menu and the panel reaches the top edge, with no gap above. */}
-            <SidebarInset className="h-svh overflow-hidden md:border-l md:border-border">
+            <SidebarInset
+              id={MAIN_CONTENT_ID}
+              tabIndex={-1}
+              className="h-svh overflow-hidden outline-none md:border-l md:border-border"
+            >
               {children}
             </SidebarInset>
           </SidebarProvider>

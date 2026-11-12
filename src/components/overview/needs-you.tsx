@@ -25,7 +25,7 @@ export function NeedsYou({ data, now }: { data: Dashboard; now: Date }) {
         <Link
           to="/conversas"
           search={{ filter: "needsYou" }}
-          className="text-base font-semibold text-blue hover:underline"
+          className="inline-flex min-h-6 items-center text-base font-semibold text-blue hover:underline"
         >
           Ver todas
         </Link>

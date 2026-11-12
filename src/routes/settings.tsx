@@ -660,7 +660,10 @@ function SettingsForm({ defaults }: { defaults: SettingsInput }) {
                 "Ainda não informados"}
             </p>
           </div>
-          <Link to="/conta" className="text-sm font-medium text-blue hover:underline">
+          <Link
+            to="/conta"
+            className="inline-flex min-h-6 items-center text-sm font-medium text-blue hover:underline"
+          >
             Editar em Conta
           </Link>
         </div>

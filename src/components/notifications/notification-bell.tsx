@@ -4,7 +4,7 @@ import { Hint } from "@/components/apple-ui";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { useNotifications, type NotificationCenter } from "@/hooks/use-notifications";
 import { unreadBadge } from "@/lib/notifications";
 import { cn } from "@/lib/utils";
@@ -130,7 +130,7 @@ function keepOpenForToast(event: { target: EventTarget | null; preventDefault: (
  */
 export function NotificationBell() {
   const center = useNotifications();
-  const isMobile = useIsMobile();
+  const isMobile = useMediaQuery("(max-width: 767px)", false);
   // The query may resolve in the browser before hydration while SSR still rendered no bell.
   // Mounting it after hydration keeps the first server and client trees identical.
   const hydrated = useSyncExternalStore(noUpdates, clientHydrated, serverHydrated);

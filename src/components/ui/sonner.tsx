@@ -10,6 +10,8 @@ const Toaster = ({ ...props }: ToasterProps) => {
     <Sonner
       theme={theme}
       className="toaster group"
+      // Local change: the toast region and its close button are announced in Portuguese.
+      customAriaLabel="Avisos (Alt+T)"
       icons={{
         success: (
           <CircleCheckIcon className="size-4" />
@@ -42,6 +44,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
         classNames: {
           toast: "cn-toast",
         },
+        closeButtonAriaLabel: "Fechar aviso",
       }}
       {...props}
     />

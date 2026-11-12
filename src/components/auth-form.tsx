@@ -71,7 +71,8 @@ export function AuthLink({
       to={to}
       search={next ? { next } : {}}
       className={cn(
-        "rounded-[4px] font-medium text-blue underline-offset-2 hover:underline focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none",
+        // At least 24px tall (WCAG 2.5.8), even on a single line of small text.
+        "inline-flex min-h-6 items-center rounded-[4px] font-medium text-blue underline-offset-2 hover:underline focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none",
         className,
       )}
     >
