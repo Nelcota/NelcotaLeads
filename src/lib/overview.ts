@@ -34,7 +34,7 @@ export type OverviewAlert = {
   tone: "orange" | "red";
   /** The short pill text: "1 sem resposta há mais de 1 dia". */
   label: string;
-  /** What the pill opens, for its tooltip and screen readers. */
+  /** What the pill opens, read by screen readers after the label. */
   hint: string;
   link:
     | { to: "/conversas"; search: { filter: "needsYou" } }

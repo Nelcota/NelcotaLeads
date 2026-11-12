@@ -22,9 +22,9 @@ function AlertPill({ alert }: { alert: OverviewAlert }) {
   const Icon = ICONS[alert.kind];
   return (
     <Button asChild variant="outline">
-      <Link {...alert.link} title={alert.hint} aria-label={`${alert.label}. ${alert.hint}`}>
+      <Link {...alert.link} aria-label={`${alert.label}. ${alert.hint}`}>
         <Icon aria-hidden className={alert.tone === "red" ? "text-red" : "text-orange"} />
-        <span className="text-[15px]">{alert.label}</span>
+        <span className="text-base">{alert.label}</span>
         <ChevronRightIcon aria-hidden className="size-3.5 text-muted-foreground" />
       </Link>
     </Button>
