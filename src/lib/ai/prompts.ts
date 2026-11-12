@@ -1,4 +1,5 @@
 import type { LeadAnalysis, SettingsInput, SiteData } from "@/lib/schemas";
+import { bannedPhrasesRule } from "./banned-phrases";
 
 export type LeadContext = {
   niche: string;
@@ -100,20 +101,16 @@ export function messageSystemPrompt() {
 ${GROUNDING_RULES}
 
 Forma:
-- De 2 a 4 frases curtas, no máximo 350 caracteres antes da assinatura. Sem links, sem emojis, sem travessão (—), no máximo um ponto de exclamação.
+- De 2 a 4 frases curtas, no máximo 350 caracteres antes da assinatura. Sem links.
 - Chame a empresa pelo nome que as pessoas usam no dia a dia, não pelo nome do Google com palavras-chave. Ex.: "ODONTO ART BH DENTISTA 24 HORAS BELO HORIZONTE" vira "Odonto Art".
-- Comece com um cumprimento simples ("Oi, tudo bem?" ou "Bom dia") e diga em uma frase o que você faz, usando só a oferta informada.
+- Comece com um cumprimento simples ("Oi" ou "Bom dia") e diga em uma frase o que você faz, usando só a oferta informada.
 - Nunca invente nada sobre o remetente: cargo, especialidade, clientes, cidade ou experiência.
 - Quem escreve é o profissional que vende o que está em "Minha oferta". Nunca se passe por cliente, paciente ou comprador, nem pergunte sobre horários, preços ou disponibilidade como se fosse usar o serviço da empresa.
 - Cite no máximo um fato concreto dos dados que tenha relação com a oferta. Não explique para o dono o que esse fato causa no negócio dele (ele sabe melhor do que você).
 - Não use detalhes pequenos como motivo do contato (erro de digitação, formatação de e-mail, ano no rodapé). Se nenhum fato tiver relação com a oferta, não cite fato nenhum.
 - Termine com uma pergunta direta e fácil de responder (sim/não ou um horário), não com oferta de "proposta".
 
-Proibido (soa como mensagem automática):
-- "notei que", "percebi que", "encontrei vocês no Google", "espero que esteja bem", "posso ajudar com isso?", "se fizer sentido", "proposta breve", "sem compromisso".
-- Elogios genéricos ("ótima reputação", "presença digital sólida", "trabalho incrível").
-- Jargão: otimizar, alavancar, potencializar, impulsionar, transformar, soluções, conversão, captação, presença digital, estratégia.
-- Promessas, garantias de resultado, urgência artificial. Não mencione nota, pontuação nem que houve análise automatizada.
+${bannedPhrasesRule()}
 - Não cumprimente ninguém pelo nome de pessoa (não sabemos quem vai ler).
 
 Final:
@@ -148,14 +145,12 @@ export function followUpSystemPrompt() {
 ${GROUNDING_RULES}
 
 Forma:
-- 1 ou 2 frases curtas, no máximo 200 caracteres antes da assinatura. Sem links, sem emojis, sem travessão (—).
+- 1 ou 2 frases curtas, no máximo 200 caracteres antes da assinatura. Sem links.
 - Retome em poucas palavras o assunto da primeira mensagem, sem repeti-la e sem acrescentar fatos novos.
 - Sem cobrança, culpa ou pressa. Termine com uma pergunta simples, fácil de responder.
 - Chame a empresa pelo nome do dia a dia, se citar o nome.
 
-Proibido (soa automático):
-- "só passando", "passando para lembrar", "conseguiu ver", "ficou alguma dúvida", "retomando", "gentilmente", "espero que esteja bem", "notei que", "se fizer sentido".
-- Elogios, jargão, promessas. Não mencione nota nem análise automatizada.
+${bannedPhrasesRule()}
 
 Final:
 - A assinatura (se houver) em linha própria. Não escreva frase de descadastro: o sistema adiciona automaticamente.`;
@@ -190,16 +185,39 @@ ${GROUNDING_RULES}
 
 Forma:
 - Assunto: até 60 caracteres, específico para a empresa, sem caixa alta, sem ponto de exclamação, sem "proposta", "oportunidade" ou "parceria".
-- Corpo: de 50 a 110 palavras em 2 ou 3 parágrafos curtos. Comece com "Olá, tudo bem?". Texto simples, sem links, listas, emojis ou travessão (—).
+- Corpo: de 50 a 110 palavras em 2 ou 3 parágrafos curtos. Texto simples, sem links nem listas.
+- Abra e feche como pedido em "Abertura" e "Fecho". Não pergunte se está tudo bem e não proponha uma duração fixa de conversa.
 - Diga em uma frase o que você faz, usando só a oferta informada. Cite no máximo um fato concreto da empresa que tenha relação com a oferta.
-- Termine com um pedido simples e específico (ex.: conversar 15 minutos esta semana).
 - Chame a empresa pelo nome do dia a dia, não pelo nome do Google com palavras-chave.
 - Quem escreve é o profissional que vende a oferta. Nunca se passe por cliente ou paciente.
 - Não diga quem você é: nada de "sou consultor", "sou desenvolvedor" ou qualquer cargo. Diga só o que faz, com as palavras da oferta ("Crio...", "Trabalho com...").
 - Não mencione avaliações, nota ou reputação no Google.
 - Não escreva despedida, assinatura nem frase de descadastro: o sistema adiciona.
 
-Proibido: "notei que", "percebi que", "espero que esteja bem", "se fizer sentido", "sem compromisso", elogios genéricos, jargão (otimizar, alavancar, potencializar, soluções, presença digital), promessas de resultado, menção a nota ou análise automatizada.`;
+${bannedPhrasesRule()}`;
+}
+
+/** Ways to open a first e-mail; one per lead, so a day's batch does not all start alike. */
+export const EMAIL_OPENINGS = [
+  'Um cumprimento curto ("Oi" ou "Olá") e, na mesma linha, o motivo do contato.',
+  "Sem cumprimento: a primeira frase já diz o motivo do contato.",
+  'Pelo nome do dia a dia da empresa, como quem fala com a equipe (ex.: "Pessoal da Odonto Art,").',
+  "Uma pergunta curta sobre o negócio, ligada à oferta, e logo depois o que você faz.",
+] as const;
+
+/** Ways to close a first e-mail: one simple ask, never a fixed meeting length. */
+export const EMAIL_CLOSINGS = [
+  "Pergunte se pode mandar um exemplo do trabalho por e-mail.",
+  "Pergunte qual dia desta semana é melhor para uma conversa rápida.",
+  "Pergunte quem cuida desse assunto na empresa.",
+  "Uma pergunta de sim ou não sobre o interesse no assunto.",
+] as const;
+
+/** Same lead, same choice: a rewrite keeps its opening, and tests stay deterministic. */
+export function pickFor<T>(options: readonly [T, ...T[]], seed: string): T {
+  let hash = 0;
+  for (const char of seed) hash = (hash * 31 + (char.codePointAt(0) ?? 0)) >>> 0;
+  return options[hash % options.length] ?? options[0];
 }
 
 export function emailUserPrompt(
@@ -216,6 +234,12 @@ ${settings.offer}
 
 ## Meu cliente ideal
 ${settings.idealCustomer || "(não informado)"}
+
+## Abertura
+${pickFor(EMAIL_OPENINGS, lead.name)}
+
+## Fecho
+${pickFor(EMAIL_CLOSINGS, `${lead.name}|fecho`)}
 
 ## Empresa
 ${formatLead(lead, fence)}
@@ -239,9 +263,12 @@ Decisão (campo action):
 
 Resposta (quando reply):
 - Curta: de 2 a 5 frases, texto simples, sem despedida nem assinatura (o sistema adiciona).
+- Comece pela resposta, sem agradecer nem elogiar a pergunta.
 - Responda só o que foi perguntado, usando apenas a oferta informada. Nunca invente preço, prazo, cliente, resultado, integração ou funcionalidade.
-- Termine com uma pergunta simples que avance a conversa (ex.: se podem conversar 15 minutos).
-- Sem travessão, emojis, jargão ou elogios. Não mencione que é uma IA nem que há automação.`;
+- Se terminar com pergunta, que seja uma só, simples, e diferente das que já estão na conversa. Não proponha uma duração fixa de conversa.
+- Não mencione que é uma IA nem que há automação.
+
+${bannedPhrasesRule()}`;
 }
 
 /** Messages of a conversation the reply prompt carries, newest last. */
