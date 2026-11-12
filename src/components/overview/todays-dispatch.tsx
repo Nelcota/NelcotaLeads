@@ -5,6 +5,7 @@ import {
   CircleCheckIcon,
   CircleXIcon,
   ClockIcon,
+  HistoryIcon,
   PlayIcon,
   RefreshCwIcon,
   SendIcon,
@@ -99,18 +100,20 @@ function nextSendText(data: Dashboard) {
   return when;
 }
 
-/** Today's sending: how far the daily limit went, what is queued, and the last sends. */
+/**
+ * Today's sending as two cards side by side: how far the daily limit went and what is queued,
+ * then the last sends.
+ */
 export function TodaysDispatch({ data }: { data: Dashboard }) {
   const { mail } = data;
   const state = dispatchRunState(mail, data.now);
   const share = mail.limit > 0 ? Math.min(100, (mail.sentToday / mail.limit) * 100) : 0;
-  const rows = sendRows(data);
   return (
-    <section
-      aria-labelledby="todays-dispatch"
-      className="grouped enter grid gap-6 p-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]"
-    >
-      <div className="flex min-w-0 flex-col gap-4">
+    <div className="grid gap-3 lg:grid-cols-2">
+      <section
+        aria-labelledby="todays-dispatch"
+        className="grouped enter flex min-w-0 flex-col gap-4 p-5"
+      >
         <div className="flex items-center gap-2.5">
           <h2 id="todays-dispatch" className="flex items-center gap-2 text-lg font-semibold">
             <SendIcon aria-hidden className="size-[18px] shrink-0 text-blue" strokeWidth={2} />
@@ -161,38 +164,52 @@ export function TodaysDispatch({ data }: { data: Dashboard }) {
             </Link>
           </Button>
         </div>
+      </section>
+      <RecentSends rows={sendRows(data)} />
+    </div>
+  );
+}
+
+/** Today's last sends, each opening its conversation. */
+function RecentSends({ rows }: { rows: SendRow[] }) {
+  return (
+    <section
+      aria-labelledby="recent-sends"
+      className="grouped enter flex min-w-0 flex-col p-5"
+      style={{ animationDelay: "40ms" }}
+    >
+      <div className="flex items-center gap-2 pb-2">
+        <h2 id="recent-sends" className="flex flex-1 items-center gap-2 text-lg font-semibold">
+          <HistoryIcon aria-hidden className="size-[18px] shrink-0 text-blue" strokeWidth={2} />
+          Últimos envios
+        </h2>
+        <Button asChild size="sm" className="shrink-0">
+          <Link to="/conversas">Ver conversas</Link>
+        </Button>
       </div>
-      <div className="flex min-w-0 flex-col">
-        <div className="flex items-center gap-2 pb-2">
-          <h3 className="flex-1 text-base font-semibold">Últimos envios</h3>
-          <Button asChild size="sm" className="shrink-0">
-            <Link to="/conversas">Ver conversas</Link>
-          </Button>
-        </div>
-        {rows.length === 0 ? (
-          <p className="border-t border-border/60 py-4 text-sm text-muted-foreground">
-            Nenhum envio hoje.
-          </p>
-        ) : (
-          rows.map((row) => (
-            <Link
-              key={row.key}
-              to="/conversas"
-              search={{ lead: row.leadId }}
-              className="grid min-h-[50px] grid-cols-[52px_minmax(0,1fr)_auto] items-center gap-3 border-t border-border/60 transition-colors outline-none hover:bg-fill-3 focus-visible:bg-fill-2"
-            >
-              <span className="text-sm text-tertiary tabular-nums">{row.time}</span>
-              <span className="grid min-w-0">
-                <span className="truncate font-semibold">{row.name}</span>
-                <span className="truncate text-sm text-tertiary">{row.detail}</span>
-              </span>
-              <StatusLabel icon={STATUS_ICON[row.status]} tone={STATUS_VARIANT[row.status]}>
-                {row.status}
-              </StatusLabel>
-            </Link>
-          ))
-        )}
-      </div>
+      {rows.length === 0 ? (
+        <p className="border-t border-border/60 py-4 text-sm text-muted-foreground">
+          Nenhum envio hoje.
+        </p>
+      ) : (
+        rows.map((row) => (
+          <Link
+            key={row.key}
+            to="/conversas"
+            search={{ lead: row.leadId }}
+            className="grid min-h-[50px] grid-cols-[52px_minmax(0,1fr)_auto] items-center gap-3 border-t border-border/60 transition-colors outline-none hover:bg-fill-3 focus-visible:bg-fill-2"
+          >
+            <span className="text-sm text-tertiary tabular-nums">{row.time}</span>
+            <span className="grid min-w-0">
+              <span className="truncate font-semibold">{row.name}</span>
+              <span className="truncate text-sm text-tertiary">{row.detail}</span>
+            </span>
+            <StatusLabel icon={STATUS_ICON[row.status]} tone={STATUS_VARIANT[row.status]}>
+              {row.status}
+            </StatusLabel>
+          </Link>
+        ))
+      )}
     </section>
   );
 }
