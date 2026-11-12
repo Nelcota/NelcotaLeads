@@ -25,6 +25,7 @@ export function applyThemeColor(theme: Theme) {
 export const THEME_INIT_SCRIPT = `(function(){var s=null;try{s=localStorage.getItem('${STORAGE_KEY}');}catch(e){}var d=s==='dark'||(s!=='light'&&window.matchMedia('${DARK_QUERY}').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.style.colorScheme=d?'dark':'light';})();`;
 
 const listeners = new Set<() => void>();
+let systemQuery: MediaQueryList | null = null;
 
 /** The theme picked in the app, or null when the user never picked one. */
 function readSavedTheme(): Theme | null {
@@ -51,11 +52,16 @@ function followSystem(event: MediaQueryListEvent) {
 
 function subscribe(listener: () => void) {
   listeners.add(listener);
-  const query = window.matchMedia(DARK_QUERY);
-  if (listeners.size === 1) query.addEventListener("change", followSystem);
+  if (!systemQuery) {
+    systemQuery = window.matchMedia(DARK_QUERY);
+    systemQuery.addEventListener("change", followSystem);
+  }
   return () => {
     listeners.delete(listener);
-    if (listeners.size === 0) query.removeEventListener("change", followSystem);
+    if (listeners.size === 0 && systemQuery) {
+      systemQuery.removeEventListener("change", followSystem);
+      systemQuery = null;
+    }
   };
 }
 
