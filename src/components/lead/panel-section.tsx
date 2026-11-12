@@ -4,9 +4,9 @@ import { cn } from "@/lib/utils";
 type ChipTone = "gray" | "green" | "blue";
 
 const CHIP_TONE: Record<ChipTone, string> = {
-  gray: "bg-fill-2 text-muted-foreground",
-  green: "bg-green/15 text-green",
-  blue: "bg-blue/15 text-blue",
+  gray: "text-muted-foreground",
+  green: "text-green",
+  blue: "text-blue",
 };
 
 /** Outline shared by the panel and every card in it (1px, visible in both themes). */
@@ -16,7 +16,7 @@ const PANEL_OUTLINE = "border border-foreground/15";
 export const PANEL_FIELD =
   "border border-foreground/15 bg-fill-3! shadow-none! hover:border-foreground/30 focus-visible:border-primary dark:bg-fill-3!";
 
-/** The tinted icon square in front of a card title (icon standard: title icons keep a chip). */
+/** The bare line icon in front of a card title, in its tone; the box keeps the title aligned. */
 export function TitleChip({
   icon: Icon,
   tone = "gray",
@@ -27,14 +27,14 @@ export function TitleChip({
   return (
     <span
       aria-hidden
-      className={cn("grid size-[30px] shrink-0 place-items-center rounded-[9px]", CHIP_TONE[tone])}
+      className={cn("grid size-[30px] shrink-0 place-items-center", CHIP_TONE[tone])}
     >
-      <Icon className="size-4" strokeWidth={1.75} />
+      <Icon className="size-[18px]" strokeWidth={2} />
     </span>
   );
 }
 
-/** A bordered card of the lead panel: a title with its icon chip, then the content. */
+/** A bordered card of the lead panel: a title with its icon, then the content. */
 export function PanelSection({
   title,
   icon: Icon,

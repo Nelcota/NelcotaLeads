@@ -7,6 +7,7 @@ import {
   ClockIcon,
   PlayIcon,
   RefreshCwIcon,
+  SendIcon,
   Undo2Icon,
   type LucideIcon,
 } from "lucide-react";
@@ -111,7 +112,8 @@ export function TodaysDispatch({ data }: { data: Dashboard }) {
     >
       <div className="flex min-w-0 flex-col gap-4">
         <div className="flex items-center gap-2.5">
-          <h2 id="todays-dispatch" className="text-[18px] font-semibold">
+          <h2 id="todays-dispatch" className="flex items-center gap-2 text-[18px] font-semibold">
+            <SendIcon aria-hidden className="size-[18px] shrink-0 text-blue" strokeWidth={2} />
             Disparo de hoje
           </h2>
           <StatusLabel icon={RUN_ICON[state.variant]} tone={state.variant}>
