@@ -11,6 +11,10 @@ const withCents = new Intl.NumberFormat("pt-BR", {
   currency: "BRL",
   minimumFractionDigits: 2,
 });
+const moneyInput = new Intl.NumberFormat("pt-BR", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
 
 /** "R$ 1.490", or "R$ 1.490,50" when there are cents. */
 export function formatCents(cents: number): string {
@@ -21,10 +25,7 @@ export function formatCents(cents: number): string {
 
 /** "1.490,50" for a money field (no "R$", always two decimals). */
 export function formatMoneyInput(cents: number): string {
-  return (cents / 100).toLocaleString("pt-BR", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+  return moneyInput.format(cents / 100);
 }
 
 // "1.490,50", "1490,5", "1.490" (thousands only) or "1490.50" (a dot for the cents).
