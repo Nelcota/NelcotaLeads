@@ -178,7 +178,7 @@ function ConversationsPage() {
     <Page
       title="Conversas"
       titleAside={
-        <div className="max-lg:hidden">
+        <div className="max-xl:hidden">
           <ConversationFilters
             layout="row"
             value={filter}
@@ -272,7 +272,7 @@ function ConversationsPage() {
                 </SelectContent>
               </Select>
             ) : null}
-            <div className="lg:hidden">
+            <div className="xl:hidden">
               <ConversationFilters value={filter} countOf={countOf} onChange={changeFilter} />
             </div>
           </div>
