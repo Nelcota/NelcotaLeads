@@ -48,10 +48,10 @@ function HelpContent({ onClose }: { onClose: () => void }) {
               key={step}
               className="grouped-row flex items-start gap-3 px-4 py-2.5 [--inset:48px]"
             >
-              <span className="mt-px grid size-5 shrink-0 place-items-center rounded-full bg-fill-2 text-[12px] font-medium text-muted-foreground tabular-nums">
+              <span className="mt-px grid size-5 shrink-0 place-items-center rounded-full bg-fill-2 text-2xs font-medium text-muted-foreground tabular-nums">
                 {index + 1}
               </span>
-              <span className="font-light">{step}</span>
+              <span>{step}</span>
             </li>
           ))}
         </ol>
@@ -65,7 +65,7 @@ function HelpContent({ onClose }: { onClose: () => void }) {
               key={shortcut.keys.join("+")}
               className="grouped-row flex min-h-[42px] items-center justify-between gap-4 px-4 py-2 [--inset:16px]"
             >
-              <span className="font-light">{shortcut.label}</span>
+              <span>{shortcut.label}</span>
               <span className="flex shrink-0 items-center gap-1">
                 {shortcut.keys.map((key, index) => (
                   <Fragment key={key}>
@@ -77,7 +77,7 @@ function HelpContent({ onClose }: { onClose: () => void }) {
             </li>
           ))}
         </ul>
-        <p className="px-1.5 pt-2 text-[14px] font-light text-muted-foreground">
+        <p className="px-1.5 pt-2 text-sm text-muted-foreground">
           Os atalhos de uma tecla não funcionam enquanto você digita.
         </p>
       </section>
@@ -88,7 +88,7 @@ function HelpContent({ onClose }: { onClose: () => void }) {
           {Object.values(GLOSSARY).map((entry) => (
             <div key={entry.term} className="grouped-row grid gap-0.5 px-4 py-2.5 [--inset:16px]">
               <dt className="font-medium">{entry.term}</dt>
-              <dd className="text-[14px] font-light text-muted-foreground">{entry.text}</dd>
+              <dd className="text-sm text-muted-foreground">{entry.text}</dd>
             </div>
           ))}
         </dl>
@@ -129,8 +129,8 @@ function StatusSummary({ onClose }: { onClose: () => void }) {
           TONE_TEXT[!jobs ? "gray" : failing.length === 0 ? "green" : red ? "red" : "orange"],
         )}
       />
-      <span className="min-w-0 flex-1 font-light">{text}</span>
-      <span className="flex shrink-0 items-center gap-1 text-[14px] font-medium text-blue">
+      <span className="min-w-0 flex-1">{text}</span>
+      <span className="flex shrink-0 items-center gap-1 text-sm font-medium text-blue">
         Ver status
         <ChevronRightIcon className="size-3.5" />
       </span>

@@ -48,7 +48,7 @@ function PermissionNote({ permission }: { permission: SystemPermission }) {
   const text =
     permission === "unsupported" ? "Este navegador não mostra avisos do sistema." : BLOCKED;
   return (
-    <span className="inline-flex items-start gap-1.5 text-[13px] leading-snug text-muted-foreground">
+    <span className="inline-flex items-start gap-1.5 text-xs leading-snug text-muted-foreground">
       <CircleAlertIcon
         aria-hidden
         className="mt-0.5 size-3.5 shrink-0 text-orange"
@@ -126,14 +126,14 @@ export function NotificationPrefsForm({
   return (
     <>
       <div className="flex flex-col gap-2 px-5 pt-2 pb-4">
-        <h3 className="text-[13px] font-semibold text-muted-foreground">Receber notificações de</h3>
+        <h3 className="text-xs font-semibold text-muted-foreground">Receber notificações de</h3>
         <SegmentedControl
           label="Receber notificações de"
           value={prefs.scope}
           options={SCOPE_OPTIONS}
           onChange={(scope) => onChange({ ...prefs, scope })}
         />
-        <p className="text-[13px] leading-snug text-muted-foreground">
+        <p className="text-xs leading-snug text-muted-foreground">
           Lead sem responsável e buscas concluídas avisam todos os sócios.
         </p>
       </div>
@@ -169,7 +169,7 @@ export function NotificationPrefsForm({
           </Button>
           <PermissionNote permission={permission} />
         </div>
-        <p className="text-[13px] leading-snug text-muted-foreground">
+        <p className="text-xs leading-snug text-muted-foreground">
           Som e aviso do sistema começam desligados. O aviso do sistema só aparece com a aba em
           segundo plano.
         </p>

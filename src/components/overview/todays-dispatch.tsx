@@ -112,7 +112,7 @@ export function TodaysDispatch({ data }: { data: Dashboard }) {
     >
       <div className="flex min-w-0 flex-col gap-4">
         <div className="flex items-center gap-2.5">
-          <h2 id="todays-dispatch" className="flex items-center gap-2 text-[18px] font-semibold">
+          <h2 id="todays-dispatch" className="flex items-center gap-2 text-lg font-semibold">
             <SendIcon aria-hidden className="size-[18px] shrink-0 text-blue" strokeWidth={2} />
             Disparo de hoje
           </h2>
@@ -121,7 +121,7 @@ export function TodaysDispatch({ data }: { data: Dashboard }) {
           </StatusLabel>
         </div>
         <div className="flex items-baseline gap-2">
-          <span className="text-4xl leading-none font-semibold tracking-[-0.03em] tabular-nums">
+          <span className="text-3xl leading-none font-semibold tracking-[-0.03em] tabular-nums">
             {mail.sentToday}
           </span>
           <span className="text-muted-foreground">de {mail.limit} e-mails</span>
@@ -149,7 +149,7 @@ export function TodaysDispatch({ data }: { data: Dashboard }) {
         ) : null}
         <DispatchActions data={data} />
         <div className="flex items-center gap-3 border-t border-border/60 pt-3">
-          <p className="flex-1 text-[14px] text-tertiary">
+          <p className="flex-1 text-sm text-tertiary">
             Ordem: nota mais alta primeiro · das {mail.windowStart}h às {mail.windowEnd}h · um
             e-mail a cada {SEND_GAP_MINUTES} min · IA responde sozinha{" "}
             {mail.aiAutoReply ? "ligada" : "desligada"} · disparo automático{" "}
@@ -164,7 +164,7 @@ export function TodaysDispatch({ data }: { data: Dashboard }) {
       </div>
       <div className="flex min-w-0 flex-col">
         <div className="flex items-center gap-2 pb-2">
-          <h3 className="flex-1 text-[16px] font-semibold">Últimos envios</h3>
+          <h3 className="flex-1 text-base font-semibold">Últimos envios</h3>
           <Button asChild size="sm" className="shrink-0">
             <Link to="/conversas">Ver conversas</Link>
           </Button>
@@ -181,10 +181,10 @@ export function TodaysDispatch({ data }: { data: Dashboard }) {
               search={{ lead: row.leadId }}
               className="grid min-h-[50px] grid-cols-[52px_minmax(0,1fr)_auto] items-center gap-3 border-t border-border/60 transition-colors outline-none hover:bg-fill-3 focus-visible:bg-fill-2"
             >
-              <span className="text-[14px] text-tertiary tabular-nums">{row.time}</span>
+              <span className="text-sm text-tertiary tabular-nums">{row.time}</span>
               <span className="grid min-w-0">
                 <span className="truncate font-semibold">{row.name}</span>
-                <span className="truncate text-[14px] text-tertiary">{row.detail}</span>
+                <span className="truncate text-sm text-tertiary">{row.detail}</span>
               </span>
               <StatusLabel icon={STATUS_ICON[row.status]} tone={STATUS_VARIANT[row.status]}>
                 {row.status}
@@ -210,8 +210,8 @@ function Counter({
 }) {
   return (
     <div className="rounded-[14px] bg-card-2 px-3 py-2.5">
-      <dt className="text-[14px] text-muted-foreground">{label}</dt>
-      <dd className={cn("text-xl font-semibold tabular-nums", tone && COUNTER_TONE[tone])}>
+      <dt className="text-sm text-muted-foreground">{label}</dt>
+      <dd className={cn("text-lg font-semibold tabular-nums", tone && COUNTER_TONE[tone])}>
         {value}
       </dd>
     </div>

@@ -77,7 +77,7 @@ export const LeadsSearch = forwardRef<
             <button
               type="button"
               aria-label="Atalhos de teclado"
-              className="grid size-6 place-items-center rounded-full border border-border text-xs font-bold text-muted-foreground hover:bg-fill hover:text-foreground max-sm:hidden"
+              className="relative grid size-6 place-items-center rounded-full border border-border touch-target text-xs font-bold text-muted-foreground hover:bg-fill hover:text-foreground max-sm:hidden"
             >
               ?
             </button>
@@ -87,7 +87,7 @@ export const LeadsSearch = forwardRef<
             sideOffset={10}
             className="grid w-[280px] gap-2 rounded-[16px] border border-border bg-popover p-4 shadow-none backdrop-blur-none"
           >
-            <p className="mb-1 text-[15px] font-semibold">Atalhos</p>
+            <p className="mb-1 text-base font-semibold">Atalhos</p>
             {LIST_SHORTCUTS.map((item) => (
               <div
                 key={item.label}

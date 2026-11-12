@@ -36,7 +36,7 @@ export function DayField({
           <button
             type="button"
             id="meeting-day"
-            className="flex h-10 w-full items-center gap-2 rounded-full border border-border pr-2.5 pl-3.5 text-left text-[16px] font-medium transition-colors hover:bg-fill-2 aria-expanded:bg-fill-2"
+            className="flex h-10 w-full items-center gap-2 rounded-full border border-border pr-2.5 pl-3.5 text-left text-base font-medium transition-colors hover:bg-fill-2 aria-expanded:bg-fill-2"
           >
             <CalendarIcon aria-hidden className="size-4 text-muted-foreground" />
             <span className="min-w-0 flex-1 truncate">

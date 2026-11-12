@@ -21,7 +21,7 @@ export function StatusLabel({
   return (
     <span
       className={cn(
-        "inline-flex shrink-0 items-center gap-1.5 text-[13px] font-medium whitespace-nowrap text-muted-foreground",
+        "inline-flex shrink-0 items-center gap-1.5 text-xs font-medium whitespace-nowrap text-muted-foreground",
         className,
       )}
     >

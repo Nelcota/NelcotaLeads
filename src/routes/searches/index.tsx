@@ -52,6 +52,12 @@ export const Route = createFileRoute("/searches/")({
   component: SearchesPage,
 });
 
+/**
+ * Purple text a step darker in light mode and lighter in dark (20% of `--foreground`): the pure
+ * tone falls under 4.5:1 on the dark card ("Automática", the running step's title).
+ */
+const READABLE_PURPLE = "text-[color-mix(in_srgb,var(--purple)_80%,var(--foreground))]";
+
 function SearchesPage() {
   const { data: all } = useSuspenseQuery(searchesQuery);
   const { missing, hidden: showHidden } = Route.useSearch();
@@ -225,12 +231,12 @@ function SearchCard({ search, index }: { search: Search; index: number }) {
             <span className="truncate text-base font-medium">
               {search.niche} em {search.city}
             </span>
-            <span className="rounded-full bg-fill-2 px-2 py-px text-[13px] font-medium text-muted-foreground tabular-nums">
+            <span className="rounded-full bg-fill-2 px-2 py-px text-xs font-medium text-muted-foreground tabular-nums">
               {search.foundCount} {search.foundCount === 1 ? "lead" : "leads"}
             </span>
           </p>
-          <p className="text-xs font-light text-tertiary">
-            <span className={cn("font-medium", auto ? "text-purple" : "text-blue")}>
+          <p className="text-xs text-tertiary">
+            <span className={cn("font-medium", auto ? READABLE_PURPLE : "text-blue")}>
               {auto ? "Automática" : "Manual"}
             </span>
             {" · "}
@@ -357,7 +363,7 @@ function SearchCard({ search, index }: { search: Search; index: number }) {
           <Step state="pending" title="Concluída" />
         </div>
       ) : (
-        <p className="flex items-center gap-2 border-t border-border/70 px-4 py-2.5 pl-[58px] text-[14px] font-light text-muted-foreground">
+        <p className="flex items-center gap-2 border-t border-border/70 px-4 py-2.5 pl-[58px] text-sm text-muted-foreground">
           {search.status === "cancelled" ? (
             <XIcon className="size-3.5 text-gray" strokeWidth={2.6} />
           ) : (
@@ -476,17 +482,17 @@ function Step({
         className={cn(
           "flex items-center gap-2 font-medium",
           state === "done" && "text-foreground",
-          state === "running" && "text-purple",
+          state === "running" && READABLE_PURPLE,
           state === "error" && "text-red",
           state === "pending" && "text-tertiary",
         )}
       >
         {state === "done" ? (
-          <span className="grid size-5 place-items-center rounded-full bg-green text-primary-foreground">
+          <span className="grid size-5 place-items-center rounded-full bg-green text-on-tone">
             <CheckIcon className="size-3" strokeWidth={3} />
           </span>
         ) : state === "error" ? (
-          <span className="grid size-5 place-items-center rounded-full bg-red text-white">
+          <span className="grid size-5 place-items-center rounded-full bg-red text-on-tone">
             <XIcon className="size-3" strokeWidth={3} />
           </span>
         ) : state === "running" ? (
@@ -505,7 +511,7 @@ function Step({
       {children ? (
         <p
           className={cn(
-            "flex items-start gap-1.5 text-[14px] font-light [&_b]:font-medium [&_b]:text-foreground",
+            "flex items-start gap-1.5 text-sm [&_b]:font-medium [&_b]:text-foreground",
             state === "error" ? "text-red" : "text-muted-foreground",
           )}
         >

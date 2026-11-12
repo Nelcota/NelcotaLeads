@@ -13,7 +13,7 @@ function CompanyMark() {
   return (
     <span
       aria-hidden
-      className="grid size-[30px] shrink-0 place-items-center rounded-[9px] bg-primary text-[13px] font-bold text-primary-foreground"
+      className="grid size-[30px] shrink-0 place-items-center rounded-[9px] bg-primary text-xs font-bold text-primary-foreground"
     >
       N
     </span>
@@ -75,7 +75,7 @@ export function MessageBubble({
           {visible}
         </p>
         {alarming && message.error ? (
-          <p className="text-[13px] text-muted-foreground">{message.error}</p>
+          <p className="text-xs text-muted-foreground">{message.error}</p>
         ) : null}
         <MessageButtons message={message} next={next} actions={actions} />
         {quoted ? <QuotedText quoted={quoted} /> : null}

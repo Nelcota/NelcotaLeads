@@ -12,7 +12,7 @@ function DaySeparator({ label }: { label: string }) {
     <div
       role="separator"
       aria-label={label}
-      className="flex items-center gap-3 pt-2 text-[13px] font-medium text-tertiary before:h-px before:flex-1 before:bg-border after:h-px after:flex-1 after:bg-border"
+      className="flex items-center gap-3 pt-2 text-xs font-medium text-tertiary before:h-px before:flex-1 before:bg-border after:h-px after:flex-1 after:bg-border"
     >
       {label}
     </div>

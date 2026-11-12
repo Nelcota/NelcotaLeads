@@ -65,7 +65,7 @@ export function FunnelCard({ funnel, won, readyToSend, caption }: FunnelCardProp
   return (
     <section aria-labelledby="funnel" className="grouped enter min-w-0 py-4">
       <div className="flex flex-wrap items-center gap-2 px-5 pb-2">
-        <h2 id="funnel" className="flex items-center gap-2 text-[18px] font-semibold">
+        <h2 id="funnel" className="flex items-center gap-2 text-lg font-semibold">
           <FunnelIcon aria-hidden className="size-[18px] shrink-0 text-blue" strokeWidth={2} />
           Funil
         </h2>
@@ -102,7 +102,7 @@ export function FunnelCard({ funnel, won, readyToSend, caption }: FunnelCardProp
             <span className="text-right font-semibold tabular-nums">
               {step.value}
               {percent !== null ? (
-                <span className="ml-1 text-[13px] font-normal text-tertiary">{percent}%</span>
+                <span className="ml-1 text-xs font-normal text-tertiary">{percent}%</span>
               ) : null}
             </span>
           </Link>

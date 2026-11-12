@@ -13,7 +13,7 @@ export function RowFormActions({
   return (
     <>
       {error ? (
-        <p role="alert" className="text-[14px] text-red">
+        <p role="alert" className="text-sm text-red">
           {error}
         </p>
       ) : null}

@@ -41,7 +41,7 @@ export function NicheStep({ step }: { step: NicheStepData }) {
       >
         {step.value}
       </span>
-      <span className="text-right text-[13px] text-tertiary tabular-nums">{percentText(step)}</span>
+      <span className="text-right text-xs text-tertiary tabular-nums">{percentText(step)}</span>
     </div>
   );
 }

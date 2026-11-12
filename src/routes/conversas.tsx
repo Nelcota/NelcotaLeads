@@ -326,7 +326,7 @@ function ConversationsPage() {
                           >
                             {row.name}
                           </span>
-                          <span className="shrink-0 text-[13px] text-tertiary tabular-nums">
+                          <span className="shrink-0 text-xs text-tertiary tabular-nums">
                             {row.lastEmailAt ? shortTime(row.lastEmailAt) : ""}
                           </span>
                         </span>
@@ -649,7 +649,7 @@ function Thread({
           </Button>
         </div>
         {blocker ? (
-          <p className="px-5 pt-2 text-[13px] text-muted-foreground sm:px-7 xl:hidden">{blocker}</p>
+          <p className="px-5 pt-2 text-xs text-muted-foreground sm:px-7 xl:hidden">{blocker}</p>
         ) : null}
 
         <div
@@ -659,7 +659,7 @@ function Thread({
         >
           <div className="mx-auto grid max-w-[880px] gap-4">
             {firstOut ? (
-              <h3 className="text-[22px] leading-tight font-semibold tracking-[-0.01em]">
+              <h3 className="text-lg leading-tight font-semibold tracking-[-0.01em]">
                 {firstOut.subject}
               </h3>
             ) : null}

@@ -1,4 +1,4 @@
-import { ClockIcon, SendIcon, StarIcon } from "lucide-react";
+import { ClockIcon, StarIcon } from "lucide-react";
 import { Hint, ProgressRing, TONE_TEXT } from "@/components/apple-ui";
 import { TIER_TONE } from "@/components/lead-badges";
 import type { NextStep } from "@/lib/lead-row";
@@ -97,7 +97,7 @@ export function OwnerCell({ name, avatar }: { name: string | null; avatar: strin
       <span
         role="img"
         aria-label={`Responsável: ${name}`}
-        className="inline-grid size-6 place-items-center rounded-full bg-fill text-[11px] font-bold text-foreground"
+        className="inline-grid size-6 place-items-center rounded-full bg-fill text-2xs font-bold text-foreground"
       >
         {name.trim().charAt(0).toUpperCase()}
       </span>
@@ -117,13 +117,11 @@ export function RatingCell({ rating, reviews }: { rating: number | null; reviews
   );
 }
 
-/** The paper plane next to a lead ready for the first e-mail. */
+/** "Pronto" in text next to a lead ready for the first e-mail; the paper plane only means sending. */
 export function ReadyMark() {
   return (
-    <Hint label="Pronto para disparo">
-      <span role="img" aria-label="Pronto para disparo" className="text-blue">
-        <SendIcon className="size-3.5" strokeWidth={1.9} />
-      </span>
-    </Hint>
+    <span className="text-xs font-medium text-muted-foreground">
+      Pronto<span className="sr-only"> para disparo</span>
+    </span>
   );
 }

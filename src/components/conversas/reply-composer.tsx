@@ -42,7 +42,7 @@ export function ReplyComposer({
     <div className="rounded-[18px] border border-border bg-card transition-[border-color] duration-150 focus-within:border-blue">
       <div className="flex min-w-0 items-center gap-2 px-4 pt-2.5 text-sm text-muted-foreground">
         Para
-        <span className="min-w-0 truncate rounded-full border border-border px-2.5 py-0.5 text-[13px] font-medium text-foreground">
+        <span className="min-w-0 truncate rounded-full border border-border px-2.5 py-0.5 text-xs font-medium text-foreground">
           {email}
         </span>
         <span className="ml-auto shrink-0" aria-live="polite">
@@ -51,7 +51,7 @@ export function ReplyComposer({
               Rascunho da IA para revisar
             </StatusLabel>
           ) : (
-            <span className={cn("text-[13px]", noteIsError ? "text-red" : "text-tertiary")}>
+            <span className={cn("text-xs", noteIsError ? "text-red" : "text-tertiary")}>
               {note}
             </span>
           )}

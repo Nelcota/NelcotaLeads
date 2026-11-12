@@ -39,7 +39,7 @@ export function ReplyHoursCard({ data }: { data: Dashboard }) {
       className="grouped enter flex min-w-0 flex-col gap-4 p-5"
     >
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-        <h2 id="reply-hours" className="flex items-center gap-2 text-[18px] font-semibold">
+        <h2 id="reply-hours" className="flex items-center gap-2 text-lg font-semibold">
           <ChartColumnIcon aria-hidden strokeWidth={2} className="size-[18px] shrink-0 text-blue" />
           Quando os leads respondem
         </h2>
@@ -69,14 +69,14 @@ export function ReplyHoursCard({ data }: { data: Dashboard }) {
                   }
                   style={{ height: `${Math.max(4, bar.share * 110)}px` }}
                 />
-                <span className="text-[12px] text-tertiary">{bar.hour}h</span>
+                <span className="text-2xs text-tertiary">{bar.hour}h</span>
               </div>
             </Hint>
           ))}
         </div>
       )}
       {chart.total > 0 ? (
-        <p className="mt-auto border-t border-border/60 pt-3 text-[14px] text-tertiary">
+        <p className="mt-auto border-t border-border/60 pt-3 text-sm text-tertiary">
           {outsideLine(chart, windowStart, windowEnd)}
         </p>
       ) : null}

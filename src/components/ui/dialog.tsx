@@ -123,7 +123,7 @@ function DialogFooter({
       {children}
       {showCloseButton && (
         <DialogPrimitive.Close asChild>
-          <Button variant="outline">Close</Button>
+          <Button variant="outline">Fechar</Button>
         </DialogPrimitive.Close>
       )}
     </div>
@@ -138,7 +138,7 @@ function DialogTitle({
     <DialogPrimitive.Title
       data-slot="dialog-title"
       className={cn(
-        "text-lg leading-none font-medium tracking-[-0.02em]",
+        "text-lg leading-none font-semibold tracking-[-0.02em]",
         className
       )}
       {...props}

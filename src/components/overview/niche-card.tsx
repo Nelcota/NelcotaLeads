@@ -14,7 +14,7 @@ function plural(count: number, one: string, many: string): string {
 function Fact({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex min-w-0 flex-col gap-0.5">
-      <span className="text-[13px] text-tertiary">{label}</span>
+      <span className="text-xs text-tertiary">{label}</span>
       <span className="truncate font-semibold tabular-nums">{children}</span>
     </div>
   );
@@ -27,7 +27,7 @@ export function NicheCard({ niche, tags }: { niche: NicheMetricRow; tags: readon
     <article className="flex min-w-0 flex-col gap-3.5 rounded-2xl bg-card-2 px-[18px] py-4">
       <div className="flex min-h-7 items-center gap-2.5">
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2.5 gap-y-1">
-          <h3 className="truncate text-[17px] font-semibold">{niche.label}</h3>
+          <h3 className="truncate text-lg font-semibold">{niche.label}</h3>
           {tags.map((tag) => (
             <NicheTagLabel key={tag} tag={tag} />
           ))}

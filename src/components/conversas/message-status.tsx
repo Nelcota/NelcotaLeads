@@ -23,7 +23,7 @@ export function MessageStatus({ message, next }: { message: Email; next: FailedN
     );
   }
   if (message.status === "failed") {
-    return <span className="text-[13px] text-muted-foreground">Não enviado, reenviado</span>;
+    return <span className="text-xs text-muted-foreground">Não enviado, reenviado</span>;
   }
   if (message.status === "queued") {
     return (
@@ -33,12 +33,10 @@ export function MessageStatus({ message, next }: { message: Email; next: FailedN
     );
   }
   if (message.status === "cancelled") {
-    return (
-      <span className="text-[13px] text-muted-foreground">{message.error ?? "Cancelado"}</span>
-    );
+    return <span className="text-xs text-muted-foreground">{message.error ?? "Cancelado"}</span>;
   }
   return (
-    <span className="text-[13px] text-tertiary tabular-nums">
+    <span className="text-xs text-tertiary tabular-nums">
       {message.sentAt ? localTime(message.sentAt) : ""}
     </span>
   );

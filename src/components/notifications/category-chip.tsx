@@ -1,4 +1,4 @@
-import { CalendarIcon, ClockIcon, HistoryIcon, MailIcon, type LucideIcon } from "lucide-react";
+import { CalendarIcon, ClockIcon, SearchIcon, MailIcon, type LucideIcon } from "lucide-react";
 import { TONE_TEXT, type Tone } from "@/components/apple-ui";
 import type { NotificationCategory } from "@/lib/notifications";
 import { cn } from "@/lib/utils";
@@ -7,7 +7,7 @@ const CATEGORY_ICON: Record<NotificationCategory, LucideIcon> = {
   replies: MailIcon,
   followUps: ClockIcon,
   agenda: CalendarIcon,
-  searches: HistoryIcon,
+  searches: SearchIcon,
 };
 
 const CATEGORY_TONE: Record<NotificationCategory, Tone> = {

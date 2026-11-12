@@ -128,7 +128,7 @@ function NewSearchForm({ onDone }: { onDone: () => void }) {
             className={PHRASE_INPUT}
             {...form.register("niche")}
           />
-          <span className="px-1 text-sm font-light text-tertiary">em</span>
+          <span className="px-1 text-sm text-tertiary">em</span>
           <input
             id="city"
             autoComplete="off"
@@ -161,17 +161,17 @@ function NewSearchForm({ onDone }: { onDone: () => void }) {
           </TabsList>
         </Tabs>
         {usage ? (
-          <p className="px-1 text-xs font-light text-muted-foreground tabular-nums">
+          <p className="px-1 text-xs text-muted-foreground tabular-nums">
             {searchCostLabel(maxResults, usage)}
           </p>
         ) : null}
         {statusLoading ? (
-          <p className="px-1 text-xs font-light text-muted-foreground">Carregando a cota…</p>
+          <p className="px-1 text-xs text-muted-foreground">Carregando a cota…</p>
         ) : null}
       </div>
 
       {status && !status.offerConfigured ? (
-        <p className="rounded-xl bg-[color-mix(in_srgb,var(--orange)_10%,transparent)] px-3.5 py-2.5 text-sm font-light text-muted-foreground shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--orange)_22%,transparent)]">
+        <p className="rounded-xl bg-[color-mix(in_srgb,var(--orange)_10%,transparent)] px-3.5 py-2.5 text-sm text-muted-foreground shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--orange)_22%,transparent)]">
           <span className="font-medium text-orange">
             Sua oferta ainda não foi descrita, então a nota e a mensagem saem genéricas.
           </span>{" "}

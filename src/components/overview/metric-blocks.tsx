@@ -14,7 +14,7 @@ export function MetricBlocks({ blocks, caption }: { blocks: MetricBlock[]; capti
           className="grouped enter flex flex-col gap-3 p-5"
           style={{ animationDelay: `${index * 40}ms` }}
         >
-          <h2 className="flex items-center justify-between gap-2 text-[16px] font-semibold text-muted-foreground">
+          <h2 className="flex items-center justify-between gap-2 text-base font-semibold text-muted-foreground">
             <span className="flex items-center gap-2">
               <block.icon.glyph
                 aria-hidden
@@ -23,10 +23,10 @@ export function MetricBlocks({ blocks, caption }: { blocks: MetricBlock[]; capti
               />
               {block.title}
             </span>
-            <span className="text-[14px] font-normal text-tertiary">{caption}</span>
+            <span className="text-sm font-normal text-tertiary">{caption}</span>
           </h2>
           {block.empty ? (
-            <p className="flex min-h-[42px] items-end border-b border-border/60 pb-3 text-[15px] text-muted-foreground">
+            <p className="flex min-h-[42px] items-end border-b border-border/60 pb-3 text-base text-muted-foreground">
               {block.empty}
             </p>
           ) : (
@@ -39,7 +39,7 @@ export function MetricBlocks({ blocks, caption }: { blocks: MetricBlock[]; capti
           )}
           <dl className="grid gap-2">
             {block.rows.map((row) => (
-              <div key={row.label} className="flex items-center justify-between gap-3 text-[15px]">
+              <div key={row.label} className="flex items-center justify-between gap-3 text-base">
                 <dt className="flex items-center gap-1.5 text-muted-foreground">
                   {row.icon ? (
                     <row.icon.glyph

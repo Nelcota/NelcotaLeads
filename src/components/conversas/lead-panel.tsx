@@ -120,7 +120,7 @@ export function LeadPanel({
       <div className="grid gap-2.5 rounded-2xl border border-border bg-card p-4">
         <div className="flex items-center gap-3">
           <Avatar name={lead.name} size={48} />
-          <p className="min-w-0 text-[17px] leading-tight font-semibold">{lead.name}</p>
+          <p className="min-w-0 text-lg leading-tight font-semibold">{lead.name}</p>
         </div>
         <div className="flex flex-wrap gap-x-3.5 gap-y-1.5">
           <ConversationStateLabel state={state} />
@@ -155,7 +155,7 @@ export function LeadPanel({
           onLost={onLost}
           onReopen={onReopen}
         />
-        {blocker ? <p className="px-1 text-[13px] text-muted-foreground">{blocker}</p> : null}
+        {blocker ? <p className="px-1 text-xs text-muted-foreground">{blocker}</p> : null}
         <Button asChild variant="link" className="justify-between">
           <Link to="/leads" search={{ view: "all", lead: lead.id }}>
             Ver análise completa

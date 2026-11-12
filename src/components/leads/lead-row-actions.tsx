@@ -59,7 +59,10 @@ export function LeadRowActions({
 
   return (
     // oxlint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events -- only stops the row click from bubbling
-    <div className={cn("flex items-center justify-end gap-1", className)} onClick={stop}>
+    <div
+      className={cn("flex items-center justify-end gap-1 pointer-coarse:gap-3", className)}
+      onClick={stop}
+    >
       {lead.phoneE164 ? (
         <Hint label={`WhatsApp · ${phone}`}>
           <Button asChild variant="ghost" size="icon-sm" className="text-green hover:text-green">

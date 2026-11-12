@@ -62,7 +62,7 @@ export function SelectionBar({
           label="Sem e-mail, descadastrados ou já contatados não recebem o primeiro e-mail"
           side="top"
         >
-          <span tabIndex={0} className="mr-1 text-[13px] text-orange outline-none max-sm:hidden">
+          <span tabIndex={0} className="mr-1 text-xs text-orange outline-none max-sm:hidden">
             {left} {left === 1 ? "fica" : "ficam"} de fora do disparo
           </span>
         </Hint>

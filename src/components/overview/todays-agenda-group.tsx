@@ -23,7 +23,7 @@ export function TodaysAgendaGroup({
   }
   return (
     <div>
-      <h3 className="flex items-center gap-1.5 border-t border-border/60 px-5 pt-3 pb-1.5 text-[13px] font-semibold text-muted-foreground tabular-nums">
+      <h3 className="flex items-center gap-1.5 border-t border-border/60 px-5 pt-3 pb-1.5 text-xs font-semibold text-muted-foreground tabular-nums">
         <Icon aria-hidden strokeWidth={2} className={cn("size-3.5 shrink-0", iconClassName)} />
         {title} ({entries.length})
       </h3>

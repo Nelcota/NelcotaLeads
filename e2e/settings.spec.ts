@@ -85,7 +85,7 @@ test.describe("settings", () => {
     await expect(page.getByText("eu@nelcota.test").first()).toBeVisible();
     await page.getByRole("button", { name: "Testar conexão" }).click();
     await expect(page.getByText("Conexão funcionando: envio e leitura.")).toBeVisible();
-    const toasts = page.getByRole("region", { name: /Notifications/ });
+    const toasts = page.getByRole("region", { name: /Avisos/ });
     await expect(toasts).not.toContainText("fake");
     await expect(toasts).not.toContainText("MAIL_PASSWORD");
   });

@@ -17,7 +17,7 @@ export function EmailPreview({
 }) {
   return (
     <div className="grid gap-2">
-      <div className="rounded-lg border px-3 py-2.5 text-sm">
+      <div className="rounded-lg border px-3 py-2.5 text-base">
         <p className="mb-1.5 font-medium">{email.subject}</p>
         <p className="whitespace-pre-line wrap-break-word text-muted-foreground">{email.body}</p>
       </div>
@@ -26,7 +26,7 @@ export function EmailPreview({
           <CopyIcon />
           Copiar texto
         </Button>
-        {emailsEnabled ? null : <span className="text-[14px] text-orange">{SALES_EMAILS_OFF}</span>}
+        {emailsEnabled ? null : <span className="text-sm text-orange">{SALES_EMAILS_OFF}</span>}
       </div>
     </div>
   );

@@ -45,7 +45,7 @@ export function ThreadHeader({
       </Hint>
       <Avatar name={name} size={40} />
       <div className="min-w-0 flex-1">
-        <h2 className="truncate text-[17px] font-semibold">{name}</h2>
+        <h2 className="truncate text-lg font-semibold">{name}</h2>
         <p className="truncate text-sm text-muted-foreground">{email ?? "sem e-mail"}</p>
       </div>
       {!closed ? (
