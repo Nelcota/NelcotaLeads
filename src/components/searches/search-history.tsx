@@ -106,7 +106,7 @@ export function SearchHistory({
           })}
         </div>
       ) : null}
-      <ul className="border-t border-input">
+      <ul className="@container border-t border-input">
         {visibleRows.map((search) => (
           <SearchRow key={search.id} search={search} quotaSpent={quotaSpent} onFill={onFill} />
         ))}

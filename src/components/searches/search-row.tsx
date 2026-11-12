@@ -19,7 +19,7 @@ function OriginIcon({ automatic }: { automatic: boolean }) {
       role="img"
       aria-label={automatic ? "Busca automática" : "Busca manual"}
       strokeWidth={1.6}
-      className="size-5 text-muted-foreground md:self-center"
+      className="size-5 text-muted-foreground @4xl:self-center"
     />
   );
 }
@@ -46,8 +46,8 @@ export function SearchRow({
       : null;
 
   return (
-    <li className="grid grid-cols-[20px_minmax(0,1fr)] gap-x-3 gap-y-2 border-b border-border py-4 md:grid-cols-[76px_20px_minmax(0,1fr)_170px_116px_272px] md:items-center md:gap-x-4">
-      <p className="hidden flex-col gap-0.5 text-sm tabular-nums md:flex">
+    <li className="grid grid-cols-[20px_minmax(0,1fr)] gap-x-3 gap-y-2 border-b border-border py-4 @4xl:grid-cols-[76px_20px_minmax(0,1fr)_170px_116px_272px] @4xl:items-center @4xl:gap-x-4">
+      <p className="hidden flex-col gap-0.5 text-sm tabular-nums @4xl:flex">
         <span className="font-medium">{dayMonth(localDay(search.createdAt))}</span>
         <span className="text-tertiary">{localTime(search.createdAt)}</span>
       </p>
@@ -56,7 +56,7 @@ export function SearchRow({
         <p className="line-clamp-2 text-base font-semibold text-pretty">{searchLabel(search)}</p>
         <p className="text-sm text-muted-foreground">
           {automatic ? "Automática" : "Manual"}
-          <span className="md:hidden"> · {formatDate(search.createdAt, true)}</span>
+          <span className="@4xl:hidden"> · {formatDate(search.createdAt, true)}</span>
         </p>
         {failure ? (
           <p className="mt-0.5 flex items-start gap-1.5 text-sm">
@@ -69,13 +69,13 @@ export function SearchRow({
           </p>
         ) : null}
       </div>
-      <div className="col-start-2 md:col-start-auto">
+      <div className="col-start-2 @4xl:col-start-auto">
         <SearchResult search={search} />
       </div>
-      <div className="col-start-2 md:col-start-auto">
+      <div className="col-start-2 @4xl:col-start-auto">
         <SearchStatusText search={search} />
       </div>
-      <div className="col-start-2 -ml-3 flex flex-wrap items-center gap-1 md:col-start-auto md:ml-0 md:justify-end">
+      <div className="col-start-2 -ml-3 flex flex-wrap items-center gap-1 @4xl:col-start-auto @4xl:ml-0 @4xl:justify-end">
         <SearchRowActions search={search} quotaSpent={quotaSpent} />
         {isSearchRunning(search.status) ? null : (
           <SearchRowMenu
