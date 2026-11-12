@@ -38,6 +38,12 @@ The steps, in this order: (1) Visão geral with the new layout on today's data; 
   - P3 Performance: a lean lead list and slower polling, one query instead of one per lead when discarding or closing in bulk, a niche list without the funnel, the bell without a full scan of `emails` and no background polling, shared date formatters, the dashboard in one batch. No e-mail.
   - P4 Numbers on screen: AI cost no longer rounds to US$ 0,00, a pasted "1,500.50" no longer becomes R$ 1,50, "today" follows midnight, service deadline only accepts whole days. The dispatch sheet's "Restam hoje" goes into the T2 branch and the Google page cap into the T1 branch.
 
+- Gap audit fixes (2026-11-10, from the read-only gap audit of the same day; scope in the 2026-11-10 decision below). Two chats run in parallel, each file owned by one chat only. Wave 1, now, one branch and one PR each:
+  - A1 AI e-mail voice: varied openings and closings (no fixed "Olá, tudo bem?" or "15 minutos"), one banned-phrase list shared by the e-mail, WhatsApp and reply prompts, proposal and meeting templates without formula ("Conforme conversamos…", "Olá, {nome}!"). Branch `fix/ai-email-voice`; files `src/lib/ai/prompts.ts`, `src/lib/sales-email.ts`, `src/lib/ai/banned-phrases.ts` (new) and its test. Changes the text sent to leads, so guard rule 7 applies.
+  - B1 Accessibility, complement of T6: skip link, longer toasts for errors and "Desfazer" with a Portuguese region label, theme follows the system, 4.5:1 search status badges, a labelled notification panel, "Fechar" instead of "Close", 24px loose links. Branch `style/ux-accessibility` (same goal as T6); files `src/components/app-shell.tsx`, `src/components/ui/sonner.tsx`, `src/lib/theme.ts`, `src/components/lead-badges.tsx` (`SearchStatusBadge` only), `src/components/notifications/notification-bell.tsx` (also moves off `useIsMobile`), `src/components/ui/dialog.tsx`, `src/routes/searches/index.tsx` (search badges only), `src/lib/mutation-toasts.ts` and the links T6 already touched. Runs in its own session inside the T6 worktree, since a session cannot edit another session's worktree.
+  - B2 Dead code, part 1: drop the duplicate `use-mobile` hook, build the `money.ts` formatter once, remove unused types and exports in the menu and select components. Branch `refactor/dead-code`; files `src/hooks/use-mobile.ts`, `src/components/ui/sidebar.tsx`, `src/lib/money.ts`, `src/hooks/use-service-table.ts`, `src/components/ui/dropdown-menu.tsx`, `src/components/ui/select.tsx`. `use-mobile.ts` is deleted only after B1 frees `notification-bell.tsx` and `src/routes/agenda.tsx` stops using it.
+  - Wave 2 (A2 post-generation phrase filter and plain e-mail errors, A3 shorter screen texts, B3 one formatter for dollars and counts, B4 the rest of the dead code, the invite link shown when copying fails) waits until T1–T6, P1–P4, `feat/team-page` and `style/line-icons` reach `main`, since those branches touch its files.
+
 ## Next
 
 - Admin-only settings: "Limites de uso" (and other system-wide settings) can be changed by any signed-in account today, so whoever has an account can turn the abuse limits off. Needs an admin role or owner check on the settings server functions. (2026-11-10, found by /revisar on P1; the user: "corrija tudo"; guard rule 4)
@@ -93,6 +99,14 @@ The steps, in this order: (1) Visão geral with the new layout on today's data; 
 - **Discarded:** one merged "Para hoje" card (still repeats "Precisa de você"); toasts on page load (gone before anyone acts); counters inside the description text (the `linha` variant of the canvas).
 - **Approved:** canvas "Nelcota Leads · Visão geral (avisos)", default `pilulas` variant (2026-11-11, the user: "gostei, aplique no localhost 3040"). The pills open the filtered lists instead of scrolling to the cards below, as the alerts did.
 - **Review if:** with several config alerts at once the row wraps to more than two lines on a phone.
+
+### 2026-11-10: gap audit plan moves to Now
+
+- **Decision:** the 15 findings of the 2026-11-10 gap audit (what the 2026-11-09 UX audit and the 2026-11-10 code review did not cover) are fixed in two parallel chats and two waves. Chat A owns what the AI writes and the screen texts (A1 now; A2, A3 later); chat B owns accessibility and code cleanup (B1, B2 now; B3, B4 later). Wave 1 starts now; wave 2 waits for T1–T6, P1–P4, `feat/team-page` and `style/line-icons` to reach `main`.
+- **One owner per file:** each file belongs to one chat and one item only. A chat that needs a file outside its list stops and asks; it does not edit it.
+- **Kept:** commit, push and PR only on the user's command; nobody approves or merges; A1 and A2 change the text sent to leads, so guard rule 7 applies (fake recipients, "Raio de impacto" in the PR, the user's word before the push).
+- **Why:** the user approved the plan ("Sim, mover e criar").
+- **Review if:** a wave 1 item needs a file another branch is changing; it moves to wave 2.
 
 ### 2026-11-10: open-PR limit exceeded for P1 and P3
 
