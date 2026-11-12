@@ -88,7 +88,7 @@ function DealButtons({
 
 /**
  * Everything about the lead beside the conversation: who it is, how to reach them, what the AI
- * found and how to close the deal. Bordered cards on the page background, no shadows.
+ * found and how to close the deal. Solid cards on the page background, no borders or shadows.
  */
 export function LeadPanel({
   lead,
@@ -114,7 +114,8 @@ export function LeadPanel({
   return (
     <aside
       aria-label="Dados do lead"
-      className="enter hidden min-h-0 flex-col gap-2.5 overflow-x-hidden overflow-y-auto overscroll-contain xl:flex"
+      /* -m-1 p-1: room for the focus ring, which the scroll box would otherwise cut off. */
+      className="enter -m-1 hidden min-h-0 flex-col gap-2.5 overflow-x-hidden overflow-y-auto overscroll-contain p-1 xl:flex"
       style={{ animationDelay: "80ms" }}
     >
       <div className="grid gap-2.5 rounded-[18px] bg-card p-4">

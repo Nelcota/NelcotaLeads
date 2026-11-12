@@ -124,9 +124,8 @@ function ConversationsPage() {
   const { data } = useQuery(conversationsQuery);
   const { data: niches } = useQuery(nichesQuery);
   // Only the niches that have a conversation; the list keeps the overview's order.
-  const talkedNiches = (niches ?? []).filter((item) =>
-    (data ?? []).some((row) => row.niche === item.key),
-  );
+  const talkedKeys = new Set((data ?? []).map((row) => row.niche));
+  const talkedNiches = (niches ?? []).filter((item) => talkedKeys.has(item.key));
   const refresh = useRefresh();
   const check = useMutation({
     mutationFn: () => checkMailNow(),
@@ -145,8 +144,11 @@ function ConversationsPage() {
     (row) =>
       (!niche || row.niche === niche) && matchesQuery([row.name, row.email, row.preview], query),
   );
+  // One pass for every filter: the counts show twice (title row and list) on each render.
+  const stateCounts = new Map<string, number>();
+  for (const row of searched) stateCounts.set(row.state, (stateCounts.get(row.state) ?? 0) + 1);
   const countOf = (item: Filter) =>
-    item === "all" ? searched.length : searched.filter((row) => row.state === item).length;
+    item === "all" ? searched.length : (stateCounts.get(item) ?? 0);
   const rows = searched.filter((row) => filter === "all" || row.state === filter);
   const select = (lead: string | undefined) =>
     void navigate({ search: (prev) => ({ ...prev, lead }) });
@@ -299,7 +301,7 @@ function ConversationsPage() {
           ) : (
             <ul
               ref={listRef}
-              className="grid min-h-0 flex-1 content-start gap-0.5 overflow-y-auto overscroll-contain px-2 pb-3 lg:pr-0 lg:pl-4"
+              className="grid min-h-0 flex-1 content-start gap-0.5 overflow-y-auto overscroll-contain px-2 pb-3 lg:pr-1 lg:pl-4"
             >
               {rows.map((row) => {
                 const selectedRow = row.id === openId;
@@ -584,7 +586,7 @@ function Thread({
     <>
       <div
         className={cn(
-          "enter flex min-h-0 min-w-0 flex-col lg:overflow-hidden lg:rounded-[18px] lg:bg-card",
+          "enter flex min-h-0 min-w-0 flex-col lg:overflow-hidden lg:rounded-[18px] lg:bg-card lg:forced-colors:border",
           !panelOpen && "xl:col-span-2",
         )}
         style={{ animationDelay: "40ms" }}

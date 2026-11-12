@@ -1,6 +1,7 @@
 import { StarIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { ExternalLink } from "@/components/apple-ui";
+import { googleRatingLabel } from "@/lib/google-rating";
 import { safeHttpUrl } from "@/lib/utils";
 
 function FactRow({ label, children }: { label: string; children: ReactNode }) {
@@ -47,7 +48,7 @@ export function LeadFacts({
         <FactRow label="Google">
           <span className="inline-flex items-center gap-1.5">
             <StarIcon aria-hidden className="size-3.5 fill-yellow text-yellow" />
-            {rating.toFixed(1).replace(".", ",")} ({reviewCount ?? 0} avaliações)
+            {googleRatingLabel(rating, reviewCount)}
           </span>
         </FactRow>
       ) : null}

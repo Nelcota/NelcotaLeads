@@ -28,7 +28,7 @@ function authorOf(message: Email, leadName: string): string {
 
 /**
  * One e-mail as a chat bubble: the company's on the right with a blue-tinted fill and the "N" mark,
- * the client's on the left in a lighter solid surface. No colored fill, no shadow.
+ * the client's on the left in a neutral fill. No border (except a failed send), no shadow.
  */
 export function MessageBubble({
   message,
@@ -53,7 +53,7 @@ export function MessageBubble({
       <article
         aria-label={out ? "Mensagem enviada pela Nelcota" : `Mensagem de ${leadName}`}
         className={cn(
-          "grid max-w-[min(80%,68ch)] min-w-0 gap-2 rounded-[18px] px-4 py-3.5",
+          "grid max-w-[min(80%,68ch)] min-w-0 gap-2 rounded-[18px] px-4 py-3.5 forced-colors:border",
           out
             ? "rounded-br-md bg-[color-mix(in_srgb,var(--blue)_16%,var(--card))]"
             : "rounded-bl-md bg-bubble-in",

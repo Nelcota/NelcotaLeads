@@ -35,7 +35,13 @@ export function ConversationFilters({
     <div
       role="group"
       aria-label="Filtrar conversas"
-      className={row ? "flex flex-wrap items-center gap-2" : "grid grid-cols-2 gap-2"}
+      // The row never wraps: the header has a fixed height, so long counts scroll sideways
+      // instead (p-1 -m-1 keeps the focus ring inside the scroll box).
+      className={
+        row
+          ? "-m-1 flex items-center gap-2 overflow-x-auto p-1 [scrollbar-width:none]"
+          : "grid grid-cols-2 gap-2"
+      }
     >
       {CONVERSATION_FILTERS.map((filter) => {
         const pill = (
@@ -45,7 +51,7 @@ export function ConversationFilters({
             selected={filter === value}
             count={String(countOf(filter))}
             className={cn(
-              row ? "h-9 gap-2.5 px-3.5" : "w-full justify-between",
+              row ? "h-9 shrink-0 gap-2.5 px-3.5" : "w-full justify-between",
               !row && filter === "all" && "col-span-2",
               filter !== value && "border-transparent bg-fill-3 hover:bg-fill-2",
             )}
