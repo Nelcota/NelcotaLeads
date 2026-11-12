@@ -65,7 +65,8 @@ test.describe("e-mail conversations", () => {
     await expect(
       page.getByRole("article").filter({ hasText: "Oi! Pode me contar mais sobre isso?" }),
     ).toBeVisible();
-    await expect(page.getByRole("switch", { name: /IA/ })).toBeChecked();
+    await expect(page.getByText("A IA responde esta conversa")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Assumir conversa" })).toBeVisible();
 
     // The AI reply waits a couple of minutes and skips the gap between first e-mails.
     await backend.tick(send);
@@ -101,7 +102,9 @@ test.describe("e-mail conversations", () => {
       page.getByRole("button", { name: new RegExp(LEAD.name) }).getByText("Precisa de você"),
     ).toBeVisible();
     await expect(page.getByText("A IA parou: Teste: handoff")).toBeVisible();
-    await expect(page.getByRole("switch", { name: /IA/ })).not.toBeChecked();
+    await expect(page.getByText("Você responde esta conversa")).toBeVisible();
+    // One control per action: the hand-off notice has no second "Devolver para a IA".
+    await expect(page.getByRole("button", { name: "Devolver para a IA" })).toHaveCount(1);
     await expect(page.getByLabel("Sua resposta")).toHaveValue("Rascunho para você");
 
     // The tab shows how many need the user, on every page.
@@ -134,7 +137,8 @@ test.describe("e-mail conversations", () => {
     await page.getByRole("button", { name: "Desfazer" }).click();
     await expect(row).toBeVisible();
     await expect(row).toContainText("IA conversando");
-    await expect(page.getByRole("switch", { name: /IA/ })).toBeChecked();
+    await expect(page.getByText("A IA responde esta conversa")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Assumir conversa" })).toBeVisible();
     await expect(page.getByRole("article").filter({ hasText: "na fila" })).toHaveCount(1);
 
     // The restored AI reply goes out once.
@@ -262,7 +266,7 @@ test.describe("e-mail conversations", () => {
     await expect(row).toContainText("Descartado");
     await page.getByRole("checkbox", { name: `Selecionar ${LEAD.name}` }).check();
     await expect(page.getByText("1 fica de fora do disparo")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Disparar 0 selecionados" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Disparar (0)" })).toBeDisabled();
 
     await backend.tick(later);
     expect(await backend.sent()).toHaveLength(1);

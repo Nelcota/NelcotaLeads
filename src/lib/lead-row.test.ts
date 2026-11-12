@@ -6,6 +6,7 @@ import {
   leadStage,
   nextStatus,
   nextStep,
+  notReadyReason,
   scoreReasons,
   siteHost,
   type LeadRowFacts,
@@ -98,6 +99,18 @@ describe("lead row helpers", () => {
     expect(isReadyToDispatch(lead({ analysisStatus: "pending" }))).toBe(false);
     expect(isReadyToDispatch(lead({ status: "contacted" }))).toBe(false);
     expect(isReadyToDispatch(lead({ unsubscribedAt: new Date() }))).toBe(false);
+  });
+
+  it("says why a new lead is not ready for the first e-mail", () => {
+    expect(notReadyReason(lead({}))).toBeNull();
+    expect(notReadyReason(lead({ email: null }))).toBe("Sem e-mail");
+    expect(notReadyReason(lead({ unsubscribedAt: new Date() }))).toBe("Descadastrado");
+    expect(notReadyReason(lead({ analysisStatus: "pending", email: null }))).toBe("Analisando…");
+  });
+
+  it("gives no reason for leads past Novo", () => {
+    expect(notReadyReason(lead({ status: "contacted", email: null }))).toBeNull();
+    expect(notReadyReason(lead({ status: "discarded", unsubscribedAt: new Date() }))).toBeNull();
   });
 
   it("counts a lead as fresh for 24 hours", () => {

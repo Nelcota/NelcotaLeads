@@ -20,6 +20,7 @@ import type { LeadView } from "@/lib/schemas";
 import { cn } from "@/lib/utils";
 import type { LeadRow } from "@/server/leads-query";
 import { leadHint } from "@/components/leads/lead-hint";
+import { LeadHintIcon } from "@/components/leads/lead-hint-icon";
 import { useMediaQuery } from "@/hooks/use-media-query";
 
 type StepView = "followup" | "waiting" | "talking" | "other";
@@ -301,13 +302,19 @@ function LeadTableRow({
               {isReadyToDispatch(lead) ? <ReadyMark /> : null}
             </p>
             <p
-              className={cn("truncate text-[13px] text-tertiary", hint.tone && "font-medium")}
+              className={cn(
+                "flex min-w-0 items-center gap-1.5 text-[13px] text-tertiary",
+                hint.tone && "font-medium",
+              )}
               style={hint.tone ? { color: hint.tone } : undefined}
             >
-              {hint.text}
-              {fresh ? (
-                <span className="font-semibold text-blue">{hint.text ? " · " : ""}Novo hoje</span>
-              ) : null}
+              <LeadHintIcon text={hint.text} />
+              <span className="truncate">
+                {hint.text}
+                {fresh ? (
+                  <span className="font-semibold text-blue">{hint.text ? " · " : ""}Novo hoje</span>
+                ) : null}
+              </span>
             </p>
           </div>
         </div>

@@ -416,7 +416,7 @@ function AutopilotForm() {
           </Field>
           <Field
             label="Empresas por nicho, por dia"
-            hint="Cada 20 empresas usam 1 requisição do limite diário do Google."
+            hint="Somadas às buscas manuais, contam no limite diário de empresas do Google."
           >
             <Controller
               control={form.control}
