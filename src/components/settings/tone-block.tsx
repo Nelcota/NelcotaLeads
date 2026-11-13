@@ -1,9 +1,7 @@
 import { useRadioArrows } from "@/hooks/use-radio-arrows";
 import { TONE_LABELS, TONES, type SettingsInput } from "@/lib/schemas";
-import { TONE_EXAMPLE_LEAD, TONE_EXAMPLES } from "@/lib/tone-examples";
 import { cn } from "@/lib/utils";
 import { SettingsBlock } from "./settings-block";
-import { SETTINGS_SURFACE } from "./surface";
 
 type Tone = SettingsInput["tone"];
 
@@ -13,12 +11,8 @@ const TONE_HINTS: Record<Tone, string> = {
   direto: "Curto e objetivo, vai direto ao ponto.",
 };
 
-/**
- * "Tom da mensagem": three choices under an example e-mail that changes with the pick. The
- * example is fixed text, no AI call; the real e-mail is written per lead.
- */
+/** "Tom da mensagem": three choices, each with a one-line hint. */
 export function ToneBlock({ tone, onChange }: { tone: Tone; onChange: (tone: Tone) => void }) {
-  const example = TONE_EXAMPLES[tone];
   const arrows = useRadioArrows(TONES, onChange);
   return (
     <SettingsBlock
@@ -26,20 +20,10 @@ export function ToneBlock({ tone, onChange }: { tone: Tone; onChange: (tone: Ton
       title="Tom da mensagem"
       description="A IA escreve o primeiro e-mail neste tom. Você revisa antes de enviar."
     >
-      <figure
-        aria-label="Exemplo de e-mail neste tom"
-        className={cn(SETTINGS_SURFACE, "px-5 py-4")}
-      >
-        <figcaption className="text-sm text-tertiary">
-          Exemplo com um lead fictício · {TONE_EXAMPLE_LEAD}
-        </figcaption>
-        <p className="mt-0.5 font-semibold">{example.subject}</p>
-        <p className="mt-2.5 leading-relaxed whitespace-pre-line">{example.body}</p>
-      </figure>
       <div
         role="radiogroup"
         aria-label="Tom da mensagem"
-        className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(min(100%,180px),1fr))] gap-x-6 gap-y-3"
+        className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,180px),1fr))] gap-x-6 gap-y-3"
       >
         {TONES.map((value, index) => {
           const selected = value === tone;
