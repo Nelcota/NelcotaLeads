@@ -46,9 +46,9 @@ The steps, in this order: (1) Visão geral with the new layout on today's data; 
 
 - Buscas redesign, step 1 (no map): the page from the canvas "Nelcota-leads · Buscas", v4 row, on today's data. New search fixed at the top (Nicho and Cidade as separate fields, 20/40/60 as `ChoicePill`, the cost of the search before it starts, the quota notice with an amber border), the Histórico as one open list (date on the left, title up to two lines, status as line icon + neutral text, native progress bar), filters and the state chip next to the list they filter, "Mostrar mais", row actions in view ("Ver N leads", "Buscar de novo", "Tentar de novo", "Volta amanhã" when the quota is spent, "Cancelar" in red outline) and the ⋯ menu ("Usar nicho e cidade", "Mesmo nicho em outra cidade", "Ver detalhes da busca", "Ocultar"). The old Apple look goes (tinted icon chips, ring, three step boxes, purple, lift hover, entry animation). No migration, no e-mail. Built in `.claude/worktrees/searches-redesign` (branch `feat/searches-redesign`); `style/ux-accessibility` also touches the search badges in `src/routes/searches/index.tsx`, so whichever reaches `main` second rebases. (2026-11-12, the user: "ele será o nosso utilizado, quero que aplique-o para testes no localhost 3040"; step 1 without the map chosen the same day)
 
-## Next
+- Buscas redesign, step 2 (the map): "Onde você buscou" from the v4 canvas, under the new search. State outlines with fixed labels, up to five dashed routes inside each state with a running search, the panel with numbers, "Leads novos por estado" rows that open to the running searches, the searchable "Ir para um estado", and a click on a state filters the Histórico (`?uf=`). The state of each search comes from the addresses Google returned for its leads, falling back to the city typed in the search; no migration, no position per city (so no city dots). Built in `.claude/worktrees/searches-map` (branch `feat/searches-map`, on top of `feat/searches-redesign`). Still in Next: "Baixar leads em planilha", "Repetir todo dia" (scheduled, guard rule 7) and a custom quantity above 60. (2026-11-12, the user chose "Do endereço dos leads")
 
-- Buscas redesign, step 2: the map "Onde você buscou" from the v4 canvas (state outlines with fixed labels, a quiet dot per searched city, up to five dashed routes inside the state being searched, the panel with numbers, "Leads novos por estado" rows that open to the running searches, and the searchable "Ir para um estado"). Needs the state (UF) and the position of each search, so a migration: guard rule 7 (flag off by default, local database only). Not in step 1 either: "Baixar leads em planilha" and "Repetir todo dia" from the ⋯ menu (the second runs on a schedule, guard rule 7), and a custom quantity above 60 (the server caps a search at 60). (2026-11-12, the user chose step 1 without the map)
+## Next
 
 - Admin-only settings: "Limites de uso" (and other system-wide settings) can be changed by any signed-in account today, so whoever has an account can turn the abuse limits off. Needs an admin role or owner check on the settings server functions. (2026-11-10, found by /revisar on P1; the user: "corrija tudo"; guard rule 4)
 - Split `src/routes/settings.tsx` (about 880 lines) into one component per section under `src/components/settings/`, no visual change. Its own PR after T4, T5 and P1 reach `main`, since all three touch that file. (2026-11-10, found by /revisar; guard rule 4)
@@ -95,6 +95,13 @@ The steps, in this order: (1) Visão geral with the new layout on today's data; 
 - Agenda, left out of the full model on 2026-11-05: meeting end time and attendees, events without a lead (team meeting, site delivery, blocked time), work hours, a public booking link for leads with an `.ics` invite, an e-mail reminder to the lead and recurring events. Each needs a migration or sends e-mail, so guard rule 7 applies. (2026-11-05; on 2026-11-06 the outcome and overlap warning moved to Next and the `.ics` feed was dropped)
 
 ## Decisions
+
+### 2026-11-12: the Buscas map reads the state from the lead addresses
+
+- **Decision:** the map of step 2 takes the state (UF) of each search from the addresses Google returned for its leads ("…, Belo Horizonte - MG, 30140-071, Brasil"); a search with no lead yet falls back to the city typed in it (a UF, a state name or a capital). Nothing new is stored.
+- **Why:** the user chose "Do endereço dos leads" over storing the Google position: no migration, so guard rule 7 does not apply and the map ships with step 1.
+- **Discarded:** storing latitude and longitude from Places at collection time (exact dots per city, but a migration).
+- **Review if:** a search without leads in a city the fallback cannot place shows up often; then store the position.
 
 ### 2026-11-11: Visão geral alerts become a summary row
 
