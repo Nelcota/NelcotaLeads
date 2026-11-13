@@ -11,7 +11,7 @@ import {
 import { STAGE_COLORS, STAGE_LABELS, type LeadStage } from "@/lib/lead-row";
 import { cn } from "@/lib/utils";
 
-const STAGE_ICONS: Record<LeadStage, LucideIcon> = {
+export const STAGE_ICONS: Record<LeadStage, LucideIcon> = {
   new: CircleDotIcon,
   contacted: MailCheckIcon,
   replied: MessageCircleIcon,

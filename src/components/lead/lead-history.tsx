@@ -4,13 +4,13 @@ import type { HistoryLine } from "@/lib/lead-history";
 export function LeadHistory({ lines }: { lines: HistoryLine[] }) {
   if (lines.length === 0) {
     return (
-      <p className="px-1 text-sm text-muted-foreground">
+      <p className="px-1 text-base text-muted-foreground">
         Nada registrado ainda. Mudanças de etapa, responsável e negócio aparecem aqui.
       </p>
     );
   }
   return (
-    <ol className="grouped grid text-sm">
+    <ol className="grouped grid text-base">
       {lines.map((line) => (
         <li
           key={line.id}
