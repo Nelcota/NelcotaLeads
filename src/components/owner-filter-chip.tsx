@@ -1,9 +1,9 @@
 import { XIcon } from "lucide-react";
 import { useMemberName } from "@/hooks/use-member-name";
 
-/** "Dono: Phellipe ×": the owner filter a link from the Equipe page left on, removable. */
+/** "Responsável: Phellipe ×": the owner filter a link from the Equipe page left on, removable. */
 export function OwnerFilterChip({ owner, onClear }: { owner: string; onClear: () => void }) {
-  const label = `Dono: ${useMemberName(owner)}`;
+  const label = `Responsável: ${useMemberName(owner)}`;
   return (
     <span className="inline-flex h-8 w-fit items-center gap-1 rounded-full border border-border bg-fill-2 pr-1 pl-3 text-sm font-medium">
       {label}
