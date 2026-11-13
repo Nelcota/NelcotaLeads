@@ -116,7 +116,8 @@ export function StatePicker({
           onOpenAutoFocus={(event) => event.preventDefault()}
           onCloseAutoFocus={(event) => event.preventDefault()}
           onInteractOutside={(event) => {
-            if (anchor.current?.contains(event.target as Node)) event.preventDefault();
+            const target = event.target;
+            if (target instanceof Node && anchor.current?.contains(target)) event.preventDefault();
           }}
           className="z-50 max-h-[340px] w-(--radix-popover-trigger-width) min-w-60 overflow-y-auto rounded-xl border border-border bg-popover p-1.5 text-popover-foreground [scrollbar-color:var(--text-tertiary)_transparent] [scrollbar-gutter:stable] [scrollbar-width:thin] data-open:animate-in data-open:fade-in-0 data-open:slide-in-from-top-1"
         >
