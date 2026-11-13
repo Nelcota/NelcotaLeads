@@ -54,6 +54,8 @@ The steps, in this order: (1) Visão geral with the new layout on today's data; 
 
 ## Next
 
+- Lead panel, four new functions found in the edge-case review of the canvas "Nelcota-leads · Painel do lead" (cases marked NOVA there). Mockup only for now; each needs its own Now entry before any code. 1. Take a lost lead back later: after "Marcar como perdido" with "Sem interesse agora" or "Sem orçamento", choose "Retomar em 30, 60 ou 90 dias", which creates a future follow-up. 2. A cancelled meeting moves the stage back to Respondeu on its own when no other meeting is booked, and the panel says why. 3. A bounced first e-mail shows in the panel ("O e-mail voltou") with "Corrigir e-mail" and the WhatsApp shortcut, and the stage stays in Novo; changes what happens after a send, so guard rule 7 applies. 4. Written rule for the stage automation: it only moves a lead forward (a new e-mail from the client never takes Proposta back to Respondeu). Item 2 is the one exception to item 4 (see the 2026-11-13 decision below). (2026-11-13, the user: "Sim, anotar", then "Sim, é exceção"; guard rule 4)
+
 - Buscas, step 4, the rest (items 1 to 3 moved to Now on 2026-11-12), in this order: 4. A text filter in the Histórico by niche or city, shown past 10 searches. 5. The Histórico grouped by day ("Hoje", "Ontem", "Esta semana"). 6. Time left on a running search, from the pace of the analyses so far. 7. Remember the last chosen size (browser only). 8. "/" puts the cursor in Nicho. 9. Keep a typed niche and city when leaving Buscas before searching. 10. "Ocultar todas as falhas" under the "Com falha" filter.
 
 - Buscas, step 3, the rest (items 1 to 3 moved to Now on 2026-11-12), in this order: 4. Suggestions in Nicho and Cidade from earlier searches; the city suggestion carries the UF ("Contagem - MG"), so no search ends up without a state on the map. 5. Map: flag a saturated state in "Leads novos por estado" (yield under 30%) and suggest another neighborhood or city. 6. "Ver leads de MG": a UF filter on Leads, linked from the state panel. Its own PR, since it changes the Leads page. 7. Dots per city on the map: needs the Google position stored at collection, a migration (guard rule 7); only if the map by state is not enough (see the 2026-11-12 decision). 8. "Repetir todo dia" in the ⋯ menu: scheduled, guard rule 7 (flag off, fake data, "Raio de impacto"). 9. "Baixar leads em planilha" for one search, on top of `src/lib/csv.ts`. 10. A red-outline button variant in `button.tsx`, so "Cancelar" stops overriding the button classes.
@@ -103,6 +105,21 @@ The steps, in this order: (1) Visão geral with the new layout on today's data; 
 - Agenda, left out of the full model on 2026-11-05: meeting end time and attendees, events without a lead (team meeting, site delivery, blocked time), work hours, a public booking link for leads with an `.ics` invite, an e-mail reminder to the lead and recurring events. Each needs a migration or sends e-mail, so guard rule 7 applies. (2026-11-05; on 2026-11-06 the outcome and overlap warning moved to Next and the `.ics` feed was dropped)
 
 ## Decisions
+
+### 2026-11-13: lead panel follows the "Proposta v1" canvas
+
+- **Decision:** the lead panel (`/leads?lead=<id>`) follows the "Proposta v1" boards of the canvas "Nelcota-leads · Painel do lead", as part of the Now item "Leads page redesign". Solid blue only on the main action of the next-step card; the chosen stage and follow-up are neutral (`--fill`, semibold). The stages become one continuous track (a line that fills up to the current stage in its color, the stage icon in each node, a quiet ring on the current one) with a line under it saying what moved the lead there, read from the events the app already stores. The follow-up choice is the same four visible options in every stage. Card rows at 16px. The score shows as ring plus number. "Descartar lead" and "Marcar como perdido" use the danger role (outline, red text). Notas gets a one-line title and a taller field. The model name leaves the footer. Wording from the 2026-11-10 T5 answers ("Sem responsável", "Assumir lead", "Deixar sem responsável", "Marcar como perdido").
+- **Not in this step:** the four functions in Next (take a lost lead back later, the cancelled-meeting exception, the bounced e-mail notice, the written forward-only rule). No migration, no e-mail, nothing scheduled.
+- **Why:** the user reviewed the canvas over five rounds and approved it ("Aprovado", 2026-11-13).
+- **Review if:** the track does not fit a 390px phone without the horizontal scroll being noticed.
+
+### 2026-11-13: lead stage automation only moves forward, with one exception
+
+- **Decision:** the automatic stage changes in the lead panel only move a lead forward (a new e-mail from the client never takes Proposta back to Respondeu). The one exception: when a meeting is cancelled and no other meeting is booked, the stage goes back from Reunião to Respondeu on its own and the panel says why. Moving a stage back in any other case is done by a person.
+- **Why:** the user chose the exception ("Sim, é exceção"): a lead in "Reunião" with no meeting booked shows a wrong stage on screen.
+- **Discarded:** no exception (the stage stays in Reunião after the cancellation until someone changes it).
+- **Where:** still in Next with the other lead panel functions; this only settles the open question of that item. No code yet.
+- **Review if:** partners cancel and rebook meetings often and the stage flickers between Respondeu and Reunião.
 
 ### 2026-11-12: Buscas step 4, items 1 to 3, move to Now
 
