@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getDb } from "@/db/client";
 import { assignLeadsSchema } from "@/lib/schemas";
+import { ASSIGN_LIMIT } from "@/lib/schemas";
 import { splitEvenly } from "@/lib/team-split";
 import { assignLeads } from "./lead-assign-store";
 import { requestUserId } from "./request-user";
@@ -30,6 +31,13 @@ export const splitFreeLeads = createServerFn({ method: "POST" }).handler(async (
   const loads = members.map((id) => ({ id, held: held.get(id)?.held ?? 0 }));
   const assignments = splitEvenly(ids, loads);
   if (assignments.length === 0) return { moved: [] };
-  const moved = await assignLeads(db, assignments, await requestUserId(), new Date());
+  const moved = [];
+  const userId = await requestUserId();
+  const now = new Date();
+  for (let start = 0; start < assignments.length; start += ASSIGN_LIMIT) {
+    moved.push(
+      ...(await assignLeads(db, assignments.slice(start, start + ASSIGN_LIMIT), userId, now)),
+    );
+  }
   return { moved };
 });

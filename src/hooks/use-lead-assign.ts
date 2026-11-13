@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { errorToast } from "@/lib/mutation-toasts";
 import { invalidateLeadScreens } from "@/lib/queries";
 import type { LeadAssignment } from "@/lib/schemas";
+import { ASSIGN_LIMIT } from "@/lib/schemas";
 import { undoAssignments } from "@/lib/team-split";
 import { assignTeamLeads, splitFreeLeads } from "@/server/team-leads";
 
@@ -29,8 +30,14 @@ export function useLeadAssign() {
   const refresh = () => invalidateLeadScreens(queryClient);
 
   const undo = useMutation({
-    mutationFn: (moved: LeadAssignment[]) =>
-      assignTeamLeads({ data: { assignments: undoAssignments(moved) } }),
+    mutationFn: async (moved: LeadAssignment[]) => {
+      const assignments = undoAssignments(moved);
+      for (let start = 0; start < assignments.length; start += ASSIGN_LIMIT) {
+        await assignTeamLeads({
+          data: { assignments: assignments.slice(start, start + ASSIGN_LIMIT) },
+        });
+      }
+    },
     onSuccess: async () => {
       await refresh();
       toast("Desfeito");

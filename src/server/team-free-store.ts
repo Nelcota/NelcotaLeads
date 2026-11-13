@@ -1,7 +1,6 @@
 import { asc, desc, sql } from "drizzle-orm";
 import type { Db } from "@/db/client";
 import { leads } from "@/db/schema";
-import { ASSIGN_LIMIT } from "@/lib/schemas";
 import { freeLeadCondition, freeNewCondition } from "./team-stats-store";
 
 /** Free leads the Equipe page lists; "Ver todos em Leads" shows the rest. */
@@ -38,7 +37,6 @@ export async function freeLeadIds(db: Db): Promise<string[]> {
     .select({ id: leads.id })
     .from(leads)
     .where(freeLeadCondition)
-    .orderBy(asc(statusRank), desc(leads.createdAt))
-    .limit(ASSIGN_LIMIT);
+    .orderBy(asc(statusRank), desc(leads.createdAt));
   return rows.map((row) => row.id);
 }

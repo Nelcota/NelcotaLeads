@@ -9,6 +9,7 @@ import { changeOwner, MEMBER_NOT_FOUND_MESSAGE } from "./lead-deal";
 import { queryLeads } from "./leads-query";
 import { freeLeadIds } from "./team-free-store";
 import { teamOverview } from "./team-overview";
+import { nextMeetingByOwner } from "./team-today-store";
 
 const db = getDb(env.DB);
 // Sunday 08/11/2026, 15:00 in Brazil.
@@ -129,6 +130,43 @@ describe("Equipe", () => {
     // Only contacted or replied leads count as free; the new one waits for the dispatch.
     expect(team.free).toMatchObject({ total: 0, newCount: 1, leads: [] });
     expect(team.goal.progress).toEqual({ deals: 1, revenueCents: 240000 });
+  });
+
+  it("finds a partner's next meeting beyond 60 earlier meetings for someone else", async () => {
+    for (let start = 0; start < 60; start += 10) {
+      await db.insert(meetings).values(
+        Array.from({ length: 10 }, (_, offset) => {
+          const index = start + offset;
+          return {
+            id: `early-${index}`,
+            leadId: "a",
+            startsAt: new Date(now.getTime() + (index + 1) * 60_000),
+            kind: "video" as const,
+            createdBy: "u1",
+          };
+        }),
+      );
+    }
+    await db.insert(meetings).values({
+      id: "later-u2",
+      leadId: "f",
+      startsAt: new Date(now.getTime() + 61 * 60_000),
+      kind: "video",
+      createdBy: "u2",
+    });
+    expect((await nextMeetingByOwner(db, now)).get("u2")?.leadId).toBe("f");
+  });
+
+  it("includes every free lead when the team has more than 500", async () => {
+    for (let start = 0; start < 501; start += 5) {
+      await db.insert(leads).values(
+        Array.from({ length: Math.min(5, 501 - start) }, (_, offset) => {
+          const id = `free-${start + offset}`;
+          return { id, placeId: id, name: id, searchId: "s", status: "contacted" as const };
+        }),
+      );
+    }
+    expect((await freeLeadIds(db)).length).toBe(501);
   });
 
   it("credits a deal to who closed it, even after the lead changed owner", async () => {

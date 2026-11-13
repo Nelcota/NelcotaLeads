@@ -6,9 +6,6 @@ import { needsYou } from "./dashboard";
 /** Leads waiting for a follow-up, the same ones as "Retornar hoje" in Leads. */
 const FOLLOW_UP_STATUSES = ["contacted", "replied"] as const;
 
-/** Upcoming meetings read to find each partner's next one; three partners need few rows. */
-const UPCOMING_LIMIT = 60;
-
 const meetingOwner = sql<string | null>`coalesce(${leads.ownerId}, ${meetings.createdBy})`;
 
 export type NextMeeting = { leadId: string; leadName: string; startsAt: Date };
@@ -67,8 +64,7 @@ export async function nextMeetingByOwner(db: Db, now: Date) {
     .from(meetings)
     .innerJoin(leads, eq(leads.id, meetings.leadId))
     .where(and(isNull(meetings.cancelledAt), gte(meetings.startsAt, now)))
-    .orderBy(asc(meetings.startsAt))
-    .limit(UPCOMING_LIMIT);
+    .orderBy(asc(meetings.startsAt));
   const map = new Map<string, NextMeeting>();
   for (const row of rows) {
     if (!row.owner || map.has(row.owner)) continue;
