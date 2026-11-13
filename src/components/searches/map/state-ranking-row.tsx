@@ -2,7 +2,7 @@ import { ArrowRightIcon, ChevronDownIcon } from "lucide-react";
 import { useId } from "react";
 import { RunningSearches } from "@/components/searches/map/running-searches";
 import { Button } from "@/components/ui/button";
-import { formatCount } from "@/lib/format";
+import { formatCount, pluralize } from "@/lib/format";
 import type { RankedState } from "@/lib/search-map";
 
 /**
@@ -52,7 +52,7 @@ export function StateRankingRow({
           <b className="text-base font-semibold text-foreground tabular-nums">
             {formatCount(stats.newLeads)}
           </b>
-          {stats.searches === 1 ? "1 busca" : `${formatCount(stats.searches)} buscas`}
+          {pluralize(stats.searches, "busca", "buscas")}
         </span>
         <ChevronDownIcon
           aria-hidden

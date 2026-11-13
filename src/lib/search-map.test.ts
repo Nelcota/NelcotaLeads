@@ -1,8 +1,16 @@
 import { describe, expect, it } from "vitest";
 import type { Search } from "@/db/schema";
 import { stateLabel, stateRoutes } from "@/lib/map-geometry";
-import { matchStates, rankStates, runningPlaces, stateYield, statsByState } from "@/lib/search-map";
+import {
+  rankStates,
+  runningPlaces,
+  stateYield,
+  statsByState,
+  summarizeBrazil,
+  summarizeState,
+} from "@/lib/search-map";
 import type { SearchWithState } from "@/lib/search-state";
+import { matchStates } from "@/lib/state-match";
 
 let next = 0;
 function search(overrides: Partial<SearchWithState>): SearchWithState {
@@ -58,6 +66,31 @@ describe("stateYield", () => {
 
   it("is null before any finished search", () => {
     expect(stateYield([search({ status: "collecting", foundCount: 4 })])).toBeNull();
+  });
+});
+
+describe("summarizeBrazil", () => {
+  it("adds up the placed searches and counts the unplaced ones apart", () => {
+    const running = search({ status: "analyzing", foundCount: 5 });
+    const summary = summarizeBrazil([
+      search({ foundCount: 10 }),
+      running,
+      search({ state: null, foundCount: 3 }),
+      search({ state: null, hiddenAt: new Date() }),
+    ]);
+    expect(summary).toMatchObject({ searches: 2, newLeads: 15, unplaced: 1, topLeads: 15 });
+    expect(summary.running).toEqual([running]);
+  });
+});
+
+describe("summarizeState", () => {
+  it("splits a state's searches into running and the last three finished", () => {
+    const running = search({ state: "ES", status: "collecting" });
+    const finished = [1, 2, 3, 4].map(() => search({ state: "ES", foundCount: 2 }));
+    const summary = summarizeState([running, ...finished, search({ foundCount: 9 })], "ES");
+    expect(summary).toMatchObject({ searches: 5, newLeads: 8, yieldPercent: 100 });
+    expect(summary.running).toEqual([running]);
+    expect(summary.recent).toEqual(finished.slice(0, 3));
   });
 });
 

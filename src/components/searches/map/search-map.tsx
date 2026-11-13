@@ -3,7 +3,7 @@ import { BrazilMap } from "@/components/searches/map/brazil-map";
 import { MapOverview } from "@/components/searches/map/map-overview";
 import { StateDetail } from "@/components/searches/map/state-detail";
 import type { StateCode } from "@/lib/brazil-states";
-import { statsByState } from "@/lib/search-map";
+import { summarizeBrazil } from "@/lib/search-map";
 import type { SearchWithState } from "@/lib/search-state";
 
 /**
@@ -25,7 +25,7 @@ export function SearchMap({
   onShowRunning: () => void;
   onSearchIn: (city: string) => void;
 }) {
-  const stats = statsByState(searches);
+  const summary = summarizeBrazil(searches);
 
   return (
     <section aria-labelledby="mapa" className="grouped @container min-w-0">
@@ -37,7 +37,7 @@ export function SearchMap({
       </div>
       <div className="grid gap-8 p-5 @4xl:grid-cols-[minmax(0,460px)_minmax(0,1fr)]">
         <div className="flex flex-col gap-4">
-          <BrazilMap stats={stats} chosen={chosen} onChoose={onChoose} />
+          <BrazilMap stats={summary.stats} chosen={chosen} onChoose={onChoose} />
           <p className="flex flex-wrap gap-x-3.5 gap-y-1 text-xs text-muted-foreground">
             <span className="inline-flex items-center gap-1.5">
               <i aria-hidden className="map-legend-route" />
@@ -55,7 +55,7 @@ export function SearchMap({
             onSearchIn={onSearchIn}
           />
         ) : (
-          <MapOverview stats={stats} onChoose={onChoose} onShowRunning={onShowRunning} />
+          <MapOverview summary={summary} onChoose={onChoose} onShowRunning={onShowRunning} />
         )}
       </div>
     </section>

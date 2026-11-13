@@ -4,28 +4,24 @@ import { StatePicker } from "@/components/searches/map/state-picker";
 import { StateRankingRow } from "@/components/searches/map/state-ranking-row";
 import { Button } from "@/components/ui/button";
 import type { StateCode } from "@/lib/brazil-states";
-import { formatCount } from "@/lib/format";
-import { rankStates, runningPlaces, type StateStats } from "@/lib/search-map";
+import { formatCount, pluralize } from "@/lib/format";
+import { runningPlaces, type BrazilSummary } from "@/lib/search-map";
 
 /**
  * The panel next to the map with no state chosen: Brasil's numbers, what runs now, and the
  * states ranked by new leads; a row opens to its running searches.
  */
 export function MapOverview({
-  stats,
+  summary,
   onChoose,
   onShowRunning,
 }: {
-  stats: ReadonlyMap<StateCode, StateStats>;
+  summary: BrazilSummary;
   onChoose: (code: StateCode) => void;
   onShowRunning: () => void;
 }) {
   const [openRow, setOpenRow] = useState<StateCode | null>(null);
-  const ranked = rankStates(stats);
-  const running = ranked.flatMap((row) => row.stats.running);
-  const totalSearches = ranked.reduce((sum, row) => sum + row.stats.searches, 0);
-  const totalLeads = ranked.reduce((sum, row) => sum + row.stats.newLeads, 0);
-  const topLeads = ranked[0]?.stats.newLeads ?? 0;
+  const { stats, ranked, running, unplaced, topLeads } = summary;
 
   return (
     <div className="flex min-w-0 flex-col gap-5">
@@ -35,8 +31,8 @@ export function MapOverview({
       </div>
       <MapNumbers
         numbers={[
-          { label: "Buscas", value: formatCount(totalSearches) },
-          { label: "Leads novos", value: formatCount(totalLeads) },
+          { label: "Buscas", value: formatCount(summary.searches) },
+          { label: "Leads novos", value: formatCount(summary.newLeads) },
           {
             label: "Estados",
             value: `${ranked.length} de 27`,
@@ -52,7 +48,7 @@ export function MapOverview({
           <i aria-hidden className="map-legend-route" />
           <div className="min-w-0 flex-1">
             <p className="text-[15px] font-semibold">
-              {running.length === 1 ? "1 busca" : `${running.length} buscas`} em andamento
+              {pluralize(running.length, "busca", "buscas")} em andamento
             </p>
             <p className="truncate text-xs text-muted-foreground">{runningPlaces(running)}</p>
           </div>
@@ -79,9 +75,19 @@ export function MapOverview({
         </div>
       ) : (
         <p className="text-[15px] text-muted-foreground">
-          Nenhuma busca no mapa ainda. Comece pela busca acima.
+          Nenhuma busca com estado conhecido ainda.
         </p>
       )}
+      {unplaced > 0 ? (
+        <p className="text-xs text-muted-foreground">
+          {pluralize(
+            unplaced,
+            "busca sem estado conhecido fica",
+            "buscas sem estado conhecido ficam",
+          )}{" "}
+          só no Histórico: a cidade digitada não diz o estado e não há leads com endereço.
+        </p>
+      ) : null}
     </div>
   );
 }

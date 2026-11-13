@@ -38,4 +38,18 @@ describe("querySearchesWithStates", () => {
     const stateOf = Object.fromEntries(rows.map((row) => [row.id, row.state]));
     expect(stateOf).toEqual({ "s-address": "ES", "s-city": "PR", "s-unknown": null });
   });
+
+  it("skips an address without a state when another lead has one", async () => {
+    const db = getDb(env.DB);
+    await db.insert(searches).values(search("s-mixed", "Contagem"));
+    await db
+      .insert(leads)
+      .values([
+        lead("m1", "s-mixed", "Av. Sem Estado, 10"),
+        lead("m2", "s-mixed", "R. B, 2 - Eldorado, Contagem - MG, 32000-000, Brasil"),
+      ]);
+
+    const [row] = await querySearchesWithStates(db);
+    expect(row?.state).toBe("MG");
+  });
 });

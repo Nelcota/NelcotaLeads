@@ -9,57 +9,53 @@ export type StateLabel = {
   guide: readonly [number, number, number, number] | null;
 };
 
-// Label points in the 613 × 639 map, from the v4 canvas.
-const INSIDE: Partial<Record<StateCode, readonly [number, number]>> = {
+type Point = readonly [number, number];
+// [x, y] inside the state; small states add [label x, label y] outside it, joined by a line.
+type Anchor = Point | readonly [number, number, number, number];
+
+// In the 613 × 639 map, from the v4 canvas. Every state is listed, so a missing one fails to compile.
+const ANCHORS: Record<StateCode, Anchor> = {
   AC: [55, 227],
-  AP: [344, 60],
+  AL: [584, 230, 624, 226],
   AM: [145, 147],
+  AP: [344, 60],
   BA: [504, 278],
   CE: [537, 161],
+  DF: [409, 330, 394, 316],
+  ES: [521, 392, 556, 392],
   GO: [372, 346],
   MA: [448, 161],
-  MT: [283, 285],
-  MS: [299, 405],
   MG: [452, 368],
+  MS: [299, 405],
+  MT: [283, 285],
   PA: [324, 147],
+  PB: [581, 193, 624, 194],
   PE: [550, 213],
   PI: [485, 197],
   PR: [350, 477],
-  RS: [323, 566],
+  RJ: [489, 435, 520, 470],
+  RN: [583, 173, 624, 168],
   RO: [174, 253],
   RR: [197, 50],
+  RS: [323, 566],
   SC: [367, 522],
+  SE: [571, 247, 624, 254],
   SP: [395, 437],
   TO: [401, 240],
 };
 
-// Small states: [inside x, inside y, label x, label y].
-const OUTSIDE: Partial<Record<StateCode, readonly [number, number, number, number]>> = {
-  RN: [583, 173, 624, 168],
-  PB: [581, 193, 624, 194],
-  AL: [584, 230, 624, 226],
-  SE: [571, 247, 624, 254],
-  ES: [521, 392, 556, 392],
-  RJ: [489, 435, 520, 470],
-  DF: [409, 330, 394, 316],
-};
-
 export function stateLabel(code: StateCode): StateLabel {
-  const outside = OUTSIDE[code];
-  if (outside) {
-    const [fromX, , x, y] = outside;
-    const side = x < fromX ? "left" : "right";
-    return { x: x + (side === "left" ? -3 : 3), y, side, guide: outside };
-  }
-  const [x, y] = INSIDE[code] ?? [0, 0];
-  return { x, y, side: "center", guide: null };
+  const anchor = ANCHORS[code];
+  if (anchor.length === 2) return { x: anchor[0], y: anchor[1], side: "center", guide: null };
+  const [fromX, , x, y] = anchor;
+  const side = x < fromX ? "left" : "right";
+  return { x: x + (side === "left" ? -3 : 3), y, side, guide: anchor };
 }
 
 /** A point well inside the state, where its routes start. */
-export function stateCenter(code: StateCode): readonly [number, number] {
-  const outside = OUTSIDE[code];
-  if (outside) return [outside[0], outside[1]];
-  return INSIDE[code] ?? [0, 0];
+export function stateCenter(code: StateCode): Point {
+  const anchor = ANCHORS[code];
+  return [anchor[0], anchor[1]];
 }
 
 const ROUTE_COUNT = 4;

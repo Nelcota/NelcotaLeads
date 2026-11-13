@@ -1,10 +1,9 @@
+import { optionId } from "@/hooks/use-state-picker";
 import type { BrazilState, StateCode } from "@/lib/brazil-states";
-import type { StateGroup, StateStats } from "@/lib/search-map";
+import { pluralize } from "@/lib/format";
+import type { StateStats } from "@/lib/search-map";
+import type { StateGroup } from "@/lib/state-match";
 import { cn } from "cn";
-
-export function optionId(listId: string, code: StateCode) {
-  return `${listId}-${code}`;
-}
 
 /**
  * The listbox of "Ir para um estado": states by region, each with its code and how many
@@ -30,7 +29,7 @@ export function StatePickerOptions({
   const info = (state: BrazilState) => {
     const searches = stats.get(state.code)?.searches ?? 0;
     if (searches === 0) return state.code;
-    return `${state.code} · ${searches} ${searches === 1 ? "busca" : "buscas"}`;
+    return `${state.code} · ${pluralize(searches, "busca", "buscas")}`;
   };
 
   return (

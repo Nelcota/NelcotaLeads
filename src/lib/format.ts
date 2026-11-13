@@ -133,3 +133,8 @@ const counter = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
 export function formatCount(value: number): string {
   return counter.format(value);
 }
+
+/** "1 busca", "1.200 buscas": a count with the word that agrees with it. */
+export function pluralize(count: number, one: string, many: string): string {
+  return `${formatCount(count)} ${count === 1 ? one : many}`;
+}

@@ -53,6 +53,14 @@ function SearchesPage() {
   const chooseState = (next: StateCode | undefined) =>
     void navigate({ search: (prev) => ({ ...prev, uf: next }), replace: true });
   const inState = uf ? searches.filter((search) => search.state === uf) : searches;
+  // "Ver no Histórico": the running filter, and the list brought into view.
+  const showRunning = () => {
+    setFilter("running");
+    const smooth = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    document
+      .getElementById("historico")
+      ?.scrollIntoView({ behavior: smooth ? "smooth" : "auto", block: "start" });
+  };
 
   return (
     <Page
@@ -80,13 +88,13 @@ function SearchesPage() {
       }
     >
       <SearchComposer newSearch={newSearch} />
-      {searches.length > 0 ? (
+      {summary.searches > 0 ? (
         <SearchMap
           searches={searches}
           chosen={uf}
           quotaSpent={quotaSpent}
           onChoose={chooseState}
-          onShowRunning={() => setFilter("running")}
+          onShowRunning={showRunning}
           onSearchIn={(city) => newSearch.prefill(newSearch.form.getValues("niche"), city)}
         />
       ) : null}

@@ -92,5 +92,5 @@ export function stateByCode(code: StateCode): BrazilState {
 
 /** Lowercase without accents, so "sao paulo" finds "São Paulo". */
 export function foldText(text: string): string {
-  return text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+  return text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
 }

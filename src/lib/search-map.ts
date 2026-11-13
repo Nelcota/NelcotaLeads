@@ -1,10 +1,4 @@
-import {
-  BRAZIL_STATES,
-  REGIONS,
-  foldText,
-  type BrazilState,
-  type StateCode,
-} from "@/lib/brazil-states";
+import { BRAZIL_STATES, type BrazilState, type StateCode } from "@/lib/brazil-states";
 import { isSearchRunning } from "@/lib/search-list";
 import type { SearchWithState } from "@/lib/search-state";
 
@@ -15,11 +9,13 @@ export type StateStats = {
   running: SearchWithState[];
 };
 
+const isVisible = (search: SearchWithState) => search.hiddenAt === null;
+
 /** What the visible searches did in each state; hidden ones and unplaced ones stay out. */
 export function statsByState(searches: readonly SearchWithState[]): Map<StateCode, StateStats> {
   const stats = new Map<StateCode, StateStats>();
   for (const search of searches) {
-    if (search.hiddenAt !== null || search.state === null) continue;
+    if (!isVisible(search) || search.state === null) continue;
     const current = stats.get(search.state) ?? { searches: 0, newLeads: 0, running: [] };
     stats.set(search.state, {
       searches: current.searches + 1,
@@ -40,14 +36,6 @@ export function rankStates(stats: ReadonlyMap<StateCode, StateStats>): RankedSta
   }).toSorted((a, b) => b.stats.newLeads - a.stats.newLeads || b.stats.searches - a.stats.searches);
 }
 
-/** Visible searches in a state, newest first as the list already is. */
-export function searchesInState(
-  searches: readonly SearchWithState[],
-  code: StateCode,
-): SearchWithState[] {
-  return searches.filter((search) => search.hiddenAt === null && search.state === code);
-}
-
 /** New companies over everything Google returned in finished searches, or null before any. */
 export function stateYield(searches: readonly SearchWithState[]): number | null {
   const done = searches.filter((search) => search.status === "done");
@@ -66,24 +54,57 @@ export function runningPlaces(running: readonly SearchWithState[]): string {
     .join(" · ");
 }
 
-const byName = (a: BrazilState, b: BrazilState) => a.name.localeCompare(b.name, "pt-BR");
+export type BrazilSummary = {
+  stats: Map<StateCode, StateStats>;
+  ranked: RankedState[];
+  running: SearchWithState[];
+  searches: number;
+  newLeads: number;
+  /** Visible searches whose state could not be told; counted apart so the totals still add up. */
+  unplaced: number;
+  /** New leads of the first state, the full length of the ranking bars. */
+  topLeads: number;
+};
 
-export type StateGroup = { name: string; states: BrazilState[] };
+/** The map and the "Brasil" panel: every visible search placed in a state. */
+export function summarizeBrazil(searches: readonly SearchWithState[]): BrazilSummary {
+  const stats = statsByState(searches);
+  const ranked = rankStates(stats);
+  return {
+    stats,
+    ranked,
+    running: ranked.flatMap((row) => row.stats.running),
+    searches: ranked.reduce((sum, row) => sum + row.stats.searches, 0),
+    newLeads: ranked.reduce((sum, row) => sum + row.stats.newLeads, 0),
+    unplaced: searches.filter((search) => isVisible(search) && search.state === null).length,
+    topLeads: ranked[0]?.stats.newLeads ?? 0,
+  };
+}
 
-/**
- * The "Ir para um estado" options: by region while nothing is typed, then one flat list of the
- * states whose name contains the text or whose code is the text, accents ignored.
- */
-export function matchStates(text: string): StateGroup[] {
-  const term = foldText(text);
-  if (term === "") {
-    return REGIONS.map((region) => ({
-      name: region.name,
-      states: BRAZIL_STATES.filter((state) => state.region === region.id).toSorted(byName),
-    }));
-  }
-  const states = BRAZIL_STATES.filter(
-    (state) => foldText(state.name).includes(term) || foldText(state.code) === term,
-  ).toSorted(byName);
-  return states.length > 0 ? [{ name: "", states }] : [];
+export type StateSummary = {
+  searches: number;
+  newLeads: number;
+  /** See stateYield. */
+  yieldPercent: number | null;
+  running: SearchWithState[];
+  /** The last finished searches, newest first. */
+  recent: SearchWithState[];
+};
+
+/** Finished searches listed in a state's panel. */
+const RECENT_ROWS = 3;
+
+/** One state's panel: its visible searches, what runs there and the last finished ones. */
+export function summarizeState(
+  searches: readonly SearchWithState[],
+  code: StateCode,
+): StateSummary {
+  const inState = searches.filter((search) => isVisible(search) && search.state === code);
+  return {
+    searches: inState.length,
+    newLeads: inState.reduce((sum, search) => sum + search.foundCount, 0),
+    yieldPercent: stateYield(inState),
+    running: inState.filter((search) => isSearchRunning(search.status)),
+    recent: inState.filter((search) => !isSearchRunning(search.status)).slice(0, RECENT_ROWS),
+  };
 }
