@@ -12,7 +12,7 @@ type ComposerAction = { label: string; disabled: boolean; onClick: () => void };
 
 /**
  * The reply field: who it goes to and the draft state on top, the text in the middle (one line
- * that grows as you type), the tools and "Enviar" at the bottom. A 1px border, no shadow.
+ * that grows as you type), the tools and "Enviar" at the bottom. A hairline border that turns blue on focus.
  */
 export function ReplyComposer({
   email,
@@ -39,10 +39,10 @@ export function ReplyComposer({
   send: ComposerAction & { pending: boolean; blockedReason: string | null };
 }) {
   return (
-    <div className="rounded-[18px] border border-border bg-card transition-[border-color] duration-150 focus-within:border-blue">
+    <div className="rounded-[18px] border border-border/70 bg-background transition-[border-color] duration-150 focus-within:border-blue">
       <div className="flex min-w-0 items-center gap-2 px-4 pt-2.5 text-sm text-muted-foreground">
         Para
-        <span className="min-w-0 truncate rounded-full border border-border px-2.5 py-0.5 text-xs font-medium text-foreground">
+        <span className="min-w-0 truncate rounded-full bg-fill-2 px-2.5 py-0.5 text-xs font-medium text-foreground">
           {email}
         </span>
         <span className="ml-auto shrink-0" aria-live="polite">
@@ -63,7 +63,7 @@ export function ReplyComposer({
         className="max-h-[220px] min-h-11 resize-none overflow-y-auto rounded-none bg-transparent! px-4 py-1.5 text-base leading-[1.6] shadow-none! focus-visible:shadow-none! focus-visible:ring-0 focus-visible:outline-none"
         {...textarea}
       />
-      <div className="flex flex-wrap items-center gap-2 border-t border-border px-2.5 pt-2 pb-2.5">
+      <div className="flex flex-wrap items-center gap-2 px-2.5 pt-1 pb-2.5">
         <QuickReplyPicker disabled={quickReply.disabled} onPick={quickReply.onPick} />
         <Button variant="outline" size="sm" disabled={write.disabled} onClick={write.onClick}>
           <SparklesIcon aria-hidden className="text-purple" />

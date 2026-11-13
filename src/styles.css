@@ -70,6 +70,7 @@
   --color-fill: var(--fill);
   --color-fill-2: var(--fill-2);
   --color-fill-3: var(--fill-3);
+  --color-bubble-in: var(--bubble-in);
   --color-tertiary: var(--text-tertiary);
   --color-quaternary: var(--text-quaternary);
   /* System colors: status meaning, applied to backgrounds and to text. */
@@ -117,6 +118,8 @@
   --fill: rgb(118 118 128 / 0.16);
   --fill-2: rgb(118 118 128 / 0.1);
   --fill-3: rgb(118 118 128 / 0.06);
+  /* A lead's message bubble, set on the conversation surface. */
+  --bubble-in: #e9e9eb;
   --sidebar: #f5f5f7;
   --sidebar-foreground: #1d1d1f;
   --sidebar-primary: #0a62e6;
@@ -171,6 +174,7 @@
   --fill: rgb(118 118 128 / 0.2);
   --fill-2: rgb(118 118 128 / 0.12);
   --fill-3: rgb(118 118 128 / 0.08);
+  --bubble-in: #323238;
   --sidebar: #1b1b1e;
   --sidebar-foreground: #f5f5f7;
   --sidebar-primary: #1a6cf5;

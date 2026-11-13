@@ -31,7 +31,7 @@ export function ThreadHeader({
 }) {
   const panelLabel = panelOpen ? "Esconder dados do lead" : "Mostrar dados do lead";
   return (
-    <div className="flex flex-wrap items-center gap-3 border-b border-border px-5 py-3.5 sm:px-7">
+    <div className="flex flex-wrap items-center gap-3 px-5 py-3.5 sm:px-7">
       <Hint label="Voltar (Esc)">
         <Button
           variant="outline"
