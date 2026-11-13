@@ -48,14 +48,16 @@ export async function searchInputOf(db: Db, id: string): Promise<NewSearchInput>
 export const SEARCH_LIST_LIMIT = 100;
 
 /**
- * The Buscas list, newest first, hidden ones included (they show under "Mostrar buscas
- * ocultas"). The visible ones come first, so hidden searches never push them past the limit.
+ * The order of the Buscas list: visible first, then newest first, so hidden searches never push
+ * visible ones past the limit. Shared by every query that must pick the same searches.
  */
+export function searchListOrder() {
+  return [sql`${searches.hiddenAt} is not null`, desc(searches.createdAt)] as const;
+}
+
+/** The Buscas list, hidden ones included (they show under "Mostrar buscas ocultas"). */
 export function querySearches(db: Db, limit = SEARCH_LIST_LIMIT) {
-  return db.query.searches.findMany({
-    orderBy: [sql`${searches.hiddenAt} is not null`, desc(searches.createdAt)],
-    limit,
-  });
+  return db.query.searches.findMany({ orderBy: [...searchListOrder()], limit });
 }
 
 /**
