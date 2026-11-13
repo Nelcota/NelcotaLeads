@@ -89,7 +89,8 @@ test.describe("signed out", () => {
     await expect(page).toHaveURL("/");
 
     await visit(page, "/conta");
-    await expect(page.getByText(email)).toBeVisible();
+    // The sidebar shows the e-mail too; the page itself is what is checked here.
+    await expect(page.locator("#conteudo").getByText(email)).toBeVisible();
   });
 
   test("an e-mail that already has an account is refused", async ({ page, consoleErrors }) => {
