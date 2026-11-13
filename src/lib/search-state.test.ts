@@ -31,6 +31,7 @@ describe("stateFromCity", () => {
 
   it("reads a capital or a state name, without accents", () => {
     expect(stateFromCity("Savassi, Belo Horizonte")).toBe("MG");
+    expect(stateFromCity("Belo Horizonte · Savassi")).toBe("MG");
     expect(stateFromCity("sao paulo")).toBe("SP");
     expect(stateFromCity("Bahia")).toBe("BA");
   });

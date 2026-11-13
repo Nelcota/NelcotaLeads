@@ -28,7 +28,7 @@ function stateFromSegment(segment: string): StateCode | null {
  * "Contagem - MG" or "Bahia". Null when no part is a state code, a state name or a capital.
  */
 export function stateFromCity(city: string): StateCode | null {
-  const segments = city.split(/,|\s-\s|\//).filter((segment) => segment.trim() !== "");
+  const segments = city.split(/,|·|\s-\s|\//).filter((segment) => segment.trim() !== "");
   for (const segment of segments.toReversed()) {
     const state = stateFromSegment(segment);
     if (state) return state;
