@@ -16,7 +16,7 @@ export function PartnerLeads({
   held: number;
   today: string;
 }) {
-  const { rows, failed, now } = usePartnerLeads(memberId, today);
+  const { rows, failed, now } = usePartnerLeads(memberId);
   if (failed) return <p className="text-base text-red">Não foi possível carregar os leads.</p>;
   if (!rows) return <Skeleton className="h-40 rounded-[14px]" />;
   return (

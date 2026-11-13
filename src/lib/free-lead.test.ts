@@ -14,6 +14,15 @@ describe("free lead time line", () => {
     expect(agoText(new Date("2026-10-11T10:00:00-03:00"), now)).toBe("11/10");
   });
 
+  it("handles the edges: past midnight, the future, another year, a bad date", () => {
+    const justAfterMidnight = new Date("2026-11-13T00:10:00-03:00");
+    expect(agoText(new Date("2026-11-12T23:50:00-03:00"), justAfterMidnight)).toBe("há 20 min");
+    expect(agoText(new Date("2026-11-12T22:00:00-03:00"), justAfterMidnight)).toBe("ontem");
+    expect(agoText(new Date("2026-11-12T18:05:00-03:00"), now)).toBe("agora");
+    expect(agoText(new Date("2025-10-11T10:00:00-03:00"), now)).toBe("11/10/2025");
+    expect(agoText(new Date(Number.NaN), now)).toBe("agora");
+  });
+
   it("says when a lead answered, got the e-mail or arrived, without repeating the stage", () => {
     const twoHours = new Date("2026-11-12T16:00:00-03:00");
     const created = new Date("2026-11-11T09:00:00-03:00");

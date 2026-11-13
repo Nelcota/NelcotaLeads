@@ -31,4 +31,18 @@ describe("leads in progress", () => {
     }));
     expect(leadsInProgress(rows, today, 5)).toHaveLength(5);
   });
+
+  it("lists a lead once when two source lists both carry it", () => {
+    // A replied lead with a follow-up due today comes from "followup" and from "talking".
+    const due = { id: "a", status: "replied", followUpOn: "2026-11-12" };
+    const rows = [due, { id: "b", status: "replied", followUpOn: null }, due];
+    expect(leadsInProgress(rows, today, 5).map((lead) => lead.id)).toEqual(["a", "b"]);
+  });
+
+  it("is empty when the partner has nothing in progress", () => {
+    expect(leadsInProgress([], today, 5)).toEqual([]);
+    expect(leadsInProgress([{ id: "x", status: "closed", followUpOn: null }], today, 5)).toEqual(
+      [],
+    );
+  });
 });
