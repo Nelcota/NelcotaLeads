@@ -89,7 +89,7 @@ test.describe("signed out", () => {
     await expect(page).toHaveURL("/");
 
     await visit(page, "/conta");
-    await expect(page.getByText(email)).toBeVisible();
+    await expect(page.getByText(email, { exact: true })).toBeVisible();
   });
 
   test("an e-mail that already has an account is refused", async ({ page, consoleErrors }) => {
