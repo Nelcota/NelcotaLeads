@@ -164,12 +164,15 @@ export function Avatar({
   src,
   size = 32,
   square = false,
+  neutral = false,
   className,
 }: {
   name: string;
   src?: string | null;
   size?: number;
   square?: boolean;
+  /** Grey initials with a hairline instead of a color per name (Equipe, Agenda: no color per partner). */
+  neutral?: boolean;
   className?: string;
 }) {
   if (src) {
@@ -186,6 +189,21 @@ export function Avatar({
         )}
         style={{ width: size, height: size }}
       />
+    );
+  }
+  if (neutral) {
+    return (
+      <span
+        aria-hidden
+        className={cn(
+          "grid shrink-0 place-items-center bg-card-2 font-semibold text-foreground shadow-[inset_0_0_0_1px_var(--border)]",
+          square ? "rounded-[14px]" : "rounded-full",
+          className,
+        )}
+        style={{ width: size, height: size, fontSize: Math.max(9, Math.round(size * 0.36)) }}
+      >
+        {initials(name)}
+      </span>
     );
   }
   const tone = avatarTone(name);

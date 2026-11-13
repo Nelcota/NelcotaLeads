@@ -2,7 +2,7 @@ import { env } from "cloudflare:test";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import { getDb } from "@/db/client";
-import { invites, leads, searches, users } from "@/db/schema";
+import { invites, users } from "@/db/schema";
 import {
   ALREADY_INVITED_MESSAGE,
   ALREADY_MEMBER_MESSAGE,
@@ -10,7 +10,7 @@ import {
 } from "@/lib/team";
 import { resetDb } from "../../test/reset-db";
 import { attemptSignUp } from "./auth";
-import { createInvite, pendingInvites, removeInvite, teamWithLeads } from "./team-store";
+import { createInvite, pendingInviteEmail, pendingInvites, removeInvite } from "./team-store";
 
 const db = getDb(env.DB);
 const SECRET = "correct horse battery";
@@ -36,16 +36,11 @@ describe("team", () => {
     });
   });
 
-  it("lists everyone with the leads they took", async () => {
-    await db.insert(searches).values({ id: "s", niche: "x", city: "y", maxResults: 1 });
-    await db.insert(leads).values([
-      { id: "a", placeId: "a", name: "A", searchId: "s", ownerId: "u1" },
-      { id: "b", placeId: "b", name: "B", searchId: "s", ownerId: "u1" },
-      { id: "c", placeId: "c", name: "C", searchId: "s" },
-    ]);
-    expect(await teamWithLeads(db)).toEqual([
-      { id: "u1", name: "Haniel", email: "haniel@nelcota.test", avatar: null, leads: 2 },
-    ]);
+  it("reads a pending invite's address for Reenviar and refuses a used one", async () => {
+    const invite = await createInvite(db, "bia@nelcota.test", "u1", now);
+    expect(await pendingInviteEmail(db, invite.id)).toBe("bia@nelcota.test");
+    await db.update(invites).set({ acceptedAt: now }).where(eq(invites.id, invite.id));
+    await expect(pendingInviteEmail(db, invite.id)).rejects.toThrow(INVITE_NOT_FOUND_MESSAGE);
   });
 
   it("stores an invite and refuses a duplicate or a member", async () => {

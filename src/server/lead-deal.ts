@@ -1,6 +1,6 @@
 import { and, eq, isNull } from "drizzle-orm";
 import type { Db } from "@/db/client";
-import { leadEvents, leads } from "@/db/schema";
+import { leadEvents, leads, users } from "@/db/schema";
 import { localDay } from "@/lib/format";
 import {
   LEAD_NOT_FOUND,
@@ -19,6 +19,7 @@ export { LEAD_CHANGED_MESSAGE };
 export const FUTURE_CLOSE_MESSAGE = "A data do fechamento não pode ser no futuro.";
 export const STAGE_NEEDS_REPLY_MESSAGE = "Reunião e proposta só valem para leads que responderam.";
 export const SESSION_EXPIRED_MESSAGE = "Sessão expirada";
+export const MEMBER_NOT_FOUND_MESSAGE = "Essa pessoa não está mais na equipe.";
 
 /**
  * When a deal closed on `day`: now for today, midday in Brazil for an earlier day (the time of
@@ -113,15 +114,36 @@ export async function changeSalesStage(
   return { ok: true as const };
 }
 
-/** "Assumir" makes the signed-in person the lead's owner; "Liberar" (null) frees it. */
+/** The owner a change asks for: "me" is the signed-in person, an id is that partner. */
+async function nextOwner(
+  db: Db,
+  owner: OwnerInput["owner"],
+  userId: string | null,
+): Promise<string | null> {
+  if (owner === null) return null;
+  if (owner === "me") {
+    if (!userId) throw new Error(SESSION_EXPIRED_MESSAGE);
+    return userId;
+  }
+  const member = await db.query.users.findFirst({
+    where: eq(users.id, owner),
+    columns: { id: true },
+  });
+  if (!member) throw new Error(MEMBER_NOT_FOUND_MESSAGE);
+  return member.id;
+}
+
+/**
+ * "Assumir" makes the signed-in person the lead's owner, "Entregar a" gives it to a partner and
+ * "Liberar" (null) frees it.
+ */
 export async function changeOwner(
   db: Db,
   { id, owner }: OwnerInput,
   userId: string | null,
   now = new Date(),
 ) {
-  if (owner === "me" && !userId) throw new Error(SESSION_EXPIRED_MESSAGE);
-  const next = owner === "me" ? userId : null;
+  const next = await nextOwner(db, owner, userId);
   const lead = await db.query.leads.findFirst({
     where: eq(leads.id, id),
     columns: { ownerId: true },

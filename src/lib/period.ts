@@ -53,6 +53,23 @@ export function periodRange(period: OverviewPeriod, now: Date): DayRange {
   return dayRange(periodStart(period, today), today);
 }
 
+/**
+ * The span just before a period, to compare with: last month for "Este mês" (the whole month),
+ * the 7 or 30 days before for the others.
+ */
+export function previousRange(period: OverviewPeriod, now: Date): DayRange {
+  const current = periodRange(period, now);
+  const lastDay = addDays(current.fromDay, -1);
+  if (period === "month") return dayRange(`${lastDay.slice(0, 7)}-01`, lastDay);
+  return dayRange(addDays(current.fromDay, -PERIOD_DAYS[period]), lastDay);
+}
+
+/** How the comparison names the span before: "outubro" is written by the caller for months. */
+export const PREVIOUS_CAPTIONS: Record<Exclude<OverviewPeriod, "month">, string> = {
+  "7d": "os 7 dias anteriores",
+  "30d": "os 30 dias anteriores",
+};
+
 /** `?period=` read leniently: anything unknown falls back to the default. */
 export function readPeriod(value: OverviewPeriod | undefined): OverviewPeriod {
   return value ?? DEFAULT_PERIOD;
