@@ -52,7 +52,24 @@ The steps, in this order: (1) Visão geral with the new layout on today's data; 
 
 - Buscas, step 4 (items 1 to 3): (1) a confirmation before searching again a niche and city whose last search found 70% or more already known companies ("Buscar mesmo assim?"), on "Buscar empresas" and on "Buscar de novo"; (2) "N com nota alta" in a finished search's result, a link to its leads filtered by high score; (3) clickable examples in "Nova busca" while there is no search yet. No migration, no e-mail. Built in `.claude/worktrees/searches-step4` (branch `feat/searches-step4`, on top of `feat/searches-step3`). (2026-11-12, the user: "execute, estou de acordo")
 
+- Conta redesign, PR A: Conta becomes the partner's own desk, in the Equipe and Visão geral language. A header with photo, name and a one-line summary; fixed macro buttons with counts ("Precisam de você", "Retornos", "Minha agenda", "Leads sem dono"), the first one with something pending in solid blue; "Seu dia" and "Seus números" with the Equipe period selector, read from the same `getTeam` query (no new server function); the system health and today's usage in one card, a summary line that expands, keeping the `#status` anchor; the shared sender block renamed "Remetente dos e-mails · vale para toda a equipe"; theme, a shortcut to the notification preferences and the session. The route only composes; the sections move to `src/components/account/`. Uses the T5 vocabulary ("E-mail não conectado"). No migration, no e-mail. Mockup first, approved by the user before any code; built in `.claude/worktrees/account-page` (branch `feat/account-page`). Scope in the 2026-11-13 decision below. (2026-11-13, the user: "Sim, seguir") Canvas review, same day, replaced: the layout, the macro buttons and the "Seu dia" and "Seus números" blocks follow the 2026-11-13 "Conta as Apple-style grouped lists" decision below.
+
 ## Next
+
+- Conta, PR B (after PR A): change name, change password (asks for the current one, rate limited) and "Sair de todos os aparelhos" (bumps `session_version`). Auth is a sensitive area, so it gets its own server tests and an independent review. No migration. (2026-11-13, chosen by the user with the Conta review)
+- One signature for lead e-mails: Configurações says e-mails are signed "Equipe Nelcota", but the first e-mail body and the sender name still read "Seu nome" and "Sua empresa" from Conta. Pick one source. Changes what leads receive, so guard rule 7 applies. (2026-11-13, found in the Conta review)
+- Conta, left out of PR A: a "Leads com você" list on Conta, moving Status to Configurações (blocked while Configurações may become admin-only) and changing the sign-in e-mail. (2026-11-13, found in the Conta review; guard rule 4)
+- Conta, more functions for the partner (2026-11-13, the user: "todas" to the ten proposed; guard rule 4, so noted here and not built). Each its own PR, mockup first where it adds screen:
+  1. Minha atividade: what the person did in the last days (leads taken, stages changed, meetings booked), read from `lead_events.user_id`. Read-only, no migration.
+  2. Leads com você: already in "Conta, left out of PR A" above.
+  3. Exportar meus leads: the leads spreadsheet filtered by `mine`, on top of `src/lib/csv.ts`. No migration.
+  4. Minha meta do mês: a goal per partner next to the team goal; `monthly_goals` is team-only today, so a migration (guard rule 7).
+  5. Assinatura por pessoa: the same item as "Sender name per account" below (guard rule 7).
+  6. Minhas respostas rápidas: personal quick replies next to the team's; `quick_replies` has no owner today, so a migration.
+  7. E-mail de teste para mim: sends a sample with the signature to the person's own address. Sends e-mail, so guard rule 7 applies.
+  8. Ausência / férias: "Fora até dd/mm": no new leads assigned, the person's leads shown to the partners, the bell silenced. Migration and a change in lead assignment, so guard rule 7 applies; mockup first.
+  9. Silêncio fora do horário: the bell makes no sound outside chosen hours, stored in `notification_prefs` (JSON). No migration.
+  10. Onde o app abre: pick the start page (Visão geral, Leads, Conversas), kept in the browser. No server change.
 
 - Buscas, step 4, the rest (items 1 to 3 moved to Now on 2026-11-12), in this order: 4. A text filter in the Histórico by niche or city, shown past 10 searches. 5. The Histórico grouped by day ("Hoje", "Ontem", "Esta semana"). 6. Time left on a running search, from the pace of the analyses so far. 7. Remember the last chosen size (browser only). 8. "/" puts the cursor in Nicho. 9. Keep a typed niche and city when leaving Buscas before searching. 10. "Ocultar todas as falhas" under the "Com falha" filter.
 
@@ -103,6 +120,50 @@ The steps, in this order: (1) Visão geral with the new layout on today's data; 
 - Agenda, left out of the full model on 2026-11-05: meeting end time and attendees, events without a lead (team meeting, site delivery, blocked time), work hours, a public booking link for leads with an `.ics` invite, an e-mail reminder to the lead and recurring events. Each needs a migration or sends e-mail, so guard rule 7 applies. (2026-11-05; on 2026-11-06 the outcome and overlap warning moved to Next and the `.ics` feed was dropped)
 
 ## Decisions
+
+### 2026-11-13: Conta as one continuous column with inline editing (replaces the layout of the decision below)
+
+- **Decision:** one wide column read top to bottom (no grid): the person and three groups of quick actions on top (Conta: Alterar foto, Tema, Notificações, Sair; Trabalho: Meus leads, Minha agenda, Precisam de você, Meu desempenho; Sistema: Ver tarefas, Uso de hoje), then Perfil, Remetente dos e-mails, Preferências, Sistema and Sessão, one after the other. Values show as text and "Editar" turns only that row into a field with Cancelar and Salvar; no form stays open. Previews: the e-mail signature as the lead sees it (updates while editing), the dark and light themes as thumbnails, and an example notification.
+- **Why:** the user rejected the two-column card grid ("cards espalhados, sem fluxo contínuo") and asked for previews, fewer exposed forms and quick-access buttons; chosen in four questions.
+- **Note:** the work shortcuts come back as plain links to existing filtered lists (Leads, Agenda, Conversas, Equipe); no work numbers block.
+- **Guard rule 5:** fifth change of direction in this session, recorded before building.
+- **Revisit if:** the page gets too long on a computer screen.
+- **Shortcuts, same day (on localhost):** the three labelled rows of pill buttons go. Only the four work shortcuts stay, as a grid of four equal blocks (icon, name, a line with the count): Precisam de você, Meus leads, Minha agenda, Meu desempenho. Photo, theme, notifications, sign out, tasks and usage are reached only in their own sections below. The user: too many buttons, loose group labels, pills that read as filters, uneven rows; chose "4 blocos de trabalho".
+- **Approved on localhost, same day:** after an `apple-design` review with eight fixes (focus back on "Editar", "Nome/Empresa na assinatura", a warning when the signature is empty, section titles at 16px, arrow keys on the theme thumbnails, a 200ms theme cross-fade, the task list sliding open, "Seus últimos 30 dias"). The user: "Aprovado".
+
+### 2026-11-13: Conta in the app's own cards, one screen (replaced the same day by the decision above)
+
+- **Decision:** Conta uses the same language as Visão geral and Equipe: page title on the left like every page, the person (photo, name, e-mail, "Alterar foto") on one line under it, then a two-column grid of the app's 20px cards with the title inside the card: Perfil, Remetente dos e-mails (editable, "Vale para toda a equipe"), Preferências (Tema, Notificações) and Sistema (one status line, "Ver tarefas" opens the six tasks inside the card, today's usage). "Sair deste navegador" closes the page on the right. No sub-pages, no work numbers, no macro buttons; everything fits one computer screen.
+- **Why:** after seeing the rendered canvas, the grouped-list version was a layout foreign to the app (a centered column, titles outside the cards, sub-pages nearly empty on a computer) and had broken icons. The user chose "Cards do app, 1 tela" over aligned lists or pausing.
+- **Rejected:** grouped lists with sub-pages; three tabs; numbered steps; two columns of cards with work data and shortcuts.
+- **Guard rule 5:** fourth change of direction in this session; recorded before building. The next canvas is checked rendered, next to Visão geral and Equipe, before it is shown.
+- **Revisit if:** the user wants a work summary back on Conta.
+- **Canvas review, same day:** lighter cards (lower-contrast surface with a 1px border, 16px radius, 24px padding), hierarchy by type size and color instead of bold values, no icons in card titles, no lines between rows, a short description under each card title, and actions in a card footer ("Salvar" always in place, disabled until something changes) in General Sans (the user: the cards looked "de 2010").
+
+### 2026-11-13: Conta as Apple-style grouped lists (replaced the same day by the decision above)
+
+- **Decision:** Conta answers only "who am I and how do I set things up", in one narrow centered column of grouped lists, like the account page in Apple's Settings: photo, name and e-mail centered on top; a group with Perfil ›, Senha e segurança › (PR B), Remetente dos e-mails › and Meu desempenho › (opens the partner profile Equipe already has); a "Preferências" group (Tema inline, Notificações ›); a "Sistema" group with one status row › that opens the six tasks and today's usage on the next level; "Sair" alone at the end in red text. Groups separate by space and a small title, rows by an inset hairline; detail opens one level deeper with "Voltar". "Seu dia" and "Seus números" leave Conta (they already live on Visão geral and the Equipe profile).
+- **Why:** the user rejected the two-column cards, the numbered steps and the three tabs, then asked how Apple would do it and approved this answer ("faça este mockup"). Conta as a second dashboard was the common problem of the three.
+- **Rejected:** two columns of cards; numbered steps; three tabs; work numbers on Conta.
+- **Guard rule 5:** third change of direction in this session, recorded here before building the new canvas.
+- **Note:** Conta takes a "Settings" language different from the work screens (cards in grids), on purpose; the Equipe Apple proposal was not chosen on 2026-11-12, which was about a work screen.
+- **Revisit if:** the canvas review finds the drill-down slower than seeing everything on one page.
+
+### 2026-11-13: Conta in three tabs (replaced the same day by the decision above)
+
+- **Decision:** Conta keeps the same data but shows it in three tabs at the top, in the app's pill tabs: "Meu trabalho" (Seu dia and Seus números side by side), "Minha conta" (profile, sender, preferences, session) and "Sistema" (the tasks and today's usage). Each tab fits one screen on a computer. The four macro buttons and the summary line under the name are dropped. "Sistema" shows a status icon on its tab when something fails, and `/conta#status` opens that tab.
+- **Why:** the user rejected both earlier canvases (two columns of cards, then eight numbered steps): too much content, long scroll, a look that did not match the site, and the lead shortcuts did not help. Chosen from four options (tabs, inner side menu, lean Conta, grid panel).
+- **Rejected:** two columns of cards; the numbered step-by-step; an inner side menu; a lean Conta that moves "Meu dia" to the Visão geral; a grid panel.
+- **Guard rule 5:** second change of direction in this session, recorded here before building the new canvas.
+- **Revisit if:** "Meu trabalho" repeats Equipe too closely in the canvas review.
+
+### 2026-11-13: Conta becomes the partner's desk, PR A moves to Now
+
+- **Decision:** Conta answers "what is mine here": who I am, my day, my numbers, my preferences, then the system in one line. Built in two PRs: A (layout and lead shortcuts, no new server function) now; B (name, password, sign out everywhere) in Next. Mockup first, with boards for: default, nothing pending, a failing system task, a new partner without leads, phone and light theme.
+- **Why:** on 2026-11-13 Conta had seven sections, four of them about the whole system, the mailbox warning six times on one screen and no action tied to leads; the only buttons were "Detalhes" and "Sair".
+- **Corrections from the review:** the sender fields stay on Conta (Configurações links to them and an e2e test checks it); Status stays on Conta (the Help link, the sidebar dot and `support.spec.ts` point to `/conta#status`); the macro buttons are fixed with counts instead of one button that changes its label.
+- **Rejected:** one blue button whose label changes with context; a full "Leads com você" list in PR A (overlaps Equipe and Leads); moving the signature or Status in this PR.
+- **Revisit if:** the mockup review shows Conta and Equipe saying the same thing, or the team asks for the lead list.
 
 ### 2026-11-12: Buscas step 4, items 1 to 3, move to Now
 

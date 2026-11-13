@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  systemSummary,
   friendlyJobError,
   GOOGLE_LIMIT,
   JOBS,
@@ -170,5 +171,36 @@ describe("timeAgo", () => {
     [-5, "agora"],
   ])("%i min → %s", (minutes, expected) => {
     expect(timeAgo(minutesAgo(minutes), now)).toBe(expected);
+  });
+});
+
+describe("systemSummary", () => {
+  it("reports the failing tasks first", () => {
+    expect(systemSummary(["ok", "warning", "error", "error"])).toEqual({
+      state: "error",
+      title: "Falhando",
+      detail: "2 tarefas falhando",
+    });
+  });
+
+  it("reports one task that needs attention", () => {
+    expect(systemSummary(["ok", "warning", "off"]).detail).toBe("1 tarefa pede atenção");
+  });
+
+  it("counts running and switched-off tasks when all is fine", () => {
+    expect(systemSummary(["ok", "ok", "off"])).toEqual({
+      state: "ok",
+      title: "Tudo funcionando",
+      detail: "2 tarefas rodando, 1 desligada",
+    });
+    expect(systemSummary(["ok"]).detail).toBe("1 tarefa rodando");
+  });
+
+  it("says everything is off when no task runs", () => {
+    expect(systemSummary(["off", "off"])).toEqual({
+      state: "off",
+      title: "Tudo desligado",
+      detail: "2 tarefas desligadas",
+    });
   });
 });

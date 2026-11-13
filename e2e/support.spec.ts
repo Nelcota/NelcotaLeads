@@ -32,6 +32,8 @@ test.describe("system status", () => {
     for (const at of recentInboxTicks(3)) await backend.tick(at);
 
     await visit(page, "/conta");
+    // Conta keeps the six tasks folded behind "Ver tarefas".
+    await status.getByRole("button", { name: "Ver tarefas" }).click();
     const inbox = status.locator('[data-job="inbox"]');
     await expect(inbox.getByRole("img", { name: "Falhando" })).toBeVisible();
     await expect(inbox.getByText(MAILBOX_REFUSED)).toBeVisible();
@@ -56,13 +58,16 @@ test.describe("help", () => {
     await visit(page, "/conta");
     const help = page.getByRole("dialog", { name: "Ajuda" });
 
-    // Typing "?" in a field is just text.
-    const name = page.getByLabel("Seu nome");
+    // Typing "?" in a field is just text. The sender name is a field only after "Editar".
+    await page.getByRole("button", { name: "Editar nome na assinatura" }).click();
+    const name = page.getByLabel("Nome na assinatura");
     await name.fill("Ana");
     await name.press("Shift+Slash");
     await expect(name).toHaveValue("Ana?");
     await expect(help).toHaveCount(0);
-    await name.blur();
+    // Leave without saving: the field closes and the focus goes back to "Editar".
+    await page.getByRole("button", { name: "Cancelar" }).click();
+    await page.getByRole("button", { name: "Editar nome na assinatura" }).blur();
 
     await page.keyboard.press("Shift+Slash");
     await expect(help).toBeVisible();
@@ -79,7 +84,7 @@ test.describe("help", () => {
     await help.getByRole("link", { name: /Ver status/ }).click();
     await expect(help).toBeHidden();
     await expect(page).toHaveURL(/\/conta#status$/);
-    await expect(page.getByRole("heading", { name: "Status" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Sistema" })).toBeVisible();
   });
 });
 

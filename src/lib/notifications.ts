@@ -55,6 +55,14 @@ export function readNotificationPrefs(stored: unknown): NotificationPrefs {
   return parsed.data;
 }
 
+/** The preferences in one line, for Conta: whose leads, and whether any group plays a sound. */
+export function notificationPrefsSummary(prefs: NotificationPrefs): string {
+  const scope = prefs.scope === "mine" ? "Só dos meus leads" : "De todos os leads";
+  const groups = NOTIFICATION_CATEGORIES.map((category) => prefs.categories[category]);
+  const sound = groups.some((group) => group.show && group.sound) ? "som ligado" : "som desligado";
+  return `${scope} · ${sound}`;
+}
+
 /**
  * One notification. `key` identifies it for the read mark and changes when the thing it
  * points to changes (a follow-up moved to another day notifies again).
