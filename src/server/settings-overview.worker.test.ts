@@ -16,7 +16,7 @@ describe("loadSettingsOverview", () => {
     await db.insert(searches).values({ id: "s", niche: "x", city: "y", maxResults: 1 });
   });
 
-  it("groups analyzed leads by score band and skips unscored ones", async () => {
+  it("counts analyzed leads per score and skips unscored ones", async () => {
     await db.insert(leads).values([
       { id: "a", searchId: "s", placeId: "p1", name: "A", score: 3 },
       { id: "b", searchId: "s", placeId: "p2", name: "B", score: 34 },
@@ -24,11 +24,12 @@ describe("loadSettingsOverview", () => {
       { id: "d", searchId: "s", placeId: "p4", name: "D", score: 100 },
       { id: "e", searchId: "s", placeId: "p5", name: "E" },
     ]);
-    const { scoreBands } = await loadSettingsOverview(db, now);
-    expect(scoreBands.toSorted((x, y) => x.band - y.band)).toEqual([
-      { band: 0, leads: 1 },
-      { band: 6, leads: 2 },
-      { band: 20, leads: 1 },
+    const { scoreCounts } = await loadSettingsOverview(db, now);
+    expect(scoreCounts.toSorted((x, y) => x.score - y.score)).toEqual([
+      { score: 3, leads: 1 },
+      { score: 30, leads: 1 },
+      { score: 34, leads: 1 },
+      { score: 100, leads: 1 },
     ]);
   });
 

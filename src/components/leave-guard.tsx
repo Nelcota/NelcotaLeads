@@ -1,5 +1,6 @@
 import { useBlocker } from "@tanstack/react-router";
 import { createContext, useCallback, useContext, useEffect, useRef, type ReactNode } from "react";
+import { leavesView } from "@/lib/leave-view";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,7 +26,8 @@ export function useReportDirtyForm(form: string, dirty: boolean) {
 /**
  * Wraps a page with forms: leaving it (another screen, back, reload or closing the tab) while
  * any form inside reported unsaved changes first asks "Descartar alterações?". Keeping on
- * editing is the default answer. Moving within the page (a #hash) never asks.
+ * editing is the default answer. Another search (a Configurações tab) unmounts the form too, so it
+ * asks as well; moving within the page (a #hash) never asks.
  */
 export function LeaveGuard({ children }: { children: ReactNode }) {
   const dirty = useRef(new Set<string>());
@@ -37,8 +39,7 @@ export function LeaveGuard({ children }: { children: ReactNode }) {
     dirty.current.delete(form);
   }, []);
   const blocker = useBlocker({
-    shouldBlockFn: ({ current, next }) =>
-      dirty.current.size > 0 && current.pathname !== next.pathname,
+    shouldBlockFn: ({ current, next }) => dirty.current.size > 0 && leavesView(current, next),
     enableBeforeUnload: () => dirty.current.size > 0,
     withResolver: true,
   });
