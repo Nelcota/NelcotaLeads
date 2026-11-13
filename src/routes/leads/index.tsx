@@ -294,7 +294,7 @@ function LeadsPage() {
           description="Ligue a busca diária para receber leads todo dia, ou faça uma nova busca."
         >
           <Button asChild>
-            <Link to="/settings" hash="piloto">
+            <Link to="/settings" search={{ aba: "automacao" }}>
               Configurar busca diária
             </Link>
           </Button>

@@ -90,9 +90,9 @@ test.describe("help", () => {
 
 test.describe("concept tips", () => {
   test("the InfoTip explains its concept on keyboard focus and on tap", async ({ page }) => {
-    await visit(page, "/settings");
+    await visit(page, "/settings?aba=automacao");
     const tip = page
-      .getByRole("heading", { name: /^Modo automático/ })
+      .getByRole("heading", { name: /^O que roda sozinho/ })
       .getByRole("button", { name: "Mais informações" });
     await tip.focus();
     await expect(page.getByRole("tooltip")).toContainText("O que o app faz sozinho");
