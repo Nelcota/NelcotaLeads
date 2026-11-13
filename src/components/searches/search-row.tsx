@@ -1,11 +1,13 @@
 import { BotIcon, SearchIcon, TriangleAlertIcon } from "lucide-react";
 import { useState } from "react";
+import { SaturatedSearchConfirm } from "@/components/searches/saturated-search-confirm";
 import { SearchDetails } from "@/components/searches/search-details";
 import { SearchResult } from "@/components/searches/search-result";
 import { SearchRowActions } from "@/components/searches/search-row-actions";
 import { SearchRowMenu } from "@/components/searches/search-row-menu";
 import { SearchStatusText } from "@/components/searches/search-status";
-import type { Search } from "@/db/schema";
+import type { SearchWithState } from "@/lib/search-state";
+import { useConfirmedRepeat } from "@/hooks/use-confirmed-repeat";
 import { dayMonth, formatDate, localDay, localTime } from "@/lib/format";
 import { searchFailureText } from "@/lib/provider-errors";
 import { isSearchRunning } from "@/lib/search-list";
@@ -21,12 +23,13 @@ export function SearchRow({
   quotaSpent,
   onFill,
 }: {
-  search: Search;
+  search: SearchWithState;
   quotaSpent: boolean;
   onFill: (niche: string, city: string) => void;
 }) {
   const today = useToday();
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const repeat = useConfirmedRepeat(search);
   const automatic = search.origin === "autopilot";
   const OriginIcon = automatic ? BotIcon : SearchIcon;
   const failure =
@@ -69,7 +72,12 @@ export function SearchRow({
         <SearchStatusText search={search} />
       </div>
       <div className="col-start-2 flex flex-wrap items-center gap-1 @4xl:col-start-auto @4xl:justify-end">
-        <SearchRowActions search={search} quotaSpent={quotaSpent} />
+        <SearchRowActions
+          search={search}
+          quotaSpent={quotaSpent}
+          onRepeat={repeat.request}
+          repeatPending={repeat.pending}
+        />
         {isSearchRunning(search.status) ? null : (
           <SearchRowMenu
             search={search}
@@ -77,10 +85,18 @@ export function SearchRow({
             detailsOpen={detailsOpen}
             onToggleDetails={() => setDetailsOpen((open) => !open)}
             onFill={onFill}
+            onRepeat={repeat.request}
+            repeatPending={repeat.pending}
           />
         )}
       </div>
       {detailsOpen ? <SearchDetails search={search} /> : null}
+      <SaturatedSearchConfirm
+        previous={search}
+        open={repeat.confirming}
+        onCancel={repeat.cancel}
+        onConfirm={repeat.confirm}
+      />
     </li>
   );
 }

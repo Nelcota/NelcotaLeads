@@ -36,3 +36,20 @@ export function previousSearchText(search: Search): string {
   }
   return finishedText(search, day);
 }
+
+/** From this share of already known companies, a place counts as searched out. */
+export const SATURATED_SHARE = 0.7;
+
+/** A finished search whose results were mostly companies already stored: repeating it pays little. */
+export function isSaturated(search: Search | null): boolean {
+  if (!search || search.status !== "done") return false;
+  const total = search.foundCount + search.duplicateCount;
+  if (total === 0) return false;
+  return search.duplicateCount / total >= SATURATED_SHARE;
+}
+
+/** "29 de 35": the known share, for the confirmation before a saturated repeat. */
+export function knownShareText(search: Search): string {
+  const total = search.foundCount + search.duplicateCount;
+  return `${formatCount(search.duplicateCount)} de ${formatCount(total)}`;
+}

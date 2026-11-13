@@ -18,7 +18,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { Search } from "@/db/schema";
-import { useHideSearch, useRepeatSearch, useUnhideSearch } from "@/hooks/use-search-actions";
+import { useHideSearch, useUnhideSearch } from "@/hooks/use-search-actions";
 
 /**
  * The ⋯ menu of a search that is not running: search it again, reuse it in the form, details,
@@ -30,14 +30,18 @@ export function SearchRowMenu({
   detailsOpen,
   onToggleDetails,
   onFill,
+  onRepeat,
+  repeatPending,
 }: {
   search: Search;
   quotaSpent: boolean;
   detailsOpen: boolean;
   onToggleDetails: () => void;
   onFill: (niche: string, city: string) => void;
+  /** See SearchRowActions: the confirmation lives in the row, which outlives this menu. */
+  onRepeat: () => void;
+  repeatPending: boolean;
 }) {
-  const repeat = useRepeatSearch();
   const hide = useHideSearch();
   const unhide = useUnhideSearch();
   const hidden = search.hiddenAt !== null;
@@ -69,10 +73,7 @@ export function SearchRowMenu({
         className="w-auto min-w-60"
         onCloseAutoFocus={fillAfterClose}
       >
-        <DropdownMenuItem
-          disabled={quotaSpent || repeat.isPending}
-          onSelect={() => repeat.mutate(search.id)}
-        >
+        <DropdownMenuItem disabled={quotaSpent || repeatPending} onSelect={onRepeat}>
           <RotateCwIcon />
           Buscar de novo
         </DropdownMenuItem>

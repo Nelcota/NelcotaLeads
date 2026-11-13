@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Search } from "@/db/schema";
-import { findPreviousSearch, previousSearchText } from "@/lib/previous-search";
+import { findPreviousSearch, isSaturated, previousSearchText } from "@/lib/previous-search";
 
 let next = 0;
 function search(overrides: Partial<Search>): Search {
@@ -53,5 +53,19 @@ describe("previousSearchText", () => {
     expect(previousSearchText(search({ foundCount: 0, duplicateCount: 0 }))).toBe(
       "Você buscou isso em 10/10 e o Google não trouxe nenhuma empresa.",
     );
+  });
+});
+
+describe("isSaturated", () => {
+  it("is true from 70% of known companies in a finished search", () => {
+    expect(isSaturated(search({ foundCount: 3, duplicateCount: 7 }))).toBe(true);
+    expect(isSaturated(search({ foundCount: 4, duplicateCount: 6 }))).toBe(false);
+  });
+
+  it("is false for no search, a running or failed one, or an empty result", () => {
+    expect(isSaturated(null)).toBe(false);
+    expect(isSaturated(search({ status: "analyzing" }))).toBe(false);
+    expect(isSaturated(search({ status: "error" }))).toBe(false);
+    expect(isSaturated(search({ foundCount: 0, duplicateCount: 0 }))).toBe(false);
   });
 });

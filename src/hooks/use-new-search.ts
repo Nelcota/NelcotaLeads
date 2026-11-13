@@ -97,7 +97,8 @@ export function useNewSearch({
     form.setValue("maxResults", fitting);
   }, [fitting, maxResults, form]);
 
-  const submit = (event: FormEvent<HTMLFormElement>) =>
+  // Without an event: the form is sent from elsewhere, as after "Buscar mesmo assim".
+  const submit = (event?: FormEvent<HTMLFormElement>) =>
     void form.handleSubmit((data) => mutation.mutate(data))(event);
 
   /**

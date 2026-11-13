@@ -31,7 +31,7 @@ function search(overrides: Partial<SearchWithState>): SearchWithState {
     hiddenAt: null,
     createdAt: new Date("2026-11-12T10:00:00Z"),
   };
-  return { ...base, state: "MG", ...overrides };
+  return { ...base, state: "MG", highScoreCount: 0, ...overrides };
 }
 
 describe("statsByState", () => {

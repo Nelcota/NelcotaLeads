@@ -2,6 +2,8 @@ import type { ReactNode } from "react";
 import type { Search } from "@/db/schema";
 import { formatCount } from "@/lib/format";
 import { analysisPercent } from "@/lib/search-list";
+import type { SearchWithState } from "@/lib/search-state";
+import { HighScoreLink } from "@/components/searches/high-score-link";
 import { searchLabel } from "@/lib/searches";
 
 const COUNT = "font-semibold text-foreground tabular-nums";
@@ -29,7 +31,7 @@ function finishedText(search: Search): ReactNode {
  * What the search brought, with a native progress bar while it runs: without a value while
  * collecting (how many Google returns is unknown), with the share analyzed afterwards.
  */
-export function SearchResult({ search }: { search: Search }) {
+export function SearchResult({ search }: { search: SearchWithState }) {
   const name = searchLabel(search);
   if (search.status === "collecting") {
     return (
@@ -58,5 +60,12 @@ export function SearchResult({ search }: { search: Search }) {
       </div>
     );
   }
-  return <p className="text-sm text-muted-foreground">{finishedText(search)}</p>;
+  return (
+    <div className="grid gap-0.5 text-sm text-muted-foreground">
+      <p>{finishedText(search)}</p>
+      {search.highScoreCount > 0 ? (
+        <HighScoreLink searchId={search.id} count={search.highScoreCount} />
+      ) : null}
+    </div>
+  );
 }

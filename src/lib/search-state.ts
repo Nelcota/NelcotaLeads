@@ -41,5 +41,5 @@ export function searchState(city: string, leadAddress: string | null): StateCode
   return stateFromAddress(leadAddress) ?? stateFromCity(city);
 }
 
-/** A search of the Buscas list with the state it ran in, when it can be told. */
-export type SearchWithState = Search & { state: StateCode | null };
+/** A search of the Buscas list: the state it ran in (when it can be told) and its high-score leads. */
+export type SearchWithState = Search & { state: StateCode | null; highScoreCount: number };

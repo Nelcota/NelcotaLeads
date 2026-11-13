@@ -52,4 +52,21 @@ describe("querySearchesWithStates", () => {
     const [row] = await querySearchesWithStates(db);
     expect(row?.state).toBe("MG");
   });
+
+  it("counts the leads that scored high", async () => {
+    const db = getDb(env.DB);
+    await db.insert(searches).values([search("s-scored", "Contagem"), search("s-none", "Betim")]);
+    await db
+      .insert(leads)
+      .values([
+        { ...lead("h1", "s-scored", null), score: 80 },
+        { ...lead("h2", "s-scored", null), score: 60 },
+        { ...lead("h3", "s-scored", null), score: 59 },
+        lead("h4", "s-scored", null),
+      ]);
+
+    const rows = await querySearchesWithStates(db);
+    const countOf = Object.fromEntries(rows.map((row) => [row.id, row.highScoreCount]));
+    expect(countOf).toEqual({ "s-scored": 2, "s-none": 0 });
+  });
 });

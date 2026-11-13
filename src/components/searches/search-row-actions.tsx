@@ -3,7 +3,6 @@ import { ArrowRightIcon, ClockIcon, RotateCwIcon, Undo2Icon } from "lucide-react
 import { Button } from "@/components/ui/button";
 import type { Search } from "@/db/schema";
 import { useDelayedCancel } from "@/hooks/use-delayed-cancel";
-import { useRepeatSearch } from "@/hooks/use-search-actions";
 import { formatCount } from "@/lib/format";
 import { isSearchRunning } from "@/lib/search-list";
 
@@ -16,10 +15,20 @@ function leadsLabel(count: number): string {
  * a failure, try again (or "Volta amanhã" once today's quota is spent); search again on a
  * visible finished search; and the link to its leads whenever it found any, hidden or not.
  */
-export function SearchRowActions({ search, quotaSpent }: { search: Search; quotaSpent: boolean }) {
+export function SearchRowActions({
+  search,
+  quotaSpent,
+  onRepeat,
+  repeatPending,
+}: {
+  search: Search;
+  quotaSpent: boolean;
+  /** Searches again, asking first when the place is searched out (see useConfirmedRepeat). */
+  onRepeat: () => void;
+  repeatPending: boolean;
+}) {
   const running = isSearchRunning(search.status);
   const cancel = useDelayedCancel(search.id, running);
-  const repeat = useRepeatSearch();
   const hidden = search.hiddenAt !== null;
 
   if (running && cancel.waiting) {
@@ -63,11 +72,11 @@ export function SearchRowActions({ search, quotaSpent }: { search: Search; quota
         <Button
           variant={retry ? "outline" : "ghost"}
           size="sm"
-          disabled={repeat.isPending}
-          onClick={() => repeat.mutate(search.id)}
+          disabled={repeatPending}
+          onClick={onRepeat}
         >
           <RotateCwIcon />
-          {repeat.isPending ? "Buscando…" : repeatLabel}
+          {repeatPending ? "Buscando…" : repeatLabel}
         </Button>
       ) : null}
       {search.foundCount > 0 ? (

@@ -96,7 +96,11 @@ function SearchesPage() {
         )
       }
     >
-      <SearchComposer newSearch={newSearch} previous={previous} />
+      <SearchComposer
+        newSearch={newSearch}
+        previous={previous}
+        firstSearch={searches.length === 0}
+      />
       {summary.searches > 0 ? (
         <SearchMap
           searches={searches}

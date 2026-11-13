@@ -5,6 +5,7 @@ import { SearchHistoryEmpty, type EmptyKind } from "@/components/searches/search
 import { SearchRow } from "@/components/searches/search-row";
 import { Button } from "@/components/ui/button";
 import type { Search } from "@/db/schema";
+import type { SearchWithState } from "@/lib/search-state";
 import { formatCount } from "@/lib/format";
 import { matchesSearchFilter, type SearchFilter } from "@/lib/search-list";
 
@@ -37,7 +38,7 @@ export function SearchHistory({
   onFill,
   place,
 }: {
-  searches: readonly Search[];
+  searches: readonly SearchWithState[];
   filter: SearchFilter;
   onFilterChange: (filter: SearchFilter) => void;
   quotaSpent: boolean;
