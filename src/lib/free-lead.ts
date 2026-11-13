@@ -38,8 +38,7 @@ type FreeLeadTimes = {
 export function freeLeadInfo(lead: FreeLeadTimes, now: Date): string {
   if (lead.status === "new") return `chegou ${agoText(lead.createdAt, now)}`;
   if (lead.status === "replied") {
-    const answered = lead.repliedAt ?? lead.lastEmailAt;
-    return answered ? agoText(answered, now) : "";
+    return lead.repliedAt ? agoText(lead.repliedAt, now) : "";
   }
   if (!lead.lastEmailAt) return "";
   return `e-mail ${agoText(lead.lastEmailAt, now)}`;

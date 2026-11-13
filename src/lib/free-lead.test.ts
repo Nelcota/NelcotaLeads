@@ -27,7 +27,10 @@ describe("free lead time line", () => {
     const twoHours = new Date("2026-11-12T16:00:00-03:00");
     const created = new Date("2026-11-11T09:00:00-03:00");
     expect(
-      freeLeadInfo({ status: "replied", createdAt: created, lastEmailAt: twoHours }, now),
+      freeLeadInfo(
+        { status: "replied", createdAt: created, lastEmailAt: twoHours, repliedAt: twoHours },
+        now,
+      ),
     ).toBe("há 2 h");
     expect(
       freeLeadInfo({ status: "contacted", createdAt: created, lastEmailAt: twoHours }, now),
@@ -40,6 +43,13 @@ describe("free lead time line", () => {
         now,
       ),
     ).toBe("ontem");
+    // A sent e-mail cannot stand in for a reply that arrived outside e-mail.
+    expect(
+      freeLeadInfo(
+        { status: "replied", createdAt: created, lastEmailAt: twoHours, repliedAt: null },
+        now,
+      ),
+    ).toBe("");
     expect(freeLeadInfo({ status: "new", createdAt: created, lastEmailAt: null }, now)).toBe(
       "chegou ontem",
     );
