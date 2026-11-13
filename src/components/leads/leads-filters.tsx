@@ -43,7 +43,7 @@ export function useFilterChips(filters: LeadFilters): Chip[] {
       label: `Nota ${SCORE_TIERS[tier].label.toLowerCase()}`,
       clear: { minScore: undefined, maxScore: undefined },
     });
-  if (filters.mine) chips.push({ key: "owner", label: "Meus leads", clear: { mine: undefined } });
+  if (filters.mine) chips.push({ key: "mine", label: "Meus leads", clear: { mine: undefined } });
   if (filters.owner) chips.push(ownerChip(filters.owner, members));
   for (const toggle of TOGGLE_CHIPS) {
     if (filters[toggle.key])
