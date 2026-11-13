@@ -229,6 +229,8 @@ export async function queryConversations(db: Db) {
       handoffReason: leads.handoffReason,
       unsubscribedAt: leads.unsubscribedAt,
       lastEmailAt: leads.lastEmailAt,
+      // For the owner filter the Equipe page links to.
+      ownerId: leads.ownerId,
       // Same key as listNiches, so the niche filter matches it.
       niche: sql<string>`lower(trim(${searches.niche}))`,
     })

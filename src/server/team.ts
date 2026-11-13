@@ -1,7 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
 import { env } from "cloudflare:workers";
+import { z } from "zod";
 import { getDb } from "@/db/client";
 import { getMailer, mailConfigured, newMessageId } from "@/lib/mail";
+import { overviewPeriodSchema } from "@/lib/period";
 import {
   flagOn,
   inviteEmailText,
@@ -10,22 +12,39 @@ import {
   signUpUrl,
   type InviteDelivery,
 } from "@/lib/team";
+import { teamMembers } from "./agenda-store";
 import { requestOrigin, requestUserId } from "./request-user";
-import { createInvite, pendingInvites, removeInvite, teamWithLeads } from "./team-store";
+import { teamOverview } from "./team-overview";
+import { createInvite, pendingInvites, pendingInviteEmail, removeInvite } from "./team-store";
 
 /** TEAM_INVITE_EMAILS_ENABLED (off by default): invites are e-mailed only with "true". */
 function inviteEmailsEnabled(): boolean {
   return flagOn(env.TEAM_INVITE_EMAILS_ENABLED);
 }
 
-/** "Equipe": the accounts with their leads, the pending invites and whether invites are e-mailed. */
-export const getTeam = createServerFn({ method: "GET" }).handler(async () => {
-  const db = getDb();
-  const [members, invites] = await Promise.all([teamWithLeads(db), pendingInvites(db)]);
-  return { members, invites, inviteEmailsEnabled: inviteEmailsEnabled() };
-});
+/**
+ * "Equipe": each partner's numbers for the period, the monthly goal, the free leads, the team's
+ * activity, the pending invites, whether invites are e-mailed, and who is looking (`me`).
+ */
+export const getTeam = createServerFn({ method: "GET" })
+  .validator(z.object({ period: overviewPeriodSchema }))
+  .handler(async ({ data }) => {
+    const db = getDb();
+    const [overview, invites, me] = await Promise.all([
+      teamOverview(db, data.period, new Date()),
+      pendingInvites(db),
+      requestUserId(),
+    ]);
+    return { ...overview, invites, inviteEmailsEnabled: inviteEmailsEnabled(), me };
+  });
+
+/** Everyone's id and name, for the owner chips of Leads and Conversas. */
+export const listTeamMembers = createServerFn({ method: "GET" }).handler(() =>
+  teamMembers(getDb()),
+);
 
 export type Team = Awaited<ReturnType<typeof getTeam>>;
+export type TeamMember = Team["members"][number];
 
 /** E-mails the invite from the app's mailbox; a failure keeps the invite and is reported. */
 async function sendInviteEmail(to: string, origin: string): Promise<InviteDelivery> {
@@ -57,6 +76,15 @@ export const inviteTeammate = createServerFn({ method: "POST" })
     const invite = await createInvite(getDb(), data.email, await requestUserId(), new Date());
     const delivery = await sendInviteEmail(invite.email, await requestOrigin());
     return { ...invite, delivery };
+  });
+
+/** "Reenviar" on a pending invite; only e-mails with TEAM_INVITE_EMAILS_ENABLED on. */
+export const resendInvite = createServerFn({ method: "POST" })
+  .validator(removeInviteSchema)
+  .handler(async ({ data }) => {
+    const email = await pendingInviteEmail(getDb(), data.id);
+    const delivery = await sendInviteEmail(email, await requestOrigin());
+    return { delivery };
   });
 
 /** "Remover" on a pending invite. */

@@ -22,9 +22,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { LIST_CHECKBOX } from "@/components/leads/lead-cells";
-import { nichesQuery, searchesQuery } from "@/lib/queries";
+import { nichesQuery, searchesQuery, teamMembersQuery } from "@/lib/queries";
 import { activeTier, TIER_RANGES, TIERS } from "@/lib/lead-filters";
-import { SCORE_TIERS, type LeadFilters } from "@/lib/schemas";
+import { STAGE_LABELS } from "@/lib/lead-row";
+import { NO_OWNER, SCORE_TIERS, type LeadFilters } from "@/lib/schemas";
 import { searchLabel } from "@/lib/searches";
 import { cn } from "@/lib/utils";
 
@@ -34,6 +35,7 @@ type Chip = { key: string; label: string; clear: Partial<LeadFilters> };
 export function useFilterChips(filters: LeadFilters): Chip[] {
   const { data: searches } = useQuery(searchesQuery);
   const { data: niches } = useQuery(nichesQuery);
+  const { data: members } = useQuery({ ...teamMembersQuery, enabled: Boolean(filters.owner) });
   const tier = activeTier(filters);
   const chips: Chip[] = [];
   if (tier)
@@ -64,7 +66,24 @@ export function useFilterChips(filters: LeadFilters): Chip[] {
     chips.push({ key: "email", label: "Com e-mail", clear: { hasEmail: undefined } });
   if (filters.fresh)
     chips.push({ key: "fresh", label: "Chegaram hoje", clear: { fresh: undefined } });
+  if (filters.owner) chips.push(ownerChip(filters.owner, members));
+  if (filters.stage)
+    chips.push({
+      key: "stage",
+      label: `Etapa: ${STAGE_LABELS[filters.stage]}`,
+      clear: { stage: undefined },
+    });
   return chips;
+}
+
+/** "Dono: Phellipe" or "Sem dono", from the Equipe page's links. */
+function ownerChip(
+  owner: string,
+  members: readonly { id: string; name: string }[] | undefined,
+): Chip {
+  if (owner === NO_OWNER) return { key: "owner", label: "Sem dono", clear: { owner: undefined } };
+  const name = members?.find((member) => member.id === owner)?.name ?? "pessoa removida";
+  return { key: "owner", label: `Dono: ${name}`, clear: { owner: undefined } };
 }
 
 export function FilterChips({

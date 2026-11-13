@@ -27,6 +27,8 @@ export const NO_FILTERS: Partial<LeadFilters> = {
   searchId: undefined,
   niche: undefined,
   fresh: undefined,
+  owner: undefined,
+  stage: undefined,
 };
 
 /** Drops empty values, so the URL only carries what is set. */

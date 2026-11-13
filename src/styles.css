@@ -501,6 +501,18 @@ select:-webkit-autofill {
   }
 }
 
+/* A panel that opens in place (a confirmation inside a card): a short fade and lift. */
+.pop {
+  transform-origin: top center;
+  animation: pop 0.16s var(--ease-spring) both;
+}
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+}
+
 /* Wrong password: a short sideways shake, like the macOS login field. */
 .shake {
   animation: shake 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
@@ -524,11 +536,139 @@ select:-webkit-autofill {
   .bar-grow,
   .enter,
   .rise,
+  .pop,
   .shake {
     animation: none;
   }
   .animate-pulse,
   .animate-spin {
     animation: none;
+  }
+}
+
+/*
+ * Native progress bar of a running search (Buscas). Determinate while the AI analyzes; without a
+ * value (collecting) a short segment sweeps the track, slowly, easing at both ends. The fill is
+ * styled per engine: grouping the -webkit- and -moz- pseudo-elements in one rule voids it.
+ */
+.search-progress {
+  appearance: none;
+  border: 0 solid;
+  overflow: clip;
+  inline-size: 100%;
+  block-size: 6px;
+  border-radius: 999px;
+  background: var(--fill-2);
+  container-type: inline-size;
+  --sweep-duration: 3.2s;
+}
+.search-progress::-webkit-progress-bar {
+  background: transparent;
+}
+.search-progress::-webkit-progress-value {
+  background: var(--primary);
+  border-radius: 999px;
+  transition: inline-size 0.9s var(--ease-spring);
+}
+.search-progress::-moz-progress-bar {
+  background: var(--primary);
+  border-radius: 999px;
+}
+.search-progress:indeterminate::-webkit-progress-value {
+  animation: search-sweep var(--sweep-duration) infinite cubic-bezier(0.45, 0, 0.55, 1);
+}
+.search-progress:indeterminate::-moz-progress-bar {
+  animation: search-sweep var(--sweep-duration) infinite cubic-bezier(0.45, 0, 0.55, 1);
+}
+@keyframes search-sweep {
+  from,
+  to {
+    inline-size: 30%;
+    margin-right: auto;
+  }
+  from {
+    translate: -100%;
+  }
+  to {
+    translate: 100cqi;
+  }
+}
+/* Never stop the sweep under reduced motion: without its animation the fill has no width. */
+@media (prefers-reduced-motion: reduce) {
+  .search-progress {
+    --sweep-duration: 12s;
+  }
+}
+
+/* Buscas map: dashed routes running inside a state being searched, and their legend mark. */
+.map-route {
+  fill: none;
+  stroke: var(--primary);
+  stroke-width: 2px;
+  stroke-linecap: round;
+  stroke-dasharray: 5 6;
+  pointer-events: none;
+  animation: map-route 2.6s linear infinite;
+}
+@keyframes map-route {
+  to {
+    stroke-dashoffset: -11;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .map-route {
+    animation-duration: 8s;
+  }
+}
+.map-legend-route {
+  display: inline-block;
+  width: 18px;
+  flex-shrink: 0;
+  border-top: 2px dashed var(--primary);
+}
+
+/* "Leads novos por estado": a row opens slower than it closes, its content fading in late. */
+.map-drawer {
+  display: grid;
+  grid-template-rows: 0fr;
+  visibility: hidden;
+  transition:
+    grid-template-rows 0.42s cubic-bezier(0.4, 0, 0.2, 1),
+    visibility 0s linear 0.42s;
+}
+.map-drawer[data-open="true"] {
+  grid-template-rows: 1fr;
+  visibility: visible;
+  transition:
+    grid-template-rows 0.7s cubic-bezier(0.32, 0.72, 0, 1),
+    visibility 0s;
+}
+.map-drawer-body {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  gap: 8px;
+  overflow: hidden;
+  margin-left: 2px;
+  padding-left: 14px;
+  border-left: 2px solid color-mix(in srgb, var(--primary) 45%, transparent);
+  opacity: 0;
+  translate: 0 -10px;
+  transition:
+    opacity 0.25s ease,
+    translate 0.42s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.map-drawer[data-open="true"] > .map-drawer-body {
+  opacity: 1;
+  translate: 0 0;
+  transition:
+    opacity 0.5s ease 0.18s,
+    translate 0.7s cubic-bezier(0.32, 0.72, 0, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .map-drawer,
+  .map-drawer-body {
+    transition-duration: 0s !important;
+    transition-delay: 0s !important;
   }
 }
