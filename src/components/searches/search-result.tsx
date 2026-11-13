@@ -9,7 +9,7 @@ import { searchLabel } from "@/lib/searches";
 const COUNT = "font-semibold text-foreground tabular-nums";
 
 function finishedText(search: Search): ReactNode {
-  if (search.foundCount === 0) return "Nenhuma empresa nova";
+  if (search.foundCount === 0 && search.duplicateCount === 0) return "Nenhuma empresa nova";
   const found = <b className={COUNT}>{formatCount(search.foundCount)}</b>;
   if (search.status === "cancelled") {
     return (
