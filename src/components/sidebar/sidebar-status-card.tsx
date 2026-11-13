@@ -58,7 +58,8 @@ function statusContent(
     );
   }
   if (status === "mail") {
-    return (
+    return withQuota(
+      data,
       <StatusAlert
         title="E-mail não conectado"
         text="Os disparos ficam parados até a caixa voltar."
@@ -68,11 +69,12 @@ function statusContent(
             <ArrowRightIcon aria-hidden />
           </Link>
         }
-      />
+      />,
     );
   }
   if (status === "system") {
-    return (
+    return withQuota(
+      data,
       <StatusAlert
         title="Algo precisa de atenção"
         text="Uma tarefa automática está falhando."
@@ -82,11 +84,22 @@ function statusContent(
             <ArrowRightIcon aria-hidden />
           </Link>
         }
-      />
+      />,
     );
   }
   if (!data) return null;
   return <UsageMeters data={data} />;
+}
+
+/** An alert keeps the Google search quota under it: searching works without a mailbox. */
+function withQuota(data: ProviderStatus | undefined, alert: ReactNode): ReactNode {
+  if (!data) return alert;
+  return (
+    <>
+      {alert}
+      <GoogleQuotaRow usage={data.placesUsage} />
+    </>
+  );
 }
 
 function UsageMeters({ data }: { data: ProviderStatus }) {
