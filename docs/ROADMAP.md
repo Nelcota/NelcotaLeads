@@ -50,7 +50,11 @@ The steps, in this order: (1) Visão geral with the new layout on today's data; 
 
 - Buscas, step 3 (items 1 to 3): (1) a repeat warning under "Buscar empresas" when the niche and city were searched before ("Você buscou isso em 10/10: 29 de 35 já existiam"), before the quota is spent; (2) starting a search on Buscas stays on Buscas, the new search at the top of the Histórico (the "Nova busca" dialog elsewhere still opens Leads); (3) "Cancelar" waits 5 seconds behind a "Desfazer" toast before the search really stops. No migration, no e-mail. Built in `.claude/worktrees/searches-step3` (branch `feat/searches-step3`, on top of `feat/searches-map`). (2026-11-12, the user: "Sim, mover 1 a 3")
 
+- Buscas, step 4 (items 1 to 3): (1) a confirmation before searching again a niche and city whose last search found 70% or more already known companies ("Buscar mesmo assim?"), on "Buscar empresas" and on "Buscar de novo"; (2) "N com nota alta" in a finished search's result, a link to its leads filtered by high score; (3) clickable examples in "Nova busca" while there is no search yet. No migration, no e-mail. Built in `.claude/worktrees/searches-step4` (branch `feat/searches-step4`, on top of `feat/searches-step3`). (2026-11-12, the user: "execute, estou de acordo")
+
 ## Next
+
+- Buscas, step 4, the rest (items 1 to 3 moved to Now on 2026-11-12), in this order: 4. A text filter in the Histórico by niche or city, shown past 10 searches. 5. The Histórico grouped by day ("Hoje", "Ontem", "Esta semana"). 6. Time left on a running search, from the pace of the analyses so far. 7. Remember the last chosen size (browser only). 8. "/" puts the cursor in Nicho. 9. Keep a typed niche and city when leaving Buscas before searching. 10. "Ocultar todas as falhas" under the "Com falha" filter.
 
 - Buscas, step 3, the rest (items 1 to 3 moved to Now on 2026-11-12), in this order: 4. Suggestions in Nicho and Cidade from earlier searches; the city suggestion carries the UF ("Contagem - MG"), so no search ends up without a state on the map. 5. Map: flag a saturated state in "Leads novos por estado" (yield under 30%) and suggest another neighborhood or city. 6. "Ver leads de MG": a UF filter on Leads, linked from the state panel. Its own PR, since it changes the Leads page. 7. Dots per city on the map: needs the Google position stored at collection, a migration (guard rule 7); only if the map by state is not enough (see the 2026-11-12 decision). 8. "Repetir todo dia" in the ⋯ menu: scheduled, guard rule 7 (flag off, fake data, "Raio de impacto"). 9. "Baixar leads em planilha" for one search, on top of `src/lib/csv.ts`. 10. A red-outline button variant in `button.tsx`, so "Cancelar" stops overriding the button classes.
 
@@ -99,6 +103,13 @@ The steps, in this order: (1) Visão geral with the new layout on today's data; 
 - Agenda, left out of the full model on 2026-11-05: meeting end time and attendees, events without a lead (team meeting, site delivery, blocked time), work hours, a public booking link for leads with an `.ics` invite, an e-mail reminder to the lead and recurring events. Each needs a migration or sends e-mail, so guard rule 7 applies. (2026-11-05; on 2026-11-06 the outcome and overlap warning moved to Next and the `.ics` feed was dropped)
 
 ## Decisions
+
+### 2026-11-12: Buscas step 4, items 1 to 3, move to Now
+
+- **Decision:** the confirmation on saturated repeats, the "N com nota alta" link and the first-search examples are built now, on top of step 3. Items 4 to 10 of the same list go to Next.
+- **Why:** they close the gap the step 3 warning left (it only informs), give each finished search a way to its best leads, and help a first visit. The user approved the list and asked to build it ("execute, estou de acordo"), over guard rule 4, which parks accepted offers in Next.
+- **Discarded:** blocking a saturated repeat outright (sometimes a new neighborhood opened; the user decides).
+- **Review if:** 70% proves too low or too high in use.
 
 ### 2026-11-12: Buscas step 3, items 1 to 3, move to Now
 
