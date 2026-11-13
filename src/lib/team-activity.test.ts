@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { activityDay, activityLine, activityTime, type ActivityEvent } from "./team-activity";
-import { dealsDelta, meetingWhen, orderMembers, todaySummary } from "./team-member";
+import { dealsDelta, meetingWhen, orderMembers, todayLines, todaySummary } from "./team-member";
 
 const now = new Date("2026-11-08T18:00:00-03:00");
 const names = new Map([
@@ -87,20 +87,45 @@ describe("partner column texts", () => {
   it("compares deals with the period before", () => {
     expect(dealsDelta(2, 1, "month", "2026-11-08")).toEqual({ text: "+1 vs outubro", tone: "up" });
     expect(dealsDelta(0, 1, "7d", "2026-11-08")).toEqual({
-      text: "−1 vs os 7 dias anteriores",
+      text: "−1 vs semana anterior",
       tone: "down",
     });
-    expect(dealsDelta(1, 1, "30d", "2026-11-08").text).toBe("Igual aos 30 dias anteriores");
+    expect(dealsDelta(2, 1, "30d", "2026-11-08").text).toBe("+1 vs 30 dias antes");
+    expect(dealsDelta(1, 1, "30d", "2026-11-08").text).toBe("Igual aos 30 dias antes");
+    expect(dealsDelta(1, 1, "7d", "2026-11-08").text).toBe("Igual à semana anterior");
     expect(dealsDelta(1, 1, "month", "2026-11-08").text).toBe("Igual a outubro");
   });
 
   it("sums up today in one line for the phone, the overdue part marked", () => {
-    expect(todaySummary(withToday(3, 1, 2))).toEqual([
+    expect(todaySummary(withToday(3, 1, 2), true)).toEqual([
       { text: "3 retornos", late: false },
       { text: "1 atrasado", late: true },
       { text: "2 precisam de você", late: false },
     ]);
-    expect(todaySummary(withToday(0, 0, 0))).toEqual([{ text: "Nada para hoje", late: false }]);
+    expect(todaySummary(withToday(0, 0, 0), true)).toEqual([
+      { text: "Nada pendente hoje", late: false },
+    ]);
+  });
+
+  it("says another partner's conversations await an answer, not that they need you", () => {
+    expect(todaySummary(withToday(0, 0, 1), false)).toEqual([
+      { text: "1 aguarda resposta", late: false },
+    ]);
+    expect(todaySummary(withToday(0, 0, 2), false)).toEqual([
+      { text: "2 aguardam resposta", late: false },
+    ]);
+    const waiting = todayLines(withToday(0, 0, 2), "2026-11-08", false);
+    expect(waiting.map((line) => line.text)).toEqual(["2 aguardam resposta"]);
+    const mine = todayLines(withToday(0, 0, 1), "2026-11-08", true);
+    expect(mine.map((line) => line.text)).toEqual(["1 precisa de você"]);
+  });
+
+  it("lists only what is pending today, or one quiet line", () => {
+    const busy = todayLines(withToday(3, 1, 0), "2026-11-08", true);
+    expect(busy.map((line) => line.kind)).toEqual(["due", "late"]);
+    expect(busy.every((line) => line.link !== null)).toBe(true);
+    const quiet = todayLines(withToday(0, 0, 0), "2026-11-08", true);
+    expect(quiet).toEqual([{ kind: "none", text: "Nada pendente hoje", link: null, label: "" }]);
   });
 
   it("puts you first, then everyone by name", () => {

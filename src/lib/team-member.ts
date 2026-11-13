@@ -1,6 +1,6 @@
 import { addDays, localDay, localTime } from "./format";
 import { monthName } from "./goal";
-import { PREVIOUS_CAPTIONS, type OverviewPeriod } from "./period";
+import type { OverviewPeriod } from "./period";
 import { teamLinks, type TeamLink } from "./team-links";
 
 /** One partner as the Equipe page receives it. */
@@ -32,26 +32,41 @@ export function dealsWord(count: number): string {
   return count === 1 ? "fechamento" : "fechamentos";
 }
 
-/** What the comparison is against: "outubro", or "os 7 dias anteriores". */
-function previousName(period: OverviewPeriod, today: string): string {
-  if (period !== "month") return PREVIOUS_CAPTIONS[period];
-  return monthName(addDays(`${today.slice(0, 7)}-01`, -1).slice(0, 7));
+/** The short names of the period before, as the column says them (approved canvas, 2026-11-12). */
+const PREVIOUS_SHORT: Record<Exclude<OverviewPeriod, "month">, { vs: string; same: string }> = {
+  "7d": { vs: "semana anterior", same: "Igual à semana anterior" },
+  "30d": { vs: "30 dias antes", same: "Igual aos 30 dias antes" },
+};
+
+/** What the comparison is against: "outubro", or "semana anterior" / "30 dias antes". */
+function previousCaption(period: OverviewPeriod, today: string): { vs: string; same: string } {
+  if (period !== "month") return PREVIOUS_SHORT[period];
+  const month = monthName(addDays(`${today.slice(0, 7)}-01`, -1).slice(0, 7));
+  return { vs: month, same: `Igual a ${month}` };
 }
 
-/** "+1 vs outubro", "−1 vs os 7 dias anteriores" or "Igual a outubro". */
+/** "+1 vs outubro", "−1 vs semana anterior" or "Igual aos 30 dias antes", on one line. */
 export function dealsDelta(
   deals: number,
   previous: number,
   period: OverviewPeriod,
   today: string,
 ): { text: string; tone: DeltaTone } {
-  const name = previousName(period, today);
+  const caption = previousCaption(period, today);
   const diff = deals - previous;
-  // "a" + "os" contracts: "Igual aos 7 dias anteriores".
-  if (diff === 0) return { text: `Igual ${period === "month" ? "a " : "a"}${name}`, tone: "flat" };
+  if (diff === 0) return { text: caption.same, tone: "flat" };
   const sign = diff > 0 ? "+" : "−";
-  return { text: `${sign}${Math.abs(diff)} vs ${name}`, tone: diff > 0 ? "up" : "down" };
+  return { text: `${sign}${Math.abs(diff)} vs ${caption.vs}`, tone: diff > 0 ? "up" : "down" };
 }
+
+/** Conversations waiting: "precisa de você" on your own line, "aguarda resposta" on the others'. */
+function waitingText(waiting: number, isMe: boolean): string {
+  if (isMe) return plural(waiting, "precisa de você", "precisam de você");
+  return plural(waiting, "aguarda resposta", "aguardam resposta");
+}
+
+/** Said once when a partner has nothing for today. */
+export const NOTHING_TODAY = "Nada pendente hoje";
 
 /** "Hoje, 16:00", "Amanhã, 10:00" or "12/11, 09:30", with the lead's name. */
 export function meetingWhen(startsAt: Date, today: string): string {
@@ -62,7 +77,8 @@ export function meetingWhen(startsAt: Date, today: string): string {
   return `${day.slice(8, 10)}/${day.slice(5, 7)}, ${time}`;
 }
 
-export type TodayKind = "due" | "late" | "waiting" | "meeting";
+/** "none" is the single quiet line when a partner has nothing for today. */
+export type TodayKind = "due" | "late" | "waiting" | "meeting" | "none";
 
 /** One line of "Hoje": a link when there is something to open, plain grey text otherwise. */
 export type TodayLine = {
@@ -72,24 +88,29 @@ export type TodayLine = {
   label: string;
 };
 
-/** "Hoje" in one line for the phone: "3 retornos · 1 atrasado · 2 precisam de você". */
-export function todaySummary(member: MemberFigures): { text: string; late: boolean }[] {
+/** "Hoje" in one line for the phone: "3 retornos · 1 atrasado · 2 aguardam resposta". */
+export function todaySummary(
+  member: MemberFigures,
+  isMe: boolean,
+): { text: string; late: boolean }[] {
   const { due, late, waiting } = member.today;
   const parts = [
     due > 0 ? { text: plural(due, "retorno", "retornos"), late: false } : null,
     late > 0 ? { text: plural(late, "atrasado", "atrasados"), late: true } : null,
-    waiting > 0
-      ? { text: plural(waiting, "precisa de você", "precisam de você"), late: false }
-      : null,
+    waiting > 0 ? { text: waitingText(waiting, isMe), late: false } : null,
   ].filter((part) => part !== null);
-  return parts.length > 0 ? parts : [{ text: "Nada para hoje", late: false }];
+  return parts.length > 0 ? parts : [{ text: NOTHING_TODAY, late: false }];
 }
 
-/** The four lines of "Hoje", always in the same order so the columns line up. */
-export function todayLines(member: MemberFigures, today: string): TodayLine[] {
+/**
+ * "Hoje": only what has something to open, always in the same order (due, overdue, waiting,
+ * next meeting); one plain "Nada pendente hoje" line when there is nothing (approved canvas,
+ * 2026-11-12: four "Nenhum…" lines per partner said too much).
+ */
+export function todayLines(member: MemberFigures, today: string, isMe: boolean): TodayLine[] {
   const { due, late, waiting, nextMeeting } = member.today;
   const name = member.name;
-  return [
+  const lines: (TodayLine | null)[] = [
     due > 0
       ? {
           kind: "due",
@@ -97,7 +118,7 @@ export function todayLines(member: MemberFigures, today: string): TodayLine[] {
           link: teamLinks.followUps(member.id),
           label: `Abrir em Leads os retornos de ${name}`,
         }
-      : { kind: "due", text: "Nenhum retorno hoje", link: null, label: "" },
+      : null,
     late > 0
       ? {
           kind: "late",
@@ -105,15 +126,15 @@ export function todayLines(member: MemberFigures, today: string): TodayLine[] {
           link: teamLinks.followUps(member.id),
           label: `Abrir em Leads os retornos atrasados de ${name}`,
         }
-      : { kind: "late", text: "Nenhum retorno atrasado", link: null, label: "" },
+      : null,
     waiting > 0
       ? {
           kind: "waiting",
-          text: plural(waiting, "precisa de você", "precisam de você"),
+          text: waitingText(waiting, isMe),
           link: teamLinks.waiting(member.id),
-          label: `Abrir em Conversas as conversas de ${name} que precisam da equipe`,
+          label: `Abrir em Conversas as conversas de ${name} que aguardam resposta`,
         }
-      : { kind: "waiting", text: "Nenhuma conversa precisa de você", link: null, label: "" },
+      : null,
     nextMeeting
       ? {
           kind: "meeting",
@@ -121,8 +142,11 @@ export function todayLines(member: MemberFigures, today: string): TodayLine[] {
           link: teamLinks.meetingDay(member.id, nextMeeting.startsAt),
           label: `Abrir o dia na Agenda de ${name}`,
         }
-      : { kind: "meeting", text: "Sem reunião marcada", link: null, label: "" },
+      : null,
   ];
+  const busy = lines.filter((line) => line !== null);
+  if (busy.length > 0) return busy;
+  return [{ kind: "none", text: NOTHING_TODAY, link: null, label: "" }];
 }
 
 /** "Você" first, then everyone else by name (decided 2026-11-09: no ranking among partners). */

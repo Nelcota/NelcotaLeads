@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { flagOn, inviteEmailText, inviteInputSchema, signUpUrl } from "./team";
+import { flagOn, inviteEmailText, inviteInputSchema, isSoloTeam, signUpUrl } from "./team";
+
+describe("team of one", () => {
+  it("is solo with zero or one member and not with two or more", () => {
+    expect(isSoloTeam([])).toBe(true);
+    expect(isSoloTeam([{ id: "a" }])).toBe(true);
+    expect(isSoloTeam([{ id: "a" }, { id: "b" }])).toBe(false);
+    expect(isSoloTeam([{ id: "a" }, { id: "b" }, { id: "c" }, { id: "d" }])).toBe(false);
+  });
+});
 
 describe("team flags and labels", () => {
   it("turns a flag on only with true or 1", () => {
