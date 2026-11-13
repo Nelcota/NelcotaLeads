@@ -48,19 +48,11 @@ The steps, in this order: (1) Visão geral with the new layout on today's data; 
 
 - Buscas redesign, step 2 (the map): "Onde você buscou" from the v4 canvas, under the new search. State outlines with fixed labels, up to five dashed routes inside each state with a running search, the panel with numbers, "Leads novos por estado" rows that open to the running searches, the searchable "Ir para um estado", and a click on a state filters the Histórico (`?uf=`). The state of each search comes from the addresses Google returned for its leads, falling back to the city typed in the search; no migration, no position per city (so no city dots). Built in `.claude/worktrees/searches-map` (branch `feat/searches-map`, on top of `feat/searches-redesign`). Still in Next: "Baixar leads em planilha", "Repetir todo dia" (scheduled, guard rule 7) and a custom quantity above 60. (2026-11-12, the user chose "Do endereço dos leads")
 
+- Buscas, step 3 (items 1 to 3): (1) a repeat warning under "Buscar empresas" when the niche and city were searched before ("Você buscou isso em 10/10: 29 de 35 já existiam"), before the quota is spent; (2) starting a search on Buscas stays on Buscas, the new search at the top of the Histórico (the "Nova busca" dialog elsewhere still opens Leads); (3) "Cancelar" waits 5 seconds behind a "Desfazer" toast before the search really stops. No migration, no e-mail. Built in `.claude/worktrees/searches-step3` (branch `feat/searches-step3`, on top of `feat/searches-map`). (2026-11-12, the user: "Sim, mover 1 a 3")
+
 ## Next
 
-- Buscas, step 3 (after steps 1 and 2 reach `main`), in this order. The user approved the list on 2026-11-12 ("GOSTEI, EXECUTE !"); guard rule 4 parks it here until it moves to Now:
-  1. Repeat warning before spending quota: under "Buscar empresas", "Você buscou isso em 10/10: 29 de 35 já existiam" when the niche and city were searched before. No migration.
-  2. Stay on Buscas after starting a search: the new search shows at the top of the Histórico with its progress and "Ver N leads", instead of jumping to Leads.
-  3. "Cancelar" with undo: a "Busca cancelada · Desfazer" toast for a few seconds before the search really stops.
-  4. Suggestions in Nicho and Cidade from earlier searches; the city suggestion carries the UF ("Contagem - MG"), so no search ends up without a state on the map.
-  5. Map: flag a saturated state in "Leads novos por estado" (yield under 30%) and suggest another neighborhood or city.
-  6. "Ver leads de MG": a UF filter on Leads, linked from the state panel. Its own PR, since it changes the Leads page.
-  7. Dots per city on the map: needs the Google position stored at collection, a migration (guard rule 7); only if the map by state is not enough (see the 2026-11-12 decision).
-  8. "Repetir todo dia" in the ⋯ menu: scheduled, guard rule 7 (flag off, fake data, "Raio de impacto").
-  9. "Baixar leads em planilha" for one search, on top of `src/lib/csv.ts`.
-  10. A red-outline button variant in `button.tsx`, so "Cancelar" stops overriding the button classes.
+- Buscas, step 3, the rest (items 1 to 3 moved to Now on 2026-11-12), in this order: 4. Suggestions in Nicho and Cidade from earlier searches; the city suggestion carries the UF ("Contagem - MG"), so no search ends up without a state on the map. 5. Map: flag a saturated state in "Leads novos por estado" (yield under 30%) and suggest another neighborhood or city. 6. "Ver leads de MG": a UF filter on Leads, linked from the state panel. Its own PR, since it changes the Leads page. 7. Dots per city on the map: needs the Google position stored at collection, a migration (guard rule 7); only if the map by state is not enough (see the 2026-11-12 decision). 8. "Repetir todo dia" in the ⋯ menu: scheduled, guard rule 7 (flag off, fake data, "Raio de impacto"). 9. "Baixar leads em planilha" for one search, on top of `src/lib/csv.ts`. 10. A red-outline button variant in `button.tsx`, so "Cancelar" stops overriding the button classes.
 
 - Admin-only settings: "Limites de uso" (and other system-wide settings) can be changed by any signed-in account today, so whoever has an account can turn the abuse limits off. Needs an admin role or owner check on the settings server functions. (2026-11-10, found by /revisar on P1; the user: "corrija tudo"; guard rule 4)
 - Split `src/routes/settings.tsx` (about 880 lines) into one component per section under `src/components/settings/`, no visual change. Its own PR after T4, T5 and P1 reach `main`, since all three touch that file. (2026-11-10, found by /revisar; guard rule 4)
@@ -107,6 +99,13 @@ The steps, in this order: (1) Visão geral with the new layout on today's data; 
 - Agenda, left out of the full model on 2026-11-05: meeting end time and attendees, events without a lead (team meeting, site delivery, blocked time), work hours, a public booking link for leads with an `.ics` invite, an e-mail reminder to the lead and recurring events. Each needs a migration or sends e-mail, so guard rule 7 applies. (2026-11-05; on 2026-11-06 the outcome and overlap warning moved to Next and the `.ics` feed was dropped)
 
 ## Decisions
+
+### 2026-11-12: Buscas step 3, items 1 to 3, move to Now
+
+- **Decision:** the repeat warning, staying on Buscas after starting a search, and "Cancelar" with undo are built now, on top of steps 1 and 2. Items 4 to 10 stay in Next.
+- **Why:** they cut the quota spent on searches that bring little and the risk of cancelling by mistake, without a migration or guard rule 7. The user moved them on purpose ("Sim, mover 1 a 3"), over guard rule 4, which had parked the list in Next.
+- **Discarded:** waiting for steps 1 and 2 to reach `main` first (the three items only touch Buscas files those steps own, so they stack on the same branches).
+- **Review if:** steps 1 and 2 change in review in a way that conflicts; then rebase step 3.
 
 ### 2026-11-12: the Buscas map reads the state from the lead addresses
 
