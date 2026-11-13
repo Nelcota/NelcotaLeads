@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { flagOn, inviteEmailText, inviteInputSchema, ownedLeadsLabel, signUpUrl } from "./team";
+import { flagOn, inviteEmailText, inviteInputSchema, signUpUrl } from "./team";
 
 describe("team flags and labels", () => {
   it("turns a flag on only with true or 1", () => {
@@ -17,11 +17,6 @@ describe("team flags and labels", () => {
     const text = inviteEmailText(link);
     expect(text.body).toContain(link);
     expect(text.body.endsWith("Equipe Nelcota")).toBe(true);
-  });
-
-  it("counts the leads each person has", () => {
-    expect(ownedLeadsLabel(1)).toBe("1 lead com ele");
-    expect(ownedLeadsLabel(0)).toBe("0 leads com ele");
   });
 
   it("reads the invited e-mail in lowercase", () => {

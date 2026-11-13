@@ -79,6 +79,7 @@ import { useStickToBottom } from "@/hooks/use-stick-to-bottom";
 import { conversationOwner } from "@/lib/conversation-owner";
 import { replySendState } from "@/lib/reply-send";
 import { CloseDealDialog, type CloseDealMode } from "@/components/lead/close-deal-dialog";
+import { OwnerFilterChip } from "@/components/owner-filter-chip";
 
 const FILTERS = CONVERSATION_FILTERS;
 type Filter = (typeof FILTERS)[number];
@@ -94,6 +95,8 @@ export const Route = createFileRoute("/conversas")({
       filter: z.enum(FILTERS).optional(),
       q: z.string().max(100).optional(),
       niche: z.string().max(120).optional(),
+      // One partner's conversations (a user id), from the Equipe page.
+      owner: z.string().max(64).optional(),
     }),
   ),
   loader: ({ context }) => context.queryClient.ensureQueryData(conversationsQuery),
@@ -107,7 +110,7 @@ function useRefresh() {
 }
 
 function ConversationsPage() {
-  const { lead: openId, filter = "all", q: urlQuery = "", niche } = Route.useSearch();
+  const { lead: openId, filter = "all", q: urlQuery = "", niche, owner } = Route.useSearch();
   const navigate = useNavigate({ from: "/conversas" });
   const searchRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
@@ -142,7 +145,9 @@ function ConversationsPage() {
 
   const searched = (data ?? []).filter(
     (row) =>
-      (!niche || row.niche === niche) && matchesQuery([row.name, row.email, row.preview], query),
+      (!niche || row.niche === niche) &&
+      (!owner || row.ownerId === owner) &&
+      matchesQuery([row.name, row.email, row.preview], query),
   );
   const countOf = (item: Filter) =>
     item === "all" ? searched.length : searched.filter((row) => row.state === item).length;
@@ -233,6 +238,17 @@ function ConversationsPage() {
                 </Hint>
               ) : null}
             </div>
+            {owner ? (
+              <OwnerFilterChip
+                owner={owner}
+                onClear={() =>
+                  void navigate({
+                    search: (prev) => ({ ...prev, owner: undefined }),
+                    replace: true,
+                  })
+                }
+              />
+            ) : null}
             {talkedNiches.length > 1 || niche ? (
               <Select
                 value={niche ?? "all"}

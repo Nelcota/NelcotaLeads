@@ -4,6 +4,9 @@ import { MAX_DEAL_CENTS } from "./money";
 /** Row ids (UUIDs today); bounded so a request cannot carry an arbitrarily long key. */
 export const idSchema = z.string().min(1).max(64);
 
+/** The `owner` filter value for leads nobody took. */
+export const NO_OWNER = "none";
+
 /**
  * Days a follow-up may be set to. A date field mid-typing sends "0002-10-13" on its way to
  * "2026-10-13", and the text comparisons against today would treat year 2 as overdue forever.
@@ -291,6 +294,10 @@ export const leadFiltersSchema = z.object({
   mine: z.preprocess((value) => value === true || value === "true", z.boolean()).optional(),
   // "Chegaram hoje": leads created in the last 24 hours.
   fresh: z.preprocess((value) => value === true || value === "true", z.boolean()).optional(),
+  // One partner's leads (a user id), or "none" for the leads nobody took (links from Equipe).
+  owner: z.union([z.literal(NO_OWNER), idSchema]).optional(),
+  // The sales stage; the same values as SALES_STAGES, which is declared further down.
+  stage: z.enum(["meeting", "proposal"]).optional(),
   sort: z.enum(LEAD_SORT_FIELDS).optional(),
   dir: z.enum(["asc", "desc"]).optional(),
 });
@@ -454,9 +461,27 @@ export const salesStageInputSchema = z.object({
 });
 export type SalesStageInput = z.infer<typeof salesStageInputSchema>;
 
-/** "Assumir" (the signed-in person) or "Liberar" (null). */
-export const ownerInputSchema = z.object({ id: idSchema, owner: z.literal("me").nullable() });
+/** "Assumir" (the signed-in person), "Entregar a" (a partner's user id) or "Liberar" (null). */
+export const ownerInputSchema = z.object({
+  id: idSchema,
+  owner: z.union([z.literal("me"), idSchema]).nullable(),
+});
 export type OwnerInput = z.infer<typeof ownerInputSchema>;
+
+/** Most leads one "Entregar" or "Dividir igualmente" (or its "Desfazer") may move at once. */
+export const ASSIGN_LIMIT = 500;
+
+/**
+ * "Entregar a", "Dividir igualmente" and their "Desfazer": each lead goes to `owner` (null frees
+ * it) only while its owner is still `expected`, so a lead someone took meanwhile stays theirs.
+ */
+export const assignLeadsSchema = z.object({
+  assignments: z
+    .array(z.object({ id: idSchema, owner: idSchema.nullable(), expected: idSchema.nullable() }))
+    .min(1)
+    .max(ASSIGN_LIMIT),
+});
+export type LeadAssignment = z.infer<typeof assignLeadsSchema>["assignments"][number];
 
 /**
  * What a lead had before a bulk change, for "Desfazer". Dates are Unix seconds, bounded so
