@@ -50,6 +50,18 @@ The steps, in this order: (1) Visão geral with the new layout on today's data; 
 
 ## Next
 
+- Buscas, step 3 (after steps 1 and 2 reach `main`), in this order. The user approved the list on 2026-11-12 ("GOSTEI, EXECUTE !"); guard rule 4 parks it here until it moves to Now:
+  1. Repeat warning before spending quota: under "Buscar empresas", "Você buscou isso em 10/10: 29 de 35 já existiam" when the niche and city were searched before. No migration.
+  2. Stay on Buscas after starting a search: the new search shows at the top of the Histórico with its progress and "Ver N leads", instead of jumping to Leads.
+  3. "Cancelar" with undo: a "Busca cancelada · Desfazer" toast for a few seconds before the search really stops.
+  4. Suggestions in Nicho and Cidade from earlier searches; the city suggestion carries the UF ("Contagem - MG"), so no search ends up without a state on the map.
+  5. Map: flag a saturated state in "Leads novos por estado" (yield under 30%) and suggest another neighborhood or city.
+  6. "Ver leads de MG": a UF filter on Leads, linked from the state panel. Its own PR, since it changes the Leads page.
+  7. Dots per city on the map: needs the Google position stored at collection, a migration (guard rule 7); only if the map by state is not enough (see the 2026-11-12 decision).
+  8. "Repetir todo dia" in the ⋯ menu: scheduled, guard rule 7 (flag off, fake data, "Raio de impacto").
+  9. "Baixar leads em planilha" for one search, on top of `src/lib/csv.ts`.
+  10. A red-outline button variant in `button.tsx`, so "Cancelar" stops overriding the button classes.
+
 - Admin-only settings: "Limites de uso" (and other system-wide settings) can be changed by any signed-in account today, so whoever has an account can turn the abuse limits off. Needs an admin role or owner check on the settings server functions. (2026-11-10, found by /revisar on P1; the user: "corrija tudo"; guard rule 4)
 - Split `src/routes/settings.tsx` (about 880 lines) into one component per section under `src/components/settings/`, no visual change. Its own PR after T4, T5 and P1 reach `main`, since all three touch that file. (2026-11-10, found by /revisar; guard rule 4)
 - Sender name per account: lead e-mails signed with the name of the account that sends them (or the lead's owner for automatic ones) instead of one system-wide "Seu nome" in Conta. Changes e-mail sending, so guard rule 7 applies. (2026-11-10, from the user's T5 answer: each partner signs up with the name they choose)
