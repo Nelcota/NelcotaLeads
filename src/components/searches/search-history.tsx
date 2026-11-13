@@ -1,4 +1,4 @@
-import { HistoryIcon } from "lucide-react";
+import { HistoryIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 import { SearchFilterBar } from "@/components/searches/search-filter-bar";
 import { SearchHistoryEmpty, type EmptyKind } from "@/components/searches/search-history-empty";
@@ -11,8 +11,15 @@ import { matchesSearchFilter, type SearchFilter } from "@/lib/search-list";
 /** Rows shown before "Mostrar mais". */
 const FIRST_ROWS = 10;
 
-function emptyKind(searches: readonly Search[], filter: SearchFilter): EmptyKind {
-  if (searches.length === 0) return "none";
+/** A state chosen on the map: the Histórico shows only its searches until it is cleared. */
+export type HistoryPlace = { name: string; onClear: () => void };
+
+function emptyKind(
+  searches: readonly Search[],
+  filter: SearchFilter,
+  place: HistoryPlace | null,
+): EmptyKind {
+  if (searches.length === 0) return place ? "filtered" : "none";
   const visible = searches.some((search) => search.hiddenAt === null);
   if (filter === "all" && !visible) return "all-hidden";
   return "filtered";
@@ -20,7 +27,7 @@ function emptyKind(searches: readonly Search[], filter: SearchFilter): EmptyKind
 
 /**
  * The Histórico card: filters in its header, one row per search, first rows only until
- * "Mostrar mais".
+ * "Mostrar mais". A state chosen on the map shows as a chip that clears it.
  */
 export function SearchHistory({
   searches,
@@ -28,12 +35,14 @@ export function SearchHistory({
   onFilterChange,
   quotaSpent,
   onFill,
+  place,
 }: {
   searches: readonly Search[];
   filter: SearchFilter;
   onFilterChange: (filter: SearchFilter) => void;
   quotaSpent: boolean;
   onFill: (niche: string, city: string) => void;
+  place: HistoryPlace | null;
 }) {
   const [showAll, setShowAll] = useState(false);
   const rows = searches.filter((search) => matchesSearchFilter(search, filter));
@@ -47,10 +56,25 @@ export function SearchHistory({
   return (
     <section aria-labelledby="historico" className="grouped @container min-w-0">
       <div className="flex flex-col gap-3 border-b border-border p-5">
-        <h2 id="historico" className="flex items-center gap-2 text-lg font-semibold">
-          <HistoryIcon aria-hidden className="size-[18px] shrink-0 text-blue" strokeWidth={2} />
-          Histórico
-        </h2>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 id="historico" className="flex items-center gap-2 text-lg font-semibold">
+            <HistoryIcon aria-hidden className="size-[18px] shrink-0 text-blue" strokeWidth={2} />
+            Histórico
+          </h2>
+          {place ? (
+            <span className="inline-flex h-8 items-center gap-1 rounded-full border border-border pr-1 pl-3 text-sm font-semibold">
+              {place.name}
+              <button
+                type="button"
+                aria-label="Mostrar buscas de todos os estados"
+                onClick={place.onClear}
+                className="grid size-6 place-items-center rounded-full text-muted-foreground hover:bg-fill-2 hover:text-foreground"
+              >
+                <XIcon aria-hidden className="size-3.5" />
+              </button>
+            </span>
+          ) : null}
+        </div>
         {searches.length > 0 ? (
           <SearchFilterBar searches={searches} filter={filter} onChange={changeFilter} />
         ) : null}
@@ -63,8 +87,11 @@ export function SearchHistory({
         </ul>
       ) : (
         <SearchHistoryEmpty
-          kind={emptyKind(searches, filter)}
-          onShowAll={() => changeFilter("all")}
+          kind={emptyKind(searches, filter, place)}
+          onShowAll={() => {
+            changeFilter("all");
+            place?.onClear();
+          }}
           onShowHidden={() => changeFilter("hidden")}
         />
       )}

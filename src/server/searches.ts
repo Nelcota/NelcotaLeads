@@ -10,12 +10,8 @@ import { idSchema, newSearchSchema, type NewSearchInput } from "@/lib/schemas";
 import { mailConfigured } from "@/lib/mail";
 import { needsAttention } from "@/lib/system-status";
 import { runSearch } from "./collect";
-import {
-  cancelSearch as stopSearch,
-  querySearches,
-  searchInputOf,
-  setSearchHidden,
-} from "./search-actions";
+import { querySearchesWithStates } from "./search-states";
+import { cancelSearch as stopSearch, searchInputOf, setSearchHidden } from "./search-actions";
 import { CRON_RUNS, loadSystemStatus } from "./job-runs";
 import { EMAIL_PROVIDER, mailDailyLimit } from "./mail-flow";
 import { loadConfig } from "./settings-store";
@@ -50,7 +46,9 @@ async function startSearch(db: Db, input: NewSearchInput) {
   return runSearch(db, env.LEAD_QUEUE, provider, input);
 }
 
-export const listSearches = createServerFn({ method: "GET" }).handler(() => querySearches(getDb()));
+export const listSearches = createServerFn({ method: "GET" }).handler(() =>
+  querySearchesWithStates(getDb()),
+);
 
 /** "Ocultar" in the card's menu, and its "Desfazer". */
 export const hideSearch = createServerFn({ method: "POST" })
