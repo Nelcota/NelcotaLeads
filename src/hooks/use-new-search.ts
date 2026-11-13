@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, type FormEvent } from "react";
 import { useForm, useWatch } from "react-hook-form";
+import { toast } from "sonner";
 import { companiesLeftToday, searchQuotaBlocker, type GoogleUsage } from "@/lib/google-quota";
 import { errorToast } from "@/lib/mutation-toasts";
 import { providerStatusQuery } from "@/lib/queries";
@@ -47,9 +48,13 @@ function largestFittingSize(usage: GoogleUsage): number | null {
 
 /**
  * The "Nova busca" form shared by the Buscas page and the dialog: fields, quota, what blocks it
- * and the submit. A created search opens its leads, which show up as the analysis finishes.
+ * and the submit. A created search opens its leads, which show up as the analysis finishes;
+ * with `onStarted` (the Buscas page) the user stays, the form clears and the page shows it.
  */
-export function useNewSearch({ onCreated }: { onCreated?: () => void } = {}) {
+export function useNewSearch({
+  onCreated,
+  onStarted,
+}: { onCreated?: () => void; onStarted?: (searchId: string) => void } = {}) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data: status, isPending: statusLoading } = useQuery(providerStatusQuery);
@@ -57,7 +62,10 @@ export function useNewSearch({ onCreated }: { onCreated?: () => void } = {}) {
     resolver: zodResolver(newSearchSchema),
     defaultValues: { niche: "", city: "", maxResults: SEARCH_SIZES[0] },
   });
-  const maxResults = useWatch({ control: form.control, name: "maxResults" });
+  const [niche, city, maxResults] = useWatch({
+    control: form.control,
+    name: ["niche", "city", "maxResults"],
+  });
   const usage = status?.placesUsage;
 
   const mutation = useMutation({
@@ -69,6 +77,12 @@ export function useNewSearch({ onCreated }: { onCreated?: () => void } = {}) {
         queryClient.invalidateQueries({ queryKey: providerStatusQuery.queryKey }),
       ]);
       onCreated?.();
+      if (onStarted) {
+        form.reset({ niche: "", city: "", maxResults: form.getValues("maxResults") });
+        toast.success("Busca iniciada", { description: "Ela aparece no topo do Histórico." });
+        onStarted(searchId);
+        return;
+      }
       await navigate({ to: "/leads", search: { searchId, view: "all" } });
     },
     onError: errorToast("Não foi possível iniciar a busca"),
@@ -99,6 +113,8 @@ export function useNewSearch({ onCreated }: { onCreated?: () => void } = {}) {
   return {
     form,
     errors: form.formState.errors,
+    niche,
+    city,
     maxResults,
     usage,
     offerConfigured: status?.offerConfigured ?? true,

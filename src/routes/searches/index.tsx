@@ -10,8 +10,10 @@ import { STATE_CODES, stateByCode, type StateCode } from "@/lib/brazil-states";
 import { companiesLeftToday } from "@/lib/google-quota";
 import { useNotFoundToast } from "@/lib/not-found-toast";
 import { pageTitle } from "@/lib/page-title";
+import { findPreviousSearch } from "@/lib/previous-search";
 import { searchesQuery } from "@/lib/queries";
 import { lenientSearch } from "@/lib/schemas";
+import { scrollToSection } from "@/lib/scroll-to-section";
 import { SEARCH_FILTER_IDS, summarizeSearches, type SearchFilter } from "@/lib/search-list";
 import { MANUAL_SEARCH_ID } from "@/lib/searches";
 
@@ -40,11 +42,21 @@ function SearchesPage() {
     "Busca não encontrada",
     () => void navigate({ search: (prev) => ({ ...prev, missing: undefined }), replace: true }),
   );
-  const newSearch = useNewSearch();
+  // A search started here stays here: filters cleared so it shows at the top of the Histórico.
+  const newSearch = useNewSearch({
+    onStarted: () => {
+      void navigate({
+        search: (prev) => ({ ...prev, filter: undefined, uf: undefined }),
+        replace: true,
+      });
+      scrollToSection("historico");
+    },
+  });
   const quotaSpent = newSearch.usage ? companiesLeftToday(newSearch.usage) === 0 : false;
   // Leads added by hand are filed under a fixed "search" that is not one (see Leads).
   const searches = all.filter((search) => search.id !== MANUAL_SEARCH_ID);
   const summary = summarizeSearches(searches);
+  const previous = findPreviousSearch(searches, newSearch.niche, newSearch.city);
   const setFilter = (next: SearchFilter) =>
     void navigate({
       search: (prev) => ({ ...prev, filter: next === "all" ? undefined : next }),
@@ -56,10 +68,7 @@ function SearchesPage() {
   // "Ver no Histórico": the running filter, and the list brought into view.
   const showRunning = () => {
     setFilter("running");
-    const smooth = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    document
-      .getElementById("historico")
-      ?.scrollIntoView({ behavior: smooth ? "smooth" : "auto", block: "start" });
+    scrollToSection("historico");
   };
 
   return (
@@ -87,7 +96,7 @@ function SearchesPage() {
         )
       }
     >
-      <SearchComposer newSearch={newSearch} />
+      <SearchComposer newSearch={newSearch} previous={previous} />
       {summary.searches > 0 ? (
         <SearchMap
           searches={searches}

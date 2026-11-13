@@ -1,8 +1,9 @@
 import { Link } from "@tanstack/react-router";
-import { ArrowRightIcon, ClockIcon, RotateCwIcon } from "lucide-react";
+import { ArrowRightIcon, ClockIcon, RotateCwIcon, Undo2Icon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { Search } from "@/db/schema";
-import { useCancelSearch, useRepeatSearch } from "@/hooks/use-search-actions";
+import { useDelayedCancel } from "@/hooks/use-delayed-cancel";
+import { useRepeatSearch } from "@/hooks/use-search-actions";
 import { formatCount } from "@/lib/format";
 import { isSearchRunning } from "@/lib/search-list";
 
@@ -11,26 +12,36 @@ function leadsLabel(count: number): string {
 }
 
 /**
- * The actions in view on a search row: cancel while it runs; after a failure, try again (or
- * "Volta amanhã" once today's quota is spent); search again on a visible finished search; and
- * the link to its leads whenever it found any, hidden or not.
+ * The actions in view on a search row: cancel while it runs (undoable for a few seconds); after
+ * a failure, try again (or "Volta amanhã" once today's quota is spent); search again on a
+ * visible finished search; and the link to its leads whenever it found any, hidden or not.
  */
 export function SearchRowActions({ search, quotaSpent }: { search: Search; quotaSpent: boolean }) {
-  const cancel = useCancelSearch();
+  const running = isSearchRunning(search.status);
+  const cancel = useDelayedCancel(search.id, running);
   const repeat = useRepeatSearch();
   const hidden = search.hiddenAt !== null;
 
-  if (isSearchRunning(search.status)) {
+  if (running && cancel.waiting) {
+    return (
+      <Button variant="outline" size="sm" onClick={cancel.undo}>
+        <Undo2Icon />
+        Desfazer
+      </Button>
+    );
+  }
+
+  if (running) {
     // Red outline chosen in the mockup review (2026-11-12) so stopping a search stands out.
     return (
       <Button
         variant="destructive"
         size="sm"
         className="border-red/55 hover:border-red hover:bg-transparent"
-        disabled={cancel.isPending}
-        onClick={() => cancel.mutate(search.id)}
+        disabled={cancel.stopping}
+        onClick={cancel.request}
       >
-        {cancel.isPending ? "Cancelando…" : "Cancelar"}
+        {cancel.stopping ? "Cancelando…" : "Cancelar"}
       </Button>
     );
   }

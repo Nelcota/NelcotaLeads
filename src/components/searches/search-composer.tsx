@@ -1,9 +1,11 @@
 import { Link } from "@tanstack/react-router";
 import { SearchIcon } from "lucide-react";
 import { QuotaSpentNotice } from "@/components/searches/quota-spent-notice";
+import { RepeatSearchNotice } from "@/components/searches/repeat-search-notice";
 import { SearchFormFields } from "@/components/searches/search-form-fields";
 import { SearchSizePicker } from "@/components/searches/search-size-picker";
 import { Button } from "@/components/ui/button";
+import type { Search } from "@/db/schema";
 import type { NewSearch } from "@/hooks/use-new-search";
 import { companiesLeftToday } from "@/lib/google-quota";
 
@@ -11,7 +13,13 @@ import { companiesLeftToday } from "@/lib/google-quota";
  * "Nova busca" fixed at the top of Buscas, in the app's card language: niche and city, how many
  * companies and what that costs. Today's spent quota disables it with the amber notice.
  */
-export function SearchComposer({ newSearch }: { newSearch: NewSearch }) {
+export function SearchComposer({
+  newSearch,
+  previous,
+}: {
+  newSearch: NewSearch;
+  previous: Search | null;
+}) {
   const { usage, offerConfigured, statusLoading, blocker, pending, submit } = newSearch;
   const spent = usage ? companiesLeftToday(usage) === 0 : false;
 
@@ -35,6 +43,7 @@ export function SearchComposer({ newSearch }: { newSearch: NewSearch }) {
           {pending ? "Buscando…" : "Buscar empresas"}
         </Button>
       </div>
+      {spent ? null : <RepeatSearchNotice previous={previous} />}
       {blocker && !spent ? (
         <p role="alert" className="text-sm font-medium text-red">
           {blocker}
