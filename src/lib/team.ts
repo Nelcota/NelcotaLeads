@@ -33,17 +33,11 @@ export function signUpUrl(origin: string): string {
 }
 
 /** Shown under the invite form while TEAM_INVITE_EMAILS_ENABLED is off. */
-export const INVITE_EMAILS_OFF =
-  "Envio do convite desligado: mande o link de criar conta para a pessoa";
+export const INVITE_EMAILS_OFF = "Envio por e-mail desligado.";
 
 export const ALREADY_INVITED_MESSAGE = "Esse e-mail já tem um convite pendente.";
 export const ALREADY_MEMBER_MESSAGE = "Esse e-mail já tem conta na equipe.";
 export const INVITE_NOT_FOUND_MESSAGE = "Esse convite não existe mais.";
-
-/** "3 leads com ele". */
-export function ownedLeadsLabel(count: number): string {
-  return count === 1 ? "1 lead com ele" : `${count} leads com ele`;
-}
 
 /** Decided with the team on 2026-11-03: e-mails are signed by the team, never one person. */
 export const SIGNATURE_DECISION = { signature: SALES_SIGNATURE, decidedOn: "03/11" } as const;

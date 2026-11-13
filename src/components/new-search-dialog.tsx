@@ -1,9 +1,7 @@
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate } from "@tanstack/react-router";
-import { MapPinIcon, SearchIcon, TagIcon } from "lucide-react";
-import { useForm, useWatch } from "react-hook-form";
-import { errorToast } from "@/lib/mutation-toasts";
+import { Link } from "@tanstack/react-router";
+import { SearchIcon } from "lucide-react";
+import { SearchFormFields } from "@/components/searches/search-form-fields";
+import { SearchSizePicker } from "@/components/searches/search-size-picker";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,15 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { searchCostLabel, searchQuotaBlocker } from "@/lib/google-quota";
-import { providerStatusQuery } from "@/lib/queries";
-import { newSearchSchema, type NewSearchInput } from "@/lib/schemas";
-import { cn } from "@/lib/utils";
-import { createSearch } from "@/server/searches";
-
-const SIZES = [20, 40, 60] as const;
+import { useNewSearch } from "@/hooks/use-new-search";
 
 export function NewSearchDialog({
   open,
@@ -49,142 +39,25 @@ export function NewSearchDialog({
   );
 }
 
-// The two fields read as one sentence: "[nicho] em [cidade]".
-const PHRASE_INPUT =
-  "h-11 w-full min-w-0 bg-transparent px-3.5 text-base outline-none placeholder:text-tertiary aria-invalid:text-red";
-
+/** The dialog's form: the same fields, sizes and notices as the "Nova busca" card in Buscas. */
 function NewSearchForm({ onDone }: { onDone: () => void }) {
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const { data: status, isPending: statusLoading } = useQuery(providerStatusQuery);
-  const form = useForm<NewSearchInput>({
-    resolver: zodResolver(newSearchSchema),
-    defaultValues: { niche: "", city: "", maxResults: 20 },
-  });
-  const { errors } = form.formState;
-  const maxResults = useWatch({ control: form.control, name: "maxResults" });
-  const usage = status?.placesUsage;
-  // Plain words here; how to set the keys up is in the README.
-  const missingKeysText =
-    status && !status.placesConfigured && !status.aiConfigured
-      ? "As chaves do Google e da IA não estão configuradas."
-      : status && !status.placesConfigured
-        ? "A chave do Google não está configurada."
-        : status && !status.aiConfigured
-          ? "A chave da IA não está configurada."
-          : null;
-
-  const mutation = useMutation({
-    mutationFn: (data: NewSearchInput) => createSearch({ data }),
-    onSuccess: async ({ searchId }) => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["searches"] }),
-        queryClient.invalidateQueries({ queryKey: ["leads"] }),
-        queryClient.invalidateQueries({ queryKey: providerStatusQuery.queryKey }),
-      ]);
-      onDone();
-      // Straight to the new leads; they show up as the analysis finishes.
-      await navigate({ to: "/leads", search: { searchId, view: "all" } });
-    },
-    onError: errorToast("Não foi possível iniciar a busca"),
-  });
-
-  const blocker = missingKeysText
-    ? `${missingKeysText} Fale com quem administra o sistema.`
-    : usage
-      ? searchQuotaBlocker(maxResults, usage)
-      : null;
+  const newSearch = useNewSearch({ onCreated: onDone });
+  const { offerConfigured, statusLoading, blocker, pending, submit } = newSearch;
 
   return (
-    <form
-      className="grid gap-5"
-      noValidate
-      onSubmit={(event) => void form.handleSubmit((data) => mutation.mutate(data))(event)}
-    >
-      <div className="grid gap-2">
-        <div className="grid grid-cols-[1fr_auto_1fr] text-xs font-medium text-muted-foreground">
-          <Label htmlFor="niche" className="flex items-center gap-1.5 px-1">
-            <TagIcon aria-hidden strokeWidth={2} className="size-3.5 shrink-0" />
-            Nicho
-          </Label>
-          <span />
-          <Label htmlFor="city" className="flex items-center gap-1.5 px-1">
-            <MapPinIcon aria-hidden strokeWidth={2} className="size-3.5 shrink-0" />
-            Cidade
-          </Label>
-        </div>
-        <div
-          className={cn(
-            "grid grid-cols-[1fr_auto_1fr] items-center rounded-full bg-black/[0.03] shadow-[inset_0_0_0_1px_var(--input)] transition-shadow focus-within:shadow-[inset_0_0_0_1px_var(--ring)] focus-within:ring-3 focus-within:ring-ring/30 dark:bg-black/25",
-            (errors.niche || errors.city) && "shadow-[inset_0_0_0_1px_var(--red)]",
-          )}
-        >
-          <input
-            id="niche"
-            autoFocus
-            autoComplete="off"
-            placeholder="Ex.: dentistas"
-            aria-invalid={Boolean(errors.niche)}
-            className={PHRASE_INPUT}
-            {...form.register("niche")}
-          />
-          <span className="px-1 text-sm text-tertiary">em</span>
-          <input
-            id="city"
-            autoComplete="off"
-            placeholder="Ex.: Belo Horizonte"
-            aria-invalid={Boolean(errors.city)}
-            className={PHRASE_INPUT}
-            {...form.register("city")}
-          />
-        </div>
-        {errors.niche || errors.city ? (
-          <p className="px-1 text-xs text-red">{errors.niche?.message ?? errors.city?.message}</p>
-        ) : null}
-      </div>
-
-      <div className="grid gap-2">
-        <Label className="px-1 text-xs font-medium text-muted-foreground">Quantas empresas</Label>
-        <Tabs
-          value={String(maxResults)}
-          onValueChange={(value) => {
-            const size = SIZES.find((n) => String(n) === value);
-            if (size) form.setValue("maxResults", size);
-          }}
-        >
-          <TabsList className="w-full">
-            {SIZES.map((size) => (
-              <TabsTrigger key={size} value={String(size)}>
-                até {size}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
-        {usage ? (
-          <p className="px-1 text-xs text-muted-foreground tabular-nums">
-            {searchCostLabel(maxResults, usage)}
-          </p>
-        ) : null}
-        {statusLoading ? (
-          <p className="px-1 text-xs text-muted-foreground">Carregando a cota…</p>
-        ) : null}
-      </div>
-
-      {status && !status.offerConfigured ? (
-        <p className="rounded-xl bg-[color-mix(in_srgb,var(--orange)_10%,transparent)] px-3.5 py-2.5 text-sm text-muted-foreground shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--orange)_22%,transparent)]">
-          <span className="font-medium text-orange">
-            Sua oferta ainda não foi descrita, então a nota e a mensagem saem genéricas.
-          </span>{" "}
+    <form className="@container grid gap-5" noValidate onSubmit={submit}>
+      <SearchFormFields newSearch={newSearch} idPrefix="dialog-search" autoFocus />
+      <SearchSizePicker newSearch={newSearch} />
+      {offerConfigured ? null : (
+        <p className="text-sm text-muted-foreground">
+          Sua oferta ainda não foi descrita, então a nota e a mensagem saem genéricas.{" "}
           <Link to="/settings" onClick={onDone} className="font-medium text-blue hover:underline">
             Descrever agora
           </Link>
         </p>
-      ) : null}
+      )}
       {blocker ? (
-        <p
-          role="alert"
-          className="rounded-xl bg-[color-mix(in_srgb,var(--red)_10%,transparent)] px-3.5 py-2.5 text-sm font-medium text-red shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--red)_22%,transparent)]"
-        >
+        <p role="alert" className="text-sm font-medium text-red">
           {blocker}
         </p>
       ) : null}
@@ -193,9 +66,9 @@ function NewSearchForm({ onDone }: { onDone: () => void }) {
         <Button type="button" variant="ghost" onClick={onDone}>
           Cancelar
         </Button>
-        <Button type="submit" disabled={mutation.isPending || statusLoading || Boolean(blocker)}>
+        <Button type="submit" disabled={pending || statusLoading || Boolean(blocker)}>
           <SearchIcon />
-          {mutation.isPending ? "Buscando…" : "Buscar empresas"}
+          {pending ? "Buscando…" : "Buscar empresas"}
         </Button>
       </DialogFooter>
     </form>

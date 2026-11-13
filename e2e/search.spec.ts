@@ -9,8 +9,8 @@ async function runSearch(page: Page) {
   const dialog = await openNewSearch(page);
   await dialog.getByLabel("Nicho").fill("dentistas");
   await dialog.getByLabel("Cidade").fill("Belo Horizonte");
-  await expect(dialog.getByRole("tab", { name: "até 20" })).toHaveAttribute(
-    "aria-selected",
+  await expect(dialog.getByRole("radio", { name: "até 20" })).toHaveAttribute(
+    "aria-checked",
     "true",
   );
   await dialog.getByRole("button", { name: "Buscar empresas" }).click();
@@ -85,7 +85,7 @@ test.describe("search card actions", () => {
     await page.getByRole("button", { name: "Tentar de novo" }).click();
 
     await expect(page.getByText("Busca feita de novo")).toBeVisible();
-    const retried = page.getByRole("link", { name: "Ver leads: dentistas em Belo Horizonte" });
+    const retried = page.getByRole("link", { name: "Ver 20 leads" });
     await expect(retried).toHaveCount(1);
     await retried.click();
     await expect(page).toHaveURL(/\/leads\?.*searchId=/);
@@ -103,7 +103,7 @@ test.describe("search card actions", () => {
     await expect(page.getByRole("button", { name: "Cancelar" })).toHaveCount(0);
 
     // The leads stay, set aside without an analysis.
-    await page.getByRole("link", { name: "Ver leads: padarias em Contagem" }).click();
+    await page.getByRole("link", { name: "Ver 3 leads" }).click();
     const table = page.getByRole("table");
     await expect(table.getByText("padarias 1", { exact: true })).toBeVisible();
     await expect(table.getByText("Não analisado").first()).toBeVisible();
@@ -119,7 +119,7 @@ test.describe("search card actions", () => {
     await page.getByRole("menuitem", { name: "Ocultar" }).click();
     await expect(page.getByText("Todas as buscas estão ocultas")).toBeVisible();
     await page.getByRole("button", { name: "Desfazer" }).click();
-    await expect(page.getByRole("link", { name: "Ver leads: padarias em Contagem" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Ver 1 lead" })).toBeVisible();
   });
 
   test("shows a hidden search again from the end of the list", async ({ page, backend }) => {
@@ -132,10 +132,12 @@ test.describe("search card actions", () => {
 
     await expect(page.getByText("Todas as buscas estão ocultas")).toBeVisible();
     await page.getByRole("button", { name: "Mostrar buscas ocultas" }).click();
-    await page.getByRole("button", { name: "Mostrar na lista" }).click();
+    await page.getByRole("button", { name: "Mais ações" }).click();
+    await page.getByRole("menuitem", { name: "Mostrar na lista" }).click();
 
     await expect(page.getByText("Busca de volta na lista")).toBeVisible();
     await expect(page.getByRole("button", { name: /buscas? ocultas?/ })).toHaveCount(0);
-    await expect(page.getByRole("link", { name: "Ver leads: padarias em Contagem" })).toBeVisible();
+    await page.getByRole("button", { name: /Todas/ }).click();
+    await expect(page.getByRole("link", { name: "Ver 1 lead" })).toBeVisible();
   });
 });
