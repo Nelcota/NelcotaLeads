@@ -10,7 +10,7 @@ import {
   RotateCcwIcon,
   SearchIcon,
   XIcon,
-} from "lucide-react";
+} from "@/components/icons";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { errorToast } from "@/lib/mutation-toasts";

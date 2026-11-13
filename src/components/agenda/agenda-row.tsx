@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { AlarmClockIcon, CalendarIcon, RotateCcwIcon } from "lucide-react";
+import { AlarmClockIcon, CalendarIcon, RotateCcwIcon } from "@/components/icons";
 import { StatusLabel } from "@/components/status-label";
 import { agendaDetail, agendaWhen, type AgendaEntry } from "@/lib/agenda";
 import { cn } from "@/lib/utils";

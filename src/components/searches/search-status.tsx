@@ -1,10 +1,16 @@
-import { BanIcon, CircleCheckIcon, CircleXIcon, EyeOffIcon, LoaderCircleIcon } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import {
+  BanIcon,
+  CircleCheckIcon,
+  CircleXIcon,
+  EyeOffIcon,
+  LoaderCircleIcon,
+} from "@/components/icons";
+import type { IconComponent } from "@/components/icons";
 import type { Tone } from "@/components/apple-ui";
 import { StatusLabel } from "@/components/status-label";
 import type { Search, SearchStatus } from "@/db/schema";
 
-const STATUS: Record<SearchStatus, { label: string; icon: LucideIcon; tone: Tone }> = {
+const STATUS: Record<SearchStatus, { label: string; icon: IconComponent; tone: Tone }> = {
   collecting: { label: "Coletando", icon: LoaderCircleIcon, tone: "blue" },
   analyzing: { label: "Analisando", icon: LoaderCircleIcon, tone: "blue" },
   done: { label: "Concluída", icon: CircleCheckIcon, tone: "green" },

@@ -1,4 +1,4 @@
-import { ArrowLeftIcon, SearchIcon } from "lucide-react";
+import { ArrowLeftIcon, SearchIcon } from "@/components/icons";
 import { MapNumbers } from "@/components/searches/map/map-numbers";
 import { RunningSearches } from "@/components/searches/map/running-searches";
 import { Button } from "@/components/ui/button";

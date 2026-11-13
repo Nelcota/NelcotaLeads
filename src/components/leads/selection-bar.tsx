@@ -1,4 +1,10 @@
-import { ArrowRightCircleIcon, DownloadIcon, SendIcon, Trash2Icon, XIcon } from "lucide-react";
+import {
+  ArrowRightCircleIcon,
+  DownloadIcon,
+  SendIcon,
+  Trash2Icon,
+  XIcon,
+} from "@/components/icons";
 import { useRef } from "react";
 import { DisabledReason, FloatingBar, Hint } from "@/components/apple-ui";
 import { Button } from "@/components/ui/button";

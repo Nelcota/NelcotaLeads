@@ -12,7 +12,8 @@
       "./worker-configuration.d.ts",
       "node",
       "vite/client",
-      "@cloudflare/vitest-plugin/types"
+      "@cloudflare/vitest-plugin/types",
+      "unplugin-icons/types/react"
     ],
 
     /* Bundler mode */

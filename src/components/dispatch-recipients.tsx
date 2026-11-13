@@ -1,4 +1,4 @@
-import { CircleCheckIcon, PencilLineIcon, UsersIcon } from "lucide-react";
+import { CircleCheckIcon, PencilLineIcon, UsersIcon } from "@/components/icons";
 import { Avatar } from "@/components/apple-ui";
 import { Badge } from "@/components/ui/badge";
 
@@ -18,7 +18,7 @@ export function DispatchRecipients({
   return (
     <section aria-label="Destinatários" className="grid gap-2">
       <h3 className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
-        <UsersIcon aria-hidden className="size-4 shrink-0 text-blue" strokeWidth={2} />
+        <UsersIcon aria-hidden className="size-4 shrink-0 text-blue" />
         Destinatários ({recipients.length})
       </h3>
       <ul className="grouped">
@@ -49,7 +49,7 @@ function RecipientState({ hasDraft, skipped }: { hasDraft: boolean; skipped: boo
   if (hasDraft) {
     return (
       <span className="flex shrink-0 items-center gap-1.5 text-xs font-medium text-green">
-        <CircleCheckIcon aria-hidden className="size-3.5 shrink-0" strokeWidth={2} />
+        <CircleCheckIcon aria-hidden className="size-3.5 shrink-0" />
         E-mail escrito
       </span>
     );
@@ -57,7 +57,7 @@ function RecipientState({ hasDraft, skipped }: { hasDraft: boolean; skipped: boo
   if (skipped) return <Badge variant="orange">De fora</Badge>;
   return (
     <span className="flex shrink-0 items-center gap-1.5 text-xs font-medium text-muted-foreground">
-      <PencilLineIcon aria-hidden className="size-3.5 shrink-0" strokeWidth={2} />
+      <PencilLineIcon aria-hidden className="size-3.5 shrink-0" />
       Falta escrever
     </span>
   );

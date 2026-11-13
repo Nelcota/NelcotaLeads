@@ -1,4 +1,4 @@
-import { CopyIcon } from "lucide-react";
+import { CopyIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { SALES_EMAILS_OFF, type EmailText } from "@/lib/sales-email";
 

@@ -4,8 +4,8 @@ import {
   MailIcon,
   MessageCircleIcon,
   SparklesIcon,
-  type LucideIcon,
-} from "lucide-react";
+  type IconComponent,
+} from "@/components/icons";
 import type { Dashboard } from "@/server/dashboard";
 import type { OverviewMetrics } from "@/server/overview-metrics";
 import { formatCents } from "./money";
@@ -20,7 +20,7 @@ import {
 export type MetricTone = "red" | "orange" | "green";
 
 /** A bare line icon in its status color, shown before a title or a row label. */
-export type MetricIcon = { glyph: LucideIcon; tone: "blue" | "green" | "purple" | "orange" };
+export type MetricIcon = { glyph: IconComponent; tone: "blue" | "green" | "purple" | "orange" };
 
 export type MetricRow = {
   label: string;

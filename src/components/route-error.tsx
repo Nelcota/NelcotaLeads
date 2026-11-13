@@ -1,5 +1,5 @@
 import { Link, useRouter, useRouterState, type ErrorComponentProps } from "@tanstack/react-router";
-import { CopyIcon, TriangleAlertIcon } from "lucide-react";
+import { CopyIcon, TriangleAlertIcon } from "@/components/icons";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/apple-ui";
 import { Button } from "@/components/ui/button";

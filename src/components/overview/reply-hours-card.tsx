@@ -1,4 +1,4 @@
-import { ChartColumnIcon } from "lucide-react";
+import { ChartColumnIcon } from "@/components/icons";
 import { Hint } from "@/components/apple-ui";
 import { replyHourChart } from "@/lib/overview";
 
@@ -40,7 +40,7 @@ export function ReplyHoursCard({ data }: { data: Dashboard }) {
     >
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
         <h2 id="reply-hours" className="flex items-center gap-2 text-lg font-semibold">
-          <ChartColumnIcon aria-hidden strokeWidth={2} className="size-[18px] shrink-0 text-blue" />
+          <ChartColumnIcon aria-hidden className="size-[18px] shrink-0 text-blue" />
           Quando os leads respondem
         </h2>
         <span className="text-sm text-muted-foreground">

@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { ChevronRightIcon } from "lucide-react";
+import { ChevronRightIcon } from "@/components/icons";
 import { Fragment } from "react";
 import { Kbd, SectionHeader, TONE_TEXT } from "@/components/apple-ui";
 import {

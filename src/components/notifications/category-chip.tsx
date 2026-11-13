@@ -1,9 +1,15 @@
-import { CalendarIcon, ClockIcon, SearchIcon, MailIcon, type LucideIcon } from "lucide-react";
+import {
+  CalendarIcon,
+  ClockIcon,
+  SearchIcon,
+  MailIcon,
+  type IconComponent,
+} from "@/components/icons";
 import { TONE_TEXT, type Tone } from "@/components/apple-ui";
 import type { NotificationCategory } from "@/lib/notifications";
 import { cn } from "@/lib/utils";
 
-const CATEGORY_ICON: Record<NotificationCategory, LucideIcon> = {
+const CATEGORY_ICON: Record<NotificationCategory, IconComponent> = {
   replies: MailIcon,
   followUps: ClockIcon,
   agenda: CalendarIcon,
@@ -35,7 +41,7 @@ export function CategoryChip({
       className={cn("grid shrink-0 place-items-center", TONE_TEXT[tone], className)}
       style={{ width: size, height: size }}
     >
-      <Icon className="size-4" strokeWidth={2} />
+      <Icon className="size-4" />
     </span>
   );
 }

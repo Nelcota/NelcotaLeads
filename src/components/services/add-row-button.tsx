@@ -1,4 +1,4 @@
-import { PlusIcon } from "lucide-react";
+import { PlusIcon } from "@/components/icons";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 

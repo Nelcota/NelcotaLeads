@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { TriangleAlertIcon, XIcon } from "lucide-react";
+import { TriangleAlertIcon, XIcon } from "@/components/icons";
 import type { MouseEvent, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { whenLabel, type NotificationHref, type NotificationItem } from "@/lib/notifications";
@@ -109,11 +109,7 @@ export function NotificationRow({
             )}
           >
             {item.warning ? (
-              <TriangleAlertIcon
-                aria-hidden
-                className="size-3.25 shrink-0 text-red"
-                strokeWidth={2}
-              />
+              <TriangleAlertIcon aria-hidden className="size-3.25 shrink-0 text-red" />
             ) : null}
             <span className="min-w-0 truncate" title={detail}>
               {detail}
@@ -130,7 +126,7 @@ export function NotificationRow({
         title="Limpar"
         className="absolute top-1/2 right-1.5 -translate-y-1/2 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100"
       >
-        <XIcon aria-hidden className="size-3.5" strokeWidth={2} />
+        <XIcon aria-hidden className="size-3.5" />
       </Button>
     </div>
   );

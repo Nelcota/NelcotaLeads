@@ -9,7 +9,7 @@ import {
   SparklesIcon,
   TimerIcon,
   TriangleAlertIcon,
-} from "lucide-react";
+} from "@/components/icons";
 import { useState } from "react";
 import { Avatar, Hint, IconTile, PropertyRow, SaveStatus } from "@/components/apple-ui";
 import { IconLabel } from "@/components/icon-label";
@@ -98,7 +98,7 @@ function DispatchReview({
           {review.writing ? (
             <LoaderCircleIcon className="size-4 animate-spin text-purple" />
           ) : (
-            <SendIcon aria-hidden className="size-[18px] shrink-0 text-blue" strokeWidth={2} />
+            <SendIcon aria-hidden className="size-[18px] shrink-0 text-blue" />
           )}
           {reviewTitle({ writing: review.writing, count: drafts.length })}
         </SheetTitle>
@@ -111,7 +111,7 @@ function DispatchReview({
         {!review.loading && review.missing.length > 0 ? (
           <div className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl bg-fill-2 px-4 py-3">
             <p className="flex flex-1 items-center gap-2 text-sm text-muted-foreground">
-              <PencilLineIcon aria-hidden className="size-4 shrink-0 text-orange" strokeWidth={2} />
+              <PencilLineIcon aria-hidden className="size-4 shrink-0 text-orange" />
               {missingLine(review.missing.length)}
             </p>
             <Button variant="outline" size="sm" disabled={review.writing} onClick={review.write}>
@@ -185,11 +185,7 @@ function DispatchReview({
               </div>
               <div className="grouped-row flex min-h-[42px] items-center gap-3 px-4 [--inset:16px]">
                 <span className="flex w-16 shrink-0 items-center gap-1.5 text-tertiary">
-                  <MailIcon
-                    aria-hidden
-                    className="size-4 shrink-0 text-muted-foreground"
-                    strokeWidth={2}
-                  />
+                  <MailIcon aria-hidden className="size-4 shrink-0 text-muted-foreground" />
                   Para
                 </span>
                 <Badge variant="gray" className="text-foreground">

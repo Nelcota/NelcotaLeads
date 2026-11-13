@@ -6,7 +6,7 @@ import {
   useSuspenseQuery,
 } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { LogOutIcon, MailIcon, MoonIcon, SunIcon } from "lucide-react";
+import { LogOutIcon, MailIcon, MoonIcon, SunIcon } from "@/components/icons";
 import { useState, type ReactNode } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";

@@ -17,8 +17,8 @@ import {
   SunIcon,
   UserIcon,
   UsersIcon,
-  type LucideIcon,
-} from "lucide-react";
+  type IconComponent,
+} from "@/components/icons";
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { Avatar, Hint, TONE_TEXT, toneVar, type Tone } from "@/components/apple-ui";
 import { GoogleQuotaRow } from "@/components/google-quota-row";
@@ -58,7 +58,7 @@ import { cn } from "@/lib/utils";
 type NavItem = {
   to: "/" | "/leads" | "/conversas" | "/agenda" | "/searches" | "/equipe" | "/conta" | "/settings";
   label: string;
-  icon: LucideIcon;
+  icon: IconComponent;
 };
 
 const NAV: NavItem[] = [

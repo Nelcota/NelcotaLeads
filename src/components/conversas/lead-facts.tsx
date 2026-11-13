@@ -1,4 +1,4 @@
-import { StarIcon } from "lucide-react";
+import { StarIcon } from "@/components/icons";
 import type { ReactNode } from "react";
 import { ExternalLink } from "@/components/apple-ui";
 import { googleRatingLabel } from "@/lib/google-rating";

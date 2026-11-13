@@ -1,4 +1,4 @@
-import { MinusIcon, PlusIcon } from "lucide-react";
+import { MinusIcon, PlusIcon } from "@/components/icons";
 import type { ComponentProps } from "react";
 import { Hint } from "@/components/apple-ui";
 import { Button } from "@/components/ui/button";

@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { EyeIcon, EyeOffIcon, Loader2Icon } from "lucide-react";
+import { EyeIcon, EyeOffIcon, Loader2Icon } from "@/components/icons";
 import {
   useId,
   useRef,

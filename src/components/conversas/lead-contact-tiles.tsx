@@ -1,4 +1,4 @@
-import { GlobeIcon, PhoneIcon, type LucideIcon } from "lucide-react";
+import { GlobeIcon, PhoneIcon, type IconComponent } from "@/components/icons";
 import type { ComponentType, SVGProps } from "react";
 import { ExternalLink, TONE_TEXT, type Tone } from "@/components/apple-ui";
 import { WhatsAppMark } from "@/components/brand-marks";
@@ -16,7 +16,7 @@ function ContactTile({
   href,
   external,
 }: {
-  icon: LucideIcon | ComponentType<SVGProps<SVGSVGElement>>;
+  icon: IconComponent | ComponentType<SVGProps<SVGSVGElement>>;
   tone: Tone;
   label: string;
   href: string;

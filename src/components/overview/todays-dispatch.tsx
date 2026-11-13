@@ -10,8 +10,8 @@ import {
   RefreshCwIcon,
   SendIcon,
   Undo2Icon,
-  type LucideIcon,
-} from "lucide-react";
+  type IconComponent,
+} from "@/components/icons";
 import { toast } from "sonner";
 import { StatusLabel } from "@/components/status-label";
 import { Button } from "@/components/ui/button";
@@ -42,7 +42,7 @@ const STATUS_VARIANT = {
   Falhou: "red",
 } as const;
 
-const STATUS_ICON: Record<SendStatus, LucideIcon> = {
+const STATUS_ICON: Record<SendStatus, IconComponent> = {
   "Na fila": ClockIcon,
   Enviado: CircleCheckIcon,
   Voltou: Undo2Icon,
@@ -50,7 +50,7 @@ const STATUS_ICON: Record<SendStatus, LucideIcon> = {
 };
 
 /** The run state's icon: a problem, running, or waiting. */
-const RUN_ICON: Record<"green" | "orange" | "gray", LucideIcon> = {
+const RUN_ICON: Record<"green" | "orange" | "gray", IconComponent> = {
   green: CircleCheckIcon,
   orange: CircleAlertIcon,
   gray: ClockIcon,
@@ -116,7 +116,7 @@ export function TodaysDispatch({ data }: { data: Dashboard }) {
       >
         <div className="flex items-center gap-2.5">
           <h2 id="todays-dispatch" className="flex items-center gap-2 text-lg font-semibold">
-            <SendIcon aria-hidden className="size-[18px] shrink-0 text-blue" strokeWidth={2} />
+            <SendIcon aria-hidden className="size-[18px] shrink-0 text-blue" />
             Disparo de hoje
           </h2>
           <StatusLabel icon={RUN_ICON[state.variant]} tone={state.variant}>
@@ -180,7 +180,7 @@ function RecentSends({ rows }: { rows: SendRow[] }) {
     >
       <div className="flex items-center gap-2 pb-2">
         <h2 id="recent-sends" className="flex flex-1 items-center gap-2 text-lg font-semibold">
-          <HistoryIcon aria-hidden className="size-[18px] shrink-0 text-blue" strokeWidth={2} />
+          <HistoryIcon aria-hidden className="size-[18px] shrink-0 text-blue" />
           Últimos envios
         </h2>
         <Button asChild size="sm" className="shrink-0">

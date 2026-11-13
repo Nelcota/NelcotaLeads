@@ -1,4 +1,4 @@
-import { MailIcon, SparklesIcon } from "lucide-react";
+import { MailIcon, SparklesIcon } from "@/components/icons";
 import { Avatar } from "@/components/apple-ui";
 import type { Email } from "@/db/schema";
 import { failedEmailAction } from "@/lib/email-errors";

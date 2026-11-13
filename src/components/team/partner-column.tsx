@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { ArrowDownIcon, ArrowUpIcon, ChevronRightIcon, MinusIcon } from "lucide-react";
+import { ArrowDownIcon, ArrowUpIcon, ChevronRightIcon, MinusIcon } from "@/components/icons";
 import { Avatar } from "@/components/apple-ui";
 import { formatCents } from "@/lib/money";
 import type { OverviewPeriod } from "@/lib/period";

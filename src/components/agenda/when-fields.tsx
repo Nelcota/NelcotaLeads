@@ -1,4 +1,4 @@
-import { CalendarIcon, ChevronsUpDownIcon } from "lucide-react";
+import { CalendarIcon, ChevronsUpDownIcon } from "@/components/icons";
 import { useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";

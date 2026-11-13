@@ -19,7 +19,7 @@ import {
   SettingsIcon,
   SparklesIcon,
   TagIcon,
-} from "lucide-react";
+} from "@/components/icons";
 import { SIGNATURE_DECISION } from "@/lib/team";
 import {
   DisabledReason,
@@ -381,7 +381,7 @@ function AutopilotForm() {
                 aria-label={`Remover busca ${index + 1}`}
                 onClick={() => removeTarget(index)}
               >
-                <MinusIcon className="size-3" strokeWidth={3} />
+                <MinusIcon className="size-3" />
               </Button>
             </div>
           ))}
@@ -585,7 +585,7 @@ function SettingsForm({ defaults }: { defaults: SettingsInput }) {
                 aria-label={`Remover critério ${index + 1}`}
                 onClick={() => removeCriterion(index)}
               >
-                <MinusIcon className="size-3" strokeWidth={3} />
+                <MinusIcon className="size-3" />
               </Button>
             </div>
           );
@@ -832,7 +832,7 @@ function QuickRepliesForm({ defaults }: { defaults: QuickRepliesInput }) {
                   aria-label={`Remover modelo ${index + 1}`}
                   onClick={() => replies.remove(index)}
                 >
-                  <MinusIcon className="size-3" strokeWidth={3} />
+                  <MinusIcon className="size-3" />
                 </Button>
               </div>
               <Textarea

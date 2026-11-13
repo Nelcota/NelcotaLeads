@@ -1,4 +1,4 @@
-import { BotIcon, HandIcon, SparklesIcon, UserIcon } from "lucide-react";
+import { BotIcon, HandIcon, SparklesIcon, UserIcon } from "@/components/icons";
 import { StatusLabel } from "@/components/status-label";
 import { Button } from "@/components/ui/button";
 import type { ConversationOwner } from "@/lib/conversation-owner";

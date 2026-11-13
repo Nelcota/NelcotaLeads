@@ -1,4 +1,4 @@
-import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
+import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon } from "@/components/icons";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {

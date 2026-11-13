@@ -1,4 +1,4 @@
-import { CircleAlertIcon, Volume2Icon } from "lucide-react";
+import { CircleAlertIcon, Volume2Icon } from "@/components/icons";
 import { useState, type CSSProperties } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -49,11 +49,7 @@ function PermissionNote({ permission }: { permission: SystemPermission }) {
     permission === "unsupported" ? "Este navegador não mostra avisos do sistema." : BLOCKED;
   return (
     <span className="inline-flex items-start gap-1.5 text-xs leading-snug text-muted-foreground">
-      <CircleAlertIcon
-        aria-hidden
-        className="mt-0.5 size-3.5 shrink-0 text-orange"
-        strokeWidth={2}
-      />
+      <CircleAlertIcon aria-hidden className="mt-0.5 size-3.5 shrink-0 text-orange" />
       {text}
     </span>
   );

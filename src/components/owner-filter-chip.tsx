@@ -1,4 +1,4 @@
-import { XIcon } from "lucide-react";
+import { XIcon } from "@/components/icons";
 import { useMemberName } from "@/hooks/use-member-name";
 
 /** "Dono: Phellipe ×": the owner filter a link from the Equipe page left on, removable. */

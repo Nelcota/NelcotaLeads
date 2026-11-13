@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useEffect, useState, type ComponentType, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { errorToast } from "@/lib/mutation-toasts";
 import {
@@ -17,7 +17,7 @@ import {
   SparklesIcon,
   StickyNoteIcon,
   XCircleIcon,
-} from "lucide-react";
+} from "@/components/icons";
 import {
   DisabledReason,
   EmptyState,
@@ -93,6 +93,7 @@ import {
   updateLeadContact,
 } from "@/server/leads";
 import { reopenBlocker, UNSUBSCRIBED_MESSAGE } from "@/server/lead-status";
+import type { IconComponent } from "@/components/icons";
 import { dispatchEmails, prepareEmails, rewriteDraft, updateDraft } from "@/server/mail";
 
 const SITE_STATUS_LABELS: Record<SiteStatus, string> = {
@@ -204,7 +205,6 @@ export function LeadDetail({
                 <span className="inline-flex items-center gap-1.5 text-sm font-medium">
                   <ClockIcon
                     className={cn("size-3.5", TONE_TEXT[followUpTone(lead.followUpOn, today)])}
-                    strokeWidth={1.9}
                   />
                   Retorno {relativeDay(lead.followUpOn, today)}
                 </span>
@@ -1101,7 +1101,7 @@ function LossSummary({ lead }: { lead: Lead }) {
 function WrittenByAi() {
   return (
     <span className="ml-auto inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-      <SparklesIcon className="size-3.5 text-purple" strokeWidth={1.9} />
+      <SparklesIcon className="size-3.5 text-purple" />
       Escrito pela IA
     </span>
   );
@@ -1115,7 +1115,7 @@ function PlainList({
 }: {
   title: string;
   tone: Tone;
-  icon: ComponentType<{ className?: string; strokeWidth?: number }>;
+  icon: IconComponent;
   items: string[];
 }) {
   return (
@@ -1125,7 +1125,7 @@ function PlainList({
         <ul className="grid gap-1.5 text-sm leading-relaxed">
           {items.map((item) => (
             <li key={item} className="flex items-start gap-2">
-              <Icon className={cn("mt-0.5 size-4 shrink-0", TONE_TEXT[tone])} strokeWidth={1.75} />
+              <Icon className={cn("mt-0.5 size-4 shrink-0", TONE_TEXT[tone])} />
               {item}
             </li>
           ))}

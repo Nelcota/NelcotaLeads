@@ -4,7 +4,7 @@ import {
   ChevronRightIcon,
   ZoomInIcon,
   ZoomOutIcon,
-} from "lucide-react";
+} from "@/components/icons";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ChoicePill } from "@/components/ui/choice-pill";

@@ -1,4 +1,4 @@
-import { ChevronRightIcon } from "lucide-react";
+import { ChevronRightIcon } from "@/components/icons";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { clock, longDay, type CalendarEntry } from "@/lib/calendar";
 import { MEETING_KIND_LABELS } from "@/lib/schemas";

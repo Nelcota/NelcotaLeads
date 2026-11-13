@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { SearchIcon } from "lucide-react";
+import { SearchIcon } from "@/components/icons";
 import { SearchFormFields } from "@/components/searches/search-form-fields";
 import { SearchSizePicker } from "@/components/searches/search-size-picker";
 import { Button } from "@/components/ui/button";
@@ -25,7 +25,7 @@ export function NewSearchDialog({
       <DialogContent className="sm:max-w-[560px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <SearchIcon aria-hidden strokeWidth={2} className="size-[18px] shrink-0 text-blue" />
+            <SearchIcon aria-hidden className="size-[18px] shrink-0 text-blue" />
             Nova busca
           </DialogTitle>
           <DialogDescription>

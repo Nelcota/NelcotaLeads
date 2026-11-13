@@ -1,11 +1,12 @@
-import { CopyIcon, GlobeIcon, PhoneIcon } from "lucide-react";
-import type { ComponentProps, ComponentType, ReactNode } from "react";
+import { CopyIcon, GlobeIcon, PhoneIcon } from "@/components/icons";
+import type { ComponentProps, ReactNode } from "react";
 import { toast } from "sonner";
 import { ExternalLink, ExternalMark, TONE_TEXT, type Tone } from "@/components/apple-ui";
 import { GoogleMapsMark, WhatsAppMark } from "@/components/brand-marks";
 import { buttonVariants } from "@/components/ui/button";
 import type { Lead } from "@/db/schema";
 import { whatsappLink } from "@/lib/phone";
+import type { IconComponent } from "@/components/icons";
 import { cn, safeHttpUrl } from "@/lib/utils";
 
 /**
@@ -70,7 +71,7 @@ export function QuickActions({ lead }: { lead: Lead }) {
 /** A contact shortcut: a secondary pill (button standard) with a bare line icon in its tone. */
 function QuickAction(
   props: {
-    icon: ComponentType<{ className?: string; strokeWidth?: number }>;
+    icon: IconComponent;
     tone: Tone;
     children: ReactNode;
   } & (
@@ -81,7 +82,7 @@ function QuickAction(
   const className = cn(buttonVariants({ variant: "outline" }), "w-full", TONE_TEXT[props.tone]);
   const Icon = props.icon;
   // Icon standard: a bare line icon in its tone (brand mark for WhatsApp and Maps), no chip.
-  const icon = <Icon className="size-[18px]" strokeWidth={1.75} />;
+  const icon = <Icon className="size-[18px]" />;
   const body = (
     <>
       {icon}

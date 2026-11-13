@@ -1,4 +1,4 @@
-import { CheckIcon, ChevronsUpDownIcon, SearchIcon } from "lucide-react";
+import { CheckIcon, ChevronsUpDownIcon, SearchIcon } from "@/components/icons";
 import { useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { foldText } from "@/lib/text-search";

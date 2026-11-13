@@ -1,4 +1,4 @@
-import { ChevronLeftIcon } from "lucide-react";
+import { ChevronLeftIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { ChoicePill } from "@/components/ui/choice-pill";
 import { monthIndex, MONTHS } from "@/lib/calendar";

@@ -1,4 +1,4 @@
-import { LayersIcon } from "lucide-react";
+import { LayersIcon } from "@/components/icons";
 import type { CSSProperties, DragEvent } from "react";
 import { clock, type CalendarEntry } from "@/lib/calendar";
 import { MEETING_KIND_LABELS } from "@/lib/schemas";

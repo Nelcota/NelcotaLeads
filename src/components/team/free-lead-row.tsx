@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { ChevronDownIcon } from "lucide-react";
+import { ChevronDownIcon } from "@/components/icons";
 import { Avatar } from "@/components/apple-ui";
 import { StageLabel } from "@/components/leads/stage-label";
 import { Button } from "@/components/ui/button";

@@ -1,4 +1,4 @@
-import { FilterXIcon, InboxIcon, PhoneIcon } from "lucide-react";
+import { FilterXIcon, InboxIcon, PhoneIcon } from "@/components/icons";
 import { EmptyState } from "@/components/apple-ui";
 import { WhatsAppMark } from "@/components/brand-marks";
 import { Button } from "@/components/ui/button";
@@ -102,7 +102,7 @@ export function LeadsMobileList({
                 </Button>
                 <Button asChild variant="ghost" size="icon">
                   <a href={`tel:${lead.phoneE164}`} aria-label={`Ligar para ${lead.phone ?? ""}`}>
-                    <PhoneIcon strokeWidth={1.8} />
+                    <PhoneIcon />
                   </a>
                 </Button>
               </span>

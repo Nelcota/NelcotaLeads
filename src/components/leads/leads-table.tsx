@@ -1,4 +1,4 @@
-import { ChevronDownIcon, FilterXIcon, InboxIcon } from "lucide-react";
+import { ChevronDownIcon, FilterXIcon, InboxIcon } from "@/components/icons";
 import type { ReactNode } from "react";
 import { EmptyState, Hint } from "@/components/apple-ui";
 import { Button } from "@/components/ui/button";

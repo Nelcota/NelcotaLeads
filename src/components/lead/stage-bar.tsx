@@ -1,4 +1,4 @@
-import { CheckIcon } from "lucide-react";
+import { CheckIcon } from "@/components/icons";
 import { buttonVariants } from "@/components/ui/button";
 import { ChoicePill } from "@/components/ui/choice-pill";
 import { STAGE_STEPS, stageOfStep } from "@/lib/lead-stage";
@@ -61,7 +61,7 @@ function StageStep({
 }) {
   const body = (
     <>
-      {reached ? <CheckIcon className="text-green" strokeWidth={2} /> : null}
+      {reached ? <CheckIcon className="text-green" /> : null}
       {label}
     </>
   );

@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { SendIcon } from "lucide-react";
+import { SendIcon } from "@/components/icons";
 import { z } from "zod";
 import { Page, Stat } from "@/components/app-shell";
 import { AiVsHandCard } from "@/components/overview/ai-vs-hand-card";

@@ -18,7 +18,7 @@ export function MetricBlocks({ blocks, caption }: { blocks: MetricBlock[]; capti
             <span className="flex items-center gap-2">
               <block.icon.glyph
                 aria-hidden
-                strokeWidth={2}
+
                 className={cn("size-[18px] shrink-0", TONE_TEXT[block.icon.tone])}
               />
               {block.title}
@@ -44,7 +44,7 @@ export function MetricBlocks({ blocks, caption }: { blocks: MetricBlock[]; capti
                   {row.icon ? (
                     <row.icon.glyph
                       aria-hidden
-                      strokeWidth={2}
+
                       className={cn("size-4 shrink-0", TONE_TEXT[row.icon.tone])}
                     />
                   ) : null}

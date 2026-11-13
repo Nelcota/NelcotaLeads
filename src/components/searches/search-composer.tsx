@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { SearchIcon } from "lucide-react";
+import { SearchIcon } from "@/components/icons";
 import { useState, type FormEvent } from "react";
 import { QuotaSpentNotice } from "@/components/searches/quota-spent-notice";
 import { RepeatSearchNotice } from "@/components/searches/repeat-search-notice";
@@ -48,7 +48,7 @@ export function SearchComposer({
       className="grouped @container flex min-w-0 flex-col gap-4 p-5"
     >
       <h2 id="nova-busca" className="flex items-center gap-2 text-lg font-semibold">
-        <SearchIcon aria-hidden className="size-[18px] shrink-0 text-blue" strokeWidth={2} />
+        <SearchIcon aria-hidden className="size-[18px] shrink-0 text-blue" />
         Nova busca
       </h2>
       {spent ? <QuotaSpentNotice /> : null}

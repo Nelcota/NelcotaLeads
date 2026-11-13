@@ -1,4 +1,4 @@
-import { MinusIcon, PlusIcon } from "lucide-react";
+import { MinusIcon, PlusIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatMoneyInput, parseMoneyInput } from "@/lib/money";
@@ -56,7 +56,7 @@ export function ClientRequests({
             aria-label={`Remover pedido ${index + 1}`}
             onClick={() => remove(line.key)}
           >
-            <MinusIcon className="size-3" strokeWidth={3} />
+            <MinusIcon className="size-3" />
           </Button>
         </div>
       ))}

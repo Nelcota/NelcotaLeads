@@ -1,5 +1,6 @@
-import type { ComponentType, ReactNode } from "react";
+import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import type { IconComponent } from "@/components/icons";
 
 type ChipTone = "gray" | "green" | "blue";
 
@@ -17,19 +18,13 @@ export const PANEL_FIELD =
   "border border-foreground/15 bg-fill-3! shadow-none! hover:border-foreground/30 focus-visible:border-primary dark:bg-fill-3!";
 
 /** The bare line icon in front of a card title, in its tone; the box keeps the title aligned. */
-export function TitleChip({
-  icon: Icon,
-  tone = "gray",
-}: {
-  icon: ComponentType<{ className?: string; strokeWidth?: number }>;
-  tone?: ChipTone;
-}) {
+export function TitleChip({ icon: Icon, tone = "gray" }: { icon: IconComponent; tone?: ChipTone }) {
   return (
     <span
       aria-hidden
       className={cn("grid size-[30px] shrink-0 place-items-center", CHIP_TONE[tone])}
     >
-      <Icon className="size-[18px]" strokeWidth={2} />
+      <Icon className="size-[18px]" />
     </span>
   );
 }
@@ -42,7 +37,7 @@ export function PanelSection({
   children,
 }: {
   title: string;
-  icon: ComponentType<{ className?: string; strokeWidth?: number }>;
+  icon: IconComponent;
   /** Quiet feedback after the title, e.g. "Salvo". */
   status?: ReactNode;
   children?: ReactNode;

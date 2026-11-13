@@ -8,7 +8,7 @@ import {
   SlidersHorizontalIcon,
   TagIcon,
   XIcon,
-} from "lucide-react";
+} from "@/components/icons";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";

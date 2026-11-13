@@ -6,7 +6,7 @@ import {
   MapPinIcon,
   PencilLineIcon,
   RotateCwIcon,
-} from "lucide-react";
+} from "@/components/icons";
 import { useRef } from "react";
 import { Hint } from "@/components/apple-ui";
 import { Button } from "@/components/ui/button";

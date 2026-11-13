@@ -1,4 +1,4 @@
-import type { LucideIcon } from "lucide-react";
+import type { IconComponent } from "@/components/icons";
 import type { ReactNode } from "react";
 import { TONE_TEXT, type Tone } from "@/components/apple-ui";
 import { cn } from "@/lib/utils";
@@ -13,7 +13,7 @@ export function StatusLabel({
   className,
   children,
 }: {
-  icon: LucideIcon;
+  icon: IconComponent;
   tone: Tone;
   className?: string;
   children: ReactNode;
@@ -25,7 +25,7 @@ export function StatusLabel({
         className,
       )}
     >
-      <Icon aria-hidden strokeWidth={2.2} className={cn("size-3.5 shrink-0", TONE_TEXT[tone])} />
+      <Icon aria-hidden className={cn("size-3.5 shrink-0", TONE_TEXT[tone])} />
       {children}
     </span>
   );

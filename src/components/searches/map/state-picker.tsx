@@ -1,4 +1,4 @@
-import { SearchIcon, XIcon } from "lucide-react";
+import { SearchIcon, XIcon } from "@/components/icons";
 import { Popover as PopoverPrimitive } from "radix-ui";
 import { useId, useRef } from "react";
 import { StatePickerOptions } from "@/components/searches/map/state-picker-options";

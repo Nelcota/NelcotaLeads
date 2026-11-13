@@ -1,4 +1,9 @@
-import { BrushCleaningIcon, ChevronLeftIcon, SlidersHorizontalIcon, XIcon } from "lucide-react";
+import {
+  BrushCleaningIcon,
+  ChevronLeftIcon,
+  SlidersHorizontalIcon,
+  XIcon,
+} from "@/components/icons";
 import { useState, type ComponentType, type ReactNode } from "react";
 import { Hint } from "@/components/apple-ui";
 import { Button } from "@/components/ui/button";
