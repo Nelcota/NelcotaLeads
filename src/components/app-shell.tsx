@@ -88,6 +88,10 @@ const BADGE_CLASS =
 const ON_TONE_BADGE =
   "bg-orange text-on-tone peer-hover/menu-button:text-on-tone peer-data-active/menu-button:text-on-tone";
 
+/** Blue count badge: same rule, and a white pill on the active (blue) row so it never blends in. */
+const BLUE_BADGE =
+  "bg-blue text-on-tone peer-hover/menu-button:text-on-tone peer-data-active/menu-button:bg-white peer-data-active/menu-button:text-primary peer-data-active/menu-button:peer-hover/menu-button:text-primary";
+
 const GROUP_LABEL_CLASS = "h-8 px-3.5 text-xs font-semibold text-tertiary";
 
 /** Target of the "Pular para o conteúdo" link: the page area beside the menu. */
@@ -215,12 +219,7 @@ function AppSidebar() {
           </SidebarMenuBadge>
         ) : null}
         {item.to === "/agenda" && todayCount > 0 ? (
-          <SidebarMenuBadge
-            className={cn(
-              BADGE_CLASS,
-              "bg-blue text-white peer-data-active/menu-button:bg-white/25",
-            )}
-          >
+          <SidebarMenuBadge className={cn(BADGE_CLASS, BLUE_BADGE)}>
             {todayCount}
             <span className="sr-only"> hoje</span>
           </SidebarMenuBadge>
