@@ -136,6 +136,7 @@ function whereClause(filters: LeadQuery, today: string, now: Date): SQL | undefi
     filters.maxScore !== undefined ? lte(leads.score, filters.maxScore) : undefined,
     filters.noWebsite ? isNull(leads.website) : undefined,
     filters.hasEmail ? isNotNull(leads.email) : undefined,
+    filters.hasPhone ? isNotNull(leads.phone) : undefined,
     filters.fresh ? gte(leads.createdAt, new Date(now.getTime() - FRESH_WINDOW_MS)) : undefined,
     mineCondition(filters),
     ownerCondition(filters.owner),

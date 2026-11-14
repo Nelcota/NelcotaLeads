@@ -44,6 +44,19 @@ function applyTheme(theme: Theme) {
   for (const listener of listeners) listener();
 }
 
+/**
+ * A theme picked by hand cross-fades (about 200 ms, see styles.css) instead of flashing the
+ * whole page; instant for people who asked for less motion or browsers without the API.
+ */
+function applyThemeSmoothly(theme: Theme) {
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (reduce || typeof document.startViewTransition !== "function") {
+    applyTheme(theme);
+    return;
+  }
+  document.startViewTransition(() => applyTheme(theme));
+}
+
 /** Without a saved pick, the page follows the system when it switches between light and dark. */
 function followSystem(event: MediaQueryListEvent) {
   if (readSavedTheme()) return;
@@ -77,7 +90,7 @@ export function useTheme() {
     } catch {
       // Storage may be unavailable (private mode); the theme still applies for this page.
     }
-    applyTheme(next);
+    applyThemeSmoothly(next);
   }, []);
   return { theme, setTheme };
 }

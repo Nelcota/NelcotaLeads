@@ -182,6 +182,10 @@ describe("queryLeads redesign filters", () => {
     expect(await ids({ mine: true, ownerId: null })).toEqual([]);
   });
 
+  it("'Com telefone' keeps only leads with a phone", async () => {
+    expect((await ids({ hasPhone: true })).toSorted()).toEqual(["1", "2"]);
+  });
+
   it("'Chegaram hoje' keeps leads created in the last 24 hours", async () => {
     expect(await ids({ fresh: true })).toEqual(["2"]);
   });

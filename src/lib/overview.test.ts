@@ -118,7 +118,7 @@ describe("buildAlerts", () => {
       key: "setup:offer",
       kind: "offer",
       label: "Descrever a oferta",
-      link: { to: "/settings", hash: "oferta" },
+      link: { to: "/settings", search: { aba: "ia" }, hash: "oferta" },
     });
     expect(alerts).toHaveLength(2);
   });
