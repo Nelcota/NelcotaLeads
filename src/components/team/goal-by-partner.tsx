@@ -41,17 +41,19 @@ export function GoalByPartner({ goal, members }: { goal: Team["goal"]; members: 
         <h2 id="team-goal" className="text-[20px] font-semibold tracking-[-0.015em]">
           Meta do mês
         </h2>
-        <span className="text-sm text-tertiary">{monthName(goal.month)}</span>
+        <span className="text-sm text-tertiary">
+          {monthName(goal.month)}
+          {target ? ` · meta ${formatCents(target.revenueCents)}` : null}
+        </span>
         <Link
           to="/"
           className="ml-auto inline-flex min-h-11 items-center rounded-lg px-1 text-base font-semibold text-blue hover:underline"
         >
-          {target ? "Meta do time na Visão geral" : "Definir na Visão geral"}
+          {target ? "Meta do time" : "Definir na Visão geral"}
         </Link>
       </div>
       {target ? (
         <div className="pt-3">
-          <p className="pb-1 text-sm font-semibold text-tertiary">% da meta por sócio · receita</p>
           {members.map((member) => (
             <PartnerShare key={member.id} member={member} goalCents={target.revenueCents} />
           ))}

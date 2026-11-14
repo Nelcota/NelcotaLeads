@@ -11,6 +11,14 @@ export function flagOn(value: string | undefined): boolean {
   return flag === "true" || flag === "1";
 }
 
+/**
+ * A team of one (or none yet): the Equipe page shows only the invite and your own numbers,
+ * since splitting leads and comparing partners need a second person (decided 2026-11-12).
+ */
+export function isSoloTeam(members: readonly unknown[]): boolean {
+  return members.length <= 1;
+}
+
 /** "Convidar": the partner's e-mail, compared in lowercase like the accounts. */
 export const inviteInputSchema = z.object({
   email: z

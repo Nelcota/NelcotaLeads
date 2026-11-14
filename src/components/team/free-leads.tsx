@@ -19,12 +19,12 @@ export function FreeLeads({
   free,
   members,
   me,
-  today,
+  now,
 }: {
   free: Team["free"];
   members: TeamMember[];
   me: string | null;
-  today: string;
+  now: Date;
 }) {
   const self = members.find((member) => member.id === me) ?? null;
   const others = members.filter((member) => member.id !== me);
@@ -50,10 +50,10 @@ export function FreeLeads({
           Leads sem dono
         </h2>
         <span className="text-sm text-tertiary tabular-nums">{free.total}</span>
-        {free.total > 0 && members.length > 0 ? (
+        {free.total > 0 && members.length > 1 ? (
           <Button
             size="sm"
-            className="ml-auto"
+            className="ml-auto pointer-coarse:h-11"
             onClick={askSplit}
             disabled={splitting}
             aria-expanded={confirming}
@@ -85,7 +85,7 @@ export function FreeLeads({
               lead={lead}
               me={self}
               others={others}
-              today={today}
+              now={now}
               busy={assigningId === lead.id || splitting}
               onAssign={(member) =>
                 assign({
@@ -105,13 +105,13 @@ export function FreeLeads({
           {...teamLinks.free()}
           className="mt-1 inline-flex min-h-11 items-center gap-1.5 rounded-lg px-1 text-base font-semibold text-blue hover:underline"
         >
-          Ver todos sem dono em Leads
+          Ver todos sem dono
           <ArrowRightIcon aria-hidden className="size-4" />
         </Link>
       ) : null}
       {free.newCount > 0 ? (
         <p className="pt-2 text-sm text-muted-foreground">
-          Mais {free.newCount} {free.newCount === 1 ? "novo" : "novos"} no disparo, sem dono.
+          Mais {free.newCount} {free.newCount === 1 ? "novo" : "novos"} no disparo.
         </p>
       ) : null}
     </section>

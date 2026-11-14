@@ -16,12 +16,13 @@ export function PartnerRow({
   isMe: boolean;
   onOpen: () => void;
 }) {
-  const parts = todaySummary(member);
+  const parts = todaySummary(member, isMe);
   return (
     <button
       type="button"
       onClick={onOpen}
       aria-label={`Abrir perfil de ${member.name}`}
+      data-partner-open={member.id}
       className="group -mx-2 flex min-h-[72px] w-[calc(100%+16px)] items-center gap-3 rounded-[14px] border-b border-border/60 px-2 py-2.5 text-left outline-none last:border-b-0 hover:bg-fill-2 focus-visible:bg-fill-2"
     >
       <Avatar neutral name={member.name} src={member.avatar} size={44} />
