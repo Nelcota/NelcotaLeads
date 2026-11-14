@@ -17,10 +17,12 @@ export function activeTier(filters: LeadFilters): ScoreTier | undefined {
   );
 }
 
-/** Everything "Limpar filtros" resets (the tab, the order and "Meus leads" stay). */
+/** Everything "Limpar filtros" resets (the tab and the order stay). */
 export const NO_FILTERS: Partial<LeadFilters> = {
   q: undefined,
+  mine: undefined,
   hasEmail: undefined,
+  hasPhone: undefined,
   minScore: undefined,
   maxScore: undefined,
   noWebsite: undefined,
@@ -55,6 +57,9 @@ export function popoverFilterCount(filters: LeadFilters): number {
     Boolean(filters.searchId),
     Boolean(filters.noWebsite),
     Boolean(filters.hasEmail),
+    Boolean(filters.hasPhone),
+    Boolean(filters.mine),
+    Boolean(filters.owner),
     Boolean(filters.fresh),
   ].filter(Boolean).length;
 }
