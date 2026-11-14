@@ -11,6 +11,7 @@ import {
   ClockIcon,
   ContactIcon,
   HistoryIcon,
+  LoaderCircleIcon,
   MailIcon,
   RefreshCwIcon,
   SearchXIcon,
@@ -1067,7 +1068,7 @@ function Footer({
           onClick={() => reanalyze.mutate()}
           disabled={reanalyze.isPending || analyzing}
         >
-          <RefreshCwIcon className={cn(analyzing && "animate-spin")} />
+          {analyzing ? <LoaderCircleIcon className="animate-spin" /> : <RefreshCwIcon />}
           {analyzing ? "Analisando…" : "Reanalisar"}
         </Button>
       </div>

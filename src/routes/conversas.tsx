@@ -4,6 +4,7 @@ import {
   ChevronRightIcon,
   CircleCheckIcon,
   CircleXIcon,
+  LoaderCircleIcon,
   MessagesSquareIcon,
   PhoneIcon,
   RefreshCwIcon,
@@ -204,7 +205,7 @@ function ConversationsPage() {
             disabled={check.isPending}
             aria-label={check.isPending ? "Verificando…" : "Verificar e-mails"}
           >
-            <RefreshCwIcon className={cn(check.isPending && "animate-spin")} />
+            {check.isPending ? <LoaderCircleIcon className="animate-spin" /> : <RefreshCwIcon />}
           </Button>
         </Hint>
       }

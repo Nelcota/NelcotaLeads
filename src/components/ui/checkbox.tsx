@@ -20,7 +20,7 @@ function Checkbox({
     >
       <CheckboxPrimitive.Indicator
         data-slot="checkbox-indicator"
-        className="grid place-content-center text-current transition-none [&>svg]:size-3 [&>svg]:stroke-[3.2]"
+        className="grid place-content-center text-current transition-none [&>svg]:size-3"
       >
         {/* Partial selection shows a dash, never the full check (UX audit T6). */}
         <CheckIcon className="group-data-[state=indeterminate]/checkbox:hidden" />
