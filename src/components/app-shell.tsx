@@ -1,98 +1,19 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link, useRouterState } from "@tanstack/react-router";
-import {
-  CalendarIcon,
-  CircleAlertIcon,
-  CircleCheckIcon,
-  CircleHelpIcon,
-  InboxIcon,
-  LayoutGridIcon,
-  MessageCircleIcon,
-  MoonIcon,
-  PanelLeftCloseIcon,
-  PanelLeftOpenIcon,
-  PlusIcon,
-  SearchIcon,
-  SettingsIcon,
-  SunIcon,
-  UserIcon,
-  UsersIcon,
-  type LucideIcon,
-} from "lucide-react";
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
-import { Avatar, Hint, TONE_TEXT, toneVar, type Tone } from "@/components/apple-ui";
-import { GoogleQuotaRow } from "@/components/google-quota-row";
+import { Hint, TONE_TEXT, type Tone } from "@/components/apple-ui";
 import { HelpSheet } from "@/components/help-sheet";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { NewSearchDialog } from "@/components/new-search-dialog";
-import { Button } from "@/components/ui/button";
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarHeader,
-  SidebarInset,
-  SidebarMenu,
-  SidebarMenuBadge,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarProvider,
-  SidebarRail,
-  SidebarTrigger,
-  useSidebar,
-} from "@/components/ui/sidebar";
-import { Skeleton } from "@/components/ui/skeleton";
+import { AppSidebar } from "@/components/sidebar/app-sidebar";
+import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useNotificationAlerts } from "@/hooks/use-notification-alerts";
 import { useNotifications } from "@/hooks/use-notifications";
-import { GLOSSARY, isHelpKey } from "@/lib/help";
+import { isHelpKey } from "@/lib/help";
 import { withAttentionCount } from "@/lib/page-title";
-import { accountQuery, attentionQuery, providerStatusQuery, todayAgendaQuery } from "@/lib/queries";
+import { attentionQuery } from "@/lib/queries";
 import { isTypingTarget } from "@/lib/shortcuts";
-import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
-
-type NavItem = {
-  to: "/" | "/leads" | "/conversas" | "/agenda" | "/searches" | "/equipe" | "/conta" | "/settings";
-  label: string;
-  icon: LucideIcon;
-};
-
-const NAV: NavItem[] = [
-  { to: "/", label: "Visão geral", icon: LayoutGridIcon },
-  { to: "/leads", label: "Leads", icon: InboxIcon },
-  { to: "/conversas", label: "Conversas", icon: MessageCircleIcon },
-  { to: "/agenda", label: "Agenda", icon: CalendarIcon },
-  { to: "/searches", label: "Buscas", icon: SearchIcon },
-];
-const SYSTEM_NAV: NavItem[] = [
-  { to: "/equipe", label: "Equipe", icon: UsersIcon },
-  { to: "/conta", label: "Conta", icon: UserIcon },
-  { to: "/settings", label: "Configurações", icon: SettingsIcon },
-];
-
-const SYSTEM_ATTENTION = "Algo precisa de atenção";
-
-/** One look for every sidebar row: 44px tall, the active page in solid blue, centered in icon mode. */
-const ITEM_CLASS =
-  "h-11 gap-3 rounded-[12px] px-3.5 text-base text-muted-foreground hover:bg-fill-2 hover:text-foreground active:bg-fill data-active:bg-primary data-active:font-semibold data-active:text-primary-foreground data-active:shadow-none data-active:hover:bg-primary data-active:hover:text-primary-foreground group-data-[collapsible=icon]:size-11! group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0! group-data-[collapsible=icon]:[&>span]:sr-only";
-
-/** Count badges centered on a 44px row. */
-const BADGE_CLASS =
-  "top-[13px]! right-2.5 h-[18px] min-w-0 rounded-full px-1.5 text-2xs tabular-nums";
-
-/** The badge text keeps its color on hover and on the active page, so it stays at 4.5:1. */
-const ON_TONE_BADGE =
-  "bg-orange text-on-tone peer-hover/menu-button:text-on-tone peer-data-active/menu-button:text-on-tone";
-
-/** Blue count badge: same rule, and a white pill on the active (blue) row so it never blends in. */
-const BLUE_BADGE =
-  "bg-blue text-on-tone peer-hover/menu-button:text-on-tone peer-data-active/menu-button:bg-white peer-data-active/menu-button:text-primary peer-data-active/menu-button:peer-hover/menu-button:text-primary";
-
-const GROUP_LABEL_CLASS = "h-8 px-3.5 text-xs font-semibold text-tertiary";
 
 /** Target of the "Pular para o conteúdo" link: the page area beside the menu. */
 const MAIN_CONTENT_ID = "conteudo";
@@ -103,8 +24,6 @@ const NewSearchContext = createContext<() => void>(() => {});
 export function useOpenNewSearch() {
   return useContext(NewSearchContext);
 }
-
-const HelpContext = createContext<() => void>(() => {});
 
 /** "?" (Shift + /) opens the help from any screen, except while the user types. */
 function useHelpKey(open: () => void) {
@@ -145,7 +64,7 @@ export function AppShell({
   sidebarOpen = true,
 }: {
   children: ReactNode;
-  /** Whether the menu starts open: what "Recolher menu" left in its cookie. */
+  /** Whether the menu starts open: what the Menu button or Ctrl+B left in its cookie. */
   sidebarOpen?: boolean;
 }) {
   const [newSearchOpen, setNewSearchOpen] = useState(false);
@@ -156,332 +75,30 @@ export function AppShell({
   useNotificationAlerts(useNotifications());
   return (
     <NewSearchContext value={() => setNewSearchOpen(true)}>
-      <HelpContext value={openHelp}>
-        <TooltipProvider delayDuration={300}>
-          {/* First stop of the Tab key: jumps over the menu straight to the page. */}
-          <a
-            href={`#${MAIN_CONTENT_ID}`}
-            className="sr-only rounded-lg border border-border bg-popover px-3 py-2 text-sm font-medium text-foreground shadow-md focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50"
-          >
-            Pular para o conteúdo
-          </a>
-          <SidebarProvider defaultOpen={sidebarOpen}>
-            <AppSidebar />
-            {/* Same background as the sidebar; a thin left outline separates the pages
+      <TooltipProvider delayDuration={300}>
+        {/* First stop of the Tab key: jumps over the menu straight to the page. */}
+        <a
+          href={`#${MAIN_CONTENT_ID}`}
+          className="sr-only rounded-lg border border-border bg-popover px-3 py-2 text-sm font-medium text-foreground shadow-md focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50"
+        >
+          Pular para o conteúdo
+        </a>
+        <SidebarProvider defaultOpen={sidebarOpen}>
+          <AppSidebar onNewSearch={() => setNewSearchOpen(true)} onOpenHelp={openHelp} />
+          {/* Same background as the sidebar; a thin left outline separates the pages
                 from the menu and the panel reaches the top edge, with no gap above. */}
-            <SidebarInset
-              id={MAIN_CONTENT_ID}
-              tabIndex={-1}
-              className="h-svh overflow-hidden outline-none md:border-l md:border-border"
-            >
-              {children}
-            </SidebarInset>
-          </SidebarProvider>
-        </TooltipProvider>
-        <NewSearchDialog open={newSearchOpen} onOpenChange={setNewSearchOpen} />
-        <HelpSheet open={helpOpen} onOpenChange={setHelpOpen} />
-      </HelpContext>
+          <SidebarInset
+            id={MAIN_CONTENT_ID}
+            tabIndex={-1}
+            className="h-svh overflow-hidden outline-none md:border-l md:border-border"
+          >
+            {children}
+          </SidebarInset>
+        </SidebarProvider>
+      </TooltipProvider>
+      <NewSearchDialog open={newSearchOpen} onOpenChange={setNewSearchOpen} />
+      <HelpSheet open={helpOpen} onOpenChange={setHelpOpen} />
     </NewSearchContext>
-  );
-}
-
-function AppSidebar() {
-  const pathname = useRouterState({ select: (state) => state.location.pathname });
-  const { data: attention = 0 } = useQuery(attentionQuery);
-  const { data: provider } = useQuery(providerStatusQuery);
-  // Today's meetings and follow-ups, on the Agenda item.
-  const { data: agendaToday } = useQuery(todayAgendaQuery);
-  const todayCount = agendaToday?.entries.length ?? 0;
-  const systemAttention = provider?.systemAttention ?? false;
-  const openNewSearch = useOpenNewSearch();
-  const isActive = (to: NavItem["to"]) => (to === "/" ? pathname === "/" : pathname.startsWith(to));
-
-  const renderItem = (item: NavItem) => {
-    const warn = item.to === "/conta" && systemAttention;
-    return (
-      <SidebarMenuItem key={item.to}>
-        <SidebarMenuButton
-          asChild
-          isActive={isActive(item.to)}
-          tooltip={warn ? `${item.label} · ${SYSTEM_ATTENTION}` : item.label}
-          className={ITEM_CLASS}
-        >
-          <Link to={item.to}>
-            <item.icon aria-hidden className="size-[18px]!" />
-            <span>{item.label}</span>
-            {warn ? <span className="sr-only"> · {SYSTEM_ATTENTION}</span> : null}
-          </Link>
-        </SidebarMenuButton>
-        {item.to === "/conversas" && attention > 0 ? (
-          <SidebarMenuBadge className={cn(BADGE_CLASS, ON_TONE_BADGE)}>
-            {attention}
-            <span className="sr-only"> precisam de você</span>
-          </SidebarMenuBadge>
-        ) : null}
-        {item.to === "/agenda" && todayCount > 0 ? (
-          <SidebarMenuBadge className={cn(BADGE_CLASS, BLUE_BADGE)}>
-            {todayCount}
-            <span className="sr-only"> hoje</span>
-          </SidebarMenuBadge>
-        ) : null}
-        {warn ? (
-          <Hint label={SYSTEM_ATTENTION} side="right">
-            <SidebarMenuBadge
-              data-testid="system-attention"
-              className="pointer-events-auto top-[13px]! right-2.5"
-              aria-hidden
-            >
-              <span className="size-2 rounded-full bg-orange" />
-            </SidebarMenuBadge>
-          </Hint>
-        ) : null}
-      </SidebarMenuItem>
-    );
-  };
-
-  return (
-    <Sidebar collapsible="icon" variant="sidebar" className="group-data-[side=left]:border-r-0">
-      <SidebarHeader className="gap-5 px-2.5 pt-5">
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              size="lg"
-              asChild
-              className="hover:bg-transparent group-data-[collapsible=icon]:size-11! group-data-[collapsible=icon]:p-1!"
-            >
-              <Link to="/">
-                <span className="grid aspect-square size-9 shrink-0 place-items-center rounded-[10px] bg-primary text-base font-bold text-primary-foreground">
-                  N
-                </span>
-                <span className="grid flex-1 text-left leading-tight">
-                  <span className="truncate text-lg font-bold">Nelcota Leads</span>
-                  <span className="truncate text-xs font-normal text-muted-foreground">
-                    Prospecção B2B
-                  </span>
-                </span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={openNewSearch}
-          className="group-data-[collapsible=icon]:hidden"
-        >
-          <PlusIcon aria-hidden className="size-4" />
-          Nova busca
-        </Button>
-      </SidebarHeader>
-      <SidebarContent className="px-0.5">
-        {/* One landmark for the page links, so screen readers can jump to the menu. */}
-        <nav aria-label="Menu principal" className="contents">
-          <SidebarGroup className="py-1">
-            <SidebarGroupLabel className={GROUP_LABEL_CLASS}>Prospecção</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu className="gap-1">{NAV.map(renderItem)}</SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-          {/* Sistema sits at the bottom, next to the account, like Nelcota PRs. */}
-          <SidebarGroup className="mt-auto py-1">
-            <SidebarGroupLabel className={GROUP_LABEL_CLASS}>Sistema</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu className="gap-1">{SYSTEM_NAV.map(renderItem)}</SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        </nav>
-      </SidebarContent>
-      <SidebarFooter className="gap-3 px-2.5 pt-0 pb-3">
-        <CollapseMenuButton />
-        <UsageMeter />
-        <AccountRow />
-      </SidebarFooter>
-      <SidebarRail />
-    </Sidebar>
-  );
-}
-
-/**
- * "Recolher menu" at the bottom of the desktop sidebar: toggles icon mode (also Ctrl+B).
- * Outside the navigation, so screen readers do not read it as a page.
- */
-function CollapseMenuButton() {
-  const { isMobile, state, toggleSidebar } = useSidebar();
-  if (isMobile) return null;
-  const collapsed = state === "collapsed";
-  const label = collapsed ? "Expandir menu" : "Recolher menu";
-  const Icon = collapsed ? PanelLeftOpenIcon : PanelLeftCloseIcon;
-  return (
-    <SidebarMenu>
-      <SidebarMenuItem>
-        <SidebarMenuButton
-          type="button"
-          onClick={toggleSidebar}
-          aria-expanded={!collapsed}
-          aria-keyshortcuts="Control+B Meta+B"
-          tooltip={label}
-          className={cn(ITEM_CLASS, "text-tertiary")}
-        >
-          <Icon aria-hidden className="size-[18px]!" />
-          <span>{label}</span>
-        </SidebarMenuButton>
-      </SidebarMenuItem>
-    </SidebarMenu>
-  );
-}
-
-function percent(used: number, limit: number) {
-  return limit > 0 ? (used / limit) * 100 : 0;
-}
-
-function UsageMeter() {
-  const { data } = useQuery(providerStatusQuery);
-  if (!data) return null;
-  const { mail, placesUsage } = data;
-  return (
-    <div className="grid gap-3 border-t border-sidebar-border px-2 pt-3.5 group-data-[collapsible=icon]:hidden">
-      {mail.configured ? (
-        <MeterRow
-          value={percent(mail.sentToday, mail.limit)}
-          tone="blue"
-          used={mail.sentToday}
-          limit={mail.limit}
-          label="e-mails hoje"
-          info={GLOSSARY.dailyLimit.text}
-        />
-      ) : (
-        <Link
-          to="/settings"
-          hash="email"
-          className="flex items-center gap-2 text-sm font-semibold text-foreground"
-        >
-          <CircleAlertIcon aria-hidden className="size-4 shrink-0 text-orange" />
-          E-mail não conectado
-        </Link>
-      )}
-      <GoogleQuotaRow usage={placesUsage} />
-    </div>
-  );
-}
-
-function MeterRow({
-  value,
-  tone,
-  used,
-  limit,
-  label,
-  info,
-}: {
-  value: number;
-  tone: Tone;
-  used: number;
-  limit: number;
-  label: string;
-  /** Explains the limit in a tooltip on the meter itself (hover or keyboard focus). */
-  info?: string;
-}) {
-  const row = (
-    <div
-      className="grid gap-1.5 rounded-[9px] outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
-      {...(info
-        ? { tabIndex: 0, role: "group", "aria-label": `${used} de ${limit} ${label}` }
-        : {})}
-    >
-      <div className="flex items-baseline justify-between gap-2 text-sm leading-tight">
-        <span className="text-muted-foreground first-letter:uppercase">{label}</span>
-        <span className="font-semibold tabular-nums">
-          {used} de {limit}
-        </span>
-      </div>
-      <div className="h-1 overflow-hidden rounded-full bg-fill-2" aria-hidden>
-        <div
-          className="bar-grow h-full rounded-full"
-          style={{ width: `${Math.min(value, 100)}%`, background: toneVar(tone) }}
-        />
-      </div>
-    </div>
-  );
-  // No extra icon here: without failures the sidebar keeps only what it had (plus "?").
-  return info ? (
-    <Hint
-      label={<span className="block max-w-64 font-normal leading-snug">{info}</span>}
-      side="right"
-    >
-      {row}
-    </Hint>
-  ) : (
-    row
-  );
-}
-
-/** Who is signed in, with the mailbox status under the name. */
-function AccountRow() {
-  const { data } = useQuery(providerStatusQuery);
-  const { data: account } = useQuery(accountQuery);
-  const { theme, setTheme } = useTheme();
-  const openHelp = useContext(HelpContext);
-  const dark = theme === "dark";
-  const address = data?.mail.configured ? data.mail.address : null;
-  const name = account?.name ?? "Sua conta";
-  // Until both answer, a neutral placeholder: never "Caixa não conectada" for a connected box.
-  const loading = !data || !account;
-  return (
-    <div className="flex items-center gap-2.5 px-1 pt-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
-      <Link
-        to="/conta"
-        className="press flex min-w-0 flex-1 items-center gap-2.5 rounded-[9px] group-data-[collapsible=icon]:hidden"
-      >
-        {loading ? (
-          <div className="flex min-w-0 flex-1 items-center gap-2.5" aria-hidden>
-            <Skeleton className="size-7 shrink-0 rounded-full" />
-            <div className="grid min-w-0 flex-1 gap-1.5">
-              <Skeleton className="h-3 w-20" />
-              <Skeleton className="h-2.5 w-28" />
-            </div>
-          </div>
-        ) : (
-          <>
-            <Avatar name={name} src={account?.avatar} size={32} />
-            <div className="min-w-0 flex-1 leading-tight group-data-[collapsible=icon]:hidden">
-              <p className="truncate text-sm font-medium">{name}</p>
-              <p className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
-                {address ? (
-                  <CircleCheckIcon aria-hidden className="size-3.5 shrink-0 text-green" />
-                ) : (
-                  <CircleAlertIcon aria-hidden className="size-3.5 shrink-0 text-orange" />
-                )}
-                <span className="truncate">{address ?? "Caixa não conectada"}</span>
-              </p>
-            </div>
-          </>
-        )}
-      </Link>
-      <div className="flex shrink-0 items-center gap-1 group-data-[collapsible=icon]:flex-col">
-        <Hint label="Ajuda" side="top">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            onClick={openHelp}
-            aria-label="Ajuda"
-            aria-keyshortcuts="?"
-          >
-            <CircleHelpIcon className="size-3.5" />
-          </Button>
-        </Hint>
-        <Hint label={dark ? "Tema claro" : "Tema escuro"} side="top">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => setTheme(dark ? "light" : "dark")}
-            aria-label={dark ? "Tema claro" : "Tema escuro"}
-          >
-            {dark ? <SunIcon className="size-3.5" /> : <MoonIcon className="size-3.5" />}
-          </Button>
-        </Hint>
-      </div>
-    </div>
   );
 }
 
@@ -519,7 +136,7 @@ export function Page({
         <Hint label="Menu">
           <SidebarTrigger
             aria-label="Mostrar ou esconder o menu"
-            className="-ml-1 size-9 text-tertiary md:hidden"
+            className="-ml-1 size-9 text-tertiary"
           />
         </Hint>
         <h1

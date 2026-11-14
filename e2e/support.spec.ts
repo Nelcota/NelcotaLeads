@@ -19,13 +19,13 @@ function recentInboxTicks(count: number): Date[] {
 const MAILBOX_REFUSED = "A caixa de e-mail recusou a conexão. Confira a senha em Configurações.";
 
 test.describe("system status", () => {
-  test("a mailbox that keeps refusing turns its task red and marks Conta in the sidebar", async ({
+  test("a mailbox that keeps refusing turns its task red and the sidebar status dot orange", async ({
     page,
     backend,
   }) => {
     await visit(page, "/conta");
     const status = page.locator("#status");
-    // Nothing failing: no dot on Conta.
+    // Nothing failing: the sidebar status dot is not marked.
     await expect(page.getByTestId("system-attention")).toHaveCount(0);
 
     await backend.fault("mailbox");
