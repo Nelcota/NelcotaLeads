@@ -28,19 +28,13 @@ import { ConversationStateLabel } from "@/components/conversas/conversation-stat
 import { ThreadHeader } from "@/components/conversas/thread-header";
 import { HandoffNotice } from "@/components/conversas/handoff-notice";
 import { LeadPanel } from "@/components/conversas/lead-panel";
+import { NicheFilter } from "@/components/conversas/niche-filter";
 import { NoConversationOpen } from "@/components/conversas/no-conversation-open";
 import type { MessageActions } from "@/components/conversas/message-buttons";
 import { ReplyComposer } from "@/components/conversas/reply-composer";
 import { ThreadMessages } from "@/components/conversas/thread-messages";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Email } from "@/db/schema";
 import { useAutosave } from "@/lib/autosave";
@@ -127,8 +121,20 @@ function ConversationsPage() {
   const { data } = useQuery(conversationsQuery);
   const { data: niches } = useQuery(nichesQuery);
   // Only the niches that have a conversation; the list keeps the overview's order.
-  const talkedKeys = new Set((data ?? []).map((row) => row.niche));
-  const talkedNiches = (niches ?? []).filter((item) => talkedKeys.has(item.key));
+  const talkedPerNiche = new Map<string, number>();
+  for (const row of data ?? [])
+    talkedPerNiche.set(row.niche, (talkedPerNiche.get(row.niche) ?? 0) + 1);
+  const talkedNiches = (niches ?? []).filter((item) => talkedPerNiche.has(item.key));
+  const nicheOptions = talkedNiches.map((item) => ({
+    key: item.key,
+    label: item.label,
+    count: String(talkedPerNiche.get(item.key) ?? 0),
+  }));
+  // A niche from a link that has no conversation still shows, so it stays visibly picked.
+  if (niche && !talkedPerNiche.has(niche)) {
+    const label = niches?.find((item) => item.key === niche)?.label ?? niche;
+    nicheOptions.push({ key: niche, label, count: "0" });
+  }
   const refresh = useRefresh();
   const check = useMutation({
     mutationFn: () => checkMailNow(),
@@ -264,31 +270,16 @@ function ConversationsPage() {
               />
             ) : null}
             {talkedNiches.length > 1 || niche ? (
-              <Select
-                value={niche ?? "all"}
-                onValueChange={(value) =>
+              <NicheFilter
+                options={nicheOptions}
+                selected={niche}
+                onPick={(key) =>
                   void navigate({
-                    search: (prev) => ({ ...prev, niche: value === "all" ? undefined : value }),
+                    search: (prev) => ({ ...prev, niche: key }),
                     replace: true,
                   })
                 }
-              >
-                <SelectTrigger size="sm" className="w-full max-sm:h-9" aria-label="Nicho">
-                  <span className="text-muted-foreground">Nicho</span>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  {talkedNiches.map((item) => (
-                    <SelectItem key={item.key} value={item.key}>
-                      {item.label}
-                    </SelectItem>
-                  ))}
-                  {niche && !talkedNiches.some((item) => item.key === niche) ? (
-                    <SelectItem value={niche}>{niche}</SelectItem>
-                  ) : null}
-                </SelectContent>
-              </Select>
+              />
             ) : null}
             <div className="xl:hidden">
               <ConversationFilters value={filter} countOf={countOf} onChange={changeFilter} />

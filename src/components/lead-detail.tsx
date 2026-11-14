@@ -883,7 +883,12 @@ function AnalysisSection({ lead, analysis }: { lead: Lead; analysis: Analysis | 
         ) : status && !status.offerConfigured ? (
           <p className="text-sm text-muted-foreground">
             Para ver oportunidades,{" "}
-            <Link to="/settings" className="text-foreground underline underline-offset-4">
+            <Link
+              to="/settings"
+              search={{ aba: "ia" }}
+              hash="oferta"
+              className="text-foreground underline underline-offset-4"
+            >
               descreva o que você vende
             </Link>{" "}
             e reanalise.

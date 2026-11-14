@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  notificationPrefsSummary,
   DEFAULT_NOTIFICATION_PREFS,
   splitNotifications,
   isForMe,
@@ -136,5 +137,25 @@ describe("newUnreadKeys", () => {
   it("returns only unread keys that were not there before", () => {
     const items = [item({ key: "a" }), item({ key: "b" }), item({ key: "c", unread: false })];
     expect(newUnreadKeys(new Set(["a"]), items)).toEqual(["b"]);
+  });
+});
+
+describe("notificationPrefsSummary", () => {
+  it("reads the defaults as my leads without sound", () => {
+    expect(notificationPrefsSummary(DEFAULT_NOTIFICATION_PREFS)).toBe(
+      "Só dos meus leads · som desligado",
+    );
+  });
+
+  it("counts sound only on groups that show", () => {
+    const loud = { show: true, sound: true, system: false };
+    const hidden = { show: false, sound: true, system: false };
+    const base = DEFAULT_NOTIFICATION_PREFS.categories;
+    expect(
+      notificationPrefsSummary({ scope: "all", categories: { ...base, replies: hidden } }),
+    ).toBe("De todos os leads · som desligado");
+    expect(notificationPrefsSummary({ scope: "all", categories: { ...base, agenda: loud } })).toBe(
+      "De todos os leads · som ligado",
+    );
   });
 });

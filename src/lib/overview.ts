@@ -39,7 +39,7 @@ export type OverviewAlert = {
   link:
     | { to: "/conversas"; search: { filter: "needsYou" } }
     | { to: "/leads"; search: { view: "followup" } | { view: "all"; searchId: string } }
-    | { to: "/settings"; hash: "oferta" };
+    | { to: "/settings"; search: { aba: "ia" }; hash: "oferta" };
 };
 
 /**
@@ -65,7 +65,7 @@ export function buildAlerts(data: AlertSource, followUps: number): OverviewAlert
       tone: "orange",
       label: "Descrever a oferta",
       hint: "Sem a oferta, a IA escreve e-mails genéricos. Abre Configurações.",
-      link: { to: "/settings", hash: "oferta" },
+      link: { to: "/settings", search: { aba: "ia" }, hash: "oferta" },
     });
   }
   const cooling = data.stats.cooling;

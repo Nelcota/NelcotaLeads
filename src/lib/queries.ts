@@ -15,7 +15,7 @@ import { getNotifications } from "@/server/notifications";
 import { listPartnerLeadsInProgress } from "@/server/partner-leads";
 import { getBookableLeads, getLeadSales } from "@/server/sales";
 import { getServiceTable } from "@/server/services";
-import { getQuickReplies } from "@/server/settings";
+import { getQuickReplies, getSettings } from "@/server/settings";
 import { getSystemStatus } from "@/server/system-status";
 import { getTeam, listTeamMembers } from "@/server/team";
 
@@ -33,6 +33,9 @@ export const nichesQuery = queryOptions({
   queryFn: () => listNiches(),
   refetchInterval: 60_000,
 });
+
+/** The shared settings record (sender, limits, automation); Conta reads the sender from it. */
+export const settingsQuery = queryOptions({ queryKey: ["settings"], queryFn: () => getSettings() });
 
 /** The signed-in account; it only changes on sign-in, so it is never refetched on its own. */
 export const accountQuery = queryOptions({

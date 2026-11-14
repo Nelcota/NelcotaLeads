@@ -1,3 +1,4 @@
+import { EMAIL_OPT_OUT } from "@/lib/email-opt-out";
 import {
   and,
   asc,
@@ -98,7 +99,7 @@ export const AUTO_DISPATCH_PER_RUN = 20;
 const DRAFT_CONCURRENCY = 4;
 // Longest AI text sent without a person reading it.
 const MAX_AUTO_LENGTH = 1200;
-export const EMAIL_OPT_OUT = 'Para não receber mais e-mails, responda com "sair".';
+export { EMAIL_OPT_OUT };
 const OPTED_OUT = "Pediu para não receber e-mails";
 const BLOCKED = "O lead pediu para não receber e-mails";
 /** The user's own reply in progress: at most one per lead, and the AI never writes over it. */
