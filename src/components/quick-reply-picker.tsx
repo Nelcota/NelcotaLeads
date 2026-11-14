@@ -103,6 +103,7 @@ export function QuickReplyPicker({
         <div className="border-t border-border/70 pt-1">
           <Link
             to="/settings"
+            search={{ aba: "modelos" }}
             hash="respostas"
             className="flex h-8 items-center rounded-lg px-2 text-sm font-medium text-blue hover:bg-fill-3"
           >

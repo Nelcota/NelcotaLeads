@@ -70,7 +70,12 @@ export function SearchComposer({
       {offerConfigured ? null : (
         <p className="text-sm text-muted-foreground">
           Sua oferta ainda não foi descrita, então a nota e a mensagem saem genéricas.{" "}
-          <Link to="/settings" className="font-medium text-blue hover:underline">
+          <Link
+            to="/settings"
+            search={{ aba: "ia" }}
+            hash="oferta"
+            className="font-medium text-blue hover:underline"
+          >
             Descrever agora
           </Link>
         </p>

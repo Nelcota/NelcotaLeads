@@ -7,7 +7,6 @@ import {
   ListChecksIcon,
   PlusIcon,
   SendIcon,
-  UserIcon,
   UserPlusIcon,
 } from "@/components/icons";
 import { useRef, useState } from "react";
@@ -33,7 +32,6 @@ import {
 import { LeadsTabs } from "@/components/leads/leads-tabs";
 import { SelectionBar } from "@/components/leads/selection-bar";
 import { Button } from "@/components/ui/button";
-import { ChoicePill } from "@/components/ui/choice-pill";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -131,6 +129,7 @@ function LeadsPage() {
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [dispatching, setDispatching] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [discarding, setDiscarding] = useState({ open: false, ids: [] as string[] });
 
   // The selection and the page belong to one list: another tab, filter, search or order resets them.
@@ -270,9 +269,13 @@ function LeadsPage() {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      {/* Keeps its text on phones too: the one primary action of the page. */}
+      {/* Keeps its text on phones too. Neutral until a selection can go out, then the primary action. */}
       <DisabledReason reason={dispatchReason}>
-        <Button disabled={Boolean(dispatchReason)} onClick={() => setDispatching(true)}>
+        <Button
+          variant={dispatchReason ? "outline" : "default"}
+          disabled={Boolean(dispatchReason)}
+          onClick={() => setDispatching(true)}
+        >
           <SendIcon />
           {dispatchLabel}
         </Button>
@@ -294,7 +297,7 @@ function LeadsPage() {
           description="Ligue a busca diária para receber leads todo dia, ou faça uma nova busca."
         >
           <Button asChild>
-            <Link to="/settings" hash="piloto">
+            <Link to="/settings" search={{ aba: "automacao" }}>
               Configurar busca diária
             </Link>
           </Button>
@@ -374,14 +377,6 @@ function LeadsPage() {
             shortcutsOpen={shortcutsOpen}
             onShortcutsOpenChange={setShortcutsOpen}
           />
-          <ChoicePill
-            aria-pressed={filters.mine ?? false}
-            selected={filters.mine ?? false}
-            onClick={() => setFilters({ mine: filters.mine ? undefined : true })}
-          >
-            <UserIcon />
-            Meus leads
-          </ChoicePill>
           {readyIds.length > 0 ? (
             <Button variant="ghost" onClick={selectReady}>
               <ListChecksIcon aria-hidden className="text-blue" />
@@ -391,13 +386,23 @@ function LeadsPage() {
           <div className="ml-auto">
             <FiltersButton
               filters={filters}
+              chips={chips}
               count={popoverFilterCount(filters)}
               shown={rows === undefined ? undefined : loaded.length}
+              open={filtersOpen}
+              onOpenChange={setFiltersOpen}
               onChange={setFilters}
               onReset={() => setFilters(NO_FILTERS)}
             />
           </div>
-          <FilterChips chips={chips} onChange={setFilters} onReset={() => setFilters(NO_FILTERS)} />
+          {/* The open panel lists the same chips; showing both would repeat them. */}
+          {filtersOpen ? null : (
+            <FilterChips
+              chips={chips}
+              onChange={setFilters}
+              onReset={() => setFilters(NO_FILTERS)}
+            />
+          )}
         </div>
 
         <div className="overflow-hidden rounded-b-[20px]">

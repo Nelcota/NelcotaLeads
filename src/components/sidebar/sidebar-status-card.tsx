@@ -64,7 +64,7 @@ function statusContent(
         title="E-mail não conectado"
         text="Os disparos ficam parados até a caixa voltar."
         action={
-          <Link to="/settings" hash="email">
+          <Link to="/settings" search={{ aba: "email" }} hash="email">
             Ver configurações
             <ArrowRightIcon aria-hidden />
           </Link>

@@ -58,6 +58,7 @@ export { default as ImageUpIcon } from "~icons/solar/gallery-send-linear";
 
 // Status
 export { default as CircleCheckIcon } from "~icons/solar/check-circle-linear";
+export { default as CircleMinusIcon } from "~icons/solar/minus-circle-linear";
 export { default as CircleXIcon } from "~icons/solar/close-circle-linear";
 export { default as XCircleIcon } from "~icons/solar/close-circle-linear";
 export { default as CircleAlertIcon } from "~icons/solar/danger-circle-linear";

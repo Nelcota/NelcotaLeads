@@ -159,7 +159,7 @@ export function TodaysDispatch({ data }: { data: Dashboard }) {
             {mail.autoDispatch ? "ligado" : "desligado"}
           </p>
           <Button asChild size="sm" variant="outline" className="shrink-0">
-            <Link to="/settings" hash="piloto">
+            <Link to="/settings" search={{ aba: "automacao" }}>
               Ajustar
             </Link>
           </Button>

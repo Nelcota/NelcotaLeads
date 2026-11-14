@@ -94,6 +94,7 @@ test.describe("number steppers", () => {
     // Client-side navigation, like settings.spec.ts.
     await visit(page, "/");
     await page.getByRole("link", { name: "Configurações" }).click();
+    await page.getByRole("link", { name: "IA e pontuação", exact: true }).click();
 
     const minScore = page.getByLabel("Descartar leads com nota abaixo de");
     const scoreStepper = page.locator('[data-slot="number-stepper"]').filter({ has: minScore });

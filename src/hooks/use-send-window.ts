@@ -23,7 +23,8 @@ export function useSendWindow() {
         queryClient.invalidateQueries({ queryKey: ["send-window"] }),
         queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
       ]);
-      toast.success(`Envios das ${next.start}h às ${next.end}h`);
+      // One toast that updates while the hours are stepped, not one per click.
+      toast.success(`Envios das ${next.start}h às ${next.end}h`, { id: "send-window" });
     },
     onError: errorToast("Não foi possível salvar o horário de envio"),
   });

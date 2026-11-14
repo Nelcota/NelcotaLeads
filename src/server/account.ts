@@ -11,7 +11,7 @@ export const getAccount = createServerFn({ method: "GET" }).handler(async () => 
   if (!userId) return null;
   const user = await getDb().query.users.findFirst({
     where: eq(users.id, userId),
-    columns: { name: true, email: true, avatar: true, createdAt: true },
+    columns: { id: true, name: true, email: true, avatar: true, createdAt: true },
   });
   return user ?? null;
 });

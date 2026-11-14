@@ -131,3 +131,41 @@ export function timeAgo(date: Date, now: Date): string {
   const days = Math.floor(hours / 24);
   return days === 1 ? "há 1 dia" : `há ${days} dias`;
 }
+
+export type SystemSummary = {
+  state: JobState;
+  title: string;
+  detail: string;
+};
+
+/** The one line Conta shows above the task list: the worst state and how many tasks share it. */
+export function systemSummary(states: readonly JobState[]): SystemSummary {
+  const failing = countOf(states, "error");
+  if (failing > 0) {
+    return { state: "error", title: "Falhando", detail: tasks(failing, "falhando", "falhando") };
+  }
+  const warning = countOf(states, "warning");
+  if (warning > 0) {
+    return {
+      state: "warning",
+      title: "Atenção",
+      detail: tasks(warning, "pede atenção", "pedem atenção"),
+    };
+  }
+  const off = countOf(states, "off");
+  if (off === states.length) {
+    return { state: "off", title: "Tudo desligado", detail: tasks(off, "desligada", "desligadas") };
+  }
+  const running = tasks(states.length - off, "rodando", "rodando");
+  const detail =
+    off === 0 ? running : `${running}, ${off} ${off === 1 ? "desligada" : "desligadas"}`;
+  return { state: "ok", title: "Tudo funcionando", detail };
+}
+
+function countOf(states: readonly JobState[], state: JobState): number {
+  return states.filter((each) => each === state).length;
+}
+
+function tasks(count: number, one: string, many: string): string {
+  return count === 1 ? `1 tarefa ${one}` : `${count} tarefas ${many}`;
+}
