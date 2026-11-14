@@ -17,10 +17,13 @@ export function SalesActions({
   lead,
   sales,
   today,
+  primary,
 }: {
   lead: Pick<Lead, "name" | "email" | "unsubscribedAt">;
   sales: LeadSales;
   today: string;
+  /** The main action of the card (solid blue), if it is one of these two. */
+  primary?: "meeting" | "proposal";
 }) {
   const [mode, setMode] = useState<Mode>("idle");
   const back = () => setMode("idle");
@@ -59,7 +62,11 @@ export function SalesActions({
       {sales.proposal ? (
         <p className="w-full text-sm text-muted-foreground">{proposalStatusLine(sales.proposal)}</p>
       ) : null}
-      <Button variant="outline" onClick={() => setMode("meeting")}>
+      <Button
+        size="sm"
+        variant={primary === "meeting" ? "default" : "outline"}
+        onClick={() => setMode("meeting")}
+      >
         Agendar reunião
       </Button>
       <DisabledReason
@@ -71,7 +78,12 @@ export function SalesActions({
               : "Carregando a tabela de serviços…"
         }
       >
-        <Button variant="outline" disabled={!sales.table} onClick={() => setMode("proposal")}>
+        <Button
+          size="sm"
+          variant={primary === "proposal" ? "default" : "outline"}
+          disabled={!sales.table}
+          onClick={() => setMode("proposal")}
+        >
           Montar proposta
         </Button>
       </DisabledReason>

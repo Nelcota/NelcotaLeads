@@ -5,7 +5,8 @@ import { scoreLabel, scoreLevel } from "@/lib/score-label";
 import { cn } from "@/lib/utils";
 
 /**
- * The score as a word ("Alta", "Média", "Baixa") inside a ring with "Nota" under it. How it
+ * The score as a ring with the number inside, like the Leads table, and its level under it
+ * ("Nota alta", "Nota média", "Nota baixa"). How it
  * was calculated lives in the Análise card ("Como a nota foi calculada"), not in a tooltip.
  */
 export function ScoreRing({ score, pending }: { score: number | null; pending: boolean }) {
@@ -39,21 +40,24 @@ function ScoreValue({ score, pending }: { score: number | null; pending: boolean
   }
   const tone = TIER_TONE[scoreLevel(score)];
   return (
-    <ProgressRing
-      value={score}
-      tone={tone}
-      size={60}
-      thickness={5}
-      track="var(--popover)"
-      className="cursor-default"
-    >
-      <span
-        title={`Nota ${score} de 100`}
-        className={cn("grid justify-items-center leading-none", TONE_TEXT[tone])}
+    <span className="grid justify-items-center gap-1">
+      <ProgressRing
+        value={score}
+        tone={tone}
+        size={52}
+        thickness={4}
+        track="var(--popover)"
+        className="cursor-default"
       >
-        <b className="text-base font-semibold">{scoreLabel(score)}</b>
-        <small className="mt-0.5 text-xs font-medium text-muted-foreground">Nota</small>
-      </span>
-    </ProgressRing>
+        <b className={cn("text-base leading-none font-semibold tabular-nums", TONE_TEXT[tone])}>
+          <span className="sr-only">Nota </span>
+          {score}
+          <span className="sr-only"> de 100</span>
+        </b>
+      </ProgressRing>
+      <small className="text-xs font-medium text-muted-foreground">
+        Nota {scoreLabel(score).toLowerCase()}
+      </small>
+    </span>
   );
 }
