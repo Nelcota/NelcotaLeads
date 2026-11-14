@@ -12,6 +12,7 @@ import { getProviderStatus, listSearches } from "@/server/searches";
 import { listNicheMetrics, listNiches } from "@/server/niches";
 import { getOverviewMetrics } from "@/server/overview-metrics";
 import { getNotifications } from "@/server/notifications";
+import { listPartnerLeadsInProgress } from "@/server/partner-leads";
 import { getBookableLeads, getLeadSales } from "@/server/sales";
 import { getServiceTable } from "@/server/services";
 import { getQuickReplies } from "@/server/settings";
@@ -87,6 +88,16 @@ export const leadsQuery = (filters: LeadFilters) =>
     // While a search or filter change loads, the list keeps the last rows instead of flashing
     // "Nenhum lead" between keystrokes.
     placeholderData: keepPreviousData,
+  });
+
+/**
+ * "Em andamento" in a partner's profile. Under "leads", so every change to a lead refreshes it
+ * along with the Leads list.
+ */
+export const partnerLeadsQuery = (owner: string) =>
+  queryOptions({
+    queryKey: ["leads", "partner-in-progress", owner],
+    queryFn: () => listPartnerLeadsInProgress({ data: { owner } }),
   });
 
 export const leadQuery = (id: string) =>

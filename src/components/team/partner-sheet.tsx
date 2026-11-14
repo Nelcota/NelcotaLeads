@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { Avatar } from "@/components/apple-ui";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import { localDay } from "@/lib/format";
@@ -9,6 +10,17 @@ import type { Team, TeamMember } from "@/server/team";
 import { PartnerLeads } from "./partner-leads";
 import { PartnerTiles } from "./partner-tiles";
 import { PartnerToday } from "./partner-today";
+
+/** The visible button that opened a partner's profile (the column on a wide screen, the row on a phone). */
+function profileOpener(memberId: string | null): HTMLElement | null {
+  if (!memberId) return null;
+  const buttons = document.querySelectorAll<HTMLElement>("[data-partner-open]");
+  return (
+    Array.from(buttons).find(
+      (button) => button.dataset.partnerOpen === memberId && button.offsetParent !== null,
+    ) ?? null
+  );
+}
 
 function ratio(part: number, whole: number): string {
   return whole > 0 ? `${Math.round((part / whole) * 100)}%` : "—";
@@ -77,11 +89,26 @@ export function PartnerSheet({
   period: OverviewPeriod;
   onClose: () => void;
 }) {
+  // The sheet opens from the URL (?socio=), so Radix has no trigger to give focus back to: on
+  // close it returns to the partner's button instead of the page body.
+  const lastOpened = useRef<string | null>(null);
+  useEffect(() => {
+    if (member) lastOpened.current = member.id;
+  }, [member]);
+  const returnFocus = (event: Event) => {
+    const opener = profileOpener(lastOpened.current);
+    if (!opener) return;
+    event.preventDefault();
+    opener.focus();
+  };
   const since = member ? localDay(member.since) : "";
   const recent = member ? activity.filter((line) => line.whoId === member.id).slice(0, 3) : [];
   return (
     <Sheet open={member !== null} onOpenChange={(open) => (open ? null : onClose())}>
-      <SheetContent className="w-full gap-0 overflow-y-auto p-6 data-[side=right]:sm:max-w-[460px]">
+      <SheetContent
+        onCloseAutoFocus={returnFocus}
+        className="w-full gap-0 overflow-y-auto p-6 data-[side=right]:sm:max-w-[460px]"
+      >
         {member ? (
           <>
             <div className="flex items-start gap-3.5 pr-8">
@@ -102,7 +129,7 @@ export function PartnerSheet({
             <Section title="Números" aside={PERIOD_CAPTIONS[period]}>
               <Numbers member={member} goalCents={team.goal.goal?.revenueCents ?? 0} />
             </Section>
-            <PartnerToday lines={todayLines(member, team.today)} />
+            <PartnerToday lines={todayLines(member, team.today, isMe)} />
             <Section title="Em andamento">
               <PartnerLeads memberId={member.id} held={member.held} today={team.today} />
             </Section>
