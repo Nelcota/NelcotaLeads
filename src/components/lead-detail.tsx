@@ -16,6 +16,7 @@ import {
   SearchXIcon,
   SparklesIcon,
   StickyNoteIcon,
+  TargetIcon,
   XCircleIcon,
 } from "lucide-react";
 import {
@@ -26,7 +27,8 @@ import {
   TONE_TEXT,
   type Tone,
 } from "@/components/apple-ui";
-import { SegmentedControl } from "@/components/notifications/segmented-control";
+import { FollowUpChoice } from "@/components/lead/follow-up-choice";
+import { LeadName } from "@/components/lead/lead-name";
 import { Notice } from "@/components/lead/notice";
 import { PANEL_FIELD, PanelSection, TitleChip } from "@/components/lead/panel-section";
 import { QuickActions } from "@/components/lead/quick-actions";
@@ -42,7 +44,6 @@ import { ScoreRing } from "@/components/lead/score-ring";
 import { followUpTone } from "@/components/lead-badges";
 import { WhatsAppMark } from "@/components/brand-marks";
 import { LeadAvatar } from "@/components/leads/lead-avatar";
-import { StageLabel } from "@/components/leads/stage-label";
 import { leadStage } from "@/lib/lead-row";
 import { useLeadDeal } from "@/hooks/use-lead-deal";
 import { useReadLeadReplies } from "@/hooks/use-read-lead-replies";
@@ -110,10 +111,7 @@ const FOLLOW_UP_OPTIONS = [
   { days: 14, label: "Em 2 semanas" },
 ] as const;
 
-const FOLLOW_UP_CHOICES = FOLLOW_UP_OPTIONS.map((option) => ({
-  value: String(option.days),
-  label: option.label,
-}));
+const DEFAULT_FOLLOW_UP_DAYS = 3;
 
 type LeadUpdate = Omit<UpdateLeadInput, "id">;
 type DraftText = { subject: string; body: string };
@@ -187,12 +185,13 @@ export function LeadDetail({
             className="rounded-[14px]"
           />
           <div className="grid min-w-0 flex-1 gap-1">
-            <SheetTitle className="text-lg leading-7 font-semibold tracking-[-0.01em] wrap-break-word">
-              {lead.name}
+            {/* The name is edited here, so the Contato card does not repeat it. */}
+            <SheetTitle className="text-xl leading-7 font-semibold tracking-[-0.01em] wrap-break-word">
+              <LeadName lead={lead} onChanged={refreshAll} />
             </SheetTitle>
             <SheetDescription>{facts.join(" · ")}</SheetDescription>
+            {/* The stage lives in the track below; this row is who has the lead and the follow-up. */}
             <div className="mt-1 flex flex-wrap items-center gap-1.5">
-              <StageLabel stage={leadStage(lead)} className="mr-1.5 text-sm" />
               <OwnerChip
                 ownerName={owner?.name ?? null}
                 mine={Boolean(me) && lead.ownerId === me}
@@ -219,7 +218,12 @@ export function LeadDetail({
           </Notice>
         ) : null}
         <QuickActions lead={lead} />
-        <LeadStage lead={lead} busy={deal.movingStage} onSelectStage={deal.setStage} />
+        <LeadStage
+          lead={lead}
+          events={events}
+          busy={deal.movingStage}
+          onSelectStage={deal.setStage}
+        />
         {lead.status === "replied" && isPriceHandoff(lead.handoffReason) ? (
           <Notice icon={CircleAlertIcon} tone="orange">
             A IA não cita preço. Responda com a proposta da tabela de serviços.
@@ -228,18 +232,21 @@ export function LeadDetail({
       </SheetHeader>
 
       <div className="flex flex-col gap-4 px-6 pb-6">
-        <NextStep
-          lead={lead}
-          analysis={analysis}
-          today={today}
-          busy={update.isPending}
-          onUpdate={(changes, options) => update.mutate(changes, options)}
-          onChanged={refreshAll}
-          closing={deal.closing}
-          onWon={deal.closeWon}
-          onLost={deal.closeLost}
-          sales={sales}
-        />
+        {/* Keyed by the stage: when it changes, the new card slides in with the track. */}
+        <div key={leadStage(lead)} className="step-in">
+          <NextStep
+            lead={lead}
+            analysis={analysis}
+            today={today}
+            busy={update.isPending}
+            onUpdate={(changes, options) => update.mutate(changes, options)}
+            onChanged={refreshAll}
+            closing={deal.closing}
+            onWon={deal.closeWon}
+            onLost={deal.closeLost}
+            sales={sales}
+          />
+        </div>
         {sales.meetings.length > 0 ? (
           <PanelSection title="Reuniões" icon={CalendarIcon}>
             <LeadMeetings
@@ -266,6 +273,19 @@ export function LeadDetail({
       </div>
     </div>
   );
+}
+
+/**
+ * The one solid blue action of a conversation card: the next step of the sale. A replied lead
+ * books the meeting first, then gets the proposal; after that (or before a reply) closing the
+ * deal is the main action, which is `undefined` here.
+ */
+function salesMainAction(
+  lead: Pick<Lead, "status" | "salesStage">,
+): "meeting" | "proposal" | undefined {
+  if (lead.status !== "replied") return undefined;
+  if (lead.salesStage === "proposal") return undefined;
+  return lead.salesStage === "meeting" ? "proposal" : "meeting";
 }
 
 type StepProps = {
@@ -321,11 +341,13 @@ function NextStep(props: StepProps) {
               lead={lead}
               sales={props.sales}
               today={props.today}
+              primary={salesMainAction(lead)}
             />
             <DealActions
               key={lead.id}
               today={props.today}
               proposal={props.sales.proposal}
+              primary={salesMainAction(lead) === undefined}
               busy={busy || props.closing}
               onWon={props.onWon}
               onLost={props.onLost}
@@ -381,7 +403,7 @@ function NextStep(props: StepProps) {
 
 function FirstContactStep({ lead, analysis, today, busy, onUpdate, onChanged }: StepProps) {
   const [message, setMessage] = useState(analysis?.firstMessage ?? "");
-  const [followUpDays, setFollowUpDays] = useState("3");
+  const [followUpDays, setFollowUpDays] = useState(DEFAULT_FOLLOW_UP_DAYS);
   const saved = analysis?.firstMessage ?? "";
   const hasMessage = message.trim().length > 0;
   const dirty = message !== saved && analysis !== null;
@@ -409,7 +431,7 @@ function FirstContactStep({ lead, analysis, today, busy, onUpdate, onChanged }: 
         return; // saveMessage already showed the error; the lead stays as it was
       }
     }
-    const followUpOn = addDays(today, Number(followUpDays));
+    const followUpOn = addDays(today, followUpDays);
     onUpdate(
       { status: "contacted", followUpOn },
       {
@@ -458,18 +480,15 @@ function FirstContactStep({ lead, analysis, today, busy, onUpdate, onChanged }: 
           onChange={(event) => setMessage(event.target.value)}
           disabled={!analysis || generate.isPending}
         />
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <span aria-hidden className="text-xs font-medium text-muted-foreground">
+        <div className="grid gap-2">
+          <span aria-hidden className="text-base">
             Retorno
           </span>
-          {/* Radio semantics: Tab reaches the chosen day, the arrow keys move the choice. */}
-          <SegmentedControl
+          <FollowUpChoice
             label="Retorno"
-            size="sm"
-            value={followUpDays}
-            options={FOLLOW_UP_CHOICES}
+            days={followUpDays}
+            options={FOLLOW_UP_OPTIONS}
             onChange={setFollowUpDays}
-            className="min-w-0 flex-1 flex-wrap"
           />
         </div>
       </CardContent>
@@ -507,11 +526,12 @@ function FirstContactStep({ lead, analysis, today, busy, onUpdate, onChanged }: 
         ) : null}
         <Button
           size="sm"
-          variant="ghost"
+          variant="destructive"
           className="ml-auto"
           disabled={busy}
           onClick={() => onUpdate({ status: "discarded" })}
         >
+          <XCircleIcon />
           Descartar lead
         </Button>
       </CardFooter>
@@ -543,11 +563,12 @@ function WaitingStep(props: StepProps) {
         </Button>
         <Button
           size="sm"
-          variant="ghost"
+          variant="destructive"
           className="ml-auto"
           disabled={busy}
           onClick={() => onUpdate({ status: "discarded" })}
         >
+          <XCircleIcon />
           Descartar lead
         </Button>
       </CardFooter>
@@ -702,11 +723,12 @@ function EmailStep({ lead, busy, onUpdate, onChanged }: StepProps) {
         )}
         <Button
           size="sm"
-          variant="ghost"
+          variant="destructive"
           className="ml-auto"
           disabled={busy}
           onClick={() => onUpdate({ status: "discarded" })}
         >
+          <XCircleIcon />
           Descartar lead
         </Button>
       </CardFooter>
@@ -761,13 +783,20 @@ function ConversationStep({ lead, today, closing, onWon, onLost, sales }: StepPr
           </Link>
         </Button>
         {lead.status === "replied" ? (
-          <SalesActions key={`sales:${lead.id}`} lead={lead} sales={sales} today={today} />
+          <SalesActions
+            key={`sales:${lead.id}`}
+            lead={lead}
+            sales={sales}
+            today={today}
+            primary={salesMainAction(lead)}
+          />
         ) : null}
         {open ? (
           <DealActions
             key={lead.id}
             today={today}
             proposal={sales.proposal}
+            primary={salesMainAction(lead) === undefined}
             busy={closing}
             onWon={onWon}
             onLost={onLost}
@@ -780,24 +809,22 @@ function ConversationStep({ lead, today, closing, onWon, onLost, sales }: StepPr
 
 function FollowUpPicker({ lead, today, busy, onUpdate, label }: StepProps & { label: string }) {
   const value = lead.followUpOn;
+  // The option that matches the saved day is the chosen one; a custom date matches none.
+  const chosen = FOLLOW_UP_OPTIONS.find((option) => addDays(today, option.days) === value);
   return (
     <div className="grid gap-2">
-      <p className="text-sm">
+      <p className="text-base">
         {label}:{" "}
         <span className="font-medium">{value ? relativeDay(value, today) : "sem data"}</span>
       </p>
       <div className="flex flex-wrap items-center gap-2">
-        {FOLLOW_UP_OPTIONS.slice(0, 3).map((option) => (
-          <Button
-            key={option.days}
-            variant="outline"
-            size="sm"
-            disabled={busy}
-            onClick={() => onUpdate({ followUpOn: addDays(today, option.days) })}
-          >
-            {option.label}
-          </Button>
-        ))}
+        <FollowUpChoice
+          label={label}
+          days={chosen?.days ?? null}
+          options={FOLLOW_UP_OPTIONS}
+          disabled={busy}
+          onChange={(days) => onUpdate({ followUpOn: addDays(today, days) })}
+        />
         <Input
           type="date"
           aria-label={`${label}: escolher data`}
@@ -845,10 +872,11 @@ function AnalysisSection({ lead, analysis }: { lead: Lead; analysis: Analysis | 
               icon={CircleCheckIcon}
               items={analysis.signals}
             />
+            {/* Neutral icon: orange is the alert color, and a likely pain is not an alert. */}
             <PlainList
               title="Dores prováveis"
-              tone="orange"
-              icon={CircleAlertIcon}
+              tone="gray"
+              icon={TargetIcon}
               items={analysis.painPoints}
             />
           </div>
@@ -907,16 +935,7 @@ function ContactSection({ lead, onChanged }: { lead: Lead; onChanged: () => Prom
   const website = safeHttpUrl(lead.website);
   return (
     <PanelSection title="Contato" icon={ContactIcon}>
-      <dl className="grid text-sm">
-        <Term label="Nome">
-          <InlineEdit
-            label="nome"
-            value={lead.name}
-            placeholder="Adicionar nome"
-            maxLength={CONTACT_LIMITS.name}
-            onSave={save("name")}
-          />
-        </Term>
+      <dl className="grid text-base">
         <Term label="E-mail">
           <InlineEdit
             label="e-mail"
@@ -1012,18 +1031,18 @@ function NotesSection({
     return () => clearTimeout(timer);
   }, [savedAt]);
   return (
-    <PanelSection
-      title="Notas"
-      icon={StickyNoteIcon}
-      status={
+    // One short title line, then a tall field: the writing area is what matters here.
+    <section className="grid gap-2.5 rounded-[20px] border border-foreground/15 bg-card-2 px-4 pt-3.5 pb-4">
+      <div className="flex items-center gap-2">
+        <StickyNoteIcon aria-hidden className="size-[18px] text-muted-foreground" strokeWidth={2} />
+        <h3 className="flex-1 text-base leading-[22px] font-semibold">Notas</h3>
         <span aria-live="polite" className="text-xs text-muted-foreground">
-          {savedAt ? "Salvo" : ""}
+          {savedAt ? "Salvo" : "Salvas ao sair do campo"}
         </span>
-      }
-    >
+      </div>
       <Textarea
         aria-label="Notas"
-        rows={5}
+        rows={8}
         value={notes}
         onChange={(event) => setNotes(event.target.value)}
         onBlur={() => {
@@ -1034,10 +1053,10 @@ function NotesSection({
             () => {},
           );
         }}
-        placeholder="Salvas ao sair do campo."
-        className={cn("min-h-28", PANEL_FIELD)}
+        placeholder="O que foi combinado, quem atendeu, melhor horário para ligar…"
+        className={cn("min-h-[220px] resize-y leading-normal", PANEL_FIELD)}
       />
-    </PanelSection>
+    </section>
   );
 }
 
@@ -1062,8 +1081,7 @@ function Footer({
       <div className="flex flex-wrap items-center gap-3">
         {analysis ? (
           <span className="text-xs text-muted-foreground">
-            {analysis.model} · {formatUsd(analysis.costEstimate)} ·{" "}
-            {formatDate(analysis.createdAt, true)}
+            Analisado em {formatDate(analysis.createdAt, true)} · {formatUsd(analysis.costEstimate)}
           </span>
         ) : null}
         <Button
@@ -1125,12 +1143,12 @@ function PlainList({
 }) {
   return (
     <div>
-      <h4 className="mb-1.5 text-xs font-semibold text-muted-foreground">{title}</h4>
+      <h4 className="mb-1.5 text-sm font-medium text-muted-foreground">{title}</h4>
       {items.length > 0 ? (
-        <ul className="grid gap-1.5 text-sm leading-relaxed">
+        <ul className="grid gap-1.5 text-base">
           {items.map((item) => (
             <li key={item} className="flex items-start gap-2">
-              <Icon className={cn("mt-0.5 size-4 shrink-0", TONE_TEXT[tone])} strokeWidth={1.75} />
+              <Icon className={cn("mt-1 size-4 shrink-0", TONE_TEXT[tone])} strokeWidth={1.75} />
               {item}
             </li>
           ))}

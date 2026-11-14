@@ -176,7 +176,7 @@ function LeadsPage() {
       if (lead?.status === "replied") {
         selectLead(only);
         toast("Encerre a conversa pelo painel", {
-          description: "Informe o motivo em “Encerrar sem negócio”; ele entra nas métricas.",
+          description: "Informe o motivo em “Marcar como perdido”; ele entra nas métricas.",
         });
         return;
       }

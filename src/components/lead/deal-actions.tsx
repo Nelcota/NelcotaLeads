@@ -1,3 +1,4 @@
+import { CircleXIcon } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { LostDeal, WonDeal } from "@/lib/deal-form";
@@ -7,11 +8,12 @@ import { CloseWonForm } from "./close-won-form";
 
 type Mode = "idle" | "won" | "lost";
 
-/** "Fechar negócio" and "Encerrar sem negócio", each opening its form in place of the buttons. */
+/** "Fechar negócio" and "Marcar como perdido", each opening its form in place of the buttons. */
 export function DealActions({
   today,
   proposal,
   busy,
+  primary = true,
   onWon,
   onLost,
 }: {
@@ -19,6 +21,8 @@ export function DealActions({
   /** The lead's latest proposal, which "Fechar negócio" starts from. */
   proposal: { items: ProposalItem[]; totalCents: number } | null;
   busy: boolean;
+  /** Whether closing is the main action of the card (solid blue); one per card. */
+  primary?: boolean;
   onWon: (deal: WonDeal) => void;
   onLost: (deal: LostDeal) => void;
 }) {
@@ -32,16 +36,23 @@ export function DealActions({
   if (mode === "lost") return <CloseLostForm busy={busy} onConfirm={onLost} onBack={back} />;
   return (
     <div className="flex w-full flex-wrap gap-2">
-      <Button disabled={busy} onClick={() => setMode("won")}>
+      <Button
+        size="sm"
+        variant={primary ? "default" : "outline"}
+        disabled={busy}
+        onClick={() => setMode("won")}
+      >
         Fechar negócio
       </Button>
       <Button
+        size="sm"
         variant="destructive"
         className="ml-auto"
         disabled={busy}
         onClick={() => setMode("lost")}
       >
-        Encerrar sem negócio
+        <CircleXIcon />
+        Marcar como perdido
       </Button>
     </div>
   );

@@ -2,8 +2,8 @@ import { UserIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 /**
- * Who has the lead: "Com Haniel" or "Livre", with "Assumir" (take it, also from someone else)
- * or "Liberar" when it is the signed-in person's.
+ * Who has the lead: "Com Haniel" or "Sem responsável", with "Assumir lead" (take it, also from someone
+ * else) or "Deixar sem responsável" when it is the signed-in person's.
  */
 export function OwnerChip({
   ownerName,
@@ -26,7 +26,7 @@ export function OwnerChip({
           className={ownerName ? "size-3.5 text-blue" : "size-3.5 text-gray"}
           strokeWidth={1.9}
         />
-        {ownerName ? `Com ${ownerName}` : "Livre"}
+        {ownerName ? `Com ${ownerName}` : "Sem responsável"}
       </span>
       <Button
         variant="outline"
@@ -35,7 +35,7 @@ export function OwnerChip({
         onClick={mine ? onRelease : onTake}
         className="ml-1"
       >
-        {mine ? "Liberar" : "Assumir"}
+        {mine ? "Deixar sem responsável" : "Assumir lead"}
       </Button>
     </span>
   );
