@@ -1,5 +1,5 @@
 import { CircleXIcon } from "lucide-react";
-import type { CSSProperties, ReactNode } from "react";
+import { useEffect, useRef, type CSSProperties, type ReactNode } from "react";
 import { STAGE_ICONS } from "@/components/leads/stage-label";
 import { STAGE_COLORS, type LeadStage } from "@/lib/lead-row";
 import { STAGE_STEPS, stageOfStep } from "@/lib/lead-stage";
@@ -38,9 +38,10 @@ export function StageTrack({
 }) {
   const currentStage = STEP_STAGES[current] ?? "new";
   const fill = lost ? "var(--gray)" : STAGE_COLORS[currentStage];
+  const scroller = useScrollToStep(current);
   return (
     // On a phone the six steps keep their width and the track scrolls sideways.
-    <div className="-mx-1 overflow-x-auto px-1 [scrollbar-width:none]">
+    <div ref={scroller} className="-mx-1 overflow-x-auto px-1 [scrollbar-width:none]">
       <div className="relative min-w-[480px] sm:min-w-0">
         <div
           aria-hidden
@@ -71,6 +72,23 @@ export function StageTrack({
       </div>
     </div>
   );
+}
+
+/**
+ * On a phone the track scrolls sideways; this keeps the current step in view, centered when it
+ * can be, without moving the page itself.
+ */
+function useScrollToStep(current: number) {
+  const scroller = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const container = scroller.current;
+    if (!container) return;
+    if (container.scrollWidth <= container.clientWidth) return;
+    const step = container.querySelectorAll<HTMLElement>("li")[current];
+    if (!step) return;
+    container.scrollLeft = step.offsetLeft - (container.clientWidth - step.offsetWidth) / 2;
+  }, [current]);
+  return scroller;
 }
 
 type StepState = "current" | "reached" | "ahead" | "lost" | "before-lost";
@@ -154,7 +172,7 @@ function StageStep({
       style={tone}
       className={cn(
         layout,
-        "cursor-pointer rounded-[14px] py-1 -my-1 outline-none transition-colors hover:bg-fill-2 focus-visible:ring-2 focus-visible:ring-ring/60 disabled:pointer-events-none disabled:opacity-50 pointer-coarse:min-h-11",
+        "cursor-pointer rounded-[14px] py-1 -my-1 outline-hidden transition-colors hover:bg-fill-2 focus-visible:ring-2 focus-visible:ring-ring/60 disabled:pointer-events-none disabled:opacity-50 pointer-coarse:min-h-11",
       )}
     >
       {body}

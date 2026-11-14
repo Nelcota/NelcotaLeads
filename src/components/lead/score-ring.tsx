@@ -49,11 +49,10 @@ function ScoreValue({ score, pending }: { score: number | null; pending: boolean
         track="var(--popover)"
         className="cursor-default"
       >
-        <b
-          title={`Nota ${score} de 100`}
-          className={cn("text-base leading-none font-semibold tabular-nums", TONE_TEXT[tone])}
-        >
+        <b className={cn("text-base leading-none font-semibold tabular-nums", TONE_TEXT[tone])}>
+          <span className="sr-only">Nota </span>
           {score}
+          <span className="sr-only"> de 100</span>
         </b>
       </ProgressRing>
       <small className="text-xs font-medium text-muted-foreground">
