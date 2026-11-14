@@ -1,4 +1,4 @@
-import { HistoryIcon, XIcon } from "lucide-react";
+import { HistoryIcon, XIcon } from "@/components/icons";
 import { useState } from "react";
 import { SearchFilterBar } from "@/components/searches/search-filter-bar";
 import { SearchHistoryEmpty, type EmptyKind } from "@/components/searches/search-history-empty";
@@ -59,7 +59,7 @@ export function SearchHistory({
       <div className="flex flex-col gap-3 border-b border-border p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 id="historico" className="flex items-center gap-2 text-lg font-semibold">
-            <HistoryIcon aria-hidden className="size-[18px] shrink-0 text-blue" strokeWidth={2} />
+            <HistoryIcon aria-hidden className="size-[18px] shrink-0 text-blue" />
             Histórico
           </h2>
           {place ? (

@@ -6,12 +6,12 @@ import {
   CircleAlertIcon,
   MessageCircleIcon,
   RotateCcwIcon,
-  type LucideIcon,
-} from "lucide-react";
+  type IconComponent,
+} from "@/components/icons";
 import type { TodayKind, TodayLine } from "@/lib/team-member";
 import { cn } from "@/lib/utils";
 
-const ICONS: Record<TodayKind, LucideIcon> = {
+const ICONS: Record<TodayKind, IconComponent> = {
   due: RotateCcwIcon,
   late: CircleAlertIcon,
   waiting: MessageCircleIcon,

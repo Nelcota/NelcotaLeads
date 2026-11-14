@@ -1,4 +1,4 @@
-import { XIcon } from "lucide-react";
+import { XIcon } from "@/components/icons";
 import { DisabledReason } from "@/components/apple-ui";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

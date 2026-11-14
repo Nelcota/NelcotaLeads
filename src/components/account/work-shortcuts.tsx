@@ -1,4 +1,4 @@
-import { CalendarIcon, MessageCircleIcon, TrendingUpIcon, UsersIcon } from "lucide-react";
+import { CalendarIcon, MessageCircleIcon, TrendingUpIcon, UsersIcon } from "@/components/icons";
 import { pluralize } from "@/lib/format";
 import { WorkShortcut } from "./work-shortcut";
 

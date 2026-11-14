@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { ChevronRightIcon } from "lucide-react";
+import { ChevronRightIcon } from "@/components/icons";
 import { Skeleton } from "@/components/ui/skeleton";
 import { pluralize } from "@/lib/format";
 import { formatCents } from "@/lib/money";

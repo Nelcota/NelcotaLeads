@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { ArrowRightIcon, CircleCheckIcon, ShuffleIcon } from "lucide-react";
+import { ArrowRightIcon, CircleCheckIcon, ShuffleIcon } from "@/components/icons";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useLeadAssign } from "@/hooks/use-lead-assign";

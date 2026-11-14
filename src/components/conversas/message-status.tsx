@@ -1,4 +1,4 @@
-import { CircleAlertIcon, ClockIcon } from "lucide-react";
+import { CircleAlertIcon, ClockIcon } from "@/components/icons";
 import { StatusLabel } from "@/components/status-label";
 import type { Email } from "@/db/schema";
 import type { failedEmailAction } from "@/lib/email-errors";

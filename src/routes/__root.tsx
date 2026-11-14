@@ -8,7 +8,7 @@ import {
   useRouterState,
 } from "@tanstack/react-router";
 import { lazy, Suspense, useEffect, type ReactNode } from "react";
-import { CompassIcon } from "lucide-react";
+import { CompassIcon } from "@/components/icons";
 import { EmptyState } from "@/components/apple-ui";
 import { Button } from "@/components/ui/button";
 import { RouteError } from "@/components/route-error";

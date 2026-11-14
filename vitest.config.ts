@@ -1,10 +1,12 @@
 import { cloudflareTest, readD1Migrations } from "@cloudflare/vitest-plugin";
+import { solarIcons } from "./icons.plugin.ts";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig(async () => {
   const migrations = await readD1Migrations("./drizzle");
   return {
     resolve: { tsconfigPaths: true },
+    plugins: [solarIcons()],
     test: {
       projects: [
         {

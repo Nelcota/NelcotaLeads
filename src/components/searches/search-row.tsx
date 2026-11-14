@@ -1,4 +1,4 @@
-import { BotIcon, SearchIcon, TriangleAlertIcon } from "lucide-react";
+import { BotIcon, SearchIcon, TriangleAlertIcon } from "@/components/icons";
 import { useState } from "react";
 import { SaturatedSearchConfirm } from "@/components/searches/saturated-search-confirm";
 import { SearchDetails } from "@/components/searches/search-details";
@@ -43,11 +43,7 @@ export function SearchRow({
         <span className="font-medium">{dayMonth(localDay(search.createdAt))}</span>
         <span className="text-tertiary">{localTime(search.createdAt)}</span>
       </p>
-      <OriginIcon
-        aria-hidden
-        strokeWidth={1.8}
-        className="mt-0.5 size-5 text-muted-foreground @4xl:mt-0"
-      />
+      <OriginIcon aria-hidden className="mt-0.5 size-5 text-muted-foreground @4xl:mt-0" />
       <div className="min-w-0">
         <p className="line-clamp-2 font-semibold text-pretty">{searchLabel(search)}</p>
         <p className="text-sm text-muted-foreground">
@@ -56,11 +52,7 @@ export function SearchRow({
         </p>
         {failure ? (
           <p className="mt-0.5 flex items-start gap-1.5 text-sm">
-            <TriangleAlertIcon
-              aria-hidden
-              strokeWidth={2}
-              className="mt-0.5 size-4 shrink-0 text-red"
-            />
+            <TriangleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-red" />
             {failure}
           </p>
         ) : null}

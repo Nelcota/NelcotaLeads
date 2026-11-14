@@ -1,4 +1,4 @@
-import { MessageCircleIcon } from "lucide-react";
+import { MessageCircleIcon } from "@/components/icons";
 import { CATEGORY_LABELS } from "@/lib/notifications";
 
 /** A sample of what reaches the bell, so "Notificações" shows what it is about. */

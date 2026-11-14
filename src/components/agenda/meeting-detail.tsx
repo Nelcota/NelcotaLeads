@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { CalendarPlusIcon, ChevronLeftIcon, XIcon } from "lucide-react";
+import { CalendarPlusIcon, ChevronLeftIcon, XIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { clock, longDay, MEETING_MINUTES, relativeWhen, type CalendarEntry } from "@/lib/calendar";
@@ -158,7 +158,7 @@ export function CloseButton({ onClose }: { onClose: () => void }) {
       onClick={onClose}
       className="-mt-1 -mr-1.5"
     >
-      <XIcon aria-hidden className="size-3.5" strokeWidth={1.8} />
+      <XIcon aria-hidden className="size-3.5" />
     </Button>
   );
 }

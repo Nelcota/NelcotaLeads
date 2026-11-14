@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ChevronLeftIcon } from "lucide-react";
+import { ChevronLeftIcon } from "@/components/icons";
 import { Page } from "@/components/app-shell";
 import { LeaveGuard } from "@/components/leave-guard";
 import { AddonList } from "@/components/services/addon-list";

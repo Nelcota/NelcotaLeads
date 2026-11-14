@@ -1,4 +1,4 @@
-import { ChevronDownIcon } from "lucide-react";
+import { ChevronDownIcon } from "@/components/icons";
 import { useId, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 

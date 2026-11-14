@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { SlidersHorizontalIcon, XIcon } from "lucide-react";
+import { SlidersHorizontalIcon, XIcon } from "@/components/icons";
 import { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";

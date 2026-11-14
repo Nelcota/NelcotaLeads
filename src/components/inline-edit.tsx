@@ -1,4 +1,4 @@
-import { PencilIcon } from "lucide-react";
+import { PencilIcon } from "@/components/icons";
 import { useRef, useState, type ReactNode } from "react";
 import { Hint } from "@/components/apple-ui";
 import { Button } from "@/components/ui/button";

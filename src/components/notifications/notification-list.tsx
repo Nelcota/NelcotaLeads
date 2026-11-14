@@ -1,4 +1,4 @@
-import { BellIcon } from "lucide-react";
+import { BellIcon } from "@/components/icons";
 import type { MouseEvent } from "react";
 import { Button } from "@/components/ui/button";
 import type { NotificationItem, NotificationScope, NotificationSection } from "@/lib/notifications";
@@ -33,7 +33,7 @@ function EmptyNotifications({
     return (
       <div className="flex flex-col items-center gap-2 px-7 pt-9 pb-10 text-center">
         <span className="grid size-11 place-items-center rounded-full bg-fill-2 text-muted-foreground">
-          <BellIcon aria-hidden className="size-5" strokeWidth={1.8} />
+          <BellIcon aria-hidden className="size-5" />
         </span>
         <p className="text-base font-semibold">Nada nos seus leads</p>
         <p className="max-w-[260px] text-xs leading-snug text-muted-foreground">
@@ -50,7 +50,7 @@ function EmptyNotifications({
   return (
     <div className="flex flex-col items-center gap-2 px-7 pt-9 pb-10 text-center">
       <span className="grid size-11 place-items-center rounded-full bg-fill-2 text-muted-foreground">
-        <BellIcon aria-hidden className="size-5" strokeWidth={1.8} />
+        <BellIcon aria-hidden className="size-5" />
       </span>
       <p className="text-base font-semibold">Nada novo por aqui</p>
       <p className="max-w-[260px] text-xs leading-snug text-muted-foreground">

@@ -1,4 +1,4 @@
-import { ChevronDownIcon, TagIcon } from "lucide-react";
+import { ChevronDownIcon, TagIcon } from "@/components/icons";
 import { useState } from "react";
 import { SearchableList } from "@/components/searchable-list";
 import type { SearchOption } from "@/hooks/use-searchable-list";

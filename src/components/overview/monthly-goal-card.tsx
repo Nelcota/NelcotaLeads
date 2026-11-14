@@ -1,4 +1,4 @@
-import { TargetIcon } from "lucide-react";
+import { TargetIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { useMonthlyGoal } from "@/hooks/use-monthly-goal";
 import { formatCount } from "@/lib/format";
@@ -125,7 +125,7 @@ export function MonthlyGoalCard() {
     <section aria-labelledby="monthly-goal" className="grouped enter flex flex-col">
       <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 px-5 pt-4 pb-2">
         <h2 id="monthly-goal" className="flex items-center gap-2 text-lg font-semibold">
-          <TargetIcon aria-hidden className="size-[18px] shrink-0 text-blue" strokeWidth={2} />
+          <TargetIcon aria-hidden className="size-[18px] shrink-0 text-blue" />
           Meta do mês
         </h2>
         {data ? (

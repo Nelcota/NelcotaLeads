@@ -1,4 +1,4 @@
-import { MinusIcon } from "lucide-react";
+import { MinusIcon } from "@/components/icons";
 import { Controller } from "react-hook-form";
 import { DisabledReason } from "@/components/apple-ui";
 import { Field } from "@/components/field";

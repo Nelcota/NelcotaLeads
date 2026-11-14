@@ -6,7 +6,7 @@ import {
   RotateCcwIcon,
   SparklesIcon,
   TrendingUpIcon,
-} from "lucide-react";
+} from "@/components/icons";
 import { Avatar, type Tone } from "@/components/apple-ui";
 import { StatusLabel } from "@/components/status-label";
 import { Button } from "@/components/ui/button";

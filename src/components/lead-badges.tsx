@@ -1,4 +1,4 @@
-import { CheckIcon, SparklesIcon, XIcon } from "lucide-react";
+import { CheckIcon, SparklesIcon, XIcon } from "@/components/icons";
 import { ProgressRing, TONE_TEXT, type Tone } from "@/components/apple-ui";
 import { Badge } from "@/components/ui/badge";
 import type { LeadStatus, SearchStatus } from "@/db/schema";

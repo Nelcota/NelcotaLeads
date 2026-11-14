@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useEffect, useState, type ComponentType, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { errorToast } from "@/lib/mutation-toasts";
 import {
@@ -11,6 +11,7 @@ import {
   ClockIcon,
   ContactIcon,
   HistoryIcon,
+  LoaderCircleIcon,
   MailIcon,
   RefreshCwIcon,
   SearchXIcon,
@@ -18,7 +19,7 @@ import {
   StickyNoteIcon,
   TargetIcon,
   XCircleIcon,
-} from "lucide-react";
+} from "@/components/icons";
 import {
   DisabledReason,
   EmptyState,
@@ -94,6 +95,7 @@ import {
   updateLeadContact,
 } from "@/server/leads";
 import { reopenBlocker, UNSUBSCRIBED_MESSAGE } from "@/server/lead-status";
+import type { IconComponent } from "@/components/icons";
 import { dispatchEmails, prepareEmails, rewriteDraft, updateDraft } from "@/server/mail";
 
 const SITE_STATUS_LABELS: Record<SiteStatus, string> = {
@@ -203,7 +205,6 @@ export function LeadDetail({
                 <span className="inline-flex items-center gap-1.5 text-sm font-medium">
                   <ClockIcon
                     className={cn("size-3.5", TONE_TEXT[followUpTone(lead.followUpOn, today)])}
-                    strokeWidth={1.9}
                   />
                   Retorno {relativeDay(lead.followUpOn, today)}
                 </span>
@@ -1034,7 +1035,7 @@ function NotesSection({
     // One short title line, then a tall field: the writing area is what matters here.
     <section className="grid gap-2.5 rounded-[20px] border border-foreground/15 bg-card-2 px-4 pt-3.5 pb-4">
       <div className="flex items-center gap-2">
-        <StickyNoteIcon aria-hidden className="size-[18px] text-muted-foreground" strokeWidth={2} />
+        <StickyNoteIcon aria-hidden className="size-[18px] text-muted-foreground" />
         <h3 className="flex-1 text-base leading-[22px] font-semibold">Notas</h3>
         <span aria-live="polite" className="text-xs text-muted-foreground">
           {savedAt ? "Salvo" : "Salvas ao sair do campo"}
@@ -1090,7 +1091,7 @@ function Footer({
           onClick={() => reanalyze.mutate()}
           disabled={reanalyze.isPending || analyzing}
         >
-          <RefreshCwIcon className={cn(analyzing && "animate-spin")} />
+          {analyzing ? <LoaderCircleIcon className="animate-spin" /> : <RefreshCwIcon />}
           {analyzing ? "Analisando…" : "Reanalisar"}
         </Button>
       </div>
@@ -1124,7 +1125,7 @@ function LossSummary({ lead }: { lead: Lead }) {
 function WrittenByAi() {
   return (
     <span className="ml-auto inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-      <SparklesIcon className="size-3.5 text-purple" strokeWidth={1.9} />
+      <SparklesIcon className="size-3.5 text-purple" />
       Escrito pela IA
     </span>
   );
@@ -1138,7 +1139,7 @@ function PlainList({
 }: {
   title: string;
   tone: Tone;
-  icon: ComponentType<{ className?: string; strokeWidth?: number }>;
+  icon: IconComponent;
   items: string[];
 }) {
   return (
@@ -1148,7 +1149,7 @@ function PlainList({
         <ul className="grid gap-1.5 text-base">
           {items.map((item) => (
             <li key={item} className="flex items-start gap-2">
-              <Icon className={cn("mt-1 size-4 shrink-0", TONE_TEXT[tone])} strokeWidth={1.75} />
+              <Icon className={cn("mt-1 size-4 shrink-0", TONE_TEXT[tone])} />
               {item}
             </li>
           ))}

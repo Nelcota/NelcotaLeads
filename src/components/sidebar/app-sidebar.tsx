@@ -10,7 +10,7 @@ import {
   SearchIcon,
   SettingsIcon,
   UsersIcon,
-} from "lucide-react";
+} from "@/components/icons";
 import {
   SidebarNavItem,
   ITEM_CLASS,

@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { ArrowRightIcon, CircleAlertIcon, RotateCwIcon } from "lucide-react";
+import { ArrowRightIcon, CircleAlertIcon, RotateCwIcon } from "@/components/icons";
 import type { ReactNode } from "react";
 import { Hint, toneVar, type Tone } from "@/components/apple-ui";
 import { GoogleQuotaRow } from "@/components/google-quota-row";

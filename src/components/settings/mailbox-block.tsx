@@ -1,4 +1,4 @@
-import { CircleAlertIcon, CircleCheckIcon, PlugZapIcon } from "lucide-react";
+import { CircleAlertIcon, CircleCheckIcon, PlugZapIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { formatCount } from "@/lib/format";
 import { cn } from "@/lib/utils";

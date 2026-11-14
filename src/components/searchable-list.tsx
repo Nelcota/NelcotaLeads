@@ -1,4 +1,4 @@
-import { CheckIcon, SearchIcon, XIcon } from "lucide-react";
+import { CheckIcon, SearchIcon, XIcon } from "@/components/icons";
 import { useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { useSearchableList, type SearchOption } from "@/hooks/use-searchable-list";

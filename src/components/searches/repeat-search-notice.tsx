@@ -1,4 +1,4 @@
-import { HistoryIcon } from "lucide-react";
+import { HistoryIcon } from "@/components/icons";
 import type { Search } from "@/db/schema";
 import { previousSearchText } from "@/lib/previous-search";
 

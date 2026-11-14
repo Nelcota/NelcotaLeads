@@ -1,9 +1,15 @@
-import { CircleCheckIcon, ClockIcon, HandIcon, SparklesIcon, type LucideIcon } from "lucide-react";
+import {
+  CircleCheckIcon,
+  ClockIcon,
+  HandIcon,
+  SparklesIcon,
+  type IconComponent,
+} from "@/components/icons";
 import type { Tone } from "@/components/apple-ui";
 import { StatusLabel } from "@/components/status-label";
 import type { ConversationState } from "@/server/mail";
 
-const STATE_LABEL: Record<ConversationState, { label: string; tone: Tone; icon: LucideIcon }> = {
+const STATE_LABEL: Record<ConversationState, { label: string; tone: Tone; icon: IconComponent }> = {
   needsYou: { label: "Precisa de você", tone: "orange", icon: HandIcon },
   aiTalking: { label: "IA conversando", tone: "purple", icon: SparklesIcon },
   waiting: { label: "Sem resposta", tone: "gray", icon: ClockIcon },

@@ -6,12 +6,12 @@ import {
   FileTextIcon,
   MailCheckIcon,
   MessageCircleIcon,
-  type LucideIcon,
-} from "lucide-react";
+  type IconComponent,
+} from "@/components/icons";
 import { STAGE_COLORS, STAGE_LABELS, type LeadStage } from "@/lib/lead-row";
 import { cn } from "@/lib/utils";
 
-export const STAGE_ICONS: Record<LeadStage, LucideIcon> = {
+export const STAGE_ICONS: Record<LeadStage, IconComponent> = {
   new: CircleDotIcon,
   contacted: MailCheckIcon,
   replied: MessageCircleIcon,
@@ -26,11 +26,7 @@ export function StageLabel({ stage, className }: { stage: LeadStage; className?:
   const Icon = STAGE_ICONS[stage];
   return (
     <span className={cn("inline-flex items-center gap-1.5 font-medium text-foreground", className)}>
-      <Icon
-        className="size-3.5 shrink-0"
-        style={{ color: STAGE_COLORS[stage] }}
-        strokeWidth={1.9}
-      />
+      <Icon className="size-3.5 shrink-0" style={{ color: STAGE_COLORS[stage] }} />
       {STAGE_LABELS[stage]}
     </span>
   );

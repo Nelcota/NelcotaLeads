@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { ChevronLeftIcon, PlusIcon } from "lucide-react";
+import { ChevronLeftIcon, PlusIcon } from "@/components/icons";
 import { useState } from "react";
 import { z } from "zod";
 import { AgendaBoard } from "@/components/agenda/agenda-board";

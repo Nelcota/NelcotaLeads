@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { ClockAlertIcon, ClockIcon, HandIcon } from "lucide-react";
+import { ClockAlertIcon, ClockIcon, HandIcon } from "@/components/icons";
 import { Avatar } from "@/components/apple-ui";
 import { StatusLabel } from "@/components/status-label";
 import { nicheAndCity, waitingLabel } from "@/lib/overview";
@@ -12,7 +12,7 @@ export function NeedsYou({ data, now }: { data: Dashboard; now: Date }) {
     <section aria-labelledby="needs-you" className="grouped enter">
       <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 px-5 pt-4 pb-2">
         <h2 id="needs-you" className="flex items-center gap-2 text-lg font-semibold">
-          <HandIcon aria-hidden className="size-[18px] shrink-0 text-orange" strokeWidth={2} />
+          <HandIcon aria-hidden className="size-[18px] shrink-0 text-orange" />
           Precisa de você
         </h2>
         <span className="rounded-full bg-fill-2 px-2 py-px text-xs font-bold text-muted-foreground tabular-nums">

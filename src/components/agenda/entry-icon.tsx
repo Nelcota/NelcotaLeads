@@ -1,8 +1,14 @@
-import { ClockIcon, MapPinIcon, PhoneIcon, VideoIcon, type LucideIcon } from "lucide-react";
+import {
+  ClockIcon,
+  MapPinIcon,
+  PhoneIcon,
+  VideoIcon,
+  type IconComponent,
+} from "@/components/icons";
 import type { MeetingKind } from "@/lib/schemas";
 import { cn } from "@/lib/utils";
 
-const KIND_ICONS: Record<MeetingKind, LucideIcon> = {
+const KIND_ICONS: Record<MeetingKind, IconComponent> = {
   video: VideoIcon,
   call: PhoneIcon,
   in_person: MapPinIcon,

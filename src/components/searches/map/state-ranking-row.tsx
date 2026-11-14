@@ -1,4 +1,4 @@
-import { ArrowRightIcon, ChevronDownIcon } from "lucide-react";
+import { ArrowRightIcon, ChevronDownIcon } from "@/components/icons";
 import { useId } from "react";
 import { RunningSearches } from "@/components/searches/map/running-searches";
 import { Button } from "@/components/ui/button";

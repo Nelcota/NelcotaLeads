@@ -7,8 +7,8 @@ import {
   MailIcon,
   PhoneIcon,
   UsersIcon,
-  type LucideIcon,
-} from "lucide-react";
+  type IconComponent,
+} from "@/components/icons";
 import type { ReactNode } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ChoicePill } from "@/components/ui/choice-pill";
@@ -28,7 +28,7 @@ export function FilterGroupLabel({
   children,
 }: {
   id: string;
-  icon: LucideIcon;
+  icon: IconComponent;
   children: ReactNode;
 }) {
   return (
@@ -52,7 +52,7 @@ export function PickRow({
   onOpen,
 }: {
   id: string;
-  icon: LucideIcon;
+  icon: IconComponent;
   label: string;
   value: string;
   expanded: boolean;
@@ -152,7 +152,7 @@ export function OwnerGroup({
 
 type ToggleKey = "noWebsite" | "hasEmail" | "hasPhone" | "fresh";
 
-const TOGGLES: readonly { key: ToggleKey; label: string; icon: LucideIcon }[] = [
+const TOGGLES: readonly { key: ToggleKey; label: string; icon: IconComponent }[] = [
   { key: "noWebsite", label: "Sem site", icon: GlobeIcon },
   { key: "hasEmail", label: "Com e-mail", icon: MailIcon },
   { key: "hasPhone", label: "Com telefone", icon: PhoneIcon },

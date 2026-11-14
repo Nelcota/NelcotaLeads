@@ -1,4 +1,4 @@
-import { BellIcon } from "lucide-react";
+import { BellIcon } from "@/components/icons";
 import { useState, useSyncExternalStore, type ComponentProps, type ReactNode } from "react";
 import { Hint } from "@/components/apple-ui";
 import { Button } from "@/components/ui/button";
@@ -39,7 +39,7 @@ function BellButton({ count, open, className, ref, ...props }: BellButtonProps) 
       className={cn(open && "bg-fill-2", className)}
       {...props}
     >
-      <BellIcon aria-hidden className="size-[19px]" strokeWidth={1.8} />
+      <BellIcon aria-hidden className="size-[19px]" />
       {badge ? (
         <span
           aria-hidden

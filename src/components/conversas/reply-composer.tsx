@@ -1,4 +1,4 @@
-import { CircleAlertIcon, SendIcon, SparklesIcon } from "lucide-react";
+import { CircleAlertIcon, SendIcon, SparklesIcon } from "@/components/icons";
 import type { ComponentProps, Ref } from "react";
 import { Hint } from "@/components/apple-ui";
 import { QuickReplyPicker } from "@/components/quick-reply-picker";

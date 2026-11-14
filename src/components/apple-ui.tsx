@@ -1,5 +1,5 @@
-import type { LucideIcon } from "lucide-react";
-import { ArrowUpRightIcon, ChevronRightIcon, InfoIcon } from "lucide-react";
+import type { IconComponent } from "@/components/icons";
+import { ArrowUpRightIcon, ChevronRightIcon, InfoIcon } from "@/components/icons";
 import { useState, type ComponentProps, type ReactElement, type ReactNode } from "react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { nearestTypeSize } from "@/lib/type-scale";
@@ -121,7 +121,7 @@ export function IconTile({
   size = 22,
   className,
 }: {
-  icon: LucideIcon;
+  icon: IconComponent;
   tone: Tone;
   size?: number;
   /** Kept for callers; the bare icon has no shape to round. */
@@ -135,7 +135,7 @@ export function IconTile({
       className={cn("grid shrink-0 place-items-center", TONE_TEXT[tone], className)}
       style={{ width: size, height: size }}
     >
-      <Icon style={{ width: glyph, height: glyph }} strokeWidth={2} />
+      <Icon style={{ width: glyph, height: glyph }} />
     </span>
   );
 }
@@ -391,7 +391,7 @@ export function EmptyState({
   children,
   className,
 }: {
-  icon: LucideIcon;
+  icon: IconComponent;
   tone?: Tone;
   title: ReactNode;
   description?: ReactNode;

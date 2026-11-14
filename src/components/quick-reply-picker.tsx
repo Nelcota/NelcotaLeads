@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { MessageSquareTextIcon } from "lucide-react";
+import { MessageSquareTextIcon } from "@/components/icons";
 import { useRef, useState } from "react";
 import { Hint } from "@/components/apple-ui";
 import { Button } from "@/components/ui/button";

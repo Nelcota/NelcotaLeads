@@ -1,4 +1,4 @@
-import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
+import { ChevronLeftIcon, ChevronRightIcon } from "@/components/icons";
 import { useEffect, useRef } from "react";
 import { Hint } from "@/components/apple-ui";
 import { LeadDetail } from "@/components/lead-detail";

@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { UserPlusIcon } from "lucide-react";
+import { UserPlusIcon } from "@/components/icons";
 import { useState } from "react";
 import { IconTile } from "@/components/apple-ui";
 import { Field } from "@/components/field";

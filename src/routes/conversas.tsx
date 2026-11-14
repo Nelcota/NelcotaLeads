@@ -4,13 +4,14 @@ import {
   ChevronRightIcon,
   CircleCheckIcon,
   CircleXIcon,
+  LoaderCircleIcon,
   MessagesSquareIcon,
   PhoneIcon,
   RefreshCwIcon,
   RotateCcwIcon,
   SearchIcon,
   XIcon,
-} from "lucide-react";
+} from "@/components/icons";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { errorToast } from "@/lib/mutation-toasts";
@@ -210,7 +211,7 @@ function ConversationsPage() {
             disabled={check.isPending}
             aria-label={check.isPending ? "Verificando…" : "Verificar e-mails"}
           >
-            <RefreshCwIcon className={cn(check.isPending && "animate-spin")} />
+            {check.isPending ? <LoaderCircleIcon className="animate-spin" /> : <RefreshCwIcon />}
           </Button>
         </Hint>
       }

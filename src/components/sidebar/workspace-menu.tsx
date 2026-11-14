@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { ChevronsUpDownIcon, LogOutIcon, MoonIcon, SunIcon, UserIcon } from "lucide-react";
+import { ChevronsUpDownIcon, LogOutIcon, MoonIcon, SunIcon, UserIcon } from "@/components/icons";
 import { useRef } from "react";
 import { Avatar } from "@/components/apple-ui";
 import { isOnPage } from "@/components/sidebar/sidebar-nav-item";

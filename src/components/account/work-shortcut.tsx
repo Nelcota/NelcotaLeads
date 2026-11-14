@@ -1,5 +1,5 @@
 import { Link, type LinkProps } from "@tanstack/react-router";
-import type { LucideIcon } from "lucide-react";
+import type { IconComponent } from "@/components/icons";
 import { cn } from "@/lib/utils";
 
 /**
@@ -13,7 +13,7 @@ export function WorkShortcut({
   urgent = false,
   ...link
 }: Pick<LinkProps, "to" | "search"> & {
-  icon: LucideIcon;
+  icon: IconComponent;
   label: string;
   /** Null while the count is unknown: no line under the name. */
   detail: string | null;

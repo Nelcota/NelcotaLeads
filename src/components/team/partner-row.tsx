@@ -1,4 +1,4 @@
-import { ChevronRightIcon } from "lucide-react";
+import { ChevronRightIcon } from "@/components/icons";
 import { Fragment } from "react";
 import { Avatar } from "@/components/apple-ui";
 import { formatCents } from "@/lib/money";

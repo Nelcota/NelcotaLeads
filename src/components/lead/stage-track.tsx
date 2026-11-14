@@ -1,4 +1,4 @@
-import { CircleXIcon } from "lucide-react";
+import { CircleXIcon } from "@/components/icons";
 import { useEffect, useRef, type CSSProperties, type ReactNode } from "react";
 import { STAGE_ICONS } from "@/components/leads/stage-label";
 import { STAGE_COLORS, type LeadStage } from "@/lib/lead-row";
@@ -141,7 +141,7 @@ function StageStep({
           state === "current" && "stage-node-pop",
         )}
       >
-        <Icon className="size-3.5" strokeWidth={1.9} />
+        <Icon className="size-3.5" />
         {state === "current" ? (
           <span
             aria-hidden

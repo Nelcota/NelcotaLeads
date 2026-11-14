@@ -1,4 +1,4 @@
-import { ClockIcon, StarIcon } from "lucide-react";
+import { ClockIcon, StarIcon } from "@/components/icons";
 import { Hint, ProgressRing, TONE_TEXT } from "@/components/apple-ui";
 import { TIER_TONE } from "@/components/lead-badges";
 import type { NextStep } from "@/lib/lead-row";
@@ -62,7 +62,7 @@ export function NextStepCell({ step }: { step: NextStep | null }) {
       className="inline-flex min-w-0 items-center gap-1.5 font-medium"
       style={{ color: step.color ?? "var(--muted-foreground)" }}
     >
-      <ClockIcon className="size-3.5 shrink-0" strokeWidth={1.9} />
+      <ClockIcon className="size-3.5 shrink-0" />
       <span className="truncate">{step.text}</span>
     </span>
   );

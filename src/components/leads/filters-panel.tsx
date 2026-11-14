@@ -1,4 +1,10 @@
-import { ChevronLeftIcon, SearchIcon, SlidersHorizontalIcon, TagIcon, XIcon } from "lucide-react";
+import {
+  ChevronLeftIcon,
+  SearchIcon,
+  SlidersHorizontalIcon,
+  TagIcon,
+  XIcon,
+} from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { SearchableList } from "@/components/searchable-list";
 import { ContactGroup, OwnerGroup, PickRow, TierGroup } from "@/components/leads/filter-groups";

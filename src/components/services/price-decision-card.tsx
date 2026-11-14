@@ -1,4 +1,4 @@
-import { HandIcon } from "lucide-react";
+import { HandIcon } from "@/components/icons";
 import { IconTile } from "@/components/apple-ui";
 import { Badge } from "@/components/ui/badge";
 

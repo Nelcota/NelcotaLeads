@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { ChevronRightIcon } from "lucide-react";
+import { ChevronRightIcon } from "@/components/icons";
 import type { ReactNode } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { SettingsTab } from "@/lib/settings-tabs";

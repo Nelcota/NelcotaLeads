@@ -1,4 +1,4 @@
-import { TriangleAlertIcon } from "lucide-react";
+import { TriangleAlertIcon } from "@/components/icons";
 import { EMAIL_OPT_OUT } from "@/lib/email-opt-out";
 
 /**

@@ -1,4 +1,4 @@
-import { PauseIcon, PlayIcon, XIcon } from "lucide-react";
+import { PauseIcon, PlayIcon, XIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { useDispatchControl } from "@/hooks/use-dispatch-control";
 

@@ -1,4 +1,4 @@
-import { LinkIcon, SendIcon, XIcon } from "lucide-react";
+import { LinkIcon, SendIcon, XIcon } from "@/components/icons";
 import { Hint } from "@/components/apple-ui";
 import { Button } from "@/components/ui/button";
 import { dayDiff, localDay, relativeDay } from "@/lib/format";

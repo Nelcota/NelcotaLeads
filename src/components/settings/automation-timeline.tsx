@@ -4,13 +4,13 @@ import {
   MessageCircleIcon,
   SearchIcon,
   SendIcon,
-  type LucideIcon,
-} from "lucide-react";
+  type IconComponent,
+} from "@/components/icons";
 import { cn } from "@/lib/utils";
 import { SETTINGS_SURFACE } from "./surface";
 
 export type TimelineStep = {
-  icon: LucideIcon;
+  icon: IconComponent;
   when: string;
   what: string;
   how: string;

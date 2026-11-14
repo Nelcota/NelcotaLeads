@@ -1,4 +1,4 @@
-import { TagIcon } from "lucide-react";
+import { TagIcon } from "@/components/icons";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -36,7 +36,7 @@ export function NichesOverview({ period, caption }: { period: OverviewPeriod; ca
     return (
       <section aria-labelledby="niches" className="grouped px-5 py-4">
         <h2 id="niches" className="flex items-center gap-2 text-lg font-semibold">
-          <TagIcon aria-hidden className="size-[18px] shrink-0 text-blue" strokeWidth={2} />
+          <TagIcon aria-hidden className="size-[18px] shrink-0 text-blue" />
           Por nicho
         </h2>
         <p className="pt-2 text-sm text-muted-foreground">
@@ -56,7 +56,7 @@ export function NichesOverview({ period, caption }: { period: OverviewPeriod; ca
     >
       <div className="flex flex-wrap items-center gap-2">
         <h2 id="niches" className="flex items-center gap-2 text-lg font-semibold">
-          <TagIcon aria-hidden className="size-[18px] shrink-0 text-blue" strokeWidth={2} />
+          <TagIcon aria-hidden className="size-[18px] shrink-0 text-blue" />
           Por nicho
         </h2>
         {/* On a phone the caption takes its own line under the title and the button. */}

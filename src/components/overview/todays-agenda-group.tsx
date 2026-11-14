@@ -1,4 +1,4 @@
-import type { LucideIcon } from "lucide-react";
+import type { IconComponent } from "@/components/icons";
 import { AgendaRow } from "@/components/agenda/agenda-row";
 import { type AgendaEntry, TODAY_AGENDA_LIMIT } from "@/lib/agenda";
 import { cn } from "@/lib/utils";
@@ -12,7 +12,7 @@ export function TodaysAgendaGroup({
   today,
 }: {
   title: string;
-  icon: LucideIcon;
+  icon: IconComponent;
   /** The tone text class of the icon, e.g. "text-red". */
   iconClassName: string;
   entries: AgendaEntry[];
@@ -24,7 +24,7 @@ export function TodaysAgendaGroup({
   return (
     <div>
       <h3 className="flex items-center gap-1.5 border-t border-border/60 px-5 pt-3 pb-1.5 text-xs font-semibold text-muted-foreground tabular-nums">
-        <Icon aria-hidden strokeWidth={2} className={cn("size-3.5 shrink-0", iconClassName)} />
+        <Icon aria-hidden className={cn("size-3.5 shrink-0", iconClassName)} />
         {title} ({entries.length})
       </h3>
       {entries.slice(0, TODAY_AGENDA_LIMIT).map((entry) => (

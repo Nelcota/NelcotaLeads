@@ -6,8 +6,8 @@ import {
   CircleXIcon,
   FileTextIcon,
   UserPlusIcon,
-  type LucideIcon,
-} from "lucide-react";
+  type IconComponent,
+} from "@/components/icons";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ChoicePill } from "@/components/ui/choice-pill";
@@ -22,7 +22,7 @@ import { PhoneFold } from "./phone-fold";
 /** Lines shown before "Ver mais". */
 const FIRST_LINES = 6;
 
-const KIND_ICON: Partial<Record<LeadEventKind, { Icon: LucideIcon; tone: string }>> = {
+const KIND_ICON: Partial<Record<LeadEventKind, { Icon: IconComponent; tone: string }>> = {
   won: { Icon: CircleCheckIcon, tone: "text-green" },
   lost: { Icon: CircleXIcon, tone: "text-red" },
   meeting: { Icon: CalendarIcon, tone: "text-green" },

@@ -1,4 +1,4 @@
-import { MapIcon } from "lucide-react";
+import { MapIcon } from "@/components/icons";
 import { BrazilMap } from "@/components/searches/map/brazil-map";
 import { MapOverview } from "@/components/searches/map/map-overview";
 import { StateDetail } from "@/components/searches/map/state-detail";
@@ -31,7 +31,7 @@ export function SearchMap({
     <section aria-labelledby="mapa" className="grouped @container min-w-0">
       <div className="border-b border-border p-5">
         <h2 id="mapa" className="flex items-center gap-2 text-lg font-semibold">
-          <MapIcon aria-hidden className="size-[18px] shrink-0 text-blue" strokeWidth={2} />
+          <MapIcon aria-hidden className="size-[18px] shrink-0 text-blue" />
           Onde você buscou
         </h2>
       </div>

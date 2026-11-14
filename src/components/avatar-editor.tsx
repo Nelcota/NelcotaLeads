@@ -1,4 +1,4 @@
-import { ImageIcon, ImageUpIcon } from "lucide-react";
+import { ImageIcon, ImageUpIcon } from "@/components/icons";
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import { toast } from "sonner";
 import { Avatar } from "@/components/apple-ui";

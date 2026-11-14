@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { ArrowRightIcon, ChevronRightIcon } from "lucide-react";
+import { ArrowRightIcon, ChevronRightIcon } from "@/components/icons";
 import { StageLabel } from "@/components/leads/stage-label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { leadStage, nextStep } from "@/lib/lead-row";

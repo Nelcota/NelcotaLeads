@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import type { LucideIcon } from "lucide-react";
+import type { IconComponent } from "@/components/icons";
 import type { ReactNode } from "react";
 import { SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
 
@@ -15,7 +15,7 @@ export type NavPath =
 export type NavItem = {
   to: NavPath;
   label: string;
-  icon: LucideIcon;
+  icon: IconComponent;
 };
 
 /**

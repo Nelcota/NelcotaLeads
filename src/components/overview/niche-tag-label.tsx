@@ -1,4 +1,4 @@
-import { TrendingDownIcon, TrendingUpIcon } from "lucide-react";
+import { TrendingDownIcon, TrendingUpIcon } from "@/components/icons";
 import { StatusLabel } from "@/components/status-label";
 import type { NicheTag } from "@/lib/niche-metrics";
 

@@ -1,4 +1,4 @@
-import { EyeIcon, SearchIcon } from "lucide-react";
+import { EyeIcon, SearchIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 
 export type EmptyKind = "none" | "all-hidden" | "filtered";
@@ -42,7 +42,7 @@ export function SearchHistoryEmpty({
   }
   return (
     <div className="grid justify-items-center gap-2 px-5 py-12 text-center">
-      <SearchIcon aria-hidden strokeWidth={1.8} className="size-6 text-muted-foreground" />
+      <SearchIcon aria-hidden className="size-6 text-muted-foreground" />
       <p className="font-semibold">Nenhuma busca ainda</p>
       <p className="max-w-md text-sm text-pretty text-muted-foreground">
         As buscas diárias e as que você fizer aparecem aqui.

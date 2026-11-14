@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { ChevronRightIcon, MailIcon, SearchIcon, SparklesIcon } from "lucide-react";
+import { ChevronRightIcon, MailIcon, SearchIcon, SparklesIcon } from "@/components/icons";
 import { JobStateIcon } from "@/components/account/job-state-icon";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { SettingsSummary } from "@/hooks/use-settings-summary";

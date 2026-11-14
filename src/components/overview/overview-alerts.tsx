@@ -5,12 +5,12 @@ import {
   MessageCircleWarningIcon,
   PencilLineIcon,
   SearchXIcon,
-  type LucideIcon,
-} from "lucide-react";
+  type IconComponent,
+} from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import type { OverviewAlert, OverviewAlertKind } from "@/lib/overview";
 
-const ICONS: Record<OverviewAlertKind, LucideIcon> = {
+const ICONS: Record<OverviewAlertKind, IconComponent> = {
   offer: PencilLineIcon,
   cooling: MessageCircleWarningIcon,
   search: SearchXIcon,

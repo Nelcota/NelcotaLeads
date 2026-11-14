@@ -1,4 +1,4 @@
-import { CircleXIcon } from "lucide-react";
+import { CircleXIcon } from "@/components/icons";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { LostDeal, WonDeal } from "@/lib/deal-form";

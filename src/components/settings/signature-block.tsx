@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { ChevronRightIcon, CircleAlertIcon } from "lucide-react";
+import { ChevronRightIcon, CircleAlertIcon } from "@/components/icons";
 import { EMAIL_OPT_OUT } from "@/lib/email-opt-out";
 import { cn } from "@/lib/utils";
 import { SETTINGS_SURFACE } from "./surface";

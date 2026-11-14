@@ -1,4 +1,4 @@
-import { ChevronLeftIcon, PanelRightCloseIcon, PanelRightOpenIcon } from "lucide-react";
+import { ChevronLeftIcon, PanelRightCloseIcon, PanelRightOpenIcon } from "@/components/icons";
 import { Avatar, Hint } from "@/components/apple-ui";
 import { ConversationOwnerControl } from "@/components/conversas/conversation-owner-control";
 import { Button } from "@/components/ui/button";

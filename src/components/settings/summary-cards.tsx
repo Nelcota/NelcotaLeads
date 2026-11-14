@@ -1,4 +1,4 @@
-import { CircleAlertIcon, CircleCheckIcon } from "lucide-react";
+import { CircleAlertIcon, CircleCheckIcon } from "@/components/icons";
 import { formatCount } from "@/lib/format";
 import { QUICK_REPLY_LIMITS } from "@/lib/schemas";
 import type { SettingsSummary } from "@/hooks/use-settings-summary";

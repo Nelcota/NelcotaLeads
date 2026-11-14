@@ -1,4 +1,4 @@
-import { CircleCheckIcon, CircleMinusIcon } from "lucide-react";
+import { CircleCheckIcon, CircleMinusIcon } from "@/components/icons";
 
 /** "Ligada" / "Desligado": a line icon in its tone and neutral text (the badge standard). */
 export function OnOffStatus({ on, label }: { on: boolean; label: string }) {

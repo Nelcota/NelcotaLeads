@@ -7,6 +7,7 @@ import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import viteReact from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { cloudflare } from "@cloudflare/vite-plugin";
+import { solarIcons } from "./icons.plugin.ts";
 import { experimental_readRawConfig } from "wrangler";
 
 const root = import.meta.dirname;
@@ -76,6 +77,7 @@ export default defineConfig(({ command }) => {
       tailwindcss(),
       tanstackStart(),
       viteReact(),
+      solarIcons(),
     ],
   };
 });

@@ -1,4 +1,4 @@
-import { PlusIcon } from "lucide-react";
+import { PlusIcon } from "@/components/icons";
 import { Avatar } from "@/components/apple-ui";
 import type { Team, TeamMember } from "@/server/team";
 import { InvitePanel } from "./invite-panel";

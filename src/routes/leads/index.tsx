@@ -8,7 +8,7 @@ import {
   PlusIcon,
   SendIcon,
   UserPlusIcon,
-} from "lucide-react";
+} from "@/components/icons";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -379,7 +379,7 @@ function LeadsPage() {
           />
           {readyIds.length > 0 ? (
             <Button variant="ghost" onClick={selectReady}>
-              <ListChecksIcon aria-hidden className="text-blue" strokeWidth={2} />
+              <ListChecksIcon aria-hidden className="text-blue" />
               {selectReadyLabel(readyIds.length)}
             </Button>
           ) : null}

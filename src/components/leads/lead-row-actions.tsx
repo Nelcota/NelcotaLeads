@@ -1,4 +1,10 @@
-import { ArrowRightCircleIcon, CheckIcon, MailIcon, PhoneIcon, Trash2Icon } from "lucide-react";
+import {
+  ArrowRightCircleIcon,
+  CheckIcon,
+  MailIcon,
+  PhoneIcon,
+  Trash2Icon,
+} from "@/components/icons";
 import { WhatsAppMark } from "@/components/brand-marks";
 import { DisabledReason, Hint } from "@/components/apple-ui";
 import { Button } from "@/components/ui/button";
@@ -88,14 +94,14 @@ export function LeadRowActions({
         <Hint label={`Ligar · ${phone}`}>
           <Button asChild variant="ghost" size="icon-sm">
             <a href={`tel:${lead.phoneE164 ?? lead.phone}`} aria-label={`Ligar para ${phone}`}>
-              <PhoneIcon strokeWidth={1.8} />
+              <PhoneIcon />
             </a>
           </Button>
         </Hint>
       ) : (
         <DisabledReason reason="Sem telefone">
           <Button variant="ghost" size="icon-sm" disabled aria-label="Ligar indisponível">
-            <PhoneIcon strokeWidth={1.8} />
+            <PhoneIcon />
           </Button>
         </DisabledReason>
       )}
@@ -109,7 +115,7 @@ export function LeadRowActions({
             aria-label={`Escrever e-mail para ${lead.name}`}
             onClick={() => onWriteEmail(lead.id)}
           >
-            <MailIcon strokeWidth={1.8} />
+            <MailIcon />
           </Button>
         </Hint>
       </DisabledReason>
@@ -123,7 +129,7 @@ export function LeadRowActions({
               aria-label={`Mudar etapa de ${lead.name}`}
               disabled={busy}
             >
-              <ArrowRightCircleIcon strokeWidth={1.8} />
+              <ArrowRightCircleIcon />
             </Button>
           </DropdownMenuTrigger>
         </Hint>

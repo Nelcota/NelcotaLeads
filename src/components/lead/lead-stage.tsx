@@ -1,4 +1,4 @@
-import { CircleXIcon, PencilIcon, RefreshCwIcon } from "lucide-react";
+import { CircleXIcon, PencilIcon, RefreshCwIcon } from "@/components/icons";
 import type { Lead } from "@/db/schema";
 import type { HistoryEvent } from "@/lib/lead-history";
 import { currentStageStep, STAGE_STEPS } from "@/lib/lead-stage";
@@ -29,7 +29,7 @@ export function LeadStage({
       <div className="grid gap-3">
         <StageTrack current={step} lost />
         <p className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
-          <CircleXIcon aria-hidden className="size-3.5 shrink-0 text-red" strokeWidth={1.9} />
+          <CircleXIcon aria-hidden className="size-3.5 shrink-0 text-red" />
           {lostText(step, lead.lossReason)}
         </p>
       </div>
@@ -49,9 +49,9 @@ export function LeadStage({
           className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground"
         >
           {reason.auto ? (
-            <RefreshCwIcon aria-hidden className="size-3.5 shrink-0 text-green" strokeWidth={1.9} />
+            <RefreshCwIcon aria-hidden className="size-3.5 shrink-0 text-green" />
           ) : (
-            <PencilIcon aria-hidden className="size-3.5 shrink-0" strokeWidth={1.9} />
+            <PencilIcon aria-hidden className="size-3.5 shrink-0" />
           )}
           {reason.text}
         </p>

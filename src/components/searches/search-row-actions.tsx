@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { ArrowRightIcon, ClockIcon, RotateCwIcon, Undo2Icon } from "lucide-react";
+import { ArrowRightIcon, ClockIcon, RotateCwIcon, Undo2Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import type { Search } from "@/db/schema";
 import { useDelayedCancel } from "@/hooks/use-delayed-cancel";
