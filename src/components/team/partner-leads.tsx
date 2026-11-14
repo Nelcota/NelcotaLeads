@@ -6,7 +6,7 @@ import { leadStage, nextStep } from "@/lib/lead-row";
 import { usePartnerLeads } from "@/hooks/use-partner-leads";
 import { teamLinks } from "@/lib/team-links";
 
-/** "Em andamento": the partner's open leads, the ones closest to a next step first. */
+/** "Em andamento": the partner's contacted and replied leads, the most urgent first. */
 export function PartnerLeads({
   memberId,
   held,
@@ -23,11 +23,12 @@ export function PartnerLeads({
     <div>
       {rows.length === 0 ? (
         <p className="flex min-h-11 items-center text-base text-muted-foreground">
-          Nenhuma conversa em andamento.
+          Nenhum lead em andamento.
         </p>
       ) : (
         rows.map((lead) => {
-          const step = nextStep(lead, today, now, "talking");
+          // The most urgent step: follow-up day, then the meeting or the last reply, then the send.
+          const step = nextStep(lead, today, now);
           return (
             <Link
               key={lead.id}
@@ -58,7 +59,7 @@ export function PartnerLeads({
         {...teamLinks.held(memberId)}
         className="mt-1 inline-flex min-h-11 items-center gap-1.5 rounded-lg px-1 text-base font-semibold text-blue hover:underline"
       >
-        Ver os {held} leads em Leads
+        Ver os {held} leads
         <ArrowRightIcon aria-hidden className="size-4" />
       </Link>
     </div>

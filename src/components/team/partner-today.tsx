@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import {
   CalendarIcon,
   ChevronRightIcon,
+  CircleCheckIcon,
   CircleAlertIcon,
   MessageCircleIcon,
   RotateCcwIcon,
@@ -15,6 +16,7 @@ const ICONS: Record<TodayKind, IconComponent> = {
   late: CircleAlertIcon,
   waiting: MessageCircleIcon,
   meeting: CalendarIcon,
+  none: CircleCheckIcon,
 };
 
 const TONES: Record<TodayKind, string> = {
@@ -22,6 +24,7 @@ const TONES: Record<TodayKind, string> = {
   late: "text-red",
   waiting: "text-orange",
   meeting: "text-green",
+  none: "text-gray",
 };
 
 const ROW = "-mx-2 flex min-h-11 items-center gap-2.5 rounded-[10px] px-2 text-base";

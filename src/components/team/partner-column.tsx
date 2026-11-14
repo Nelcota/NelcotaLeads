@@ -33,6 +33,7 @@ export function PartnerName({
       type="button"
       onClick={onOpen}
       aria-label={`Abrir perfil de ${member.name}`}
+      data-partner-open={member.id}
       className="group -mx-2 flex min-h-14 w-[calc(100%+16px)] items-center gap-3 rounded-[14px] px-2 text-left outline-none hover:bg-fill-2 focus-visible:bg-fill-2"
     >
       <Avatar neutral name={member.name} src={member.avatar} size={44} />
@@ -86,7 +87,7 @@ export function PartnerColumn({
         <Icon aria-hidden className={cn("size-[15px] shrink-0", tone)} />
         {delta.text}
       </p>
-      <PartnerToday lines={todayLines(member, today)} />
+      <PartnerToday lines={todayLines(member, today, isMe)} />
     </div>
   );
 }

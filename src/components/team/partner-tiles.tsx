@@ -47,11 +47,22 @@ function tilesOf(member: TeamMember): Tile[] {
   ];
 }
 
-/** The profile's six numbers; each opens the matching list, already filtered by the partner. */
-export function PartnerTiles({ member }: { member: TeamMember }) {
+/**
+ * The profile's six numbers; each opens the matching list, already filtered by the partner.
+ * `pipelineOnly` keeps the first four (leads, conversations, meetings, proposals) in two columns,
+ * for a card that already shows deals and revenue as its big number.
+ */
+export function PartnerTiles({
+  member,
+  pipelineOnly = false,
+}: {
+  member: TeamMember;
+  pipelineOnly?: boolean;
+}) {
+  const tiles = pipelineOnly ? tilesOf(member).slice(0, 4) : tilesOf(member);
   return (
-    <div className="grid grid-cols-3 gap-2.5">
-      {tilesOf(member).map((tile) => (
+    <div className={pipelineOnly ? "grid grid-cols-2 gap-2.5" : "grid grid-cols-3 gap-2.5"}>
+      {tiles.map((tile) => (
         <Link
           key={tile.label}
           {...tile.link}
