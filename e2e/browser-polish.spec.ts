@@ -13,13 +13,16 @@ test.describe("browser chrome", () => {
       ["Leads", "Leads · Nelcota Leads"],
       ["Conversas", "Conversas · Nelcota Leads"],
       ["Buscas", "Buscas · Nelcota Leads"],
-      ["Conta", "Conta · Nelcota Leads"],
       ["Configurações", "Configurações · Nelcota Leads"],
     ] as const;
     for (const [link, title] of pages) {
       await page.getByRole("link", { name: link, exact: true }).click();
       await expect(page).toHaveTitle(title);
     }
+    // Conta lives in the menu at the top of the sidebar.
+    await page.getByRole("button", { name: /Nelcota Leads/ }).click();
+    await page.getByRole("menuitem", { name: "Minha conta" }).click();
+    await expect(page).toHaveTitle("Conta · Nelcota Leads");
   });
 
   test("icon buttons show the app tooltip on hover and focus", async ({ page }) => {
