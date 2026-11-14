@@ -22,6 +22,7 @@ function BackLink() {
   return (
     <Link
       to="/settings"
+      search={{ aba: "modelos" }}
       className="inline-flex items-center gap-1 self-start px-1 text-sm font-medium text-blue hover:underline"
     >
       <ChevronLeftIcon className="size-4" />

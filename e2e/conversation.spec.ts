@@ -429,7 +429,7 @@ test.describe("e-mail conversations", () => {
     backend,
   }) => {
     const { id } = await startConversation(page, backend);
-    await visit(page, "/settings");
+    await visit(page, "/settings?aba=modelos");
     await page.getByRole("button", { name: "Adicionar modelo" }).click();
     await page.getByLabel("Nome do modelo 1").fill("Ligação");
     await page.getByLabel("Texto do modelo 1").fill("Posso te ligar amanhã às 10h?");
