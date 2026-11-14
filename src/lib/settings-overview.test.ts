@@ -2,18 +2,27 @@ import { describe, expect, it } from "vitest";
 import { lastDailySearch, leadsBelow, minScoreImpact, nextDailySearch } from "./settings-overview";
 
 const bands = [
-  { band: 0, leads: 2 },
-  { band: 5, leads: 4 },
-  { band: 6, leads: 3 },
-  { band: 20, leads: 1 },
+  { score: 3, leads: 2 },
+  { score: 25, leads: 4 },
+  { score: 30, leads: 3 },
+  { score: 100, leads: 1 },
 ];
 
 describe("leadsBelow", () => {
-  it("counts the bands under the minimum score, never the band it starts", () => {
+  it("counts the leads scoring under the minimum, never the ones at it", () => {
     expect(leadsBelow(bands, 30)).toEqual({ below: 6, total: 10 });
     expect(leadsBelow(bands, 31)).toEqual({ below: 9, total: 10 });
     expect(leadsBelow(bands, 0)).toEqual({ below: 0, total: 10 });
     expect(leadsBelow(bands, 100)).toEqual({ below: 9, total: 10 });
+  });
+
+  it("is exact for a minimum that is not a multiple of 5", () => {
+    const scores = [
+      { score: 17, leads: 1 },
+      { score: 18, leads: 2 },
+      { score: 19, leads: 4 },
+    ];
+    expect(leadsBelow(scores, 18)).toEqual({ below: 1, total: 7 });
   });
 });
 
@@ -22,7 +31,7 @@ describe("minScoreImpact", () => {
     expect(minScoreImpact(bands, 30)).toBe(
       "Com 30, ficariam abaixo da nota 6 de 10 leads analisados.",
     );
-    expect(minScoreImpact([{ band: 1, leads: 1 }], 10)).toBe(
+    expect(minScoreImpact([{ score: 7, leads: 1 }], 10)).toBe(
       "Com 10, ficaria abaixo da nota 1 de 1 lead analisado.",
     );
   });

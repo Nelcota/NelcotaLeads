@@ -10,6 +10,6 @@ export function useAiTab() {
   const state = useAiSettingsForm();
   const { overview } = useSettingsOverview();
   const minScore = Number.isFinite(state.minScore) ? state.minScore : state.defaults.minScore;
-  const impact = overview ? minScoreImpact(overview.scoreBands, minScore) : null;
+  const impact = overview ? minScoreImpact(overview.scoreCounts, minScore) : null;
   return { state, impact, minScore };
 }

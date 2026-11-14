@@ -1,26 +1,23 @@
 import { addDays, dayDiff, formatCount, pluralize } from "./format";
 
-/** Scores are counted in bands of 5 (0–4, 5–9 … 100), the minimum score's step. */
-export const SCORE_BAND_SIZE = 5;
-
 /** The AI answers a conversation at most this many times before handing it to the team. */
 export const AI_REPLY_LIMIT = 3;
 
-/** One band of analyzed leads: `band` × 5 is its lowest score. */
-export type ScoreBand = { band: number; leads: number };
+/** How many analyzed leads got one score. */
+export type ScoreCount = { score: number; leads: number };
 
-/** Analyzed leads scoring below `minScore`, and all analyzed leads. */
-export function leadsBelow(bands: readonly ScoreBand[], minScore: number) {
-  const total = bands.reduce((sum, row) => sum + row.leads, 0);
-  const below = bands
-    .filter((row) => row.band * SCORE_BAND_SIZE < minScore)
+/** Analyzed leads scoring below `minScore` (the rule triage uses), and all analyzed leads. */
+export function leadsBelow(scores: readonly ScoreCount[], minScore: number) {
+  const total = scores.reduce((sum, row) => sum + row.leads, 0);
+  const below = scores
+    .filter((row) => row.score < minScore)
     .reduce((sum, row) => sum + row.leads, 0);
   return { below, total };
 }
 
 /** "Com 30, ficariam abaixo da nota 18 de 142 leads analisados." under the minimum score. */
-export function minScoreImpact(bands: readonly ScoreBand[], minScore: number): string {
-  const { below, total } = leadsBelow(bands, minScore);
+export function minScoreImpact(scores: readonly ScoreCount[], minScore: number): string {
+  const { below, total } = leadsBelow(scores, minScore);
   if (total === 0) return "Ainda não há leads analisados para comparar.";
   const of = pluralize(total, "lead analisado", "leads analisados");
   if (below === 0) return `Com ${minScore}, nenhum de ${of} ficaria abaixo da nota.`;

@@ -1,7 +1,7 @@
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { getSettingsOverview } from "@/server/settings-overview";
 
-/** Configurações' read-only extras: AI spend this month, score bands, unsubscribed leads. */
+/** Configurações' read-only extras: AI spend this month, leads per score, unsubscribed leads. */
 export const settingsOverviewQuery = queryOptions({
   queryKey: ["settings-overview"],
   queryFn: () => getSettingsOverview(),

@@ -352,6 +352,7 @@ function UsageMeter() {
       ) : (
         <Link
           to="/settings"
+          search={{ aba: "email" }}
           hash="email"
           className="flex items-center gap-2 text-sm font-semibold text-foreground"
         >

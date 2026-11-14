@@ -1,10 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
-import { count, desc, isNotNull, sql } from "drizzle-orm";
+import { count, desc, isNotNull } from "drizzle-orm";
 import { getDb, type Db } from "@/db/client";
 import { leads } from "@/db/schema";
 import { localDay } from "@/lib/format";
 import { monthOf, monthRange } from "@/lib/goal";
-import { SCORE_BAND_SIZE } from "@/lib/settings-overview";
 import { aiCostBetween } from "./metrics-store";
 import { loadAutopilot } from "./settings-store";
 
@@ -13,18 +12,20 @@ export const UNSUBSCRIBED_SHOWN = 5;
 
 /**
  * What the Configurações tabs read beyond the settings themselves, all read-only: the month's AI
- * spend, how the analyzed leads spread over the score (to show what a minimum score would
+ * spend, how many analyzed leads got each score (to show what a minimum score would
  * discard) and the latest unsubscribed leads.
  */
 export async function loadSettingsOverview(db: Db, now: Date) {
   const today = localDay(now);
   const month = monthRange(monthOf(today));
-  // The bound size arrives as a real number, so the division is cast back to whole bands.
-  const band = sql<number>`cast(${leads.score} / ${SCORE_BAND_SIZE} as integer)`.mapWith(Number);
-  const [aiMonthUsd, autopilot, bands, latest, unsubscribed] = await Promise.all([
+  const [aiMonthUsd, autopilot, scores, latest, unsubscribed] = await Promise.all([
     aiCostBetween(db, { fromDay: month.fromDay, toDay: today }),
     loadAutopilot(db),
-    db.select({ band, leads: count() }).from(leads).where(isNotNull(leads.score)).groupBy(band),
+    db
+      .select({ score: leads.score, leads: count() })
+      .from(leads)
+      .where(isNotNull(leads.score))
+      .groupBy(leads.score),
     db
       .select({
         id: leads.id,
@@ -42,7 +43,9 @@ export async function loadSettingsOverview(db: Db, now: Date) {
     aiMonthUsd,
     // Brazil day of the last daily search, for "Última" and "Próxima" in Automação.
     dailySearchLastRunOn: autopilot.lastRunOn,
-    scoreBands: bands,
+    scoreCounts: scores.flatMap((row) =>
+      row.score === null ? [] : [{ score: row.score, leads: row.leads }],
+    ),
     unsubscribed: {
       latest: latest.flatMap((row) =>
         row.unsubscribedAt ? [{ ...row, unsubscribedAt: row.unsubscribedAt }] : [],
