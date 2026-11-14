@@ -398,14 +398,13 @@ select:-webkit-autofill {
     border: 1px solid rgb(0 0 0 / 0.07);
     background: var(--card);
   }
+  /* Dark keeps the --card token (#232327): a near-background shade (#1c1c1f on #1b1b1e) vanishes. */
   .dark .settings-tile {
-    border-color: rgb(255 255 255 / 0.07);
-    background: #1c1c1f;
+    border-color: rgb(255 255 255 / 0.08);
   }
   .dark .settings-card {
     --settings-hair: rgb(255 255 255 / 0.06);
-    border-color: rgb(255 255 255 / 0.07);
-    background: #1c1c1f;
+    border-color: rgb(255 255 255 / 0.08);
   }
   .settings-card .settings-row + .settings-row,
   .settings-card .settings-row + div > .settings-row,
